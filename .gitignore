@@ -1,0 +1,16 @@
+# Ignore virtual environments
+venv/
+.env/
+dino
+dino/
+.dino/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
