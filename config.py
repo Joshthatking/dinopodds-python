@@ -1,8 +1,8 @@
-
+import os
+import pygame
 #######################
 #### Configurations ###
 #######################
-
 
 #COLORS
 BLACK = (0,0,0)
@@ -23,3 +23,18 @@ PLAYER_SPEED = 2
 #WORLD
 TILE_SIZE = 32
 
+
+
+
+
+
+##############
+### TILES ####
+##############
+
+tile_images = {
+    "G": pygame.image.load(os.path.join("assets/MapAssets", "grassa.png")),
+    "V": pygame.image.load(os.path.join("assets/MapAssets", "grass4.png")),
+    "W": pygame.image.load(os.path.join("assets/MapAssets", "water1.png")),
+    "T": pygame.image.load(os.path.join("assets/MapAssets", "tree1.png")),
+}

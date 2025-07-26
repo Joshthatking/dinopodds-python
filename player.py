@@ -27,13 +27,29 @@ class Player(pygame.sprite.Sprite):
         self.rect.center = (config.WIDTH //2, config.HEIGHT //2) #places sprite in center of screen
         self.speed = config.PLAYER_SPEED
 
-    def update(self,keys):
+    def update(self,keys,game):
+        new_x, new_y = self.rect.x, self.rect.y
+        speed = self.speed
+
+        map_data = game.world_map
+
         if keys[pygame.K_a]:
-            self.rect.x -= self.speed
+            new_x -= speed
         elif keys[pygame.K_d]:
-            self.rect.x += self.speed
+            new_x += speed
         elif keys[pygame.K_w]:
-            self.rect.y -= self.speed
+            new_y -= speed
         elif keys[pygame.K_s]:
-            self.rect.y += self.speed
-        
+            new_y += speed
+
+         # Calculate which tile the player's center would move to
+        tile_x = (new_x + self.rect.width // 2) // config.TILE_SIZE
+        tile_y = (new_y + self.rect.height // 2) // config.TILE_SIZE
+
+        # Check bounds
+        if 0 <= tile_x < len(map_data[0]) and 0 <= tile_y < len(map_data):
+            blocked_tiles = ["W", "T"]  # Tiles player cannot walk on
+            if map_data[tile_y][tile_x] not in blocked_tiles:
+                self.rect.x = new_x
+                self.rect.y = new_y
+            
