@@ -21,7 +21,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         #load player asset
-        player_frontpng = os.path.join('assets', 'front1.png')
+        player_frontpng = os.path.join('assets', 'Jet_Front.png')
         self.image = pygame.image.load(player_frontpng).convert_alpha() # keeps transparency
         self.rect = self.image.get_rect()
         self.rect.center = (config.WIDTH //2, config.HEIGHT //2) #places sprite in center of screen
