@@ -15,7 +15,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
 
-        self.player = Player()
+        self.player = Player(spawn_point='home')
         self.all_sprites = pygame.sprite.Group() #all active sprites
         self.all_sprites.add(self.player)
 

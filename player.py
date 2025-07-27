@@ -8,7 +8,7 @@ import os
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, spawn_point = 'home'):
         super().__init__()
         #load player asset
         # player_frontpng = os.path.join('assets', 'Jet_Front.png') #v1 single idle frame
@@ -24,8 +24,18 @@ class Player(pygame.sprite.Sprite):
         self.direction = 'down'
         self.image = self.animations[self.direction][0]
         # self.image = pygame.image.load(player_frontpng).convert_alpha() # keeps transparency v1
-        self.rect = self.image.get_rect()
-        self.rect.center = (config.WIDTH //2, config.HEIGHT //2) #places sprite in center of screen
+        self.rect = self.image.get_rect() #player hitbox 32x32
+
+        #Spawn Player
+        col,row = config.SPAWN_POINTS.get(spawn_point,(0,0))
+        self.spawn_on_tile(col,row)
+        # self.rect = pygame.Rect(0,0,30,30) # for 32x32 sprite shrunken hitbox
+
+        # start_col = config.WIDTH // 2 // config.TILE_SIZE
+        # start_row = config.WIDTH // 2 // config.TILE_SIZE
+        # self.rect.topleft = (start_col*config.TILE_SIZE, start_row* config.TILE_SIZE)
+
+        # self.rect.center = (config.WIDTH //2, config.HEIGHT //2) #places sprite in center of screen 
 
         #Movement
         self.tile_size = config.TILE_SIZE
@@ -38,6 +48,9 @@ class Player(pygame.sprite.Sprite):
         self.anim_index = 0
         self.anim_timer = 0
         self.anim_speed = .2 # how fast frames change #.2 with speed of 2 seems perfect
+    
+    def spawn_on_tile(self,col,row):
+        self.rect.topleft = (col* config.TILE_SIZE, row* config.TILE_SIZE)
 
 
     def update(self, keys, game):#,dt):
@@ -115,3 +128,12 @@ class Player(pygame.sprite.Sprite):
                 self.anim_index = 1
                 self.anim_timer = 0
                 self.image = self.animations[self.direction][self.anim_index]
+
+
+
+
+                  # CHANGE SPAWN LOGIC FOR LATER
+                # def change_spawn(self, spawn_point): 
+                #     col, row = config.SPAWN_POINTS.get(spawn_point, (0, 0))
+                #     self.spawn_on_tile(col, row)
+                #     self.moving = False  # Reset movement if you want

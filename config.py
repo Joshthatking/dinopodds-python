@@ -35,3 +35,10 @@ tile_images = {
     "W": pygame.image.load(os.path.join("assets/MapAssets", "water1.png")),
     "T": pygame.image.load(os.path.join("assets/MapAssets", "tree1.png")),
 }
+
+
+#### SPAWN POINTS
+
+SPAWN_POINTS = {
+    'home': (5,8)
+}
