@@ -11,8 +11,8 @@ RED = (255,0,0)
 
 
 # SCREEN
-WIDTH = 640
-HEIGHT = 480
+WIDTH = 640 #480
+HEIGHT = 480 #320
 FPS = 60
 
 #WORLD
@@ -33,12 +33,13 @@ tile_images = {
     "G": pygame.image.load(os.path.join("assets/MapAssets", "grassa.png")),
     "V": pygame.image.load(os.path.join("assets/MapAssets", "grass4.png")),
     "W": pygame.image.load(os.path.join("assets/MapAssets", "water1.png")),
-    "T": pygame.image.load(os.path.join("assets/MapAssets", "tree1.png")),
+    "t": pygame.image.load(os.path.join("assets/MapAssets", "tree1.png")),
+    "T": pygame.image.load(os.path.join("assets/MapAssets", "tree2.png")),
 }
 
 
 #### SPAWN POINTS
 
 SPAWN_POINTS = {
-    'home': (5,8)
+    'home': (10,25)
 }

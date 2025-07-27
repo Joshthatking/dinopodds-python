@@ -5,7 +5,7 @@ import pygame
 import config
 from player import Player
 import os 
-
+import csv
 
 class Game:
     def __init__(self):
@@ -26,24 +26,33 @@ class Game:
 
         #-Start Town  640/480 needs 20/15
         # 20 columns x 15 rows
-        self.world_map = [
-        list("GGGGGGGGGGGGGGGGGGGG"),
-        list("GGGGGGGGGGGGGGGGGGGG"),
-        list("GGWWWWGGGGGWWWWWWGGT"),
-        list("GWWWWWGGGGGGGGWWWGTT"),
-        list("GGWWWWGGGGGWWWWWWGGT"),
-        list("GGGGGGGGGGGGGGGGGGGT"),
-        list("GGGGGGGGGGGGGGGGGGGT"),
-        list("GGGGTTGGGGGGTTGGGGGT"),
-        list("GGGGGGGGGGGGGGGGGGGT"),
-        list("GGGGGGGGGGGGGGGGGGGT"),
-        list("GGWWWWGGGWWWWWWWGGGT"),
-        list("GGWWWWGGGGGGGGGGGGGT"),
-        list("GGGWWWGGGGGGGGGGGGGT"),
-        list("GGGGGGGGGGGGGGGGGGGT"),
-        list("GGGGGGGGGGGGGGGGGGGT"),
-        ]
+        # CSV MAP
+        self.world_map = self.load_csv_map('MAP_DINO.csv')
 
+
+        # self.world_map = [
+        # list("GGGGGGGGGGGGGGGGGGGG"),
+        # list("GGGGGGGGGGGGGGGGGGGG"),
+        # list("GGWWWWGGGGGWWWWWWGGT"),
+        # list("GWWWWWGGGGGGGGWWWGTT"),
+        # list("GGWWWWGGGGGWWWWWWGGT"),
+        # list("GGGGGGGGGGGGGGGGGGGT"),
+        # list("GGGGGGGGGGGGGGGGGGGT"),
+        # list("GGGGTTGGGGGGTTGGGGGT"),
+        # list("GGGGGGGGGGGGGGGGGGGT"),
+        # list("GGGGGGGGGGGGGGGGGGGT"),
+        # list("GGWWWWGGGWWWWWWWGGGT"),
+        # list("GGWWWWGGGGGGGGGGGGGT"),
+        # list("GGGWWWGGGGGGGGGGGGGT"),
+        # list("GGGGGGGGGGGGGGGGGGGT"),
+        # list("GGGGGGGGGGGGGGGGGGGT"),
+        # ]
+
+    def load_csv_map(self, filename):
+        path = os.path.join('assets/MapAssets', filename)
+        with open(path, newline='', encoding='utf-8-sig') as csvfile:
+            reader = csv.reader(csvfile)
+            return [[cell.strip() if cell.strip() else 'T' for cell in row] for row in reader]  # Replace blanks with 'G'
 
 
     def run(self):
