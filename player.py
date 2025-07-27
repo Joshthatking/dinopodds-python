@@ -32,45 +32,58 @@ class Player(pygame.sprite.Sprite):
         self.moving = False
         self.target_x = self.rect.x
         self.target_y = self.rect.y
-        self.move_speed = 1
+        self.move_speed = 2 #speed 2 with anim speed of .2 works well
 
         #Animation
         self.anim_index = 0
         self.anim_timer = 0
-        self.anim_speed = .1 # how fast frames change
+        self.anim_speed = .2 # how fast frames change #.2 with speed of 2 seems perfect
 
 
-    def update(self,keys,game):
+    def update(self, keys, game):#,dt):
         map_data = game.world_map
+        # self.move_speed = 64 # 128px/sec (crosses a 32px tile in .25s)
+
+        # If moving, continue sliding toward target
         if self.moving:
-            # Move X
+            # Move toward target w/ speed
             if self.rect.x < self.target_x:
-                self.rect.x = min(self.rect.x + self.move_speed, self.target_x)
+                self.rect.x = min(self.rect.x + self.move_speed  , self.target_x)
             elif self.rect.x > self.target_x:
-                self.rect.x = max(self.rect.x - self.move_speed, self.target_x)
-            # Move Y
+                self.rect.x = max(self.rect.x - self.move_speed , self.target_x)
             if self.rect.y < self.target_y:
-                self.rect.y = min(self.rect.y + self.move_speed, self.target_y)
+                self.rect.y = min(self.rect.y + self.move_speed , self.target_y)
             elif self.rect.y > self.target_y:
-                self.rect.y = max(self.rect.y - self.move_speed, self.target_y)
+                self.rect.y = max(self.rect.y - self.move_speed , self.target_y)
 
-
-
-            # Animate (cycle frames)
+            # Animate walk
             self.anim_timer += self.anim_speed
             if self.anim_timer >= 1:
                 self.anim_timer = 0
                 self.anim_index = (self.anim_index + 1) % 4
             self.image = self.animations[self.direction][self.anim_index]
-    
-            # Stop moving when we reach target
+
+            # Stop when we reach the tile
             if self.rect.x == self.target_x and self.rect.y == self.target_y:
+            # if abs(self.rect.x - self.target_x) < 0.5 and abs(self.rect.y - self.target_y) < 0.5:
+            #     self.rect.x = self.target_x
+            #     self.rect.y = self.target_y
+            #     self.moving = False
                 self.moving = False
                 self.anim_index = 0
                 self.image = self.animations[self.direction][0]
-            return
-    
-        # If not moving, check input
+            return  # Don’t take new input until we finish moving
+        
+
+                #dt method
+        # if self.moving:
+        #     return  # Don't take new input until done moving
+
+
+
+
+
+        # If NOT moving, check for key press
         new_x, new_y = self.rect.x, self.rect.y
         if keys[pygame.K_a]:
             new_x -= self.tile_size
@@ -85,18 +98,20 @@ class Player(pygame.sprite.Sprite):
             new_y += self.tile_size
             self.direction = 'down'
         else:
-            return
+            return  # no input
 
-
-        # Calculate new tile
+        # Check collision
         tile_x = (new_x + self.rect.width // 2) // self.tile_size
         tile_y = (new_y + self.rect.height // 2) // self.tile_size
-
-        # Check bounds & collision
         blocked_tiles = ["W", "T"]
         if 0 <= tile_x < len(map_data[0]) and 0 <= tile_y < len(map_data):
             if map_data[tile_y][tile_x] not in blocked_tiles:
-                # Set new target tile and begin movement
+                # Set target and start moving
                 self.target_x = new_x
                 self.target_y = new_y
                 self.moving = True
+
+                # Jump immediately to walking frame
+                self.anim_index = 1
+                self.anim_timer = 0
+                self.image = self.animations[self.direction][self.anim_index]

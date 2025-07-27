@@ -48,10 +48,10 @@ class Game:
 
     def run(self):
         while self.running:
-            # self.clock.tick(config.FPS)
-            dt = self.clock.tick() / 1000
+            self.clock.tick(config.FPS)
+            # dt = self.clock.tick() / 1000.0 #delta time in seconds
             self.events()
-            self.update()
+            self.update()#dt)
             self.draw()
     
     def events(self):
@@ -59,9 +59,9 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
     
-    def update(self):
+    def update(self):#,dt):
         keys = pygame.key.get_pressed()
-        self.all_sprites.update(keys,self)
+        self.all_sprites.update(keys,self)#,dt)
 
         # #camera logic v1
         # self.camera_x = self.player.rect.centerx - config.WIDTH // 2
