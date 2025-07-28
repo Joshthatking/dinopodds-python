@@ -119,7 +119,7 @@ class Game:
         elif self.state == 'encounter':
             # Draw encounter background and animal directly to screen
             self.screen.blit(self.encounter_bg, (0, 0))
-            self.screen.blit(self.encounter_dino, (100, 100))  # position animal
+            self.screen.blit(self.encounter_dino, (430, 90))  # position dino encounter
 
         # Flip display in all cases
         pygame.display.flip()

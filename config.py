@@ -11,8 +11,8 @@ RED = (255,0,0)
 
 
 # SCREEN
-WIDTH = 640 #480
-HEIGHT = 480 #320
+WIDTH = 640 
+HEIGHT = 480 
 FPS = 60
 
 #WORLD
@@ -58,5 +58,5 @@ tile_images = {
 #### SPAWN POINTS
 
 SPAWN_POINTS = {
-    'home': (10,25)
+    'home': (9,5)
 }
