@@ -5,6 +5,7 @@
 import pygame
 import config
 import os
+import random
 
 
 class Player(pygame.sprite.Sprite):
@@ -74,12 +75,15 @@ class Player(pygame.sprite.Sprite):
 
 
     def update(self, keys, game):#,dt):
+        if game.state != 'world':
+            return
         map_data = game.world_map
         # self.move_speed = 64 # 128px/sec (crosses a 32px tile in .25s)
 
         # If moving, continue sliding toward target
         if self.moving:
             # Move toward target w/ speed
+
             if self.rect.x < self.target_x:
                 self.rect.x = min(self.rect.x + self.move_speed  , self.target_x)
             elif self.rect.x > self.target_x:
@@ -109,35 +113,43 @@ class Player(pygame.sprite.Sprite):
         
 
                 #dt method
-        # if self.moving:
-        #     return  # Don't take new input until done moving
-
-
-
-
+        if self.moving:
+            return  # Don't take new input until done moving
 
         # If NOT moving, check for key press
         new_x, new_y = self.rect.x, self.rect.y
+        input_detected = False
+
+        # First update facing/direction regardless
         if keys[pygame.K_a]:
-            new_x -= self.tile_size
+            self.facing = 'left'
             self.direction = 'left'
+            new_x -= self.tile_size #left one tile
+            input_detected = True
         elif keys[pygame.K_d]:
-            new_x += self.tile_size
+            self.facing = 'right'
             self.direction = 'right'
+            new_x += self.tile_size
+            input_detected = True
         elif keys[pygame.K_w]:
-            new_y -= self.tile_size
+            self.facing = 'up'
             self.direction = 'up'
+            new_y -= self.tile_size
+            input_detected = True
         elif keys[pygame.K_s]:
-            new_y += self.tile_size
+            self.facing = 'down'
             self.direction = 'down'
-        else:
+            new_y += self.tile_size
+            input_detected = True
+
+        if not input_detected:
             return  # no input
 
         # Check collision
         tile_x = (new_x + self.rect.width // 2) // self.tile_size
         tile_y = (new_y + self.rect.height // 2) // self.tile_size
-        blocked_tiles = ["W", "T"]
-        if 0 <= tile_x < len(map_data[0]) and 0 <= tile_y < len(map_data):
+        blocked_tiles = ["W", "T", "t"]
+        if 0 <= tile_x < len(map_data[0]) and 0 <= tile_y < len(map_data): #if the tile is on the map
             if map_data[tile_y][tile_x] not in blocked_tiles:
                 # Set target and start moving
                 self.target_x = new_x
@@ -148,6 +160,31 @@ class Player(pygame.sprite.Sprite):
                 self.anim_index = 1
                 self.anim_timer = 0
                 self.image = self.animations[self.direction][self.anim_index]
+            
+
+            #Direction Facing Collision Logic
+            else:
+                # Blocked tile: no movement but keep facing updated
+                self.moving = False
+                self.anim_index = 0
+                self.image = self.animations[self.direction][0]
+        else:
+            # Out of bounds: no movement but keep facing updated
+            self.moving = False
+            self.anim_index = 0
+            self.image = self.animations[self.direction][0]
+        
+        # --- NEW: Check for random encounter ---
+        if game.state == "world":  # Only trigger if in world state
+            tile_x = self.rect.x // config.TILE_SIZE
+            tile_y = self.rect.y // config.TILE_SIZE
+            # Make sure the tile is within the map before using it
+        if 0 <= tile_y < len(game.world_map) and 0 <= tile_x < len(game.world_map[0]):
+            current_tile = game.world_map[tile_y][tile_x]
+            if current_tile == 'g':  # Grass tile
+                if random.random() < .15:  # 15% chance
+                    game.trigger_encounter()
+    # ---------------------------------------
 
 
 

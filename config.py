@@ -21,7 +21,11 @@ TILE_SIZE = 32
 # PLAYER
 PLAYER_SPEED = TILE_SIZE
 
-
+#image processor
+# def load_image(path, alpha=False):
+#     """Load an image with optional alpha support."""
+#     image = pygame.image.load(path)
+#     return image.convert_alpha() if alpha else image.convert()
 
 
 
@@ -37,6 +41,13 @@ tile_images = {
     "T": pygame.image.load(os.path.join("assets/MapAssets", "tree2.png")),
     "g": pygame.image.load(os.path.join('assets/MapAssets', 'grass_spawn.png')),
 }
+
+# DINOS_PATH = os.path.join('assets/DINOS')
+
+# DINOS = {
+#     'vusion': load_image(os.path.join(DINOS_PATH, 'Vusion_V31_Idle.png'),alpha = True),
+# }
+
 
 #spawn blocks/grass/snow
 # overlay_tiles = {

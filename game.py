@@ -31,7 +31,19 @@ class Game:
         # CSV MAP
         self.world_map = self.load_csv_map('MAP_DINO.csv')
 
+        #Set state of Player
+        self.state = 'world' # will add encounter/battle/teleport/fly
+        self.encounter_bg = pygame.image.load(os.path.join('assets/MapAssets/Grass_Encounter.png')).convert() # encounter screen
+        self.encounter_dino = pygame.image.load(os.path.join('assets/Vusion/Vusion_V31_Idle.png')).convert_alpha() # encounter dino, change logic to loop through dinos in different areas
+
+
         #Overlay Tiles
+
+    #Encounter Event
+    def trigger_encounter(self):
+        self.state = "encounter"
+    # Player stays exactly where they are (don’t clear anything)
+    # Optional: play a sound or animation
 
 
     def load_csv_map(self, filename):
@@ -59,6 +71,9 @@ class Game:
                     self.set_zoom(self.zoom + .5)
                 elif event.key == pygame.K_MINUS:  # Zoom out
                     self.set_zoom(self.zoom - .5)
+            #state of game event
+            if self.state == 'encounter' and event.type == pygame.KEYDOWN:
+                self.state = 'world'
     
     def update(self):#,dt):
         keys = pygame.key.get_pressed()
@@ -85,27 +100,30 @@ class Game:
 
 ##### Draw Method
     def draw(self):
-        # 1. Clear the smaller render surface
-        self.render_surface.fill(config.BLACK)
+        if self.state == 'world':
+            # 1. Clear the smaller render surface
+            self.render_surface.fill(config.BLACK)
 
-        # 2. Draw the map on the smaller surface
-        self.draw_map(surface=self.render_surface)
+            # 2. Draw the map on the smaller surface
+            self.draw_map(surface=self.render_surface)
 
-        # 3. Draw all sprites adjusted for camera
-        for sprite in self.all_sprites:
-            self.render_surface.blit(sprite.image, (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
-            # self.player.draw(self.render_surface, self.camera_x, self.camera_y) # new logic for overlay tiles
+            # 3. Draw all sprites adjusted for camera
+            for sprite in self.all_sprites:
+                self.render_surface.blit(sprite.image, (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
+                # self.player.draw(self.render_surface, self.camera_x, self.camera_y)
 
-        
-        #3.5 Overlay Tiles
-        # self.draw_overlays(self.render_surface) #draw overlays on top
+            # 4. Scale up to the main screen for zoom
+            scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
+            self.screen.blit(scaled_surface, (0, 0))
 
-        # 4. Scale up to the main screen for zoom
-        scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
-        self.screen.blit(scaled_surface, (0, 0))
+        elif self.state == 'encounter':
+            # Draw encounter background and animal directly to screen
+            self.screen.blit(self.encounter_bg, (0, 0))
+            self.screen.blit(self.encounter_dino, (100, 100))  # position animal
 
-    # 5. Flip display
+        # Flip display in all cases
         pygame.display.flip()
+
     
     def draw_map(self, surface):
         for index, row in enumerate(self.world_map):
