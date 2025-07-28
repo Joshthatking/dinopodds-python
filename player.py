@@ -48,7 +48,27 @@ class Player(pygame.sprite.Sprite):
         self.anim_index = 0
         self.anim_timer = 0
         self.anim_speed = .2 # how fast frames change #.2 with speed of 2 seems perfect
-    
+
+
+        # #Overlay Player Logic
+        # w, h = self.image.get_size()
+        # # Create semi-transparent bottom half copy
+        # self.image_overlay = self.image.copy()
+        # bottom_rect = pygame.Rect(0, h//2, w, h//2)
+        # transparent_surf = pygame.Surface((w, h//2), pygame.SRCALPHA)
+        # transparent_surf.fill((255, 255, 255, 128))  # 50% opacity
+        # self.image_overlay.blit(transparent_surf, bottom_rect.topleft, special_flags=pygame.BLEND_RGBA_MULT)
+        # self.in_overlay_tile = False
+
+    # # Player Draw Method for overlay tiles and regular tiles
+    # def draw(self, surface, camera_x, camera_y):
+    #     pos = (self.rect.x - camera_x, self.rect.y - camera_y)
+    #     if self.in_overlay_tile:
+    #         surface.blit(self.image_overlay, pos)
+    #     else:
+    #         surface.blit(self.image, pos)
+
+    #Player Spawn Tile Logic to be directly lined up in 32x32 tile
     def spawn_on_tile(self,col,row):
         self.rect.topleft = (col* config.TILE_SIZE, row* config.TILE_SIZE)
 
@@ -137,3 +157,16 @@ class Player(pygame.sprite.Sprite):
                 #     col, row = config.SPAWN_POINTS.get(spawn_point, (0, 0))
                 #     self.spawn_on_tile(col, row)
                 #     self.moving = False  # Reset movement if you want
+        
+        
+        # # OVERLAY Player Walking Logic
+        # foot_x = self.rect.centerx + game.camera_x
+        # foot_y = self.rect.bottom - 1 + game.camera_y
+        # tile_x = int(foot_x // config.TILE_SIZE)
+        # tile_y = int(foot_y // config.TILE_SIZE)
+
+        # self.in_overlay_tile = False
+        # if 0 <= tile_y < len(game.world_map) and 0 <= tile_x < len(game.world_map[0]):
+        #     current_tile = game.world_map[tile_y][tile_x]
+        #     if current_tile in config.overlay_tiles:
+        #         self.in_overlay_tile = True

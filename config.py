@@ -31,11 +31,17 @@ PLAYER_SPEED = TILE_SIZE
 
 tile_images = {
     "G": pygame.image.load(os.path.join("assets/MapAssets", "grassa.png")),
-    "V": pygame.image.load(os.path.join("assets/MapAssets", "grass4.png")),
+    "g": pygame.image.load(os.path.join("assets/MapAssets", "grass_spawn.png")),
     "W": pygame.image.load(os.path.join("assets/MapAssets", "water1.png")),
     "t": pygame.image.load(os.path.join("assets/MapAssets", "tree1.png")),
     "T": pygame.image.load(os.path.join("assets/MapAssets", "tree2.png")),
+    "g": pygame.image.load(os.path.join('assets/MapAssets', 'grass_spawn.png')),
 }
+
+#spawn blocks/grass/snow
+# overlay_tiles = {
+#     "g": pygame.image.load(os.path.join('assets/MapAssets', 'grass_spawn.png')),
+# }
 
 
 #### SPAWN POINTS
