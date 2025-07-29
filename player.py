@@ -109,6 +109,20 @@ class Player(pygame.sprite.Sprite):
                 self.moving = False
                 self.anim_index = 0
                 self.image = self.animations[self.direction][0]
+                
+                #Encounter after finishing tile 
+                if game.state == 'world':
+                    tile_x = (self.rect.centerx) // self.tile_size
+                    tile_y = (self.rect.centery) // self.tile_size
+                    if 0 <= tile_y < len(game.world_map) and 0 <= tile_x < len(game.world_map[0]):
+                        current_tile = game.world_map[tile_y][tile_x]
+                        if current_tile == 'g':  # grass tile
+                            import random
+                            if random.random() < 0.15:  # 15% chance
+                                game.trigger_encounter()
+
+
+
             return  # Don’t take new input until we finish moving
         
 
@@ -175,15 +189,15 @@ class Player(pygame.sprite.Sprite):
             self.image = self.animations[self.direction][0]
         
         # --- NEW: Check for random encounter ---
-        if game.state == "world":  # Only trigger if in world state
-            tile_x = self.rect.x // config.TILE_SIZE
-            tile_y = self.rect.y // config.TILE_SIZE
-            # Make sure the tile is within the map before using it
-        if 0 <= tile_y < len(game.world_map) and 0 <= tile_x < len(game.world_map[0]):
-            current_tile = game.world_map[tile_y][tile_x]
-            if current_tile == 'g':  # Grass tile
-                if random.random() < .15:  # 15% chance
-                    game.trigger_encounter()
+        # if game.state == "world":  # Only trigger if in world state
+        #     tile_x = self.rect.x // config.TILE_SIZE
+        #     tile_y = self.rect.y // config.TILE_SIZE
+        #     # Make sure the tile is within the map before using it
+        # if 0 <= tile_y < len(game.world_map) and 0 <= tile_x < len(game.world_map[0]):
+        #     current_tile = game.world_map[tile_y][tile_x]
+        #     if current_tile == 'g':  # Grass tile
+        #         if random.random() < .15:  # 15% chance
+        #             game.trigger_encounter()
     # ---------------------------------------
 
 

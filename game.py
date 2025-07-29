@@ -2,10 +2,27 @@
 ### Game ###
 ############
 import pygame
-import config
 from player import Player
 import os 
 import csv
+import config
+
+# image processor
+def load_image(path, alpha=False):
+    """Load an image with optional alpha support."""
+    image = pygame.image.load(path)
+    return image.convert_alpha() if alpha else image.convert()
+
+    #Encounter class
+class Encounter:
+    def __init__(self, dino_key):
+        self.bg = load_image(config.ENCOUNTER_BG_PATH)  # No alpha
+        self.dino = load_image(config.ENCOUNTER_DINOS_PATHS[dino_key], alpha=True)
+        self.dino_pos = (380, 10)
+    def draw(self, screen):
+        screen.blit(self.bg, (0, 0))
+        screen.blit(self.dino, self.dino_pos)
+
 
 class Game:
     def __init__(self):
@@ -14,6 +31,13 @@ class Game:
         pygame.display.set_caption('DinoPodds')
         self.clock = pygame.time.Clock()
         self.running = True
+
+        # Now load surfaces safely from config.py
+        self.tile_images = {key: load_image(path, alpha=True) for key, path in config.TILE_PATHS.items()}
+        # self.encounter_bg = load_image(config.ENCOUNTER_BG_PATH)
+        # self.encounter_dino = load_image(config.ENCOUNTER_DINOS_PATHS['vusion'], alpha=True)
+
+        self.encounter = None
 
         self.player = Player(spawn_point='home')
         self.all_sprites = pygame.sprite.Group() #all active sprites
@@ -33,15 +57,29 @@ class Game:
 
         #Set state of Player
         self.state = 'world' # will add encounter/battle/teleport/fly
-        self.encounter_bg = pygame.image.load(os.path.join('assets/MapAssets/Grass_Encounter.png')).convert() # encounter screen
-        self.encounter_dino = pygame.image.load(os.path.join('assets/Vusion/Vusion_V31_Idle.png')).convert_alpha() # encounter dino, change logic to loop through dinos in different areas
+        #For encounter Transition
+        self.fade_alpha = 0
+        self.fading = False
 
 
-        #Overlay Tiles
+        #MENU
+        self.menu = Menu(self)
+        # party of dinos and items held
+        self.party = []
+        self.items = []
+
+
+        # self.encounter_bg = pygame.image.load(os.path.join('assets/MapAssets/Grass_Encounter.png')).convert() # encounter screen
+        # self.encounter_dino = config.DINOS['vusion'] # encounter dino, change logic to loop through dinos in different areas
+        #self.encounter_dino = random.choice(list(config.encounter_dinos.values())) # for random list of dinos
+
 
     #Encounter Event
-    def trigger_encounter(self):
-        self.state = "encounter"
+    def trigger_encounter(self,dino_key='vusion'):
+        self.fading = True
+        self.fade_alpha = 0
+        self.encounter = Encounter(dino_key)
+        # self.state = "encounter"
     # Player stays exactly where they are (don’t clear anything)
     # Optional: play a sound or animation
 
@@ -77,9 +115,15 @@ class Game:
     
     def update(self):#,dt):
         keys = pygame.key.get_pressed()
-        self.all_sprites.update(keys,self)#,dt)
-        self.update_camera() #keeps camera locked on player
-        
+        if self.state == 'world' and not self.fading:
+            self.all_sprites.update(keys,self)#,dt)
+            self.update_camera() #keeps camera locked on player
+        elif self.fading:
+            self.fade_alpha +=10 #adjust speed transition
+            if self.fade_alpha >= 255:
+                self.fade_alpha = 255
+                self.fading = False
+                self.state = 'encounter'
 
         # Desired camera target (keep player near center) v2
         target_x = self.player.rect.centerx - config.WIDTH // 2
@@ -118,8 +162,12 @@ class Game:
 
         elif self.state == 'encounter':
             # Draw encounter background and animal directly to screen
-            self.screen.blit(self.encounter_bg, (0, 0))
-            self.screen.blit(self.encounter_dino, (430, 90))  # position dino encounter
+            self.encounter.draw(self.screen)
+        if self.fading:
+            fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))
+            fade_surface.set_alpha(self.fade_alpha)
+            fade_surface.fill((0,0,0))
+            self.screen.blit(fade_surface,(0,0))
 
         # Flip display in all cases
         pygame.display.flip()
@@ -132,7 +180,7 @@ class Game:
                     continue
                 x = col * config.TILE_SIZE - self.camera_x
                 y = index * config.TILE_SIZE - self.camera_y
-                surface.blit(config.tile_images[tile], (x, y))
+                surface.blit(self.tile_images[tile], (x, y))
 
 
     # Draw overlays on top of player later
@@ -192,3 +240,45 @@ class Game:
 
 
 
+
+### MENU
+class Menu:
+    def __init__(self, game):
+        self.game = game
+        self.font = pygame.font.SysFont(None, 36)
+        self.options = ["View Party", "View Items", "Save Game", "Exit Menu"]
+        self.selected_index = 0
+
+    def draw(self, screen):
+        screen.fill((30, 30, 30))  # dark background
+
+        title_surf = self.font.render("Game Menu", True, (255, 255, 255))
+        screen.blit(title_surf, (50, 50))
+
+        for i, option in enumerate(self.options):
+            color = (255, 255, 0) if i == self.selected_index else (200, 200, 200)
+            option_surf = self.font.render(option, True, color)
+            screen.blit(option_surf, (60, 120 + i * 40))
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                self.selected_index = (self.selected_index - 1) % len(self.options)
+            elif event.key == pygame.K_DOWN:
+                self.selected_index = (self.selected_index + 1) % len(self.options)
+            elif event.key == pygame.K_RETURN:
+                self.select_option()
+
+    def select_option(self):
+        option = self.options[self.selected_index]
+        if option == "Exit Menu":
+            self.game.state = 'world'  # close menu
+        elif option == "Save Game":
+            print("Saving game... (implement save logic)")
+            # TODO: add save logic here
+        elif option == "View Party":
+            print("Showing party... (implement party screen)")
+            # TODO: add party display logic here
+        elif option == "View Items":
+            print("Showing items... (implement items screen)")
+            # TODO: add items display logic here
