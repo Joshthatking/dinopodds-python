@@ -52,6 +52,7 @@ PLAYER_SPEED = TILE_SIZE
 # Paths
 ASSETS_PATH = "assets/MapAssets"
 DINOS_PATH = "assets/DINOS"
+ITEMS_PATH = "assets/Items"
 
 # Map tiles
 TILE_PATHS = {
@@ -69,6 +70,10 @@ ENCOUNTER_DINOS_PATHS = {
 }
 
 
+#Item assets
+ITEMS = {
+    'dp': os.path.join(ITEMS_PATH, 'dinopodd.png',)
+}
 
 
 #### SPAWN POINTS

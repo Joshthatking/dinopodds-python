@@ -17,11 +17,64 @@ def load_image(path, alpha=False):
 class Encounter:
     def __init__(self, dino_key):
         self.bg = load_image(config.ENCOUNTER_BG_PATH)  # No alpha
-        self.dino = load_image(config.ENCOUNTER_DINOS_PATHS[dino_key], alpha=True)
-        self.dino_pos = (380, 10)
+        self.dino = load_image(config.ENCOUNTER_DINOS_PATHS[dino_key], alpha=True) #loads dino
+        self.dino_pos = (380, 10)  #POSITION of dino in bg
     def draw(self, screen):
         screen.blit(self.bg, (0, 0))
-        screen.blit(self.dino, self.dino_pos)
+        screen.blit(self.dino, self.dino_pos) #DRAWS Position of dino
+
+
+class PartyScreen:
+    def __init__(self):
+        self.width = 640
+        self.height = 480
+        self.bg_color = (230, 230, 230)
+        self.font = pygame.font.SysFont(None, 36)
+        self.selected_index = 0  # Which dino box is highlighted
+        self.party_size = 6      # For now, fixed at 6 slots
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_w:
+                self.selected_index = (self.selected_index - 1) % self.party_size
+            elif event.key == pygame.K_s:
+                self.selected_index = (self.selected_index + 1) % self.party_size
+            elif event.key == pygame.K_SPACE:
+                return "back"  # Go back to menu
+        return None
+
+
+    def draw(self, screen):
+        # Background
+        screen.fill(self.bg_color)
+
+        # Large left-side rectangle (main dino)
+        main_rect = pygame.Rect(50, 50, 275, 200)
+        pygame.draw.rect(screen, (180, 180, 180), main_rect)
+        pygame.draw.rect(screen, (0, 0, 0), main_rect, 3)
+
+        # Right-side 5 smaller rectangles
+        box_width, box_height = 250, 50
+        start_x, start_y = 350, 50
+        for i in range(self.party_size - 1):
+            rect = pygame.Rect(start_x, start_y + i * (box_height + 10), box_width, box_height)
+
+            # Highlight if selected
+            if (i + 1) == self.selected_index:
+                pygame.draw.rect(screen, (0, 150, 255), rect)  # highlighted
+            else:
+                pygame.draw.rect(screen, (200, 200, 200), rect)
+            pygame.draw.rect(screen, (0, 0, 0), rect, 2)
+
+        # Highlight the big left box if index 0 is selected
+        if self.selected_index == 0:
+            pygame.draw.rect(screen, (0, 150, 255), main_rect, 5)
+
+        # Text at bottom
+        text = self.font.render("Choose a Dino? (SPACE to go back)", True, (0, 0, 0))
+        screen.blit(text, (50, 400))
+
+
 
 
 class Game:
@@ -33,7 +86,7 @@ class Game:
         self.running = True
 
         # Now load surfaces safely from config.py
-        self.tile_images = {key: load_image(path, alpha=True) for key, path in config.TILE_PATHS.items()}
+        self.tile_images = {key: load_image(path, alpha=True) for key, path in config.TILE_PATHS.items()}  
         # self.encounter_bg = load_image(config.ENCOUNTER_BG_PATH)
         # self.encounter_dino = load_image(config.ENCOUNTER_DINOS_PATHS['vusion'], alpha=True)
 
@@ -67,6 +120,17 @@ class Game:
         # party of dinos and items held
         self.party = []
         self.items = []
+
+        #MENU - PARTY
+        self.party_screen = PartyScreen()
+
+
+        #ITEMS
+        self.item_image = pygame.image.load(config.ITEMS["dp"]).convert_alpha()
+        self.items_on_map = [(12, 5)]  # tile positions where items spawn (start with one)
+        self.item_count = 0  # how many player has picked up
+
+
 
 
         # self.encounter_bg = pygame.image.load(os.path.join('assets/MapAssets/Grass_Encounter.png')).convert() # encounter screen
@@ -109,12 +173,22 @@ class Game:
                     if event.key == pygame.K_i:  # toggle menu
                         self.state = 'menu'
 
-            elif self.state == 'menu':
+            elif self.state == "menu":
                 self.menu.handle_event(event)
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_j:
+                    if self.menu.options[self.menu.selected_index] == "Party":
+                        self.state = "party"
+            #menu-party
+            elif self.state == "party":
+                result = self.party_screen.handle_event(event)
+                if result == "back":
+                    self.state = "world"
+                    # self.state = 'menu'
 
             elif self.state == 'encounter':
                 if event.type == pygame.KEYDOWN:
-                    self.state = 'world'
+                    if event.key == pygame.K_i: #i for running and for menu open/close
+                        self.state = 'world'
 
             # Zoom controls can stay here if needed
             if event.type == pygame.KEYDOWN:
@@ -122,6 +196,31 @@ class Game:
                     self.set_zoom(self.zoom + .5)
                 elif event.key == pygame.K_MINUS:
                     self.set_zoom(self.zoom - .5)
+            
+            #### ITEMS 
+            elif event.type == pygame.KEYDOWN:
+                if self.state == "world" and event.key == pygame.K_j:
+                    print('j pressed')
+                    # Player's current tile
+                    px = self.player.rect.x // config.TILE_SIZE
+                    py = self.player.rect.y // config.TILE_SIZE
+
+                    # Move 1 tile in the facing direction
+                    if self.player.facing == "up": py -= 1
+                    elif self.player.facing == "down": py += 1
+                    elif self.player.facing == "left": px -= 1
+                    elif self.player.facing == "right": px += 1
+
+                    # Debug: print to confirm what tile we're checking
+                    print(f"Checking for item at: {(px, py)}. Items: {self.items_on_map}")
+
+                    # Check if item exists there
+                    if (px, py) in self.items_on_map:
+                        self.items_on_map.remove((px, py))
+                        self.item_count += 1
+                        print(f"Picked up item! Total: {self.item_count}")
+
+
 
     
     def update(self):#,dt):
@@ -174,6 +273,17 @@ class Game:
         #MENU DRAW
         elif self.state == 'menu':
             self.menu.draw(self.screen)
+        
+        # MENU - PARTY
+        elif self.state == 'party':
+                    # Dim background
+            overlay = pygame.Surface((config.WIDTH, config.HEIGHT))
+            overlay.set_alpha(150)
+            overlay.fill((0, 0, 0))
+            self.screen.blit(overlay, (0, 0))
+            # Draw party screen
+            self.party_screen.draw(self.screen)
+
 
         # ENCOUNTER DRAW
         elif self.state == 'encounter':
@@ -198,6 +308,11 @@ class Game:
                 x = col * config.TILE_SIZE - self.camera_x
                 y = index * config.TILE_SIZE - self.camera_y
                 surface.blit(self.tile_images[tile], (x, y))
+        # Draw items on map ---
+        for (ix, iy) in self.items_on_map:
+            x = ix * config.TILE_SIZE - self.camera_x
+            y = iy * config.TILE_SIZE - self.camera_y
+            surface.blit(self.item_image, (x, y))
 
 
     # Draw overlays on top of player later
@@ -263,7 +378,7 @@ class Menu:
     def __init__(self, game):
         self.game = game
         self.font = pygame.font.SysFont(None, 28)
-        self.options = ["View Party", "View Items", "Save Game", "Exit Menu"]
+        self.options = ["Party", "Items", "Save Game"]
         self.selected_index = 0
         self.width = 200
         self.margin = 20
@@ -284,8 +399,8 @@ class Menu:
         pygame.draw.rect(screen, (0, 0, 0), panel_rect, 3)
 
         # Title
-        title_surf = self.font.render("Menu", True, (0, 0, 0))
-        screen.blit(title_surf, (panel_rect.x + self.margin, 20))
+        # title_surf = self.font.render("Menu", True, (0, 0, 0))
+        # screen.blit(title_surf, (panel_rect.x + self.margin, 20))
 
         # Options
         for i, option in enumerate(self.options):
@@ -294,17 +409,17 @@ class Menu:
             screen.blit(option_surf, (panel_rect.x + self.margin, 60 + i * 40))
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:
+            if event.key == pygame.K_w:
                 self.selected_index = (self.selected_index - 1) % len(self.options)
-            elif event.key == pygame.K_DOWN:
+            elif event.key == pygame.K_s:
                 self.selected_index = (self.selected_index + 1) % len(self.options)
-            elif event.key == pygame.K_RETURN:  # Enter key
+            elif event.key == pygame.K_j:  # j -> a button
                 selected = self.options[self.selected_index]
-                if selected == "DinoPodds":
+                if selected == "Party":
                     print("Viewing party...")  # placeholder
                 elif selected == "Save Game":
                     print("Game saved!")  # placeholder
-                elif selected == "View Items":
+                elif selected == "Items":
                     print("Viewing items...")  # placeholder
             elif event.key == pygame.K_i:  # allow M to also close the menu
                 self.game.state = "world"

@@ -163,8 +163,16 @@ class Player(pygame.sprite.Sprite):
         tile_x = (new_x + self.rect.width // 2) // self.tile_size
         tile_y = (new_y + self.rect.height // 2) // self.tile_size
         blocked_tiles = ["W", "T", "t"]
+
+        # Add item positions as blocked
+        for (ix, iy) in game.items_on_map:
+            if (tile_x, tile_y) == (ix, iy):
+                blocked = True
+                break
+        else:
+            blocked = False
         if 0 <= tile_x < len(map_data[0]) and 0 <= tile_y < len(map_data): #if the tile is on the map
-            if map_data[tile_y][tile_x] not in blocked_tiles:
+            if map_data[tile_y][tile_x] not in blocked_tiles and not blocked:
                 # Set target and start moving
                 self.target_x = new_x
                 self.target_y = new_y
