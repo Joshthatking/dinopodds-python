@@ -76,6 +76,56 @@ class PartyScreen:
 
 
 
+class ItemsScreen:
+    def __init__(self, game):
+        self.game = game
+        self.font = pygame.font.SysFont("Arial", 24)
+        self.selected_index = 0  # for highlighting selection
+
+    def draw(self, surface):
+        # --- Background ---
+        bg_rect = pygame.Rect(400, 0, 240, 480)
+        pygame.draw.rect(surface, (245, 245, 220), bg_rect)  # light paper color
+        # Add horizontal lines (like ruled paper)
+        for i in range(0, 480, 40):
+            pygame.draw.line(surface, (200, 200, 200), (400, i), (640, i), 1)
+
+        # --- Draw items ---
+        for idx, (name, count) in enumerate(self.game.inventory.items()):
+            y = 10 + idx * 40
+            # Highlight the selected row
+            if idx == self.selected_index:
+                highlight_rect = pygame.Rect(400, y, 240, 40)
+                pygame.draw.rect(surface, (200, 220, 255), highlight_rect)
+
+            # Draw icon
+            icon = self.game.item_icons.get(name)
+            if icon:
+                surface.blit(icon, (410, y + 5))
+            else:
+                # Debugging missing icon
+                debug_text = self.font.render("?", True, (255, 0, 0))
+                surface.blit(debug_text, (410, y + 5))
+
+            # Draw text
+            text = self.font.render(f"{name} x{count}", True, (0, 0, 0))
+            surface.blit(text, (450, y + 5))
+
+
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                self.game.state = "world"  # go back to menu # world for now
+            elif event.key == pygame.K_w:
+                self.selected_index = max(0, self.selected_index - 1)
+            elif event.key == pygame.K_s:
+                max_scroll = max(0, len(self.game.inventory) - 10)
+                self.selected_index = min(max_scroll, self.selected_index + 1)
+
+
+
+
 
 class Game:
     def __init__(self):
@@ -125,10 +175,16 @@ class Game:
         self.party_screen = PartyScreen()
 
 
-        #ITEMS
+        #MENU - ITEMS
         self.item_image = pygame.image.load(config.ITEMS["dp"]).convert_alpha()
         self.items_on_map = [(12, 5)]  # tile positions where items spawn (start with one)
-        self.item_count = 0  # how many player has picked up
+        self.inventory = {}  # how many player has picked up
+        
+        self.items_screen = ItemsScreen(self)
+        self.item_icons = {
+            name: pygame.image.load(path).convert_alpha()
+            for name, path in config.ITEMS.items()
+        }
 
 
 
@@ -169,21 +225,44 @@ class Game:
                 self.running = False
 
             if self.state == 'world':
-                if event.type == pygame.KEYDOWN:
+                if event.type == pygame.KEYDOWN:  ######## ANY OVERWORLD KEY PRESSES ELIF HERE !!!!!!!!!!!! 
                     if event.key == pygame.K_i:  # toggle menu
                         self.state = 'menu'
+                        ### Items
+                    elif event.key == pygame.K_j: #Interact key = j
+                        print('j')
+                        # Player's current tile
+                        px = self.player.rect.x // config.TILE_SIZE
+                        py = self.player.rect.y // config.TILE_SIZE
+
+                        # Tile in front of player
+                        if self.player.facing == "up": py -= 1
+                        elif self.player.facing == "down": py += 1
+                        elif self.player.facing == "left": px -= 1
+                        elif self.player.facing == "right": px += 1
+                        # If an item exists at that tile → pick it up
+                        if (px, py) in self.items_on_map:
+                            self.items_on_map.remove((px, py))
+                            item_name = 'DinoPod'
+                            self.inventory[item_name] = self.inventory.get(item_name,0)+1
+                            print(f"Picked up item! Total: {self.inventory}")
+
 
             elif self.state == "menu":
                 self.menu.handle_event(event)
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_j:
                     if self.menu.options[self.menu.selected_index] == "Party":
                         self.state = "party"
-            #menu-party
+            #MENU - PARTY
             elif self.state == "party":
                 result = self.party_screen.handle_event(event)
                 if result == "back":
                     self.state = "world"
                     # self.state = 'menu'
+            #MENU - ITEMS
+            if self.state == 'items':
+                self.items_screen.handle_event(event)
+                return
 
             elif self.state == 'encounter':
                 if event.type == pygame.KEYDOWN:
@@ -197,29 +276,6 @@ class Game:
                 elif event.key == pygame.K_MINUS:
                     self.set_zoom(self.zoom - .5)
             
-            #### ITEMS 
-            elif event.type == pygame.KEYDOWN:
-                if self.state == "world" and event.key == pygame.K_j:
-                    print('j pressed')
-                    # Player's current tile
-                    px = self.player.rect.x // config.TILE_SIZE
-                    py = self.player.rect.y // config.TILE_SIZE
-
-                    # Move 1 tile in the facing direction
-                    if self.player.facing == "up": py -= 1
-                    elif self.player.facing == "down": py += 1
-                    elif self.player.facing == "left": px -= 1
-                    elif self.player.facing == "right": px += 1
-
-                    # Debug: print to confirm what tile we're checking
-                    print(f"Checking for item at: {(px, py)}. Items: {self.items_on_map}")
-
-                    # Check if item exists there
-                    if (px, py) in self.items_on_map:
-                        self.items_on_map.remove((px, py))
-                        self.item_count += 1
-                        print(f"Picked up item! Total: {self.item_count}")
-
 
 
     
@@ -283,6 +339,10 @@ class Game:
             self.screen.blit(overlay, (0, 0))
             # Draw party screen
             self.party_screen.draw(self.screen)
+        #MENU - ITEMS
+        elif self.state == 'items':
+            self.items_screen.draw(self.screen)
+        
 
 
         # ENCOUNTER DRAW
@@ -416,11 +476,14 @@ class Menu:
             elif event.key == pygame.K_j:  # j -> a button
                 selected = self.options[self.selected_index]
                 if selected == "Party":
+                    self.game.state = 'party'
                     print("Viewing party...")  # placeholder
                 elif selected == "Save Game":
                     print("Game saved!")  # placeholder
                 elif selected == "Items":
+                    self.game.state = 'items'
                     print("Viewing items...")  # placeholder
+
             elif event.key == pygame.K_i:  # allow M to also close the menu
                 self.game.state = "world"
 

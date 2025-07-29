@@ -72,7 +72,8 @@ ENCOUNTER_DINOS_PATHS = {
 
 #Item assets
 ITEMS = {
-    'dp': os.path.join(ITEMS_PATH, 'dinopodd.png',)
+    'dp': os.path.join(ITEMS_PATH, 'dinopodd.png'),
+    'dp2': os.path.join(ITEMS_PATH, 'dinpodd.png'),
 }
 
 
