@@ -103,15 +103,26 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-                #Zoom in controls
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:  # Zoom in
+
+            if self.state == 'world':
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_i:  # toggle menu
+                        self.state = 'menu'
+
+            elif self.state == 'menu':
+                self.menu.handle_event(event)
+
+            elif self.state == 'encounter':
+                if event.type == pygame.KEYDOWN:
+                    self.state = 'world'
+
+            # Zoom controls can stay here if needed
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
                     self.set_zoom(self.zoom + .5)
-                elif event.key == pygame.K_MINUS:  # Zoom out
+                elif event.key == pygame.K_MINUS:
                     self.set_zoom(self.zoom - .5)
-            #state of game event
-            if self.state == 'encounter' and event.type == pygame.KEYDOWN:
-                self.state = 'world'
+
     
     def update(self):#,dt):
         keys = pygame.key.get_pressed()
@@ -159,7 +170,12 @@ class Game:
             # 4. Scale up to the main screen for zoom
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
             self.screen.blit(scaled_surface, (0, 0))
+        
+        #MENU DRAW
+        elif self.state == 'menu':
+            self.menu.draw(self.screen)
 
+        # ENCOUNTER DRAW
         elif self.state == 'encounter':
             # Draw encounter background and animal directly to screen
             self.encounter.draw(self.screen)
@@ -168,6 +184,7 @@ class Game:
             fade_surface.set_alpha(self.fade_alpha)
             fade_surface.fill((0,0,0))
             self.screen.blit(fade_surface,(0,0))
+
 
         # Flip display in all cases
         pygame.display.flip()
@@ -245,40 +262,50 @@ class Game:
 class Menu:
     def __init__(self, game):
         self.game = game
-        self.font = pygame.font.SysFont(None, 36)
+        self.font = pygame.font.SysFont(None, 28)
         self.options = ["View Party", "View Items", "Save Game", "Exit Menu"]
         self.selected_index = 0
+        self.width = 200
+        self.margin = 20
 
     def draw(self, screen):
-        screen.fill((30, 30, 30))  # dark background
+        # Panel position (right side)
+        panel_rect = pygame.Rect(
+            self.game.screen.get_width() - self.width, 
+            0, 
+            self.width, 
+            self.game.screen.get_height()
+        )
 
-        title_surf = self.font.render("Game Menu", True, (255, 255, 255))
-        screen.blit(title_surf, (50, 50))
+        # Draw white background panel
+        pygame.draw.rect(screen, (255, 255, 255), panel_rect)
 
+        # Optional: Draw border
+        pygame.draw.rect(screen, (0, 0, 0), panel_rect, 3)
+
+        # Title
+        title_surf = self.font.render("Menu", True, (0, 0, 0))
+        screen.blit(title_surf, (panel_rect.x + self.margin, 20))
+
+        # Options
         for i, option in enumerate(self.options):
-            color = (255, 255, 0) if i == self.selected_index else (200, 200, 200)
+            color = (0, 0, 255) if i == self.selected_index else (0, 0, 0)
             option_surf = self.font.render(option, True, color)
-            screen.blit(option_surf, (60, 120 + i * 40))
-
+            screen.blit(option_surf, (panel_rect.x + self.margin, 60 + i * 40))
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
                 self.selected_index = (self.selected_index - 1) % len(self.options)
             elif event.key == pygame.K_DOWN:
                 self.selected_index = (self.selected_index + 1) % len(self.options)
-            elif event.key == pygame.K_RETURN:
-                self.select_option()
+            elif event.key == pygame.K_RETURN:  # Enter key
+                selected = self.options[self.selected_index]
+                if selected == "DinoPodds":
+                    print("Viewing party...")  # placeholder
+                elif selected == "Save Game":
+                    print("Game saved!")  # placeholder
+                elif selected == "View Items":
+                    print("Viewing items...")  # placeholder
+            elif event.key == pygame.K_i:  # allow M to also close the menu
+                self.game.state = "world"
 
-    def select_option(self):
-        option = self.options[self.selected_index]
-        if option == "Exit Menu":
-            self.game.state = 'world'  # close menu
-        elif option == "Save Game":
-            print("Saving game... (implement save logic)")
-            # TODO: add save logic here
-        elif option == "View Party":
-            print("Showing party... (implement party screen)")
-            # TODO: add party display logic here
-        elif option == "View Items":
-            print("Showing items... (implement items screen)")
-            # TODO: add items display logic here
