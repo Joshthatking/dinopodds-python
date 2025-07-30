@@ -25,7 +25,7 @@ class Encounter:
 
 
 class PartyScreen:
-    def __init__(self):
+    def __init__(self,game):
         self.width = 640
         self.height = 480
         self.bg_color = (230, 230, 230)
@@ -41,6 +41,9 @@ class PartyScreen:
                 self.selected_index = (self.selected_index + 1) % self.party_size
             elif event.key == pygame.K_SPACE:
                 return "back"  # Go back to menu
+            elif event.key == pygame.K_i:  # allow i to also close the menu
+                return 'quit' #back to world
+
         return None
 
 
@@ -85,21 +88,9 @@ class ItemsScreen:
         self.selected_index = 0
         self.visible_rows = 10
         self.scroll_offset = 0
+    def get_filtered_inventory(self):
+        return [(item, count) for item, count in self.inventory.items() if count > 0]
 
-    def handle_event(self, event, game):
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_w:  # Move up
-                if self.selected_index > 0:
-                    self.selected_index -= 1
-                if self.selected_index < self.scroll_offset:
-                    self.scroll_offset -= 1
-            elif event.key == pygame.K_s:  # Move down
-                if self.selected_index < len(self.inventory) - 1:
-                    self.selected_index += 1
-                if self.selected_index >= self.scroll_offset + self.visible_rows:
-                    self.scroll_offset += 1
-            elif event.key == pygame.K_SPACE:  # Exit back to menu
-                game.state = "menu"
 
     def draw(self, surface):
         # Background panel for items
@@ -108,9 +99,19 @@ class ItemsScreen:
         pygame.draw.rect(surface, (0, 0, 0), right_rect, 3)
 
         # Draw items
+        filtered_inventory = [(item, count) for item, count in self.inventory.items() if count > 0]
+        self.filtered_inventory = filtered_inventory  # Store for use in handle_event
+        if not filtered_inventory:
+            no_items_text = self.font.render("No items collected.", True, (0, 0, 0))
+            surface.blit(no_items_text, (right_rect.x + 20, right_rect.y + 40))
+            return
+
+        
         start = self.scroll_offset
         end = min(start + self.visible_rows, len(self.inventory))
-        for i, (item, count) in enumerate(list(self.inventory.items())[start:end]):
+
+
+        for i, (item, count) in enumerate(filtered_inventory[start:end]):
             y = right_rect.y + 20 + (i * 35)
 
             # Highlight current selection
@@ -130,14 +131,8 @@ class ItemsScreen:
         pygame.draw.rect(surface, (240, 240, 240), desc_rect)
         pygame.draw.rect(surface, (0, 0, 0), desc_rect, 3)
 
-        # Get selected item description
-        # selected_item = list(self.inventory.keys())[self.selected_index]
-        # description = self.descriptions.get(selected_item, "No description available.")
-        # desc_text = self.desc_font.render(description, True, (0, 0, 0))
-        # surface.blit(desc_text, (desc_rect.x + 10, desc_rect.y + 10))
-
         # Get selected item description & wrap
-        selected_item = list(self.inventory.keys())[self.selected_index]
+        selected_item = filtered_inventory[self.selected_index][0]
         description = self.descriptions.get(selected_item, "No description available.")
         lines = self.wrap_text(description, self.desc_font, desc_rect.width - 20)
 
@@ -145,6 +140,26 @@ class ItemsScreen:
         for i, line in enumerate(lines):
             line_surface = self.desc_font.render(line, True, (0, 0, 0))
             surface.blit(line_surface, (desc_rect.x + 10, desc_rect.y + 10 + i * 20))
+
+    def handle_event(self, event, game):
+        if not hasattr(self, 'filtered_inventory'):
+            self.filtered_inventory = [(item, count) for item, count in self.inventory.items() if count > 0]
+        # filtered_inventory = self.get_filtered_inventory()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_w:  # Move up
+                if self.selected_index > 0:
+                    self.selected_index -= 1
+                if self.selected_index < self.scroll_offset:
+                    self.scroll_offset -= 1
+            elif event.key == pygame.K_s:  # Move down
+                if self.selected_index < len(self.filtered_inventory) - 1:
+                    self.selected_index += 1
+                if self.selected_index >= self.scroll_offset + self.visible_rows:
+                    self.scroll_offset += 1
+            elif event.key == pygame.K_SPACE:  # Exit back to menu
+                game.state = "menu"
+            elif event.key == pygame.K_i:  # allow i to also close the menu
+                game.state = "world"
 
 
     # text within item menu 
@@ -213,23 +228,19 @@ class Game:
         self.items = []
 
         #MENU - PARTY
-        self.party_screen = PartyScreen()
+        self.party_screen = PartyScreen(self)
 
 
         #MENU - ITEMS
         self.item_image = pygame.image.load(config.ITEMS["DinoPod"]['icon']).convert_alpha()
-        self.items_on_map = [(12, 5)]  # tile positions where items spawn (start with one)
-        self.inventory = {}  # how many player has picked up
-        
-        # self.items_screen = ItemsScreen(self)
-        # self.item_icons = {}
-        # for key, data in config.ITEMS.items():
-            # self.item_icons[key] = pygame.image.load(data["icon"]).convert_alpha()
+        self.items_on_map = {(12, 5): 'DinoPod', (12,6): 'DinoPod'}  # ITEM SPAWNS POSITIONS
+        # Initialize all items to 0 count so they always exist
+        self.inventory = {item: 0 for item in config.ITEMS.keys()} # items picked up
+                
 
-        self.items_inventory = {"DinoPod": 1}
         self.item_icons = {key: pygame.image.load(data["icon"]).convert_alpha() for key, data in config.ITEMS.items()}
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
-        self.items_screen = ItemsScreen(self.items_inventory, self.item_icons, self.item_descriptions)
+        self.items_screen = ItemsScreen(self.inventory, self.item_icons, self.item_descriptions)
 
 
 
@@ -284,12 +295,15 @@ class Game:
                         elif self.player.facing == "down": py += 1
                         elif self.player.facing == "left": px -= 1
                         elif self.player.facing == "right": px += 1
-                        # If an item exists at that tile → pick it up
+                        # Check if there is an item at that position
                         if (px, py) in self.items_on_map:
-                            self.items_on_map.remove((px, py))
-                            item_name = 'DinoPod'
-                            self.inventory[item_name] = self.inventory.get(item_name,0)+1
-                            print(f"Picked up item! Total: {self.inventory}")
+                            item_name = self.items_on_map[(px, py)]   # Get the item type
+                            del self.items_on_map[(px, py)]           # Remove from the world
+                            self.inventory[item_name] += 1            # Add to inventory
+                            self.items_screen.selected_index = 0
+                            self.items_screen.scroll_offset = 0
+                            print(f"Picked up {item_name}! Total: {self.inventory[item_name]}")
+
 
 
             elif self.state == "menu":
@@ -301,7 +315,9 @@ class Game:
             elif self.state == "party":
                 result = self.party_screen.handle_event(event)
                 if result == "back":
-                    self.state = "world"
+                    self.state = "menu"
+                if result =='quit':
+                    self.state = 'world'
                     # self.state = 'menu'
             #MENU - ITEMS
             if self.state == 'items':
@@ -417,6 +433,11 @@ class Game:
             x = ix * config.TILE_SIZE - self.camera_x
             y = iy * config.TILE_SIZE - self.camera_y
             surface.blit(self.item_image, (x, y))
+        
+        for (x, y), item_name in self.items_on_map.items():
+            icon = self.item_icons[item_name]
+            self.render_surface.blit(icon, (x * config.TILE_SIZE - self.camera_x, y * config.TILE_SIZE - self.camera_y))
+
 
 
     # Draw overlays on top of player later
@@ -481,53 +502,58 @@ class Game:
 class Menu:
     def __init__(self, game):
         self.game = game
-        self.font = pygame.font.SysFont(None, 28)
-        self.options = ["Party", "Items", "Save Game"]
+        self.font = pygame.font.SysFont("arial", 24)
         self.selected_index = 0
-        self.width = 200
-        self.margin = 20
+        self.options = ["Party", "Items", "Save Game"]
+        self.width = 220
+        self.margin = 15
+        self.line_height = 40
 
     def draw(self, screen):
         # Panel position (right side)
         panel_rect = pygame.Rect(
-            self.game.screen.get_width() - self.width, 
-            0, 
-            self.width, 
-            self.game.screen.get_height()
+            self.game.screen.get_width() - self.width - 20,  # small offset
+            50,
+            self.width,
+            320
         )
 
-        # Draw white background panel
-        pygame.draw.rect(screen, (255, 255, 255), panel_rect)
-
-        # Optional: Draw border
-        pygame.draw.rect(screen, (0, 0, 0), panel_rect, 3)
+        # Background panel: Light "paper"
+        pygame.draw.rect(screen, (255, 255, 240), panel_rect)
+        pygame.draw.rect(screen, (0, 0, 0), panel_rect, 3)  # border
 
         # Title
-        # title_surf = self.font.render("Menu", True, (0, 0, 0))
-        # screen.blit(title_surf, (panel_rect.x + self.margin, 20))
+        title_surf = self.font.render("Menu", True, (0, 0, 0))
+        screen.blit(title_surf, (panel_rect.x + self.margin, panel_rect.y + 10))
 
         # Options
         for i, option in enumerate(self.options):
-            color = (0, 0, 255) if i == self.selected_index else (0, 0, 0)
-            option_surf = self.font.render(option, True, color)
-            screen.blit(option_surf, (panel_rect.x + self.margin, 60 + i * 40))
+            y = panel_rect.y + 50 + i * self.line_height
+            # Highlight selection
+            if i == self.selected_index:
+                pygame.draw.rect(
+                    screen, 
+                    (200, 200, 255),  # light blue
+                    (panel_rect.x + 5, y - 5, panel_rect.width - 10, 30),
+                    border_radius=5
+                )
+            # Text
+            option_surf = self.font.render(option, True, (0, 0, 0))
+            screen.blit(option_surf, (panel_rect.x + self.margin, y))
+
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_w:
                 self.selected_index = (self.selected_index - 1) % len(self.options)
             elif event.key == pygame.K_s:
                 self.selected_index = (self.selected_index + 1) % len(self.options)
-            elif event.key == pygame.K_j:  # j -> a button
+            elif event.key == pygame.K_j:  # j -> select
                 selected = self.options[self.selected_index]
                 if selected == "Party":
                     self.game.state = 'party'
-                    print("Viewing party...")  # placeholder
                 elif selected == "Save Game":
                     print("Game saved!")  # placeholder
                 elif selected == "Items":
                     self.game.state = 'items'
-                    print("Viewing items...")  # placeholder
-
-            elif event.key == pygame.K_i:  # allow M to also close the menu
+            elif event.key == pygame.K_i:  # close menu - i
                 self.game.state = "world"
-
