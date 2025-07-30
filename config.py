@@ -70,12 +70,25 @@ ENCOUNTER_DINOS_PATHS = {
 }
 
 
-#Item assets
-ITEMS = {
-    'dp': os.path.join(ITEMS_PATH, 'dinopodd.png'),
-    'dp2': os.path.join(ITEMS_PATH, 'dinpodd.png'),
-}
+# #Item assets
+# ITEMS = {
+#     'dp': os.path.join(ITEMS_PATH, 'dinopodd.png'),
+#     'dp2': os.path.join(ITEMS_PATH, 'dinpodd.png'),
+# }
 
+
+ITEMS = {
+    "DinoPod": {
+        "name": "DinoPod",
+        "icon": os.path.join(ITEMS_PATH, "dinopodd.png"),
+        "description": " A basic device used to capture wild Dinos"
+    },
+    "DinoCapsule": {
+        "name": "DinoCapsule",
+        "icon": os.path.join(ITEMS_PATH, "dinpodd.png"),
+        "description": "A basic device used to capture wild Dinos"
+    }
+}
 
 #### SPAWN POINTS
 

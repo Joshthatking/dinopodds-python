@@ -75,54 +75,95 @@ class PartyScreen:
         screen.blit(text, (50, 400))
 
 
-
 class ItemsScreen:
-    def __init__(self, game):
-        self.game = game
-        self.font = pygame.font.SysFont("Arial", 24)
-        self.selected_index = 0  # for highlighting selection
+    def __init__(self, inventory, icons, descriptions):
+        self.inventory = inventory  # dict: {item_name: count}
+        self.icons = icons          # dict: {item_name: Surface}
+        self.descriptions = descriptions  # dict: {item_name: description}
+        self.font = pygame.font.SysFont("arial", 24)
+        self.desc_font = pygame.font.SysFont("arial", 20, italic=True)
+        self.selected_index = 0
+        self.visible_rows = 10
+        self.scroll_offset = 0
+
+    def handle_event(self, event, game):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_w:  # Move up
+                if self.selected_index > 0:
+                    self.selected_index -= 1
+                if self.selected_index < self.scroll_offset:
+                    self.scroll_offset -= 1
+            elif event.key == pygame.K_s:  # Move down
+                if self.selected_index < len(self.inventory) - 1:
+                    self.selected_index += 1
+                if self.selected_index >= self.scroll_offset + self.visible_rows:
+                    self.scroll_offset += 1
+            elif event.key == pygame.K_SPACE:  # Exit back to menu
+                game.state = "menu"
 
     def draw(self, surface):
-        # --- Background ---
-        bg_rect = pygame.Rect(400, 0, 240, 480)
-        pygame.draw.rect(surface, (245, 245, 220), bg_rect)  # light paper color
-        # Add horizontal lines (like ruled paper)
-        for i in range(0, 480, 40):
-            pygame.draw.line(surface, (200, 200, 200), (400, i), (640, i), 1)
+        # Background panel for items
+        right_rect = pygame.Rect(400, 50, 220, 320)
+        pygame.draw.rect(surface, (255, 255, 240), right_rect)  # Light "paper"
+        pygame.draw.rect(surface, (0, 0, 0), right_rect, 3)
 
-        # --- Draw items ---
-        for idx, (name, count) in enumerate(self.game.inventory.items()):
-            y = 10 + idx * 40
-            # Highlight the selected row
-            if idx == self.selected_index:
-                highlight_rect = pygame.Rect(400, y, 240, 40)
-                pygame.draw.rect(surface, (200, 220, 255), highlight_rect)
+        # Draw items
+        start = self.scroll_offset
+        end = min(start + self.visible_rows, len(self.inventory))
+        for i, (item, count) in enumerate(list(self.inventory.items())[start:end]):
+            y = right_rect.y + 20 + (i * 35)
 
-            # Draw icon
-            icon = self.game.item_icons.get(name)
-            if icon:
-                surface.blit(icon, (410, y + 5))
+            # Highlight current selection
+            if start + i == self.selected_index:
+                pygame.draw.rect(surface, (200, 200, 255), (right_rect.x + 5, y - 5, right_rect.width - 10, 30), border_radius=5)
+
+            # Icon
+            icon = self.icons[item]
+            surface.blit(icon, (right_rect.x + 10, y))
+
+            # Text
+            text_surface = self.font.render(f"{item} x{count}", True, (0, 0, 0))
+            surface.blit(text_surface, (right_rect.x + 50, y))
+
+        # --- Description Panel ---
+        desc_rect = pygame.Rect(400, 380, 220, 70)
+        pygame.draw.rect(surface, (240, 240, 240), desc_rect)
+        pygame.draw.rect(surface, (0, 0, 0), desc_rect, 3)
+
+        # Get selected item description
+        # selected_item = list(self.inventory.keys())[self.selected_index]
+        # description = self.descriptions.get(selected_item, "No description available.")
+        # desc_text = self.desc_font.render(description, True, (0, 0, 0))
+        # surface.blit(desc_text, (desc_rect.x + 10, desc_rect.y + 10))
+
+        # Get selected item description & wrap
+        selected_item = list(self.inventory.keys())[self.selected_index]
+        description = self.descriptions.get(selected_item, "No description available.")
+        lines = self.wrap_text(description, self.desc_font, desc_rect.width - 20)
+
+        # Draw each line
+        for i, line in enumerate(lines):
+            line_surface = self.desc_font.render(line, True, (0, 0, 0))
+            surface.blit(line_surface, (desc_rect.x + 10, desc_rect.y + 10 + i * 20))
+
+
+    # text within item menu 
+    def wrap_text(self, text, font, max_width):
+        """Splits text into multiple lines so it fits inside max_width."""
+        words = text.split(' ')
+        lines = []
+        current_line = ""
+
+        for word in words:
+            test_line = current_line + word + " "
+            if font.size(test_line)[0] <= max_width:
+                current_line = test_line
             else:
-                # Debugging missing icon
-                debug_text = self.font.render("?", True, (255, 0, 0))
-                surface.blit(debug_text, (410, y + 5))
-
-            # Draw text
-            text = self.font.render(f"{name} x{count}", True, (0, 0, 0))
-            surface.blit(text, (450, y + 5))
-
-
-
-    def handle_event(self, event):
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                self.game.state = "world"  # go back to menu # world for now
-            elif event.key == pygame.K_w:
-                self.selected_index = max(0, self.selected_index - 1)
-            elif event.key == pygame.K_s:
-                max_scroll = max(0, len(self.game.inventory) - 10)
-                self.selected_index = min(max_scroll, self.selected_index + 1)
-
+                lines.append(current_line.strip())
+                current_line = word + " "
+        if current_line:
+            lines.append(current_line.strip())
+        return lines
 
 
 
@@ -176,16 +217,19 @@ class Game:
 
 
         #MENU - ITEMS
-        self.item_image = pygame.image.load(config.ITEMS["dp"]).convert_alpha()
+        self.item_image = pygame.image.load(config.ITEMS["DinoPod"]['icon']).convert_alpha()
         self.items_on_map = [(12, 5)]  # tile positions where items spawn (start with one)
         self.inventory = {}  # how many player has picked up
         
-        self.items_screen = ItemsScreen(self)
-        self.item_icons = {
-            name: pygame.image.load(path).convert_alpha()
-            for name, path in config.ITEMS.items()
-        }
+        # self.items_screen = ItemsScreen(self)
+        # self.item_icons = {}
+        # for key, data in config.ITEMS.items():
+            # self.item_icons[key] = pygame.image.load(data["icon"]).convert_alpha()
 
+        self.items_inventory = {"DinoPod": 1}
+        self.item_icons = {key: pygame.image.load(data["icon"]).convert_alpha() for key, data in config.ITEMS.items()}
+        self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
+        self.items_screen = ItemsScreen(self.items_inventory, self.item_icons, self.item_descriptions)
 
 
 
@@ -261,7 +305,7 @@ class Game:
                     # self.state = 'menu'
             #MENU - ITEMS
             if self.state == 'items':
-                self.items_screen.handle_event(event)
+                self.items_screen.handle_event(event,self)
                 return
 
             elif self.state == 'encounter':
