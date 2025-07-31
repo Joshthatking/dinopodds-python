@@ -30,25 +30,25 @@ class Player(pygame.sprite.Sprite):
         #Spawn Player
         col,row = config.SPAWN_POINTS.get(spawn_point,(0,0))
         self.spawn_on_tile(col,row)
-        # self.rect = pygame.Rect(0,0,30,30) # for 32x32 sprite shrunken hitbox
-
-        # start_col = config.WIDTH // 2 // config.TILE_SIZE
-        # start_row = config.WIDTH // 2 // config.TILE_SIZE
-        # self.rect.topleft = (start_col*config.TILE_SIZE, start_row* config.TILE_SIZE)
-
-        # self.rect.center = (config.WIDTH //2, config.HEIGHT //2) #places sprite in center of screen 
 
         #Movement
         self.tile_size = config.TILE_SIZE
         self.moving = False
         self.target_x = self.rect.x
         self.target_y = self.rect.y
-        self.move_speed = 5 #speed 2 with anim speed of .2 works well
+        self.move_speed = 128 #speed 2 with anim speed of .2 works well
+
+        #delta time additional info
+        self.pos_x = float(self.rect.x)
+        self.pos_y = float(self.rect.y)
+
+
 
         #Animation
         self.anim_index = 0
         self.anim_timer = 0
         self.anim_speed = .2 # how fast frames change #.2 with speed of 2 seems perfect
+        
 
 
         # #Overlay Player Logic
@@ -74,127 +74,129 @@ class Player(pygame.sprite.Sprite):
         self.rect.topleft = (col* config.TILE_SIZE, row* config.TILE_SIZE)
 
 
-    def update(self, keys, game):#,dt):
+    def update(self, keys, game, dt):
         if game.state != 'world':
             return
-        map_data = game.world_map
-        # self.move_speed = 64 # 128px/sec (crosses a 32px tile in .25s)
 
-        # If moving, continue sliding toward target
+        # If currently moving, slide smoothly towards target tile
         if self.moving:
-            # Move toward target w/ speed
+            step = self.move_speed * dt
+            #Horizontal Movement
+            if self.pos_x < self.target_x:
+                self.pos_x = min(self.pos_x + step , self.target_x)
+            elif self.pos_x > self.target_x:
+                self.pos_x = max(self.pos_x - step , self.target_x)
+            #Vertical Movement
+            if self.pos_y < self.target_y:
+                self.pos_y = min(self.pos_y + step , self.target_y)
+            elif self.pos_y > self.target_y:
+                self.pos_y = max(self.pos_y - step , self.target_y)
+            
+            self.rect.x = round(self.pos_x)
+            self.rect.y = round(self.pos_y)
+        
 
-            if self.rect.x < self.target_x:
-                self.rect.x = min(self.rect.x + self.move_speed  , self.target_x)
-            elif self.rect.x > self.target_x:
-                self.rect.x = max(self.rect.x - self.move_speed , self.target_x)
-            if self.rect.y < self.target_y:
-                self.rect.y = min(self.rect.y + self.move_speed , self.target_y)
-            elif self.rect.y > self.target_y:
-                self.rect.y = max(self.rect.y - self.move_speed , self.target_y)
 
-            # Animate walk
-            self.anim_timer += self.anim_speed
-            if self.anim_timer >= 1:
+            # Animate walking
+            self.anim_timer += dt
+            if self.anim_timer >= 0.08: #.08-/.1 looks ok
                 self.anim_timer = 0
                 self.anim_index = (self.anim_index + 1) % 4
             self.image = self.animations[self.direction][self.anim_index]
 
-            # Stop when we reach the tile
+            # Check if we reached the target tile exactly
             if self.rect.x == self.target_x and self.rect.y == self.target_y:
-            # if abs(self.rect.x - self.target_x) < 0.5 and abs(self.rect.y - self.target_y) < 0.5:
-            #     self.rect.x = self.target_x
-            #     self.rect.y = self.target_y
-            #     self.moving = False
                 self.moving = False
                 self.anim_index = 0
                 self.image = self.animations[self.direction][0]
-                
-                #Encounter after finishing tile 
-                if game.state == 'world':
-                    tile_x = (self.rect.centerx) // self.tile_size
-                    tile_y = (self.rect.centery) // self.tile_size
-                    if 0 <= tile_y < len(game.world_map) and 0 <= tile_x < len(game.world_map[0]):
-                        current_tile = game.world_map[tile_y][tile_x]
-                        if current_tile == 'g':  # grass tile
-                            import random
-                            if random.random() < 0.15:  # 15% chance
-                                game.trigger_encounter()
 
+                # Optional: Trigger encounters here if needed
+                # (your encounter logic)
 
+            return  # Don't process input while moving
 
-            return  # Don’t take new input until we finish moving
-        
-
-                #dt method
-        if self.moving:
-            return  # Don't take new input until done moving
-
-        # If NOT moving, check for key press
+        # Not moving - handle input for next tile
         new_x, new_y = self.rect.x, self.rect.y
         input_detected = False
+        facing_changed = False
 
-        # First update facing/direction regardless
+        # Update facing and set new target tile based on key press
         if keys[pygame.K_a]:
-            self.facing = 'left'
-            self.direction = 'left'
-            new_x -= self.tile_size #left one tile
-            input_detected = True
+            if self.direction != 'left':
+                self.facing = 'left'
+                self.direction = 'left'
+                facing_changed = True
+            else:
+                new_x -= self.tile_size
+                input_detected = True
         elif keys[pygame.K_d]:
-            self.facing = 'right'
-            self.direction = 'right'
-            new_x += self.tile_size
-            input_detected = True
+            if self.direction != 'right':
+                self.facing = 'right'
+                self.direction = 'right'
+                facing_changed = True
+            else:
+                new_x += self.tile_size
+                input_detected = True
         elif keys[pygame.K_w]:
-            self.facing = 'up'
-            self.direction = 'up'
-            new_y -= self.tile_size
-            input_detected = True
+            if self.direction != 'up':
+                self.facing = 'up'
+                self.direction = 'up'
+                facing_changed = True
+            else:
+                new_y -= self.tile_size
+                input_detected = True
         elif keys[pygame.K_s]:
-            self.facing = 'down'
-            self.direction = 'down'
-            new_y += self.tile_size
-            input_detected = True
+            if self.direction != 'down':
+                self.facing = 'down'
+                self.direction = 'down'
+                facing_changed = True
+            else:
+                new_y += self.tile_size
+                input_detected = True
+        
+        #If facing changed but no movement (blocked) just update sprite frame
+        if facing_changed:
+            self.anim_index = 0
+            self.image = self.animations[self.direction][self.anim_index]
+            return
 
         if not input_detected:
-            return  # no input
+            return  # no input to process
 
-        # Check collision
+        # Collision check
         tile_x = (new_x + self.rect.width // 2) // self.tile_size
         tile_y = (new_y + self.rect.height // 2) // self.tile_size
         blocked_tiles = ["W", "T", "t"]
 
-        # Add item positions as blocked
+        # Check if any item is blocking tile
+        blocked = False
         for (ix, iy) in game.items_on_map:
             if (tile_x, tile_y) == (ix, iy):
                 blocked = True
                 break
-        else:
-            blocked = False
-        if 0 <= tile_x < len(map_data[0]) and 0 <= tile_y < len(map_data): #if the tile is on the map
-            if map_data[tile_y][tile_x] not in blocked_tiles and not blocked:
-                # Set target and start moving
-                self.target_x = new_x
-                self.target_y = new_y
-                self.moving = True
 
-                # Jump immediately to walking frame
-                self.anim_index = 1
-                self.anim_timer = 0
-                self.image = self.animations[self.direction][self.anim_index]
-            
+        # Check map boundaries and tile blockage
+        if (0 <= tile_y < len(game.world_map) and
+            0 <= tile_x < len(game.world_map[0]) and
+            game.world_map[tile_y][tile_x] not in blocked_tiles and
+            not blocked):
 
-            #Direction Facing Collision Logic
-            else:
-                # Blocked tile: no movement but keep facing updated
-                self.moving = False
-                self.anim_index = 0
-                self.image = self.animations[self.direction][0]
+            # Set new target tile to move to
+            self.target_x = new_x
+            self.target_y = new_y
+            self.moving = True
+
+            # Start walking animation
+            self.anim_index = 1
+            self.anim_timer = 0
+            self.image = self.animations[self.direction][self.anim_index]
+
         else:
-            # Out of bounds: no movement but keep facing updated
+            # Blocked: just update facing without moving
             self.moving = False
             self.anim_index = 0
             self.image = self.animations[self.direction][0]
+
         
         # --- NEW: Check for random encounter ---
         # if game.state == "world":  # Only trigger if in world state

@@ -319,7 +319,7 @@ class Game:
 
     def run(self):
         while self.running:
-            self.clock.tick(config.FPS)
+            # self.clock.tick(config.FPS)
             dt = self.clock.tick(60)/1000
             # dt = self.clock.tick() / 1000.0 #delta time in seconds
             self.events()
@@ -402,7 +402,7 @@ class Game:
     def update(self,dt):
         keys = pygame.key.get_pressed()
         if self.state == 'world' and not self.fading:
-            self.all_sprites.update(keys,self)
+            self.all_sprites.update(keys,self,dt)
             self.update_camera() #keeps camera locked on player
         elif self.fading:
             self.fade_alpha +=10 #adjust speed transition
