@@ -181,6 +181,54 @@ class ItemsScreen:
         return lines
 
 
+class MessageBox:
+    def __init__(self, width, height, font=None):
+        self.width = width
+        self.height = 100  # height of the box
+        self.font = font or pygame.font.SysFont("arial", 24)
+        self.message = ""
+        self.visible = False
+        self.timer = 0  # auto-hide timer (optional)
+
+    def show(self, message, duration=2):  # duration in seconds (0 = wait for keypress)
+        self.message = message
+        self.visible = True
+        self.timer = duration * 1000 if duration > 0 else 0  # convert to ms
+
+    def hide(self):
+        self.visible = False
+        self.message = ""
+
+    def update(self, dt):
+        if self.visible and self.timer > 0:
+            self.timer -= dt
+            if self.timer <= 0:
+                self.hide()
+
+    def draw(self, surface):
+        if not self.visible:
+            return
+        box_rect = pygame.Rect(50, surface.get_height() - self.height - 20, self.width - 100, self.height)
+        pygame.draw.rect(surface, (255, 255, 255), box_rect)
+        pygame.draw.rect(surface, (0, 0, 0), box_rect, 3)
+
+        # Wrap text inside the box
+        words = self.message.split()
+        lines, current_line = [], ""
+        for word in words:
+            test_line = f"{current_line} {word}".strip()
+            if self.font.size(test_line)[0] < box_rect.width - 20:
+                current_line = test_line
+            else:
+                lines.append(current_line)
+                current_line = word
+        if current_line:
+            lines.append(current_line)
+
+        # Draw lines
+        for i, line in enumerate(lines):
+            text_surf = self.font.render(line, True, (0, 0, 0))
+            surface.blit(text_surf, (box_rect.x + 10, box_rect.y + 10 + i * 30))
 
 
 class Game:
@@ -243,6 +291,9 @@ class Game:
         self.items_screen = ItemsScreen(self.inventory, self.item_icons, self.item_descriptions)
 
 
+        self.message_box = MessageBox(config.WIDTH, config.HEIGHT)
+
+
 
         # self.encounter_bg = pygame.image.load(os.path.join('assets/MapAssets/Grass_Encounter.png')).convert() # encounter screen
         # self.encounter_dino = config.DINOS['vusion'] # encounter dino, change logic to loop through dinos in different areas
@@ -269,9 +320,10 @@ class Game:
     def run(self):
         while self.running:
             self.clock.tick(config.FPS)
+            dt = self.clock.tick(60)/1000
             # dt = self.clock.tick() / 1000.0 #delta time in seconds
             self.events()
-            self.update()#dt)
+            self.update(dt)
             self.draw()
     
     def events(self):
@@ -281,6 +333,13 @@ class Game:
 
             if self.state == 'world':
                 if event.type == pygame.KEYDOWN:  ######## ANY OVERWORLD KEY PRESSES ELIF HERE !!!!!!!!!!!! 
+                    #Message Box
+                    # --- Message box dismiss ---
+                    if self.message_box.visible:
+                        if self.message_box.timer == 0 and event.key in (pygame.K_j, pygame.K_SPACE):
+                            self.message_box.hide()
+                        # Block other inputs while message is visible
+                        continue  
                     if event.key == pygame.K_i:  # toggle menu
                         self.state = 'menu'
                         ### Items
@@ -300,6 +359,7 @@ class Game:
                             item_name = self.items_on_map[(px, py)]   # Get the item type
                             del self.items_on_map[(px, py)]           # Remove from the world
                             self.inventory[item_name] += 1            # Add to inventory
+                            self.message_box.show(f'Picked up a {item_name}!', duration=0)
                             self.items_screen.selected_index = 0
                             self.items_screen.scroll_offset = 0
                             print(f"Picked up {item_name}! Total: {self.inventory[item_name]}")
@@ -339,10 +399,10 @@ class Game:
 
 
     
-    def update(self):#,dt):
+    def update(self,dt):
         keys = pygame.key.get_pressed()
         if self.state == 'world' and not self.fading:
-            self.all_sprites.update(keys,self)#,dt)
+            self.all_sprites.update(keys,self)
             self.update_camera() #keeps camera locked on player
         elif self.fading:
             self.fade_alpha +=10 #adjust speed transition
@@ -366,6 +426,11 @@ class Game:
         cam_speed = 0.2  # lower = slower camera, higher = snappier
         self.camera_x += (target_x - self.camera_x) * cam_speed
         self.camera_y += (target_y - self.camera_y) * cam_speed
+
+        # MESSAGE BOX
+        self.message_box.update(self.clock.get_time())
+        if self.message_box.visible:
+            self.message_box.update(dt)
 
 
 ##### Draw Method
@@ -415,6 +480,9 @@ class Game:
             fade_surface.fill((0,0,0))
             self.screen.blit(fade_surface,(0,0))
 
+        if self.message_box.visible:
+            self.message_box.draw(self.screen)
+
 
         # Flip display in all cases
         pygame.display.flip()
@@ -437,37 +505,9 @@ class Game:
         for (x, y), item_name in self.items_on_map.items():
             icon = self.item_icons[item_name]
             self.render_surface.blit(icon, (x * config.TILE_SIZE - self.camera_x, y * config.TILE_SIZE - self.camera_y))
-
-
-
-    # Draw overlays on top of player later
-
-
-        # for index, row in enumerate(self.world_map):
-        #     for col, tile in enumerate(row):
-        #         x = col * config.TILE_SIZE - self.camera_x
-        #         y = index * config.TILE_SIZE - self.camera_y
-        #         if -config.TILE_SIZE < x < config.WIDTH and -config.TILE_SIZE < y < config.HEIGHT:
-        #             if tile != '':
-        #                 surface.blit(config.tile_images[tile], (x, y))
-
-    #logic for overlay tiles
-    # def draw_overlays(self, surface):
-    #     for y, row in enumerate(self.world_map):
-    #         for x, tile in enumerate(row):
-    #             if tile in config.overlay_tiles:
-    #                 screen_x = x * config.TILE_SIZE - self.camera_x
-    #                 screen_y = y * config.TILE_SIZE - self.camera_y
-
-    #                 # Get overlay image
-    #                 overlay = config.overlay_tiles[tile]
-
-    #                 # Create a clipped version to only cover bottom half of tile
-    #                 clipped_overlay = overlay.subsurface((0, overlay.get_height() // 2, overlay.get_width(), overlay.get_height() // 2))
-
-    #                 # Blit only the bottom half (covers player's feet)
-    #                 surface.blit(clipped_overlay, (screen_x, screen_y + overlay.get_height() // 2))
-
+        
+        # MESSAGE BOX
+        self.message_box.draw(self.screen)
 
 
 

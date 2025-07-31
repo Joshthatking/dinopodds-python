@@ -43,7 +43,7 @@ class Player(pygame.sprite.Sprite):
         self.moving = False
         self.target_x = self.rect.x
         self.target_y = self.rect.y
-        self.move_speed = 2 #speed 2 with anim speed of .2 works well
+        self.move_speed = 5 #speed 2 with anim speed of .2 works well
 
         #Animation
         self.anim_index = 0
