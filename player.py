@@ -75,7 +75,7 @@ class Player(pygame.sprite.Sprite):
 
 
     def update(self, keys, game, dt):
-        if game.state != 'world':
+        if game.state != 'world' or (game.message_box and game.message_box.visible):
             return
 
         # If currently moving, slide smoothly towards target tile
@@ -199,15 +199,15 @@ class Player(pygame.sprite.Sprite):
 
         
         # --- NEW: Check for random encounter ---
-        # if game.state == "world":  # Only trigger if in world state
-        #     tile_x = self.rect.x // config.TILE_SIZE
-        #     tile_y = self.rect.y // config.TILE_SIZE
-        #     # Make sure the tile is within the map before using it
-        # if 0 <= tile_y < len(game.world_map) and 0 <= tile_x < len(game.world_map[0]):
-        #     current_tile = game.world_map[tile_y][tile_x]
-        #     if current_tile == 'g':  # Grass tile
-        #         if random.random() < .15:  # 15% chance
-        #             game.trigger_encounter()
+        if game.state == "world":  # Only trigger if in world state
+            tile_x = self.rect.x // config.TILE_SIZE
+            tile_y = self.rect.y // config.TILE_SIZE
+            # Make sure the tile is within the map before using it
+        if 0 <= tile_y < len(game.world_map) and 0 <= tile_x < len(game.world_map[0]):
+            current_tile = game.world_map[tile_y][tile_x]
+            if current_tile == 'g':  # Grass tile
+                if random.random() < .15:  # 15% chance
+                    game.trigger_encounter()
     # ---------------------------------------
 
 

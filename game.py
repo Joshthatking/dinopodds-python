@@ -17,11 +17,102 @@ def load_image(path, alpha=False):
 class Encounter:
     def __init__(self, dino_key):
         self.bg = load_image(config.ENCOUNTER_BG_PATH)  # No alpha
-        self.dino = load_image(config.ENCOUNTER_DINOS_PATHS[dino_key], alpha=True) #loads dino
+        self.dino = load_image(config.ENCOUNTER_DINOS_PATHS[dino_key], alpha=True) #loads dino 
         self.dino_pos = (380, 10)  #POSITION of dino in bg
     def draw(self, screen):
         screen.blit(self.bg, (0, 0))
         screen.blit(self.dino, self.dino_pos) #DRAWS Position of dino
+
+
+class EncounterUI:
+    def __init__(self):
+        self.font = pygame.font.SysFont("arial", 24)
+        self.small_font = pygame.font.SysFont("arial", 20)
+        self.selected_option = 0  # 0=Fight,1=Bag,2=Party,3=Run
+        self.actions = ["Fight", "Bag", "Party", "Run"]
+
+    def draw_panel(self, surface, rect, bg_color=(245,245,245), border_color=(0,0,0), border_width=3):
+        pygame.draw.rect(surface, bg_color, rect)
+        pygame.draw.rect(surface, border_color, rect, border_width)
+
+    def draw_hp_bar(self, surface, x, y, width, height, percent, back_color=(200,0,0), front_color=(0,200,0)):
+        pygame.draw.rect(surface, back_color, (x, y, width, height))
+        pygame.draw.rect(surface, front_color, (x, y, int(width * max(0, min(1, percent))), height))
+
+    def draw(self, surface, player_dino, enemy_dino, encounter_text):
+        screen_w, screen_h = surface.get_size()
+
+        # --- Panels ---
+        text_box_rect = pygame.Rect(9, screen_h - 120, screen_w - 325, 115) #9, 360, 315, 115!
+        actions_rect = pygame.Rect(screen_w - 300, screen_h - 120, 287, 115) 
+        enemy_info_rect = pygame.Rect(-1, 30, 220, 65)
+        player_info_rect = pygame.Rect(screen_w - 220, screen_h - 250, 250, 105)
+
+        # Draw panels
+        self.draw_panel(surface, text_box_rect)
+        self.draw_panel(surface, actions_rect)
+        self.draw_panel(surface, enemy_info_rect)
+        self.draw_panel(surface, player_info_rect)
+
+        # --- Enemy Info ---
+        enemy_name = self.small_font.render(f"{enemy_dino['name']} Lv{enemy_dino['level']}", True, (0,0,0))
+        surface.blit(enemy_name, (enemy_info_rect.x + 10, enemy_info_rect.y + 10))
+        self.draw_hp_bar(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 40, 200, 15, enemy_dino['hp']/enemy_dino['max_hp'])
+
+        # --- Player Info ---
+        player_name = self.small_font.render(f"{player_dino['name']} Lv{player_dino['level']}", True, (0,0,0))
+        surface.blit(player_name, (player_info_rect.x + 10, player_info_rect.y + 10))
+        self.draw_hp_bar(surface, player_info_rect.x + 10, player_info_rect.y + 40, 200, 15, player_dino['hp']/player_dino['max_hp'])
+
+        # --- Text Box ---
+        wrapped_lines = self.wrap_text(encounter_text, self.font, text_box_rect.width - 40)
+        for i, line in enumerate(wrapped_lines[:3]):  # limit 3 lines
+            text_surface = self.font.render(line, True, (0,0,0))
+            surface.blit(text_surface, (text_box_rect.x + 20, text_box_rect.y + 20 + i * 30))
+
+        # --- Action Menu ---
+        for i, action in enumerate(self.actions):
+            color = (0,0,255) if i == self.selected_option else (0,0,0)
+            action_text = self.font.render(action, True, color)
+            surface.blit(action_text, (actions_rect.x + 20 + (i%2)*120, actions_rect.y + 20 + (i//2)*50))
+
+    def wrap_text(self, text, font, max_width):
+        """Wrap text into multiple lines."""
+        words = text.split(' ')
+        lines = []
+        current_line = ""
+        for word in words:
+            test_line = current_line + word + " "
+            if font.size(test_line)[0] <= max_width:
+                current_line = test_line
+            else:
+                lines.append(current_line.strip())
+                current_line = word + " "
+        if current_line:
+            lines.append(current_line.strip())
+        return lines
+
+    def handle_input(self, event):
+        """Move selection with arrow keys."""
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_w:  # up
+                if self.selected_option in (2,3):
+                    self.selected_option -= 2
+            elif event.key == pygame.K_s:  # down
+                if self.selected_option in (0,1):
+                    self.selected_option += 2
+            elif event.key == pygame.K_a:  # left
+                if self.selected_option % 2 == 1:
+                    self.selected_option -= 1
+            elif event.key == pygame.K_d:  # right
+                if self.selected_option % 2 == 0:
+                    self.selected_option += 1
+            elif event.key == pygame.K_j:  # confirm
+                return self.actions[self.selected_option]
+        return None
+
+
+
 
 
 class PartyScreen:
@@ -32,6 +123,11 @@ class PartyScreen:
         self.font = pygame.font.SysFont(None, 36)
         self.selected_index = 0  # Which dino box is highlighted
         self.party_size = 6      # For now, fixed at 6 slots
+    
+    def reset(self):
+        """Reset scroll and selection when leaving the screen."""
+        self.selected_index = 0
+        self.scroll_offset = 0
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -90,6 +186,11 @@ class ItemsScreen:
         self.scroll_offset = 0
     def get_filtered_inventory(self):
         return [(item, count) for item, count in self.inventory.items() if count > 0]
+    
+    def reset(self):
+        """Reset scroll and selection when leaving the screen."""
+        self.selected_index = 0
+        self.scroll_offset = 0
 
 
     def draw(self, surface):
@@ -120,7 +221,7 @@ class ItemsScreen:
 
             # Icon
             icon = self.icons[item]
-            surface.blit(icon, (right_rect.x + 10, y))
+            surface.blit(icon, (right_rect.x + 10, y - 10))
 
             # Text
             text_surface = self.font.render(f"{item} x{count}", True, (0, 0, 0))
@@ -244,8 +345,20 @@ class Game:
         # self.encounter_bg = load_image(config.ENCOUNTER_BG_PATH)
         # self.encounter_dino = load_image(config.ENCOUNTER_DINOS_PATHS['vusion'], alpha=True)
 
+        ### ENCOUNTER INITIALIZED
+        self.encounter_ui = EncounterUI()
+        self.encounter_text = 'A wild Dino appeared!"'
         self.encounter = None
 
+        self.player_dino = {
+            "name": "Vusion",
+            "level": 5,
+            "hp": 30,
+            "max_hp": 50
+        }
+
+
+        self.previous_state = 'world' #default
         self.player = Player(spawn_point='home')
         self.all_sprites = pygame.sprite.Group() #all active sprites
         self.all_sprites.add(self.player)
@@ -277,6 +390,7 @@ class Game:
 
         #MENU - PARTY
         self.party_screen = PartyScreen(self)
+        self.party_screen.reset()
 
 
         #MENU - ITEMS
@@ -289,6 +403,7 @@ class Game:
         self.item_icons = {key: pygame.image.load(data["icon"]).convert_alpha() for key, data in config.ITEMS.items()}
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
         self.items_screen = ItemsScreen(self.inventory, self.item_icons, self.item_descriptions)
+        self.items_screen.reset()
 
 
         self.message_box = MessageBox(config.WIDTH, config.HEIGHT)
@@ -305,6 +420,15 @@ class Game:
         self.fading = True
         self.fade_alpha = 0
         self.encounter = Encounter(dino_key)
+        self.enemy_dino = {
+            "name": dino_key,
+            "level": 3,
+            "hp": 20,
+            "max_hp": 20
+        }
+        self.encounter_text = "A wild Raptor appeared!"
+
+
         # self.state = "encounter"
     # Player stays exactly where they are (don’t clear anything)
     # Optional: play a sound or animation
@@ -376,18 +500,38 @@ class Game:
                 result = self.party_screen.handle_event(event)
                 if result == "back":
                     self.state = "menu"
+                    self.party_screen.reset()
                 if result =='quit':
                     self.state = 'world'
+                    self.previous_state = self.state
+                    self.party_screen.reset()
+
                     # self.state = 'menu'
             #MENU - ITEMS
             if self.state == 'items':
                 self.items_screen.handle_event(event,self)
+                self.items_screen.reset()
                 return
-
+            ##### ENCOUNTER STATE
             elif self.state == 'encounter':
+                result = self.encounter_ui.handle_input(event)
+                self.previous_state = self.state
+                if result == "Fight":
+                    print("Fight selected!")
+                elif result == "Run":
+                    self.state = 'world'
+                    self.previous_state = self.state
+                    print("Run away!")
+                elif result == "Bag":
+                    self.state = 'items'
+                    print('Bag Opening')
+                elif result == 'Party':
+                    self.state = 'party'
+                    print('Switching Dino')
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_i: #i for running and for menu open/close
                         self.state = 'world'
+                        self.previous_state = self.state
 
             # Zoom controls can stay here if needed
             if event.type == pygame.KEYDOWN:
@@ -400,92 +544,170 @@ class Game:
 
     
     def update(self,dt):
-        keys = pygame.key.get_pressed()
-        if self.state == 'world' and not self.fading:
-            self.all_sprites.update(keys,self,dt)
-            self.update_camera() #keeps camera locked on player
-        elif self.fading:
-            self.fade_alpha +=10 #adjust speed transition
-            if self.fade_alpha >= 255:
-                self.fade_alpha = 255
-                self.fading = False
-                self.state = 'encounter'
-
-        # Desired camera target (keep player near center) v2
-        target_x = self.player.rect.centerx - config.WIDTH // 2
-        target_y = self.player.rect.centery - config.HEIGHT // 2
-
-        # Optional: Clamp camera so it doesn’t scroll past map edges
-        max_x = len(self.world_map[0]) * config.TILE_SIZE - config.WIDTH
-        max_y = len(self.world_map) * config.TILE_SIZE - config.HEIGHT
-
-        target_x = max(0, min(target_x, max_x)) #v2
-        target_y = max(0, min(target_y, max_y)) #v2
-
-          # Smooth interpolation (lerp) for camera v2
-        cam_speed = 0.2  # lower = slower camera, higher = snappier
-        self.camera_x += (target_x - self.camera_x) * cam_speed
-        self.camera_y += (target_y - self.camera_y) * cam_speed
-
-        # MESSAGE BOX
-        self.message_box.update(self.clock.get_time())
+        # pause world when message box is open
         if self.message_box.visible:
             self.message_box.update(dt)
+            return
+        if self.state == 'world':
+            keys = pygame.key.get_pressed()
+            if self.state == 'world' and not self.fading:
+                self.all_sprites.update(keys,self,dt)
+                self.update_camera() #keeps camera locked on player
+            elif self.fading:
+                self.fade_alpha +=10 #adjust speed transition
+                if self.fade_alpha >= 255:
+                    self.fade_alpha = 255
+                    self.fading = False
+                    self.state = 'encounter'
+
+            # Desired camera target (keep player near center) v2
+            target_x = self.player.rect.centerx - config.WIDTH // 2
+            target_y = self.player.rect.centery - config.HEIGHT // 2
+
+            # Optional: Clamp camera so it doesn’t scroll past map edges
+            max_x = len(self.world_map[0]) * config.TILE_SIZE - config.WIDTH
+            max_y = len(self.world_map) * config.TILE_SIZE - config.HEIGHT
+
+            target_x = max(0, min(target_x, max_x)) #v2
+            target_y = max(0, min(target_y, max_y)) #v2
+
+            # Smooth interpolation (lerp) for camera v2
+            cam_speed = 0.2  # lower = slower camera, higher = snappier
+            self.camera_x += (target_x - self.camera_x) * cam_speed
+            self.camera_y += (target_y - self.camera_y) * cam_speed
+
+            # MESSAGE BOX
+            self.message_box.update(self.clock.get_time())
+            if self.message_box.visible:
+                self.message_box.update(dt)
 
 
 ##### Draw Method
     def draw(self):
-        if self.state == 'world':
-            # 1. Clear the smaller render surface
+        # 1. Always clear the render surface
+        self.render_surface.fill(config.BLACK)
+
+        # 1. Decide what background to draw
+        background_state = self.previous_state if self.state in ('menu', 'party', 'items') else self.state
+
+        if background_state == 'world':
+            # Draw world background
             self.render_surface.fill(config.BLACK)
-
-            # 2. Draw the map on the smaller surface
             self.draw_map(surface=self.render_surface)
-
-            # 3. Draw all sprites adjusted for camera
             for sprite in self.all_sprites:
                 self.render_surface.blit(sprite.image, (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
-                # self.player.draw(self.render_surface, self.camera_x, self.camera_y)
-
-            # 4. Scale up to the main screen for zoom
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
             self.screen.blit(scaled_surface, (0, 0))
-        
-        #MENU DRAW
-        elif self.state == 'menu':
-            self.menu.draw(self.screen)
-        
-        # MENU - PARTY
-        elif self.state == 'party':
-                    # Dim background
+
+        elif background_state == 'encounter':
+            # Draw encounter scene in the back
+            self.encounter.draw(self.screen)
+            self.encounter_ui.draw(self.screen, self.player_dino, self.enemy_dino, self.encounter_text)
+
+        # 3. Overlay & UI based on state
+        if self.state == 'menu':
             overlay = pygame.Surface((config.WIDTH, config.HEIGHT))
-            overlay.set_alpha(150)
+            overlay.set_alpha(180)  # dim background
             overlay.fill((0, 0, 0))
             self.screen.blit(overlay, (0, 0))
-            # Draw party screen
+            self.menu.draw(self.screen)
+
+        elif self.state == 'party':
+            overlay = pygame.Surface((config.WIDTH, config.HEIGHT))
+            overlay.set_alpha(180)
+            overlay.fill((0, 0, 0))
+            self.screen.blit(overlay, (0, 0))
             self.party_screen.draw(self.screen)
-        #MENU - ITEMS
+
         elif self.state == 'items':
+            overlay = pygame.Surface((config.WIDTH, config.HEIGHT))
+            overlay.set_alpha(180)
+            overlay.fill((0, 0, 0))
+            self.screen.blit(overlay, (0, 0))
             self.items_screen.draw(self.screen)
-        
 
-
-        # ENCOUNTER DRAW
         elif self.state == 'encounter':
-            # Draw encounter background and animal directly to screen
+            # Encounters get full control of the screen (don’t dim world)
             self.encounter.draw(self.screen)
+            self.encounter_ui.draw(self.screen, self.player_dino, self.enemy_dino, self.encounter_text)
+
+        # 4. Fading overlay
         if self.fading:
             fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))
             fade_surface.set_alpha(self.fade_alpha)
-            fade_surface.fill((0,0,0))
-            self.screen.blit(fade_surface,(0,0))
+            fade_surface.fill((0, 0, 0))
+            self.screen.blit(fade_surface, (0, 0))
 
+        # 5. Message box (on top of all states)
         if self.message_box.visible:
             self.message_box.draw(self.screen)
 
-
-        # Flip display in all cases
+        # 6. Flip the display
         pygame.display.flip()
+
+
+
+
+
+    # def draw(self):
+    #     # self.screen.fill((0,0,0))
+    #     if self.state == 'world':
+    #         # self.world.draw(self.screen)
+
+
+    #         # 1. Clear the smaller render surface
+    #         self.render_surface.fill(config.BLACK)
+
+    #         # 2. Draw the map on the smaller surface
+    #         self.draw_map(surface=self.render_surface)
+
+    #         # 3. Draw all sprites adjusted for camera
+    #         for sprite in self.all_sprites:
+    #             self.render_surface.blit(sprite.image, (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
+    #             # self.player.draw(self.render_surface, self.camera_x, self.camera_y)
+
+    #         # 4. Scale up to the main screen for zoom
+    #         scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
+    #         self.screen.blit(scaled_surface, (0, 0))
+        
+    #     #MENU DRAW
+    #     elif self.state == 'menu':
+    #         self.menu.draw(self.screen)
+        
+    #     # MENU - PARTY
+    #     elif self.state == 'party':
+    #                 # Dim background
+    #         overlay = pygame.Surface((config.WIDTH, config.HEIGHT))
+    #         overlay.set_alpha(150)
+    #         overlay.fill((0, 0, 0))
+    #         self.screen.blit(overlay, (0, 0))
+    #         # Draw party screen
+    #         self.party_screen.draw(self.screen)
+    #     #MENU - ITEMS
+    #     elif self.state == 'items':
+    #         self.items_screen.draw(self.screen)
+        
+
+
+    #     # ENCOUNTER DRAW
+    #     elif self.state == 'encounter':
+    #         # Draw encounter background and animal directly to screen
+    #         self.encounter.draw(self.screen)
+    #         self.encounter_ui.draw(self.screen, self.player_dino, self.enemy_dino, self.encounter_text)
+    #     if self.fading:
+    #         fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))
+    #         fade_surface.set_alpha(self.fade_alpha)
+    #         fade_surface.fill((0,0,0))
+    #         self.screen.blit(fade_surface,(0,0))
+
+
+
+    #     if self.message_box.visible:
+    #         self.message_box.draw(self.screen)
+
+
+    #     # Flip display in all cases
+    #     pygame.display.flip()
 
     
     def draw_map(self, surface):
@@ -544,7 +766,7 @@ class Menu:
         self.game = game
         self.font = pygame.font.SysFont("arial", 24)
         self.selected_index = 0
-        self.options = ["Party", "Items", "Save Game"]
+        self.options = ["Party", "Items", "Save Game", "Options"]
         self.width = 220
         self.margin = 15
         self.line_height = 40
@@ -595,5 +817,7 @@ class Menu:
                     print("Game saved!")  # placeholder
                 elif selected == "Items":
                     self.game.state = 'items'
-            elif event.key == pygame.K_i:  # close menu - i
-                self.game.state = "world"
+                elif selected == "Options":
+                    print('Options Selected')
+            elif event.key == pygame.K_SPACE or event.key == pygame.K_i:
+                self.game.state = self.game.previous_state
