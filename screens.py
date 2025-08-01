@@ -26,10 +26,12 @@ class Encounter:
 class EncounterUI:
     def __init__(self, fonts):
         self.font = fonts['DIALOGUE']
-        self.small_font = fonts['BATTLE']
+        self.small_font = fonts['BAG']
         self.selected_option = 0  # 0=Fight,1=Bag,2=Party,3=Run
         self.actions = ["Fight", "Bag", "Party", "Run"]
-        # self.player_dino = game.player_dinos[self.active_dino_index]
+        # FIGHT MODE
+        self.in_fight_menu = False
+        self.move_selected = 0
 
     def draw_panel(self, surface, rect, bg_color=(245, 245, 245), border_color=(0, 0, 0), border_width=3):
         pygame.draw.rect(surface, bg_color, rect)
@@ -46,7 +48,7 @@ class EncounterUI:
         text_box_rect = pygame.Rect(9, screen_h - 120, screen_w - 325, 115)
         actions_rect = pygame.Rect(screen_w - 300, screen_h - 120, 287, 115)
         enemy_info_rect = pygame.Rect(-1, 30, 220, 65)
-        player_info_rect = pygame.Rect(screen_w - 220, screen_h - 250, 250, 105)
+        player_info_rect = pygame.Rect(screen_w - 220, screen_h - 242, 220, 100) # -220 -250 250 105
 
         self.draw_panel(surface, text_box_rect)
         self.draw_panel(surface, actions_rect)
@@ -54,14 +56,17 @@ class EncounterUI:
         self.draw_panel(surface, player_info_rect)
 
         # Enemy Info
-        enemy_name = self.small_font.render(f"{enemy_dino['name']} Lv{enemy_dino['level']}", True, (0, 0, 0))
+        enemy_name = self.small_font.render(f"{enemy_dino['name']}            Lv{enemy_dino['level']}", True, (0, 0, 0))
         surface.blit(enemy_name, (enemy_info_rect.x + 10, enemy_info_rect.y + 10))
         self.draw_hp_bar(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 40, 200, 15, enemy_dino['hp'] / enemy_dino['max_hp'])
 
         # Player Info
-        player_name = self.small_font.render(f"{player_dino['name']} Lv{player_dino['level']}", True, (0, 0, 0))
+        player_name = self.small_font.render(f"{player_dino['name']}            Lv{player_dino['level']}", True, (0, 0, 0))
         surface.blit(player_name, (player_info_rect.x + 10, player_info_rect.y + 10))
         self.draw_hp_bar(surface, player_info_rect.x + 10, player_info_rect.y + 40, 200, 15, player_dino['hp'] / player_dino['max_hp'])
+        # Player HP text
+        player_hp_text = self.small_font.render(f"{player_dino['hp']}/{player_dino['max_hp']}", True, (0, 0, 0))
+        surface.blit(player_hp_text, (player_info_rect.x + 120, player_info_rect.y + 60))  # Adjust X/Y as needed
 
         #Player Dino ###########
     # Draw player's active dino (bottom left above message box)

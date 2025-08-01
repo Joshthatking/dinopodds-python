@@ -35,6 +35,8 @@ PLAYER_SPEED = TILE_SIZE
 
 FONT_PATH_B = os.path.join('assets','Items', 'PixeloidSans-Bold.ttf')
 FONT_PATH = os.path.join('assets','Items', 'PixeloidSans.ttf')
+FONT_PATH_R = os.path.join('assets', 'Items','PixeloidMono.ttf' )
+
 
 FONT_XS = 12
 FONT_SMALL = 16
@@ -45,6 +47,7 @@ FONT_LARGE = 30
 FONT_DEFS = {
     "BAG": (FONT_PATH_B, FONT_SMALL),
     "BATTLE": (FONT_PATH_B, FONT_MEDIUM),
+    "BATTLE2": (FONT_PATH_R, FONT_SMALL),
     "XS": (FONT_PATH_B, FONT_XS),
     "BAG2": (FONT_PATH_B, FONT_SMALL),
     "PARTY": (FONT_PATH_B, FONT_MEDIUM),
