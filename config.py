@@ -8,6 +8,15 @@ import pygame
 BLACK = (0,0,0)
 WHITE = (255,255,255)
 RED = (255,0,0)
+DARK = '#2b292c'
+LIGHT = '#c8c8c8'
+GRAY = '#3a373b'
+LIGHT_GRAY = '#4b484d'
+MAGMA = '#f8a060'
+AQUA = '#50b0d8'
+EARTH = '#64a990'
+SOFT_WHITE = '#f0f0f0'
+
 
 
 # SCREEN
@@ -20,6 +29,27 @@ TILE_SIZE = 32
 
 # PLAYER
 PLAYER_SPEED = TILE_SIZE
+
+
+
+
+FONT_PATH_B = os.path.join('assets','Items', 'PixeloidSans-Bold.ttf')
+FONT_PATH = os.path.join('assets','Items', 'PixeloidSans.ttf')
+
+FONT_XS = 12
+FONT_SMALL = 16
+FONT_MEDIUM = 24
+FONT_LARGE = 30
+
+# Just a mapping of font names to (path, size)
+FONT_DEFS = {
+    "BAG": (FONT_PATH_B, FONT_SMALL),
+    "BATTLE": (FONT_PATH_B, FONT_MEDIUM),
+    "XS": (FONT_PATH_B, FONT_XS),
+    "BAG2": (FONT_PATH_B, FONT_SMALL),
+    "PARTY": (FONT_PATH_B, FONT_MEDIUM),
+    "DIALOGUE": (FONT_PATH_B, FONT_LARGE),
+}
 
 ##############
 ### TILES ####
