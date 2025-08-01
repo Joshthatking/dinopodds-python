@@ -7,6 +7,7 @@ import os
 import csv
 import config
 from screens import Encounter, EncounterUI, ItemsScreen, PartyScreen, MessageBox
+from data import DINO_DATA
 
 # image processor
 def load_image(path, alpha=False):
@@ -24,16 +25,8 @@ class Game:
         self.parent_state = 'world'
 
         self.fonts = {name: pygame.font.Font(path, size) for name, (path, size) in config.FONT_DEFS.items()}
-
-        # Tile images
         self.tile_images = {key: load_image(path, alpha=True) for key, path in config.TILE_PATHS.items()}  
 
-        # ENCOUNTER
-        self.encounter_ui = EncounterUI(self.fonts)
-        self.encounter_text = 'A wild Dino appeared!'
-        self.encounter = Encounter(self.fonts, "vusion")  # <-- pass dino key
-
-        self.player_dino = {"name": "Vusion", "level": 5, "hp": 30, "max_hp": 50}
         self.enemy_dino = {"name": "Raptor", "level": 3, "hp": 20, "max_hp": 20}
 
         self.previous_state = 'world'
@@ -43,15 +36,21 @@ class Game:
         self.camera_x, self.camera_y = 0, 0
         self.zoom = 1.25
         self.render_surface = pygame.Surface((config.WIDTH // self.zoom, config.HEIGHT // self.zoom))
-
         self.world_map = self.load_csv_map('MAP_DINO.csv')
         self.state = 'world'
         self.fade_alpha = 0
         self.fading = False
 
+        # DINO DATA
+        self.player_dinos = [
+            self.create_dino('Vusion', 5),
+            self.create_dino('Vusion', 3)
+        ]
+        self.active_dino_index = 0
+
         # MENU
         self.menu = Menu(self)
-        self.party_screen = PartyScreen(self.fonts)
+        self.party_screen = PartyScreen(self)  # <-- pass game, not fonts
         self.party_screen.reset()
 
         # ITEMS
@@ -60,10 +59,30 @@ class Game:
         self.inventory = {item: 0 for item in config.ITEMS.keys()}
         self.item_icons = {key: pygame.image.load(data["icon"]).convert_alpha() for key, data in config.ITEMS.items()}
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
-        self.items_screen = ItemsScreen(self.inventory, self.item_icons, self.item_descriptions,self.fonts)
+        self.items_screen = ItemsScreen(self.inventory, self.item_icons, self.item_descriptions, self.fonts)
         self.items_screen.reset()
-
+        
+        # MESSAGE BOX
         self.message_box = MessageBox(config.WIDTH, config.HEIGHT, self.fonts)
+
+        # ENCOUNTER
+        self.encounter_ui = EncounterUI(self.fonts)
+        self.encounter_text = 'A wild Dino appeared!'
+        self.encounter = Encounter(self.fonts, "vusion")
+
+    def create_dino(self, name, level):
+        base_stats = DINO_DATA[name]['stats']
+        return {
+            "name": name,
+            "level": level,
+            "hp": base_stats['health'],
+            "max_hp": base_stats['health'],
+            "attack": base_stats['attack'],
+            "defense": base_stats['defense'],
+            "speed": base_stats['speed'],
+            "moves": [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level]
+        }
+
 
     def trigger_encounter(self, dino_key='vusion'):
         self.fading = True
@@ -77,6 +96,8 @@ class Game:
         with open(path, newline='', encoding='utf-8-sig') as csvfile:
             reader = csv.reader(csvfile)
             return [[cell.strip() if cell.strip() else 'T' for cell in row] for row in reader]
+        
+        
 
     # --- Main Loop ---
     def run(self):
@@ -231,7 +252,7 @@ class Game:
             self.screen.blit(scaled_surface, (0, 0))
         elif background_state == 'encounter':
             self.encounter.draw(self.screen)
-            self.encounter_ui.draw(self.screen, self.player_dino, self.enemy_dino, self.encounter_text)
+            self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index], self.enemy_dino, self.encounter_text)
 
         # Overlay menus
         if self.state == 'menu':
@@ -288,6 +309,24 @@ class Game:
         render_h = int(config.HEIGHT / self.zoom)
         self.render_surface = pygame.Surface((render_w, render_h))
         self.update_camera()
+
+
+    def create_dino(self, name, level):
+        # """Creates a dino with base stats pulled from DINO_DATA."""
+        base = DINO_DATA[name]
+        return {
+            "name": name,
+            "level": level,
+            "type": base['stats']['type'],
+            "max_hp": base['stats']['health'],
+            "hp": base['stats']['health'],  # start full
+            "attack": base['stats']['attack'],
+            "defense": base['stats']['defense'],
+            "speed": base['stats']['speed'],
+            "moves": [m for lvl, m in base['moves'].items() if lvl <= level],
+            "evolve": base['evolve']
+        }
+
 
 ### MENU
 class Menu:

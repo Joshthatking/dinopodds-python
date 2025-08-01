@@ -1,6 +1,6 @@
 import pygame
 import config
-
+# import game
 
 # image loader
 def load_image(path, alpha=False):
@@ -29,6 +29,7 @@ class EncounterUI:
         self.small_font = fonts['BATTLE']
         self.selected_option = 0  # 0=Fight,1=Bag,2=Party,3=Run
         self.actions = ["Fight", "Bag", "Party", "Run"]
+        # self.player_dino = game.player_dinos[self.active_dino_index]
 
     def draw_panel(self, surface, rect, bg_color=(245, 245, 245), border_color=(0, 0, 0), border_width=3):
         pygame.draw.rect(surface, bg_color, rect)
@@ -110,13 +111,14 @@ class EncounterUI:
 
 # === Party Screen ===
 class PartyScreen:
-    def __init__(self, fonts):
+    def __init__(self, game):
+        self.game = game # store to access player_dinos, fonts, etc
         self.width = 640
         self.height = 480
         self.bg_color = (90, 90, 90)
-        self.font = fonts['BATTLE']
+        self.font = game.fonts['BATTLE']
         self.selected_index = 0
-        self.party_size = 6
+        self.party_size = len(game.player_dinos)
 
     def reset(self):
         self.selected_index = 0
@@ -134,6 +136,11 @@ class PartyScreen:
             elif event.key == pygame.K_i:  # allow i to also close the menu
                 if game.parent_state != 'encounter':
                     return 'quit' #back to world
+            elif event.key == pygame.K_j:  # confirm selection
+                if game.parent_state == 'encounter':
+                    game.active_dino_index = self.selected_index
+                    return "back_to_encounter"
+
         return None
 
     def draw(self, screen):
@@ -155,6 +162,13 @@ class PartyScreen:
 
         text = self.font.render("Choose a Dino? (SPACE to go back)", True, (0, 0, 0))
         screen.blit(text, (50, 400))
+
+        for i, dino in enumerate(self.game.player_dinos):
+            text = f"{dino['name']} Lv{dino['level']} HP: {dino['hp']}/{dino['max_hp']}"
+            color = (255, 255, 255) if i != self.selected_index else (200, 200, 0)
+            surf = self.font.render(text, True, color)
+            screen.blit(surf, (100, 100 + i * 40))
+
 
 
 # === Items Screen ===
