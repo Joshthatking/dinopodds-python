@@ -202,21 +202,25 @@ class PartyScreen:
             elif event.key == pygame.K_s:
                 self.selected_index = (self.selected_index + 1) % self.party_size
             elif event.key == pygame.K_SPACE:
-                if game.parent_state == 'menu':
-                    game.state= 'menu'
-                    game.parent_state = 'world'
+                # If the state below on stack is menu and base is world, pop twice then push menu again
+                if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' and game.state_stack[0] == 'world':
+                    game.pop_state()  # remove 'party'
+                    game.pop_state()  # remove 'menu'
+                    game.push_state('menu')  # re-open menu on world background
                 else:
-                    return 'back'
-                # return "back"  # Go back to menu
-            elif event.key == pygame.K_i:  # allow i to also close the menu
-                if game.parent_state != 'encounter':
-                    return 'quit' #back to world
-            elif event.key == pygame.K_j:  # confirm selection
-                if game.parent_state == 'encounter':
+                    return 'back'  # default back behavior (pop current state)
+            elif event.key == pygame.K_i:
+                # If not in encounter, quit to world (pop all to world)
+                if 'encounter' not in game.state_stack:
+                    return 'quit'
+            elif event.key == pygame.K_j:
+                # If coming from encounter, confirm selection and return to encounter
+                if 'encounter' in game.state_stack:
                     game.active_dino_index = self.selected_index
-                    return "back"
+                    return 'back'
 
         return None
+
 
     def draw(self, screen):
         screen.fill(self.bg_color)
@@ -316,17 +320,20 @@ class ItemsScreen:
                 if self.selected_index >= self.scroll_offset + self.visible_rows:
                     self.scroll_offset += 1
             elif event.key == pygame.K_SPACE:
-                if game.parent_state == 'menu':
-                    game.state= 'menu'
-                    game.parent_state = 'world'
+                # If previous state in stack is 'menu' and base is 'world', pop twice then push 'menu'
+                if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' and game.state_stack[0] == 'world':
+                    game.pop_state()  # remove 'items'
+                    game.pop_state()  # remove 'menu'
+                    game.push_state('menu')
                 else:
-                    return 'back'
-                # return "back"  # Go back to menu
-            elif event.key == pygame.K_i:  # allow i to also close the menu
-                if game.parent_state != 'encounter':
-                    return 'quit' #back to world
+                    return 'back'  # default back behavior: pop current state
+            elif event.key == pygame.K_i:
+                # If not opened from encounter, quit to world
+                if 'encounter' not in game.state_stack:
+                    return 'quit'
 
         return None
+
 
     def wrap_text(self, text, font, max_width):
         words = text.split(' ')

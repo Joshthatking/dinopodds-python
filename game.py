@@ -22,7 +22,8 @@ class Game:
         pygame.display.set_caption('DinoPodds')
         self.clock = pygame.time.Clock()
         self.running = True
-        self.parent_state = 'world'
+        # self.parent_state = 'world'
+        self.state_stack = ['world']
 
         self.fonts = {name: pygame.font.Font(path, size) for name, (path, size) in config.FONT_DEFS.items()}
         self.tile_images = {key: load_image(path, alpha=True) for key, path in config.TILE_PATHS.items()}  
@@ -37,7 +38,7 @@ class Game:
         self.zoom = 1.25
         self.render_surface = pygame.Surface((config.WIDTH // self.zoom, config.HEIGHT // self.zoom))
         self.world_map = self.load_csv_map('MAP_DINO.csv')
-        self.state = 'world'
+        # self.state = 'world'
         self.fade_alpha = 0
         self.fading = False
 
@@ -84,10 +85,25 @@ class Game:
             "moves": [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level],
             "image": self.player_dino_images[name]  # <-- Load the sprite automatically
         }
+    
+    @property
+    def state(self):
+        return self.state_stack[-1]  # Top of stack is current state
+
+    def push_state(self, state):
+        self.state_stack.append(state)
+
+    def pop_state(self):
+        if len(self.state_stack) > 1:  # Never pop the base state
+            self.state_stack.pop()
+    def pop_to_world(self):
+        while len(self.state_stack) >1:
+            self.pop_state()
 
 
 
     def trigger_encounter(self, dino_key='Vusion'):
+        print('Encounter Trigger')
         self.fading = True
         self.fade_alpha = 0
         self.encounter = Encounter(self.fonts, dino_key)
@@ -119,49 +135,49 @@ class Game:
             # ---- WORLD ----
             if self.state == 'world':
                 self.handle_world_event(event)
-                # Open menu from world
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_i:  # Example key for menu
-                    self.parent_state = 'world'
-                    self.previous_state = 'world'
-                    self.state = 'menu'
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+                    self.push_state('menu')
 
             # ---- MENU ----
             elif self.state == 'menu':
                 self.menu.handle_event(event)
                 if event.type == pygame.KEYDOWN:
-                    if event.key in (pygame.K_SPACE, pygame.K_i):
-                        # SPACE or I closes menu, go back to what opened it
-                        self.state = self.parent_state
-                    # elif event.key == pygame.K_j: # When interacting within Menu
-                    #     self.parent_state = 'menu'
-                    #     self.previous_state = 'menu'
-
+                    if event.key in (pygame.K_SPACE, pygame.K_i):  # Close menu
+                        self.pop_state()
 
             # ---- PARTY ----
             elif self.state == 'party':
                 result = self.party_screen.handle_event(event, self)
                 if result == "back":  # SPACE
-                    self.items_screen.reset()
-                    self.state = self.parent_state
-                elif result == 'quit':  # I quits
+                    # If coming from menu on top of world, go straight back to menu over world
+                    if len(self.state_stack) >= 2 and self.state_stack[-2] == 'menu' and self.state_stack[0] == 'world':
+                        self.pop_state()
+                        self.pop_state()
+                        self.push_state('menu')
+                    else:
+                        self.pop_state()
                     self.party_screen.reset()
-                    self.state = 'world'
-                    self.parent_state = 'world'
-
+                elif result == 'quit':  # I quits
+                    self.pop_to_world()
+                    self.party_screen.reset()
 
             # ---- ITEMS ----
             elif self.state == 'items':
                 result = self.items_screen.handle_event(event, self)
                 if result == "back":  # SPACE
+                    # If opened from menu over world
+                    if len(self.state_stack) >= 2 and self.state_stack[-2] == 'menu' and self.state_stack[0] == 'world':
+                        self.pop_state()
+                        self.pop_state()
+                        self.push_state('menu')
+                    else:
+                        # If opened from encounter or anything else, just pop back
+                        self.pop_state()
                     self.items_screen.reset()
-                    self.state = self.parent_state
-                    # self.state = self.parent_state  # Go back to menu or encounter
-                    # self.items_screen.reset()
                 elif result == 'quit':  # I quits
+                    self.pop_to_world()
                     self.items_screen.reset()
-                    self.state = 'world'
-                    self.parent_state = 'world'
-                    # self.items_screen.reset()
+
 
             # ---- ENCOUNTER ----
             elif self.state == 'encounter':
@@ -169,31 +185,24 @@ class Game:
                 if result == "Fight":
                     print("Fight selected!")
                 elif result == "Run":
-                    self.state = 'world'
-                    self.previous_state = 'world'
+                    self.pop_to_world()
                     print("Run away!")
                 elif result == "Bag":
-                    self.parent_state = 'encounter'
-                    self.previous_state = 'encounter'
-                    self.state = 'items'
+                    self.push_state('items')
                     print("Bag Opening")
                 elif result == 'Party':
-                    self.parent_state = 'encounter'
-                    self.previous_state = 'encounter'
-                    self.state = 'party'
+                    self.push_state('party')
                     print("Switching Dino")
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-                    self.state = 'world'
-                    self.previous_state = 'world'
+                    self.pop_to_world()
 
-
-
-            # Zoom
+            # ---- ZOOM ----
             if event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_EQUALS, pygame.K_PLUS):
                     self.set_zoom(self.zoom + .5)
                 elif event.key == pygame.K_MINUS:
                     self.set_zoom(self.zoom - .5)
+
 
     def handle_world_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -203,11 +212,10 @@ class Game:
                     self.message_box.hide()
                 return  
             if event.key == pygame.K_i:
-                self.previous_state = 'world'
-                self.parent_state = 'world'
-                self.state = 'menu'
+                self.push_state('menu')  # push menu on top of world
             elif event.key == pygame.K_j:
                 self.pickup_item()
+
             
 
     def handle_encounter_event(self, event):
@@ -215,13 +223,14 @@ class Game:
         if result == "Fight":
             print("Fight selected!")
         elif result == "Run":
-            self.state = 'world'
+            self.pop_to_world()  # Return to world by popping all states
         elif result == "Bag":
-            self.state = 'items'
+            self.push_state('items')
         elif result == 'Party':
-            self.state = 'party'
+            self.push_state('party')
         if event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-            self.state = 'world'
+            self.pop_to_world()
+
 
     def pickup_item(self):
         px = self.player.rect.x // config.TILE_SIZE
@@ -240,6 +249,7 @@ class Game:
         if self.message_box.visible:
             self.message_box.update(dt)
             return
+
         if self.state == 'world':
             keys = pygame.key.get_pressed()
             if not self.fading:
@@ -250,51 +260,65 @@ class Game:
                 if self.fade_alpha >= 255:
                     self.fade_alpha = 255
                     self.fading = False
-                    self.state = 'encounter'
-            self.message_box.update(self.clock.get_time())
+                    # Instead of self.state = 'encounter', push encounter
+                    self.push_state('encounter')
+
+        self.message_box.update(self.clock.get_time())
+
 
     def draw(self):
         self.render_surface.fill(config.BLACK)
-        background_state = self.previous_state if self.state in ('menu', 'party', 'items') else self.state
 
-        # ---- WORLD BACKGROUND ----
+        # background_state = self.state_stack[0]  # bottom state (background)
+        # If encounter is anywhere in the stack, use it as the background
+        if 'encounter' in self.state_stack:
+            background_state = 'encounter'
+        else:
+            background_state = self.state_stack[0]
+
+        current_state = self.state  # top state (active)
+
+        # Draw background based on bottom state
         if background_state == 'world':
             self.draw_map(self.render_surface)
             for sprite in self.all_sprites:
                 self.render_surface.blit(sprite.image, (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
             self.screen.blit(scaled_surface, (0, 0))
-
-        # ---- ENCOUNTER BACKGROUND ----
         elif background_state == 'encounter':
+            # Usually encounter is top state, but in case bottom is encounter
             self.encounter.draw(self.screen)
             self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index], self.enemy_dino, self.encounter_text)
 
-        # ---- OVERLAYS ----
-        if self.state in ('menu', 'party', 'items'):
-            # Only tint if the background is world
+        # Draw overlays/UI based on current top state
+        if current_state == 'encounter':
+            self.encounter.draw(self.screen)
+            self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index], self.enemy_dino, self.encounter_text)
+        elif current_state in ('menu', 'party', 'items'):
+            # Tint background only if world is background
             if background_state == 'world':
                 self.draw_overlay()
-            # Draw the current overlay UI
-            if self.state == 'menu':
+            if current_state == 'menu':
                 self.menu.draw(self.screen)
-            elif self.state == 'party':
+            elif current_state == 'party':
                 self.party_screen.draw(self.screen)
-            elif self.state == 'items':
+            elif current_state == 'items':
                 self.items_screen.draw(self.screen)
 
-        # ---- FADING ----
+        # Fade effect
         if self.fading:
             fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))
             fade_surface.set_alpha(self.fade_alpha)
             fade_surface.fill((0, 0, 0))
             self.screen.blit(fade_surface, (0, 0))
 
-        # ---- MESSAGE BOX ----
+        # Message box
         if self.message_box.visible:
             self.message_box.draw(self.screen)
 
         pygame.display.flip()
+
+
     
 
     def draw_overlay(self):
@@ -364,18 +388,15 @@ class Menu:
                 self.selected_index = (self.selected_index - 1) % len(self.options)
             elif event.key == pygame.K_s:
                 self.selected_index = (self.selected_index + 1) % len(self.options)
-            elif event.key == pygame.K_j:  # Select current option
+            elif event.key == pygame.K_j:  # Select option
                 selected = self.options[self.selected_index]
-                self.game.parent_state = 'menu'
-                self.game.previous_state = 'menu'
                 if selected == "Party":
-                    self.game.state = 'party'
+                    self.game.push_state('party')
                 elif selected == "Items":
-                    self.game.state = 'items'
+                    self.game.push_state('items')
                 elif selected == "Save Game":
                     print("Game saved!")
                 elif selected == "Options":
                     print('Options Selected')
             elif event.key == pygame.K_SPACE:  # Close menu
-                self.game.state = self.game.parent_state
-
+                self.game.pop_state()
