@@ -119,46 +119,53 @@ class Game:
             # ---- WORLD ----
             if self.state == 'world':
                 self.handle_world_event(event)
+                # Open menu from world
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_i:  # Example key for menu
+                    self.parent_state = 'world'
+                    self.previous_state = 'world'
+                    self.state = 'menu'
 
             # ---- MENU ----
             elif self.state == 'menu':
                 self.menu.handle_event(event)
-                if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_i):
-                    self.state = self.previous_state  # Go back where you came from
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_SPACE, pygame.K_i):
+                        # SPACE or I closes menu, go back to what opened it
+                        self.state = self.parent_state
+                    elif event.key == pygame.K_b:  # Bag from menu
+                        self.parent_state = 'menu'
+                        self.previous_state = 'menu'
+                        self.state = 'items'
+                    elif event.key == pygame.K_p:  # Party from menu
+                        self.parent_state = 'menu'
+                        self.previous_state = 'menu'
+                        self.state = 'party'
 
             # ---- PARTY ----
             elif self.state == 'party':
                 result = self.party_screen.handle_event(event, self)
-                if result == "back_menu":  # Space/i pressed inside party
-                    self.state = 'menu'
+                if result == "back":  # SPACE
+                    self.state = self.parent_state  # Go back to menu or encounter
                     self.party_screen.reset()
-                elif result == 'back_encounter':
-                    self.state = 'encounter'
-                    # self.state = self.previous_state
-                    self.party_screen.reset()
-                elif result == 'quit':
+                elif result == 'quit':  # I quits
                     self.state = 'world'
-                    # self.previous_state = 'world'
+                    self.parent_state = 'world'
                     self.party_screen.reset()
 
             # ---- ITEMS ----
             elif self.state == 'items':
                 result = self.items_screen.handle_event(event, self)
-                if result == "back_menu":  # Space/i pressed inside party
-                    self.state = 'menu'
-                    # self.state = self.previous_state
-                    self.party_screen.reset()
-                elif result == "back_encounter":  # Space/i pressed inside party
-                    self.state = 'encounter'
-                    # self.state = self.previous_state
-                    self.party_screen.reset()
-                elif result == 'quit':
+                if result == "back":  # SPACE
+                    self.state = self.parent_state  # Go back to menu or encounter
+                    self.items_screen.reset()
+                elif result == 'quit':  # I quits
                     self.state = 'world'
-                    # self.previous_state = 'world'
-                    self.party_screen.reset()
-# ---- ENCOUNTER ----
+                    self.parent_state = 'world'
+                    self.items_screen.reset()
+
+            # ---- ENCOUNTER ----
             elif self.state == 'encounter':
-                result = self.encounter_ui.handle_input(event)
+                result = self.encounter_ui.handle_input(event, self.player_dinos[self.active_dino_index])
                 if result == "Fight":
                     print("Fight selected!")
                 elif result == "Run":
@@ -166,18 +173,20 @@ class Game:
                     self.previous_state = 'world'
                     print("Run away!")
                 elif result == "Bag":
-                    self.parent_state = self.state
+                    self.parent_state = 'encounter'
                     self.previous_state = 'encounter'
                     self.state = 'items'
                     print("Bag Opening")
                 elif result == 'Party':
-                    self.parent_state = self.state
+                    self.parent_state = 'encounter'
                     self.previous_state = 'encounter'
                     self.state = 'party'
                     print("Switching Dino")
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
                     self.state = 'world'
                     self.previous_state = 'world'
+
+
 
             # Zoom
             if event.type == pygame.KEYDOWN:
@@ -195,6 +204,7 @@ class Game:
                 return  
             if event.key == pygame.K_i:
                 self.previous_state = 'world'
+                self.parent_state = 'world'
                 self.state = 'menu'
             elif event.key == pygame.K_j:
                 self.pickup_item()
@@ -348,8 +358,12 @@ class Menu:
             elif event.key == pygame.K_j:
                 selected = self.options[self.selected_index]
                 if selected == "Party":
+                    self.parent_state = 'menu'
+                    self.previous_state = 'menu'
                     self.game.state = 'party'
                 elif selected == "Items":
+                    self.parent_state = 'menu'
+                    self.previous_state = 'menu'
                     self.game.state = 'items'
                 elif selected == "Save Game":
                     print("Game saved!")

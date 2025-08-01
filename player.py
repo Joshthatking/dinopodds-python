@@ -23,6 +23,7 @@ class Player(pygame.sprite.Sprite):
         }
 
         self.direction = 'down'
+        self.facing = 'down'
         self.image = self.animations[self.direction][0]
         # self.image = pygame.image.load(player_frontpng).convert_alpha() # keeps transparency v1
         self.rect = self.image.get_rect() #player hitbox 32x32

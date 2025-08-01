@@ -84,10 +84,29 @@ class EncounterUI:
             surface.blit(text_surface, (text_box_rect.x + 20, text_box_rect.y + 20 + i * 30))
 
         # Actions
-        for i, action in enumerate(self.actions):
-            color = (0, 0, 255) if i == self.selected_option else (0, 0, 0)
-            action_text = self.font.render(action, True, color)
-            surface.blit(action_text, (actions_rect.x + 20 + (i % 2) * 120, actions_rect.y + 20 + (i // 2) * 50))
+        if not self.in_fight_menu:
+             # --- Action Menu ---
+            for i, action in enumerate(self.actions):
+                color = (0,0,255) if i == self.selected_option else (0,0,0)
+                action_text = self.font.render(action, True, color)
+                surface.blit(action_text, (actions_rect.x + 20 + (i%2)*120, actions_rect.y + 20 + (i//2)*50))
+        else:
+            # Fight menu (2x2 grid for moves)
+            moves = player_dino['moves']
+            for i in range(4):  # Always draw 4 slots
+                row = i // 2
+                col = i % 2
+                x = actions_rect.x + 30 + col * 130
+                y = actions_rect.y + 20 + row * 40
+
+                if i < len(moves):
+                    color = (0, 0, 0) if i != self.move_selected else (200, 0, 0)
+                    text = self.small_font.render(moves[i], True, color)
+                else:
+                    color = (150, 150, 150)
+                    text = self.small_font.render("—", True, color)
+                surface.blit(text, (x, y))
+
 
     def wrap_text(self, text, font, max_width):
         words = text.split(' ')
@@ -104,23 +123,61 @@ class EncounterUI:
             lines.append(current_line.strip())
         return lines
 
-    def handle_input(self, event):
+    def handle_input(self, event,player_dino):
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_w:  # up
-                if self.selected_option in (2, 3):
-                    self.selected_option -= 2
-            elif event.key == pygame.K_s:  # down
-                if self.selected_option in (0, 1):
-                    self.selected_option += 2
-            elif event.key == pygame.K_a:  # left
-                if self.selected_option % 2 == 1:
-                    self.selected_option -= 1
-            elif event.key == pygame.K_d:  # right
-                if self.selected_option % 2 == 0:
-                    self.selected_option += 1
-            elif event.key == pygame.K_j:  # confirm
-                return self.actions[self.selected_option]
-        return None
+            if not self.in_fight_menu:  # On main menu
+                if event.key == pygame.K_w:
+                    self.selected_option = (self.selected_option - 1) % len(self.actions)
+                elif event.key == pygame.K_s:
+                    self.selected_option = (self.selected_option + 1) % len(self.actions)
+                elif event.key == pygame.K_j:
+                    if self.actions[self.selected_option] == "Fight":
+                        self.in_fight_menu = True  # Switch to moves
+                    else:
+                        return self.actions[self.selected_option]
+            else:  # Inside fight menu
+                if event.key == pygame.K_w:
+                    self.move_selected = (self.move_selected - 2) % 4  # Up 2
+                    while self.move_selected >= len(player_dino['moves']):
+                        self.move_selected = (self.move_selected - 1) % 4
+                elif event.key == pygame.K_s:
+                    self.move_selected = (self.move_selected + 2) % 4  # Down 2
+                    while self.move_selected >= len(player_dino['moves']):
+                        self.move_selected = (self.move_selected - 1) % 4
+                elif event.key == pygame.K_a:
+                    self.move_selected = (self.move_selected - 1) % 4  # Left
+                    while self.move_selected >= len(player_dino['moves']):
+                        self.move_selected = (self.move_selected - 1) % 4
+                elif event.key == pygame.K_d:
+                    self.move_selected = (self.move_selected + 1) % 4  # Right
+                    while self.move_selected >= len(player_dino['moves']):
+                        self.move_selected = (self.move_selected - 1) % 4
+                elif event.key == pygame.K_j:
+                    if self.move_selected < len(player_dino['moves']):
+                        return f"UseMove:{player_dino['moves'][self.move_selected]}"
+                elif event.key == pygame.K_SPACE:  # Back to Actions
+                    self.in_fight_menu = False
+                elif event.key == pygame.K_i: #block i key from exiting
+                    None
+
+
+
+        # if event.type == pygame.KEYDOWN:
+        #     if event.key == pygame.K_w:  # up
+        #         if self.selected_option in (2, 3):
+        #             self.selected_option -= 2
+        #     elif event.key == pygame.K_s:  # down
+        #         if self.selected_option in (0, 1):
+        #             self.selected_option += 2
+        #     elif event.key == pygame.K_a:  # left
+        #         if self.selected_option % 2 == 1:
+        #             self.selected_option -= 1
+        #     elif event.key == pygame.K_d:  # right
+        #         if self.selected_option % 2 == 0:
+        #             self.selected_option += 1
+        #     elif event.key == pygame.K_j:  # confirm
+        #         return self.actions[self.selected_option]
+        # return None
 
 
 # === Party Screen ===
@@ -145,7 +202,7 @@ class PartyScreen:
             elif event.key == pygame.K_s:
                 self.selected_index = (self.selected_index + 1) % self.party_size
             elif event.key == pygame.K_SPACE:
-                return 'back_encounter' if game.parent_state == 'encounter' else 'back_menu'
+                return 'back'
                 # return "back"  # Go back to menu
             elif event.key == pygame.K_i:  # allow i to also close the menu
                 if game.parent_state != 'encounter':
@@ -153,7 +210,7 @@ class PartyScreen:
             elif event.key == pygame.K_j:  # confirm selection
                 if game.parent_state == 'encounter':
                     game.active_dino_index = self.selected_index
-                    return "back_to_encounter"
+                    return "back"
 
         return None
 
@@ -255,7 +312,7 @@ class ItemsScreen:
                 if self.selected_index >= self.scroll_offset + self.visible_rows:
                     self.scroll_offset += 1
             elif event.key == pygame.K_SPACE:
-                return 'back_encounter' if game.parent_state == 'encounter' else 'back_menu'
+                return 'back'
                 # return "back"  # Go back to menu
             elif event.key == pygame.K_i:  # allow i to also close the menu
                 if game.parent_state != 'encounter':
