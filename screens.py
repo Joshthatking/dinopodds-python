@@ -202,7 +202,11 @@ class PartyScreen:
             elif event.key == pygame.K_s:
                 self.selected_index = (self.selected_index + 1) % self.party_size
             elif event.key == pygame.K_SPACE:
-                return 'back'
+                if game.parent_state == 'menu':
+                    game.state= 'menu'
+                    game.parent_state = 'world'
+                else:
+                    return 'back'
                 # return "back"  # Go back to menu
             elif event.key == pygame.K_i:  # allow i to also close the menu
                 if game.parent_state != 'encounter':
@@ -312,7 +316,11 @@ class ItemsScreen:
                 if self.selected_index >= self.scroll_offset + self.visible_rows:
                     self.scroll_offset += 1
             elif event.key == pygame.K_SPACE:
-                return 'back'
+                if game.parent_state == 'menu':
+                    game.state= 'menu'
+                    game.parent_state = 'world'
+                else:
+                    return 'back'
                 # return "back"  # Go back to menu
             elif event.key == pygame.K_i:  # allow i to also close the menu
                 if game.parent_state != 'encounter':

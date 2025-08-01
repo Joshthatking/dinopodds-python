@@ -132,36 +132,36 @@ class Game:
                     if event.key in (pygame.K_SPACE, pygame.K_i):
                         # SPACE or I closes menu, go back to what opened it
                         self.state = self.parent_state
-                    elif event.key == pygame.K_b:  # Bag from menu
-                        self.parent_state = 'menu'
-                        self.previous_state = 'menu'
-                        self.state = 'items'
-                    elif event.key == pygame.K_p:  # Party from menu
-                        self.parent_state = 'menu'
-                        self.previous_state = 'menu'
-                        self.state = 'party'
+                    # elif event.key == pygame.K_j: # When interacting within Menu
+                    #     self.parent_state = 'menu'
+                    #     self.previous_state = 'menu'
+
 
             # ---- PARTY ----
             elif self.state == 'party':
                 result = self.party_screen.handle_event(event, self)
                 if result == "back":  # SPACE
-                    self.state = self.parent_state  # Go back to menu or encounter
-                    self.party_screen.reset()
+                    self.items_screen.reset()
+                    self.state = self.parent_state
                 elif result == 'quit':  # I quits
+                    self.party_screen.reset()
                     self.state = 'world'
                     self.parent_state = 'world'
-                    self.party_screen.reset()
+
 
             # ---- ITEMS ----
             elif self.state == 'items':
                 result = self.items_screen.handle_event(event, self)
                 if result == "back":  # SPACE
-                    self.state = self.parent_state  # Go back to menu or encounter
                     self.items_screen.reset()
+                    self.state = self.parent_state
+                    # self.state = self.parent_state  # Go back to menu or encounter
+                    # self.items_screen.reset()
                 elif result == 'quit':  # I quits
+                    self.items_screen.reset()
                     self.state = 'world'
                     self.parent_state = 'world'
-                    self.items_screen.reset()
+                    # self.items_screen.reset()
 
             # ---- ENCOUNTER ----
             elif self.state == 'encounter':
@@ -257,43 +257,52 @@ class Game:
         self.render_surface.fill(config.BLACK)
         background_state = self.previous_state if self.state in ('menu', 'party', 'items') else self.state
 
+        # ---- WORLD BACKGROUND ----
         if background_state == 'world':
             self.draw_map(self.render_surface)
             for sprite in self.all_sprites:
                 self.render_surface.blit(sprite.image, (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
             self.screen.blit(scaled_surface, (0, 0))
+
+        # ---- ENCOUNTER BACKGROUND ----
         elif background_state == 'encounter':
             self.encounter.draw(self.screen)
             self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index], self.enemy_dino, self.encounter_text)
 
-        # Overlay menus
-        if self.state == 'menu':
-            self.draw_overlay()
-            self.menu.draw(self.screen)
-        elif self.state == 'party':
-            self.draw_overlay()
-            self.party_screen.draw(self.screen)
-        elif self.state == 'items':
-            self.draw_overlay()
-            self.items_screen.draw(self.screen)
+        # ---- OVERLAYS ----
+        if self.state in ('menu', 'party', 'items'):
+            # Only tint if the background is world
+            if background_state == 'world':
+                self.draw_overlay()
+            # Draw the current overlay UI
+            if self.state == 'menu':
+                self.menu.draw(self.screen)
+            elif self.state == 'party':
+                self.party_screen.draw(self.screen)
+            elif self.state == 'items':
+                self.items_screen.draw(self.screen)
 
+        # ---- FADING ----
         if self.fading:
             fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))
             fade_surface.set_alpha(self.fade_alpha)
             fade_surface.fill((0, 0, 0))
             self.screen.blit(fade_surface, (0, 0))
 
+        # ---- MESSAGE BOX ----
         if self.message_box.visible:
             self.message_box.draw(self.screen)
 
         pygame.display.flip()
+    
 
     def draw_overlay(self):
-        overlay = pygame.Surface((config.WIDTH, config.HEIGHT))
-        overlay.set_alpha(180)
-        overlay.fill((0, 0, 0))
+        overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 120))  # RGBA: last value is transparency
         self.screen.blit(overlay, (0, 0))
+
+
 
     def draw_map(self, surface):
         for row_idx, row in enumerate(self.world_map):
@@ -355,19 +364,18 @@ class Menu:
                 self.selected_index = (self.selected_index - 1) % len(self.options)
             elif event.key == pygame.K_s:
                 self.selected_index = (self.selected_index + 1) % len(self.options)
-            elif event.key == pygame.K_j:
+            elif event.key == pygame.K_j:  # Select current option
                 selected = self.options[self.selected_index]
+                self.game.parent_state = 'menu'
+                self.game.previous_state = 'menu'
                 if selected == "Party":
-                    self.parent_state = 'menu'
-                    self.previous_state = 'menu'
                     self.game.state = 'party'
                 elif selected == "Items":
-                    self.parent_state = 'menu'
-                    self.previous_state = 'menu'
                     self.game.state = 'items'
                 elif selected == "Save Game":
                     print("Game saved!")
                 elif selected == "Options":
                     print('Options Selected')
-            elif event.key == pygame.K_SPACE:
-                self.game.state = self.game.previous_state
+            elif event.key == pygame.K_SPACE:  # Close menu
+                self.game.state = self.game.parent_state
+
