@@ -96,7 +96,12 @@ TILE_PATHS = {
 # Encounter assets
 ENCOUNTER_BG_PATH = os.path.join(ASSETS_PATH, 'Grass_Encounter.png')
 ENCOUNTER_DINOS_PATHS = {
-    'vusion': os.path.join(DINOS_PATH, 'Vusion_Encounter.png'),
+    'Vusion': os.path.join(DINOS_PATH, 'Vusion_Encounter.png'),
+}
+
+#PLAYER DINOS
+PLAYER_DINO_PATH = {
+    'Vusion': os.path.join(DINOS_PATH, 'Vusion_AttackXXL.png'),
 }
 
 

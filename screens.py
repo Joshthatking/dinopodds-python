@@ -63,6 +63,15 @@ class EncounterUI:
         surface.blit(player_name, (player_info_rect.x + 10, player_info_rect.y + 10))
         self.draw_hp_bar(surface, player_info_rect.x + 10, player_info_rect.y + 40, 200, 15, player_dino['hp'] / player_dino['max_hp'])
 
+        #Player Dino ###########
+    # Draw player's active dino (bottom left above message box)
+        player_dino_image = player_dino['image']
+        player_dino_rect = player_dino_image.get_rect()
+        player_dino_rect.bottomleft = (90, config.HEIGHT + 5)  # Adjust Y for above the message box
+        scaled = pygame.transform.scale(player_dino['image'], (270, 270))
+        surface.blit(scaled, player_dino_rect)
+
+
         # Text box
         wrapped_lines = self.wrap_text(encounter_text, self.font, text_box_rect.width - 40)
         for i, line in enumerate(wrapped_lines[:3]):  # limit 3 lines

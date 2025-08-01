@@ -42,12 +42,12 @@ class Game:
         self.fading = False
 
         # DINO DATA
+        self.player_dino_images = {name: load_image(path, alpha=True) for name, path in config.PLAYER_DINO_PATH.items()}
         self.player_dinos = [
             self.create_dino('Vusion', 5),
             self.create_dino('Vusion', 3)
         ]
         self.active_dino_index = 0
-
         # MENU
         self.menu = Menu(self)
         self.party_screen = PartyScreen(self)  # <-- pass game, not fonts
@@ -68,9 +68,10 @@ class Game:
         # ENCOUNTER
         self.encounter_ui = EncounterUI(self.fonts)
         self.encounter_text = 'A wild Dino appeared!'
-        self.encounter = Encounter(self.fonts, "vusion")
+        self.encounter = Encounter(self.fonts, "Vusion")
 
     def create_dino(self, name, level):
+        from data import DINO_DATA
         base_stats = DINO_DATA[name]['stats']
         return {
             "name": name,
@@ -80,11 +81,13 @@ class Game:
             "attack": base_stats['attack'],
             "defense": base_stats['defense'],
             "speed": base_stats['speed'],
-            "moves": [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level]
+            "moves": [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level],
+            "image": self.player_dino_images[name]  # <-- Load the sprite automatically
         }
 
 
-    def trigger_encounter(self, dino_key='vusion'):
+
+    def trigger_encounter(self, dino_key='Vusion'):
         self.fading = True
         self.fade_alpha = 0
         self.encounter = Encounter(self.fonts, dino_key)
@@ -310,22 +313,6 @@ class Game:
         self.render_surface = pygame.Surface((render_w, render_h))
         self.update_camera()
 
-
-    def create_dino(self, name, level):
-        # """Creates a dino with base stats pulled from DINO_DATA."""
-        base = DINO_DATA[name]
-        return {
-            "name": name,
-            "level": level,
-            "type": base['stats']['type'],
-            "max_hp": base['stats']['health'],
-            "hp": base['stats']['health'],  # start full
-            "attack": base['stats']['attack'],
-            "defense": base['stats']['defense'],
-            "speed": base['stats']['speed'],
-            "moves": [m for lvl, m in base['moves'].items() if lvl <= level],
-            "evolve": base['evolve']
-        }
 
 
 ### MENU
