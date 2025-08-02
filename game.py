@@ -66,6 +66,8 @@ class Game:
         
         # MESSAGE BOX
         self.message_box = MessageBox(config.WIDTH, config.HEIGHT, self.fonts)
+        self._post_catch_message = None  # Initialize this variable
+
 
         # ENCOUNTER
         self.encounter_ui = EncounterUI(self.fonts)
@@ -137,9 +139,14 @@ class Game:
 
             if self.message_box.visible and self.message_box.wait_for_input:
                 if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j): #SPACE or j interact for dialogue
-                    self.message_box.hide()
+                    if self._post_catch_message:
+                        #show next message
+                        self.message_box.show(self._post_catch_message, wait_for_input= True)
+                        self._post_catch_message = None
+                    else:
+                        self.message_box.hide()
                 # If waiting for SPACE/J to close the message, block other inputs
-                continue
+                # continue
 
             # ---- WORLD ----
             if self.state == 'world':
@@ -192,20 +199,28 @@ class Game:
 
             # ---- ENCOUNTER ----
             elif self.state == 'encounter':
-                result = self.encounter_ui.handle_input(event, self.player_dinos[self.active_dino_index])
-                if result == "Fight":
-                    print("Fight selected!")
-                elif result == "Run":
-                    self.pop_to_world()
-                    print("Run away!")
-                elif result == "Bag":
-                    self.push_state('items')
-                    print("Bag Opening")
-                elif result == 'Party':
-                    self.push_state('party')
-                    print("Switching Dino")
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-                    self.pop_to_world()
+                # First, handle message box input blocking for running
+                if self.message_box.visible and self.message_box.wait_for_input:
+                    # During message, block run (ignore 'i')
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+                        # Ignore run input until dialogue is done
+                        continue  # or just don't call pop_to_world()
+                else:
+                    # Normal encounter input handling
+                    result = self.encounter_ui.handle_input(event, self.player_dinos[self.active_dino_index])
+                    if result == "Fight":
+                        print("Fight selected!")
+                    elif result == "Run":
+                        self.pop_to_world()
+                        print("Run away!")
+                    elif result == "Bag":
+                        self.push_state('items')
+                        print("Bag Opening")
+                    elif result == 'Party':
+                        self.push_state('party')
+                        print("Switching Dino")
+                    elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+                        self.pop_to_world()
 
             # ---- ZOOM ----
             if event.type == pygame.KEYDOWN:
@@ -373,19 +388,26 @@ class Game:
         pod_rate = config.ITEMS["DinoPod"]["catch_rate"]
         success = random.random() < pod_rate
         if success:
-            # Add the caught dino to player's collection
             caught_dino = self.create_dino(
                 self.enemy_dino["name"], 
                 self.enemy_dino["level"]
             )
             self.player_dinos.append(caught_dino)
-            # Show message and wait for SPACE/J to continue
+
+            
+            # Show message that dino was caught
             self.message_box.show(f"You caught {self.enemy_dino['name']}!", wait_for_input=True)
-            # Queue a callback to exit encounter AFTER message closes
-            self.after_message_action = self.pop_to_world
+
+            # End encounter and return to world first
+            self.pop_to_world()
+
+            # Prepare the next message after first is dismissed
+            self._post_catch_message = f"{self.enemy_dino['name']} has been added to your party!"
         else:
             self.message_box.show(f"{self.enemy_dino['name']} broke free!", wait_for_input=True)
-            self.after_message_action = None
+            self._post_catch_message = None
+            if 'items' in self.state_stack:
+                self.pop_state()
 
 
 

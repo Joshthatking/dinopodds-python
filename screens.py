@@ -311,11 +311,14 @@ class ItemsScreen:
 
     def handle_event(self, event, game):
         # Refresh filtered_inventory every time to be up to date
-        self.filtered_inventory = [(item, count) for item, count in self.inventory.items() if count > 0]
+        if not hasattr(self, 'filtered_inventory'):
+            self.filtered_inventory = [(item, count) for item, count in self.inventory.items() if count > 0]
 
-        # Clamp selected_index so it doesn't go out of bounds
-        if self.selected_index >= len(self.filtered_inventory):
-            self.selected_index = max(0, len(self.filtered_inventory) - 1)
+        if len(self.filtered_inventory) == 0:
+            # No items available, ignore or maybe close items screen
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                return 'back'
+            return None
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_j: ## new
                 item_name, _ = self.filtered_inventory[self.selected_index]
