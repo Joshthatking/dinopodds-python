@@ -1,6 +1,6 @@
 TRAINER_DATA = {
     't1': {
-        'dinos': {0: ('Vusion',7), 1:('Vusion',8)},
+        'dinos': {0: ('Anemamace',7), 1:('Vusion',8)},
         'dialog': {
 			'default': ['Hey Trainer!', 'Lets Battle!'], 
 			'defeated': ['You are very strong!', 'Let\'s fight again sometime?']},
@@ -19,9 +19,21 @@ DINO_DATA = {
         'stats': {'type': 'dark', 'health': 120, 'attack': 155, 'defense': 70, 'speed': 125},
         'moves': {0: 'Force Shift', 16: 'Shadow Veil'},
         'evolve': None},
+    'Anemamace': {
+        'stats': {'type': ('aqua','spike'), 'health': 140, 'attack': 125, 'defense': 100, 'speed':90},
+        'moves': {0: 'Double Jab', 9: 'Whirlpool', 17: 'Wave Dash'},
+        'evolve': None},
+    'Corlave': {
+        'stats': {'type': ('aqua'), 'health': 80, 'attack': 55, 'defense': 40, 'speed':25},
+        'moves': {0: 'Whirlpool', 17: 'Wave Dash'},
+        'evolve': 17},
     }
+    
 
 
 ATTACK_DATA = {
     'Force Shift': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None,'type': 'dark'},
-}
+    'Double Jab': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'spike'},
+    'Whirlpool': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
+    
+    }

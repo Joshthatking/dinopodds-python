@@ -41,7 +41,7 @@ FONT_PATH_R = os.path.join('assets', 'Items','PixeloidMono.ttf' )
 FONT_XS = 12
 FONT_SMALL = 16
 FONT_MEDIUM = 24
-FONT_LARGE = 30
+FONT_LARGE = 28
 
 # Just a mapping of font names to (path, size)
 FONT_DEFS = {
@@ -100,11 +100,14 @@ TILE_PATHS = {
 ENCOUNTER_BG_PATH = os.path.join(ASSETS_PATH, 'Grass_Encounter.png')
 ENCOUNTER_DINOS_PATHS = {
     'Vusion': os.path.join(DINOS_PATH, 'Vusion_Encounter.png'),
+    'Anemamace': os.path.join(DINOS_PATH, 'Anemamace_Idle1.png'),
+    'Corlave': os.path.join(DINOS_PATH, 'Corlave_Idle.png'),
 }
 
 #PLAYER DINOS
 PLAYER_DINO_PATH = {
     'Vusion': os.path.join(DINOS_PATH, 'Vusion_AttackXXL.png'),
+    'Anemamace': os.path.join(DINOS_PATH,'Anemamace_Idle1.png'),
 }
 
 
@@ -119,7 +122,8 @@ ITEMS = {
     "DinoPod": {
         "name": "DinoPod",
         "icon": os.path.join(ITEMS_PATH, "dinopodd.png"),
-        "description": " A basic device used to capture wild Dinos"
+        "description": " A basic device used to capture wild Dinos",
+        'catch_rate': .3 # 30% chance
     },
     "DinoCapsule": {
         "name": "DinoCapsule",

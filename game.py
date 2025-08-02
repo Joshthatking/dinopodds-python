@@ -8,6 +8,7 @@ import csv
 import config
 from screens import Encounter, EncounterUI, ItemsScreen, PartyScreen, MessageBox
 from data import DINO_DATA
+import random
 
 # image processor
 def load_image(path, alpha=False):
@@ -28,7 +29,7 @@ class Game:
         self.fonts = {name: pygame.font.Font(path, size) for name, (path, size) in config.FONT_DEFS.items()}
         self.tile_images = {key: load_image(path, alpha=True) for key, path in config.TILE_PATHS.items()}  
 
-        self.enemy_dino = {"name": "Raptor", "level": 3, "hp": 20, "max_hp": 20}
+        self.enemy_dino = {"name": "Anemamace", "level": 3, "hp": 20, "max_hp": 20}
 
         self.previous_state = 'world'
         self.player = Player(spawn_point='home')
@@ -69,7 +70,7 @@ class Game:
         # ENCOUNTER
         self.encounter_ui = EncounterUI(self.fonts)
         self.encounter_text = 'A wild Dino appeared!'
-        self.encounter = Encounter(self.fonts, "Vusion")
+        self.encounter = Encounter(self.fonts, "Anemamace")
 
     def create_dino(self, name, level):
         from data import DINO_DATA
@@ -102,7 +103,7 @@ class Game:
 
 
 
-    def trigger_encounter(self, dino_key='Vusion'):
+    def trigger_encounter(self, dino_key='Anemamace'):
         print('Encounter Trigger')
         self.fading = True
         self.fade_alpha = 0
@@ -131,6 +132,14 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
                 return
+            
+             # --- Message box intercept (always first) ---
+
+            if self.message_box.visible and self.message_box.wait_for_input:
+                if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j): #SPACE or j interact for dialogue
+                    self.message_box.hide()
+                # If waiting for SPACE/J to close the message, block other inputs
+                continue
 
             # ---- WORLD ----
             if self.state == 'world':
@@ -177,6 +186,8 @@ class Game:
                 elif result == 'quit':  # I quits
                     self.pop_to_world()
                     self.items_screen.reset()
+                elif result == 'stay':
+                    pass # wait for message box interaction
 
 
             # ---- ENCOUNTER ----
@@ -355,6 +366,29 @@ class Game:
         render_h = int(config.HEIGHT / self.zoom)
         self.render_surface = pygame.Surface((render_w, render_h))
         self.update_camera()
+    
+    #CATCH LOGIC
+    def attempt_catch(self):
+        self.inventory["DinoPod"] = max(0, self.inventory["DinoPod"] - 1)
+        pod_rate = config.ITEMS["DinoPod"]["catch_rate"]
+        success = random.random() < pod_rate
+        if success:
+            # Add the caught dino to player's collection
+            caught_dino = self.create_dino(
+                self.enemy_dino["name"], 
+                self.enemy_dino["level"]
+            )
+            self.player_dinos.append(caught_dino)
+            # Show message and wait for SPACE/J to continue
+            self.message_box.show(f"You caught {self.enemy_dino['name']}!", wait_for_input=True)
+            # Queue a callback to exit encounter AFTER message closes
+            self.after_message_action = self.pop_to_world
+        else:
+            self.message_box.show(f"{self.enemy_dino['name']} broke free!", wait_for_input=True)
+            self.after_message_action = None
+
+
+
 
 
 

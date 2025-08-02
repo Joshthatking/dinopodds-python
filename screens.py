@@ -56,13 +56,17 @@ class EncounterUI:
         self.draw_panel(surface, player_info_rect)
 
         # Enemy Info
-        enemy_name = self.small_font.render(f"{enemy_dino['name']}            Lv{enemy_dino['level']}", True, (0, 0, 0))
-        surface.blit(enemy_name, (enemy_info_rect.x + 10, enemy_info_rect.y + 10))
+        enemy_name = self.small_font.render(f"{enemy_dino['name']}", True, (0,0,0))
+        enemy_lvl = self.small_font.render(f"Lv{enemy_dino['level']}", True, (0,0,0))
+        surface.blit(enemy_name, (enemy_info_rect.x + 10, enemy_info_rect.y + 12))
+        surface.blit(enemy_lvl, (enemy_info_rect.x + 160, enemy_info_rect.y + 12))
         self.draw_hp_bar(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 40, 200, 15, enemy_dino['hp'] / enemy_dino['max_hp'])
 
         # Player Info
-        player_name = self.small_font.render(f"{player_dino['name']}            Lv{player_dino['level']}", True, (0, 0, 0))
-        surface.blit(player_name, (player_info_rect.x + 10, player_info_rect.y + 10))
+        player_name = self.small_font.render(f"{player_dino['name']}", True, (0, 0, 0))
+        player_lvl = self.small_font.render(f"Lv{player_dino['level']}", True, (0,0,0))
+        surface.blit(player_name, (player_info_rect.x + 10, player_info_rect.y + 15))
+        surface.blit(player_lvl, (player_info_rect.x + 160, player_info_rect.y + 15))
         self.draw_hp_bar(surface, player_info_rect.x + 10, player_info_rect.y + 40, 200, 15, player_dino['hp'] / player_dino['max_hp'])
         # Player HP text
         player_hp_text = self.small_font.render(f"{player_dino['hp']}/{player_dino['max_hp']}", True, (0, 0, 0))
@@ -81,7 +85,7 @@ class EncounterUI:
         wrapped_lines = self.wrap_text(encounter_text, self.font, text_box_rect.width - 40)
         for i, line in enumerate(wrapped_lines[:3]):  # limit 3 lines
             text_surface = self.font.render(line, True, (0, 0, 0))
-            surface.blit(text_surface, (text_box_rect.x + 20, text_box_rect.y + 20 + i * 30))
+            surface.blit(text_surface, (text_box_rect.x + 20, text_box_rect.y + 15 + i * 30))
 
         # Actions
         if not self.in_fight_menu:
@@ -306,9 +310,18 @@ class ItemsScreen:
             surface.blit(line_surface, (desc_rect.x + 10, desc_rect.y + 10 + i * 20))
 
     def handle_event(self, event, game):
-        if not hasattr(self, 'filtered_inventory'):
-            self.filtered_inventory = [(item, count) for item, count in self.inventory.items() if count > 0]
+        # Refresh filtered_inventory every time to be up to date
+        self.filtered_inventory = [(item, count) for item, count in self.inventory.items() if count > 0]
+
+        # Clamp selected_index so it doesn't go out of bounds
+        if self.selected_index >= len(self.filtered_inventory):
+            self.selected_index = max(0, len(self.filtered_inventory) - 1)
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_j: ## new
+                item_name, _ = self.filtered_inventory[self.selected_index]
+                if item_name == 'DinoPod' and 'encounter' in game.state_stack:
+                    game.attempt_catch()
+                    return 'stay' # stay in encounter for catch attempt
             if event.key == pygame.K_w:  # Move up
                 if self.selected_index > 0:
                     self.selected_index -= 1
@@ -360,18 +373,21 @@ class MessageBox:
         self.message = ""
         self.visible = False
         self.timer = 0
+        self.wait_for_input = False
 
-    def show(self, message, duration=2):
+    def show(self, message, duration=2, wait_for_input=False):
         self.message = message
         self.visible = True
+        self.wait_for_input = wait_for_input
         self.timer = duration * 1000 if duration > 0 else 0
 
     def hide(self):
         self.visible = False
         self.message = ""
+        self.wait_for_input = False
 
     def update(self, dt):
-        if self.visible and self.timer > 0:
+        if self.visible and self.timer > 0 and not self.wait_for_input:
             self.timer -= dt
             if self.timer <= 0:
                 self.hide()
@@ -398,3 +414,51 @@ class MessageBox:
         for i, line in enumerate(lines):
             text_surf = self.font.render(line, True, (0, 0, 0))
             surface.blit(text_surf, (box_rect.x + 10, box_rect.y + 10 + i * 30))
+
+
+# class MessageBox:
+#     def __init__(self, width, height, fonts):
+#         self.width = width
+#         self.height = 100
+#         self.font = fonts['DIALOGUE']
+#         self.message = ""
+#         self.visible = False
+#         self.timer = 0
+
+#     def show(self, message, duration=2):
+#         self.message = message
+#         self.visible = True
+#         self.timer = duration * 1000 if duration > 0 else 0
+
+#     def hide(self):
+#         self.visible = False
+#         self.message = ""
+
+#     def update(self, dt):
+#         if self.visible and self.timer > 0:
+#             self.timer -= dt
+#             if self.timer <= 0:
+#                 self.hide()
+
+#     def draw(self, surface):
+#         if not self.visible:
+#             return
+#         box_rect = pygame.Rect(50, surface.get_height() - self.height - 20, self.width - 100, self.height)
+#         pygame.draw.rect(surface, (255, 255, 255), box_rect)
+#         pygame.draw.rect(surface, (0, 0, 0), box_rect, 3)
+
+#         words = self.message.split()
+#         lines, current_line = [], ""
+#         for word in words:
+#             test_line = f"{current_line} {word}".strip()
+#             if self.font.size(test_line)[0] < box_rect.width - 20:
+#                 current_line = test_line
+#             else:
+#                 lines.append(current_line)
+#                 current_line = word
+#         if current_line:
+#             lines.append(current_line)
+
+#         for i, line in enumerate(lines):
+#             text_surf = self.font.render(line, True, (0, 0, 0))
+#             surface.blit(text_surf, (box_rect.x + 10, box_rect.y + 10 + i * 30))
