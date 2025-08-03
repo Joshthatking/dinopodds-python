@@ -80,6 +80,7 @@ class Game:
         return {
             "name": name,
             "level": level,
+            "type": base_stats['type'],
             "hp": base_stats['health'],
             "max_hp": base_stats['health'],
             "attack": base_stats['attack'],

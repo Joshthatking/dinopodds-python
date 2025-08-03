@@ -8,5 +8,3 @@ if __name__ == '__main__':
     game.run()
 
 
-  #### Move hp to bottom left of big screen#
-  # move level bottom left under name, icon right side?

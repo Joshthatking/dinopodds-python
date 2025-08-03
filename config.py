@@ -8,7 +8,7 @@ import pygame
 BLACK = (0,0,0)
 WHITE = (255,255,255)
 RED = (255,0,0)
-DARK = '#2b292c'
+DARK = "#201624"
 LIGHT = '#c8c8c8'
 GRAY = '#3a373b'
 LIGHT_GRAY = '#4b484d'
