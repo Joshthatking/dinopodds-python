@@ -46,7 +46,7 @@ TYPE_DATA = {
     'magma': {
         'super_eff': ['earth', 'metal'],
         'weak_eff': ['magma', 'ancient', 'rock'],
-        'resist':['magma', 'ice', 'spike'],
+        'resist':['magma', 'ice'],
         'weak_to': ['aqua', 'rock'],
         'color': config.MAGMA
     },
@@ -59,10 +59,24 @@ TYPE_DATA = {
     },
     'dark': {
         'super_eff': ['spike', 'monster'],
-        'weak_eff': ['dark', 'ancient', 'metal'],
-        'resist':['earth', 'spike'],
-        'weak_to': ['magma', 'ice', 'flying'],
+        'weak_eff': ['dark', 'light'],
+        'resist':['lightning', 'spike', 'dark'],
+        'weak_to': ['light', 'goo'],
         'color': config.DARK
+    },
+    'light': {
+        'super_eff': ['dark', 'ancient', 'spike'],
+        'weak_eff': ['earth', 'lightning', 'metal'],
+        'resist': ['spike', 'ice', 'rock'],
+        'weak_to': ['lightning'],
+        'color': config.SOFT_WHITE
+    },
+    'spike': {
+        'super_eff': ['ancient', 'metal', 'rock'],
+        'weak_eff': ['dark', 'earth', 'light'],
+        'resist': ['flying', 'ice'],
+        'weak_to': ['dark', 'light'],
+        'color': config.SPIKE
     }
 }
 

@@ -195,9 +195,9 @@ class PartyScreen:
         self.height = 480
         self.bg_color = (30, 30, 30)
         self.font = game.fonts['BATTLE2']
-        self.small_font = pygame.font.Font(None, 24)
+        self.small_font = pygame.font.SysFont('Arial', 22)
         self.selected_index = 0
-        self.party_size = len(game.player_dinos)
+        # self.party_size = len(game.player_dinos)
 
     def reset(self):
         self.selected_index = 0
@@ -205,9 +205,9 @@ class PartyScreen:
     def handle_event(self, event, game):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_w:
-                self.selected_index = (self.selected_index - 1) % self.party_size
+                self.selected_index = (self.selected_index - 1) % len(game.player_dinos) #self.party_size
             elif event.key == pygame.K_s:
-                self.selected_index = (self.selected_index + 1) % self.party_size
+                self.selected_index = (self.selected_index + 1) % len(game.player_dinos) #self.party_size
             elif event.key == pygame.K_SPACE:
                 if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' and game.state_stack[0] == 'world':
                     game.pop_state()
@@ -234,7 +234,7 @@ class PartyScreen:
         start_x, start_y = 20, 20
         for i, dino in enumerate(self.game.player_dinos):
             rect = pygame.Rect(start_x, start_y + i * (box_height + 10), box_width, box_height)
-            color = (60, 60, 60) if i != self.selected_index else (0, 150, 255)
+            color = (70, 70, 70) if i != self.selected_index else (0, 150, 255)
             pygame.draw.rect(screen, color, rect)
             pygame.draw.rect(screen, (0, 0, 0), rect, 2)
             name_text = self.font.render(f"{dino['name']}", True, (255, 255, 255))
@@ -249,7 +249,7 @@ class PartyScreen:
             # screen.blit(hp_text, (rect.x + 10, rect.y + 35)) #hp text
 
             ### SPRITE ICON
-            sprite_icon = selected_dino['image']
+            sprite_icon = dino['image']  # <-- use the current dino in the loop
             sprite_icon_scaled = pygame.transform.scale(sprite_icon, (50,50))
             screen.blit(sprite_icon_scaled, (rect.x + 130, rect.y + 15))
 
@@ -286,9 +286,9 @@ class PartyScreen:
         # Calculate dynamic x so it stays at the right edge with 10px padding
         type_x = preview_rect.right - type_text.get_width() - 10
         type_y = preview_rect.bottom - type_text.get_height() - 10
-        name_x = preview_rect.left - name_surface.get_width() + 70
-        name_y = preview_rect.top - name_surface.get_height() + 30
-        hp_x = preview_rect.left - hp_text.get_width() +95
+        name_x = preview_rect.left + 10
+        name_y = preview_rect.top + 10
+        hp_x = preview_rect.left +10
         hp_y = preview_rect.bottom - hp_text.get_height() - 10
         screen.blit(name_surface, (name_x,name_y))
         screen.blit(hp_text, (hp_x, hp_y))
@@ -305,10 +305,13 @@ class PartyScreen:
         pygame.draw.rect(screen, (50, 50, 50), stats_rect)
         pygame.draw.rect(screen, (0, 0, 0), stats_rect, 3)
         stats = [
-            f"Level: {selected_dino['level']}",
-            f"HP: {selected_dino['hp']}/{selected_dino['max_hp']}",
+            # f"Level: {selected_dino['level']}",
+            f"HP: {selected_dino['max_hp']}",
+            ''
             f"Attack: {selected_dino['attack']}",
+            ''
             f"Defense: {selected_dino['defense']}",
+            ''
             f"Speed: {selected_dino['speed']}"
         ]
         for i, line in enumerate(stats):

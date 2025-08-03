@@ -16,6 +16,8 @@ MAGMA = '#f8a060'
 AQUA = '#50b0d8'
 EARTH = '#64a990'
 SOFT_WHITE = '#f0f0f0'
+ROCK = "#57513e"
+SPIKE = "#d4ba93"
 
 
 
