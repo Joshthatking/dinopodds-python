@@ -185,20 +185,22 @@ class EncounterUI:
 
 
 # === Party Screen ===
+
+
 class PartyScreen:
     def __init__(self, game):
-        self.game = game # store to access player_dinos, fonts, etc
+        self.game = game
         self.width = 640
         self.height = 480
-        self.bg_color = (90, 90, 90)
-        self.font = game.fonts['BATTLE']
+        self.bg_color = (30, 30, 30)
+        self.font = game.fonts['BATTLE2']
+        self.small_font = pygame.font.Font(None, 24)
         self.selected_index = 0
         self.party_size = len(game.player_dinos)
 
     def reset(self):
         self.selected_index = 0
 
-# ---- PartyScreen ----
     def handle_event(self, event, game):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_w:
@@ -206,51 +208,148 @@ class PartyScreen:
             elif event.key == pygame.K_s:
                 self.selected_index = (self.selected_index + 1) % self.party_size
             elif event.key == pygame.K_SPACE:
-                # If the state below on stack is menu and base is world, pop twice then push menu again
                 if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' and game.state_stack[0] == 'world':
-                    game.pop_state()  # remove 'party'
-                    game.pop_state()  # remove 'menu'
-                    game.push_state('menu')  # re-open menu on world background
+                    game.pop_state()
+                    game.pop_state()
+                    game.push_state('menu')
                 else:
-                    return 'back'  # default back behavior (pop current state)
+                    return 'back'
             elif event.key == pygame.K_i:
-                # If not in encounter, quit to world (pop all to world)
                 if 'encounter' not in game.state_stack:
                     return 'quit'
             elif event.key == pygame.K_j:
-                # If coming from encounter, confirm selection and return to encounter
                 if 'encounter' in game.state_stack:
                     game.active_dino_index = self.selected_index
                     return 'back'
-
         return None
-
 
     def draw(self, screen):
         screen.fill(self.bg_color)
-        main_rect = pygame.Rect(50, 50, 275, 200)
-        pygame.draw.rect(screen, (180, 180, 180), main_rect)
-        pygame.draw.rect(screen, (0, 0, 0), main_rect, 3)
 
-        box_width, box_height = 250, 50
-        start_x, start_y = 350, 50
-        for i in range(self.party_size - 1):
+        # --- Left panel: party list ---
+        box_width, box_height = 200, 70
+        start_x, start_y = 20, 20
+        for i, dino in enumerate(self.game.player_dinos):
             rect = pygame.Rect(start_x, start_y + i * (box_height + 10), box_width, box_height)
-            color = (0, 150, 255) if (i + 1) == self.selected_index else (200, 200, 200)
+            color = (60, 60, 60) if i != self.selected_index else (0, 150, 255)
             pygame.draw.rect(screen, color, rect)
             pygame.draw.rect(screen, (0, 0, 0), rect, 2)
+            name_text = self.font.render(f"{dino['name']}", True, (255, 255, 255))
+            lvl_text = self.font.render(f"Lv{dino['level']}",True, (255,255,255))
+            hp_text = self.small_font.render(f"HP: {dino['hp']}/{dino['max_hp']}", True, (200, 200, 200))
+            screen.blit(name_text, (rect.x + 10, rect.y + 5))
+            screen.blit(lvl_text, (rect.x + 155, rect.y + 5))
+            screen.blit(hp_text, (rect.x + 10, rect.y + 35))
 
-        if self.selected_index == 0:
-            pygame.draw.rect(screen, (0, 150, 255), main_rect, 5)
+        # --- Right top: preview box ---
+        preview_rect = pygame.Rect(240, 20, 380, 200)
+        pygame.draw.rect(screen, (100, 200, 230), preview_rect)
+        pygame.draw.rect(screen, (0, 0, 0), preview_rect, 3)
+        selected_dino = self.game.player_dinos[self.selected_index]
+        # Name
+        name_surface = self.font.render(selected_dino['name'], True, (0, 0, 0))
+        screen.blit(name_surface, (preview_rect.x + 10, preview_rect.y + 10))
+        # Sprite
+        sprite = selected_dino['image']
+        sprite_scaled = pygame.transform.scale(sprite, (100, 100))
+        screen.blit(sprite_scaled, (preview_rect.centerx - 50, preview_rect.centery - 40))
 
-        text = self.font.render("Choose a Dino? (SPACE to go back)", True, (0, 0, 0))
-        screen.blit(text, (50, 400))
+        # --- Right bottom: stats box ---
+        stats_rect = pygame.Rect(240, 230, 380, 200)
+        pygame.draw.rect(screen, (50, 50, 50), stats_rect)
+        pygame.draw.rect(screen, (0, 0, 0), stats_rect, 3)
+        stats = [
+            f"Level: {selected_dino['level']}",
+            f"HP: {selected_dino['hp']}/{selected_dino['max_hp']}",
+            f"Attack: {selected_dino['attack']}",
+            f"Defense: {selected_dino['defense']}",
+            f"Speed: {selected_dino['speed']}"
+        ]
+        for i, line in enumerate(stats):
+            stat_text = self.small_font.render(line, True, (255, 255, 255))
+            screen.blit(stat_text, (stats_rect.x + 10, stats_rect.y + 10 + i * 30))
 
-        for i, dino in enumerate(self.game.player_dinos):
-            text = f"{dino['name']} Lv{dino['level']} HP: {dino['hp']}/{dino['max_hp']}"
-            color = (255, 255, 255) if i != self.selected_index else (200, 200, 0)
-            surf = self.font.render(text, True, color)
-            screen.blit(surf, (100, 100 + i * 40))
+        # --- Bottom right: "Box" button ---
+        button_rect = pygame.Rect(self.width - 100, self.height - 60, 80, 40)
+        pygame.draw.rect(screen, (120, 120, 120), button_rect)
+        pygame.draw.rect(screen, (0, 0, 0), button_rect, 2)
+        button_text = self.small_font.render("Box", True, (0, 0, 0))
+        screen.blit(button_text, (button_rect.centerx - button_text.get_width() // 2,
+                                  button_rect.centery - button_text.get_height() // 2))
+
+
+
+
+
+
+
+
+# class PartyScreen:
+#     def __init__(self, game):
+#         self.game = game # store to access player_dinos, fonts, etc
+#         self.width = 640
+#         self.height = 480
+#         self.bg_color = (90, 90, 90)
+#         self.font = game.fonts['BATTLE']
+#         self.selected_index = 0
+#         self.party_size = len(game.player_dinos)
+
+#     def reset(self):
+#         self.selected_index = 0
+
+# # ---- PartyScreen ----
+#     def handle_event(self, event, game):
+#         if event.type == pygame.KEYDOWN:
+#             if event.key == pygame.K_w:
+#                 self.selected_index = (self.selected_index - 1) % self.party_size
+#             elif event.key == pygame.K_s:
+#                 self.selected_index = (self.selected_index + 1) % self.party_size
+#             elif event.key == pygame.K_SPACE:
+#                 # If the state below on stack is menu and base is world, pop twice then push menu again
+#                 if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' and game.state_stack[0] == 'world':
+#                     game.pop_state()  # remove 'party'
+#                     game.pop_state()  # remove 'menu'
+#                     game.push_state('menu')  # re-open menu on world background
+#                 else:
+#                     return 'back'  # default back behavior (pop current state)
+#             elif event.key == pygame.K_i:
+#                 # If not in encounter, quit to world (pop all to world)
+#                 if 'encounter' not in game.state_stack:
+#                     return 'quit'
+#             elif event.key == pygame.K_j:
+#                 # If coming from encounter, confirm selection and return to encounter
+#                 if 'encounter' in game.state_stack:
+#                     game.active_dino_index = self.selected_index
+#                     return 'back'
+
+#         return None
+
+
+#     def draw(self, screen):
+#         screen.fill(self.bg_color)
+#         main_rect = pygame.Rect(50, 50, 275, 200)
+#         pygame.draw.rect(screen, (180, 180, 180), main_rect)
+#         pygame.draw.rect(screen, (0, 0, 0), main_rect, 3)
+
+#         box_width, box_height = 250, 50
+#         start_x, start_y = 350, 50
+#         for i in range(self.party_size - 1):
+#             rect = pygame.Rect(start_x, start_y + i * (box_height + 10), box_width, box_height)
+#             color = (0, 150, 255) if (i + 1) == self.selected_index else (200, 200, 200)
+#             pygame.draw.rect(screen, color, rect)
+#             pygame.draw.rect(screen, (0, 0, 0), rect, 2)
+
+#         if self.selected_index == 0:
+#             pygame.draw.rect(screen, (0, 150, 255), main_rect, 5)
+
+#         text = self.font.render("Choose a Dino? (SPACE to go back)", True, (0, 0, 0))
+#         screen.blit(text, (50, 400))
+
+#         for i, dino in enumerate(self.game.player_dinos):
+#             text = f"{dino['name']} Lv{dino['level']} HP: {dino['hp']}/{dino['max_hp']}"
+#             color = (255, 255, 255) if i != self.selected_index else (200, 200, 0)
+#             surf = self.font.render(text, True, color)
+#             screen.blit(surf, (100, 100 + i * 40))
 
 
 

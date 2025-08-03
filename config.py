@@ -110,6 +110,13 @@ PLAYER_DINO_PATH = {
     'Anemamace': os.path.join(DINOS_PATH,'Anemamace_Idle1.png'),
 }
 
+#ICON DINOS
+ICON_DINOS_PATH = {
+        'Vusion': os.path.join(DINOS_PATH, 'Vusion_Icon.png'),
+    'Anemamace': os.path.join(DINOS_PATH,'Anemamace_Icon.png'),
+}
+
+
 
 # #Item assets
 # ITEMS = {
