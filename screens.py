@@ -1,6 +1,6 @@
 import pygame
 import config
-from data import DINO_DATA, TYPE_DATA
+from data import DINO_DATA, TYPE_DATA, MOVE_DATA
 # import game
 
 # image loader
@@ -96,21 +96,43 @@ class EncounterUI:
                 action_text = self.font.render(action, True, color)
                 surface.blit(action_text, (actions_rect.x + 20 + (i%2)*120, actions_rect.y + 20 + (i//2)*50))
         else:
-            # Fight menu (2x2 grid for moves)
+            # Fight menu (split actions_rect into 4 equal quadrants)
             moves = player_dino['moves']
-            for i in range(4):  # Always draw 4 slots
+
+            quad_width = actions_rect.width // 2
+            quad_height = actions_rect.height // 2
+
+            for i in range(4):  # 4 quadrants
                 row = i // 2
                 col = i % 2
-                x = actions_rect.x + 30 + col * 130
-                y = actions_rect.y + 20 + row * 40
 
+                # Calculate each quadrant rect
+                x = actions_rect.x + col * quad_width
+                y = actions_rect.y + row * quad_height
+                rect = pygame.Rect(x, y, quad_width, quad_height)
+
+                # --- Background color based on move type ---
                 if i < len(moves):
-                    color = (0, 0, 0) if i != self.move_selected else (200, 0, 0)
-                    text = self.small_font.render(moves[i], True, color)
+                    move_name = moves[i]
+                    move_type = MOVE_DATA.get(move_name, {}).get("type", "normal")
+                    bg_color = TYPE_DATA.get(move_type, {}).get("color", (200, 200, 200))
                 else:
-                    color = (150, 150, 150)
-                    text = self.small_font.render("—", True, color)
-                surface.blit(text, (x, y))
+                    move_name = "—"
+                    bg_color = (150, 150, 150)
+
+                # Fill background
+                pygame.draw.rect(surface, bg_color, rect)
+
+                # Highlight selected
+                border_color = (255, 255, 0) if i == self.move_selected else (0, 0, 0)
+                pygame.draw.rect(surface, border_color, rect, 3)
+
+                # Render move text centered
+                text_color = (255, 255, 255) if i < len(moves) else (100, 100, 100)
+                text = self.small_font.render(move_name, True, text_color)
+                text_x = rect.centerx - text.get_width() // 2
+                text_y = rect.centery - text.get_height() // 2
+                surface.blit(text, (text_x, text_y))
 
 
     def wrap_text(self, text, font, max_width):
@@ -300,23 +322,52 @@ class PartyScreen:
         sprite_scaled = pygame.transform.scale(sprite, (150, 150))
         screen.blit(sprite_scaled, (preview_rect.centerx - 50, preview_rect.centery - 70))  # Main Sprite Image Center
 
+
         # --- Right bottom: stats box ---
         stats_rect = pygame.Rect(240, 230, 380, 200)
         pygame.draw.rect(screen, (50, 50, 50), stats_rect)
         pygame.draw.rect(screen, (0, 0, 0), stats_rect, 3)
+
+        # Stats section
         stats = [
-            # f"Level: {selected_dino['level']}",
             f"HP: {selected_dino['max_hp']}",
-            ''
             f"Attack: {selected_dino['attack']}",
-            ''
             f"Defense: {selected_dino['defense']}",
-            ''
             f"Speed: {selected_dino['speed']}"
         ]
         for i, line in enumerate(stats):
             stat_text = self.small_font.render(line, True, (255, 255, 255))
-            screen.blit(stat_text, (stats_rect.x + 10, stats_rect.y + 10 + i * 30))
+            screen.blit(stat_text, (stats_rect.x + 10, stats_rect.y + 10 + i * 25))
+
+        # --- Moves section (inside same box) ---
+        move_box_width = stats_rect.width - 20
+        move_box_height = 25
+        move_start_x = stats_rect.x + 10
+        move_start_y = stats_rect.y + 120  # starts below stats area
+        move_spacing = 5
+
+        for i, move_name in enumerate(selected_dino['moves']):
+            # Get move type & color
+            move_type = MOVE_DATA.get(move_name, {}).get("type", "normal")
+            move_color = TYPE_DATA.get(move_type, {}).get("color", (200, 200, 200))
+
+            # Move rect
+            move_rect = pygame.Rect(
+                move_start_x,
+                move_start_y + i * (move_box_height + move_spacing),
+                move_box_width,
+                move_box_height
+            )
+
+            # Draw move background & border
+            pygame.draw.rect(screen, move_color, move_rect)
+            pygame.draw.rect(screen, (0, 0, 0), move_rect, 2)
+
+            # Render move text
+            move_text = self.small_font.render(move_name, True, (0, 0, 0))
+            screen.blit(move_text, (move_rect.x + 8, move_rect.y + 4))
+
+
 
         # --- Bottom right: "Box" button ---
         button_rect = pygame.Rect(self.width - 100, self.height - 60, 80, 40)

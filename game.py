@@ -46,7 +46,7 @@ class Game:
         # DINO DATA
         self.player_dino_images = {name: load_image(path, alpha=True) for name, path in config.PLAYER_DINO_PATH.items()}
         self.player_dinos = [
-            self.create_dino('Vusion', 5),
+            self.create_dino('Vusion', 20),
             self.create_dino('Vusion', 3)
         ]
         self.active_dino_index = 0
