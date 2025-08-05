@@ -74,13 +74,13 @@ class EncounterUI:
 
         # --- XP Bar ---
         xp_progress = player_dino['displayed_xp'] / player_dino['xp_to_next']
-        xp_bar_rect = pygame.Rect(player_info_rect.x , player_info_rect.y + 80, 200, 8)
+        xp_bar_rect = pygame.Rect(player_info_rect.x + 5, player_info_rect.y + 77, 200, 8)
         pygame.draw.rect(surface, (255, 255, 255), xp_bar_rect)  # Background
         pygame.draw.rect(surface, (0, 0, 255), 
             (xp_bar_rect.x, xp_bar_rect.y, xp_bar_rect.width * xp_progress, xp_bar_rect.height))  # Fill
         pygame.draw.rect(surface, (0, 0, 0), xp_bar_rect, 2)  # Outline
         xp_text = self.small_font.render(f"XP: {int(player_dino['displayed_xp'])}/{int(player_dino['xp_to_next'])}", True, (0, 0, 0))
-        surface.blit(xp_text, (xp_bar_rect.x, xp_bar_rect.y - 15))
+        surface.blit(xp_text, (xp_bar_rect.x, xp_bar_rect.y - 17))
 
 
         # Player HP text
@@ -568,7 +568,8 @@ class ItemsScreen:
                 item_name, _ = self.filtered_inventory[self.selected_index]
                 if item_name == 'DinoPod' and 'encounter' in game.state_stack:
                     game.attempt_catch()
-                    return 'stay' # stay in encounter for catch attempt
+                    # return 'stay' # stay in encounter for catch attempt
+                    return 'used'
             if event.key == pygame.K_w:  # Move up
                 if self.selected_index > 0:
                     self.selected_index -= 1
@@ -611,7 +612,14 @@ class ItemsScreen:
         return lines
 
 
+
+
+
+
+
+
 # === Message Box ===
+
 class MessageBox:
     def __init__(self, width, height, fonts):
         self.width = width
@@ -621,23 +629,51 @@ class MessageBox:
         self.visible = False
         self.timer = 0
         self.wait_for_input = False
+        self.on_complete = None
+        self.messages = []  # <-- Initialize here
 
     def show(self, message, duration=2, wait_for_input=False):
+        """Show a single message."""
         self.message = message
         self.visible = True
         self.wait_for_input = wait_for_input
         self.timer = duration * 1000 if duration > 0 else 0
 
+    def queue_messages(self, messages, wait_for_input=True, on_complete=None):
+        """Queue multiple messages to show one after the other."""
+        self.messages = list(messages)  # make sure it's a copy
+        self.visible = True
+        self.wait_for_input = wait_for_input
+        self.on_complete = on_complete
+        self.message = self.messages.pop(0)
+        self.timer = 0  # queued messages are usually click-through
+
+    def handle_event(self, event):
+        if self.visible and self.wait_for_input and event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j):
+            if self.messages:
+                self.message = self.messages.pop(0)
+            else:
+                self.hide()
+                if self.on_complete:
+                    self.on_complete()
+
     def hide(self):
         self.visible = False
         self.message = ""
         self.wait_for_input = False
+        self.messages = []
 
     def update(self, dt):
         if self.visible and self.timer > 0 and not self.wait_for_input:
             self.timer -= dt
             if self.timer <= 0:
-                self.hide()
+                if self.messages:
+                    self.message = self.messages.pop(0)
+                    self.timer = 0
+                else:
+                    self.hide()
+                    if self.on_complete:
+                        self.on_complete()
 
     def draw(self, surface):
         if not self.visible:
@@ -661,6 +697,79 @@ class MessageBox:
         for i, line in enumerate(lines):
             text_surf = self.font.render(line, True, (0, 0, 0))
             surface.blit(text_surf, (box_rect.x + 10, box_rect.y + 10 + i * 30))
+
+
+
+
+
+# class MessageBox:
+#     def __init__(self, width, height, fonts):
+#         self.width = width
+#         self.height = 100
+#         self.font = fonts['DIALOGUE']
+#         self.message = ""
+#         self.visible = False
+#         self.timer = 0
+#         self.wait_for_input = False
+#         self.on_complete = None
+
+#     def show(self, message, duration=2, wait_for_input=False):
+#         self.message = message
+#         self.visible = True
+#         self.wait_for_input = wait_for_input
+#         self.timer = duration * 1000 if duration > 0 else 0
+
+
+#     def queue_messages(self, messages, wait_for_input=False, on_complete=None):
+#         self.messages = messages
+#         self.visible = True
+#         self.wait_for_input = wait_for_input
+#         self.on_complete = on_complete
+#         self.message = self.messages.pop(0)
+
+#     def handle_event(self, event):
+#         if self.visible and event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+#             if self.messages:
+#                 self.message = self.messages.pop(0)
+#             else:
+#                 self.hide()
+#                 if self.on_complete:
+#                     self.on_complete()
+
+#     def hide(self):
+#         self.visible = False
+#         self.message = ""
+#         self.wait_for_input = False
+#         self.messages = []
+
+#     def update(self, dt):
+#         if self.visible and self.timer > 0 and not self.wait_for_input:
+#             self.timer -= dt
+#             if self.timer <= 0:
+#                 self.hide()
+
+#     def draw(self, surface):
+#         if not self.visible:
+#             return
+#         box_rect = pygame.Rect(50, surface.get_height() - self.height - 20, self.width - 100, self.height)
+#         pygame.draw.rect(surface, (255, 255, 255), box_rect)
+#         pygame.draw.rect(surface, (0, 0, 0), box_rect, 3)
+
+#         words = self.message.split()
+#         lines, current_line = [], ""
+#         for word in words:
+#             test_line = f"{current_line} {word}".strip()
+#             if self.font.size(test_line)[0] < box_rect.width - 20:
+#                 current_line = test_line
+#             else:
+#                 lines.append(current_line)
+#                 current_line = word
+#         if current_line:
+#             lines.append(current_line)
+
+#         for i, line in enumerate(lines):
+#             text_surf = self.font.render(line, True, (0, 0, 0))
+#             surface.blit(text_surf, (box_rect.x + 10, box_rect.y + 10 + i * 30))
 
 
 # class MessageBox:

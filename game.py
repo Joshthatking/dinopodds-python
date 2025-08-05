@@ -47,7 +47,7 @@ class Game:
         # DINO DATA
         self.player_dino_images = {name: load_image(path, alpha=True) for name, path in config.PLAYER_DINO_PATH.items()}
         self.player_dinos = [
-            self.create_dino('Vusion', 20),
+            self.create_dino('Vusion', 12),
             self.create_dino('Vusion', 3)
         ]
         self.active_dino_index = 0
@@ -74,6 +74,10 @@ class Game:
         self.encounter_ui = EncounterUI(self.fonts)
         self.encounter_text = 'A wild Dino appeared!'
         self.encounter = Encounter(self.fonts, "Anemamace")
+        self.message_queue = []
+        self.processing_messages = False
+        self.post_message_action = None  # For optional callbacks after messages finish
+
 
 
 
@@ -167,6 +171,22 @@ class Game:
             self.pop_state()
 
 
+    
+    def queue_messages(self, messages, post_action=None):
+        """
+        Queue up one or more messages for sequential display.
+        Pauses gameplay until all are clicked through.
+        post_action: a function or string action to run after all messages finish.
+        """
+        if isinstance(messages, str):
+            messages = [messages]
+        self.message_queue = messages
+        self.processing_messages = True
+        self.post_message_action = post_action
+        self.message_box.show(self.message_queue.pop(0), wait_for_input=True)
+
+
+
 
     def trigger_encounter(self, dino_key='Anemamace'):
         print('Encounter Trigger')
@@ -175,6 +195,10 @@ class Game:
         self.encounter = Encounter(self.fonts, dino_key)
         self.enemy_dino = {"name": dino_key, "level": 3, "hp": 20, "max_hp": 20}
         self.encounter_text = f"A wild {dino_key.capitalize()} appeared!"
+        self.queue_messages(
+    [f"A wild {self.enemy_dino['name']} appeared!", "What will you do?"]
+)
+
 
     def load_csv_map(self, filename):
         path = os.path.join('assets/MapAssets', filename)
@@ -199,15 +223,28 @@ class Game:
                 return
             
              # --- Message box intercept (always first) ---
+            if self.message_box.visible:
+                self.message_box.handle_event(event)
+                return  # Block all other inputs until messages are done
 
-            if self.message_box.visible and self.message_box.wait_for_input:
-                if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j): #SPACE or j interact for dialogue
-                    if self._post_catch_message:
-                        #show next message
-                        self.message_box.show(self._post_catch_message, wait_for_input= True)
-                        self._post_catch_message = None
-                    else:
-                        self.message_box.hide()
+
+        # # --- Handle queued messages first ---
+        #     if self.processing_messages and self.message_box.wait_for_input:
+        #         if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j):
+        #             if self.message_queue:
+        #                 # Show the next queued message
+        #                 self.message_box.show(self.message_queue.pop(0), wait_for_input=True)
+        #             else:
+        #                 # No more messages; hide box and run post-action
+        #                 self.message_box.hide()
+        #                 self.processing_messages = False
+        #                 if self.post_message_action:
+        #                     if callable(self.post_message_action):
+        #                         self.post_message_action()
+        #                     elif isinstance(self.post_message_action, str) and self.post_message_action == "return_to_world":
+        #                         self.pop_state()
+        #                     self.post_message_action = None
+        #             continue  # Skip all other input while processing messages
                 # If waiting for SPACE/J to close the message, block other inputs
                 # continue
 
@@ -256,8 +293,10 @@ class Game:
                 elif result == 'quit':  # I quits
                     self.pop_to_world()
                     self.items_screen.reset()
-                elif result == 'stay':
-                    pass # wait for message box interaction
+                elif result == 'used': #stay with pass
+                    # pass # wait for message box interaction
+                    self.pop_state()
+                    self.items_screen.reset()
 
 
             # ---- ENCOUNTER ----
@@ -274,6 +313,10 @@ class Game:
                     if result == "Fight":
                         print("Fight selected!")
                     elif result == "Run":
+                        self.queue_messages(
+                        [f"You ran away safely!"], 
+                        post_action="return_to_world"
+                    )
                         self.pop_to_world()
                         print("Run away!")
                     elif result == "Bag":
@@ -331,7 +374,7 @@ class Game:
         if (px, py) in self.items_on_map:
             item_name = self.items_on_map.pop((px, py))
             self.inventory[item_name] += 1
-            self.message_box.show(f'Picked up a {item_name}!', duration=0)
+            self.message_box.queue_messages([f'Picked up a {item_name}!'], wait_for_input=True)
             print(f"Picked up {item_name}! Total: {self.inventory[item_name]}")
 
     def update(self, dt):
@@ -453,7 +496,6 @@ class Game:
         self.render_surface = pygame.Surface((render_w, render_h))
         self.update_camera()
     
-    #CATCH LOGIC
     def attempt_catch(self):
         self.inventory["DinoPod"] = max(0, self.inventory["DinoPod"] - 1)
         pod_rate = config.ITEMS["DinoPod"]["catch_rate"]
@@ -463,44 +505,82 @@ class Game:
                 self.enemy_dino["name"], 
                 self.enemy_dino["level"]
             )
+            caught_dino['xp'] = 0
+            caught_dino['displayed_xp'] = 0
             self.player_dinos.append(caught_dino)
 
-            
-            # Show message that dino was caught
-            self.message_box.show(f"You caught {self.enemy_dino['name']}!", wait_for_input=True)
-
-                        # Award XP to all dinos in party
+            # Calculate XP
             xp_gain = calculate_xp_gain(
                 player_level=max(d['level'] for d in self.player_dinos),
                 opponent_level=self.enemy_dino['level'],
-                state_multiplier=1.0,  # catching bonus
+                state_multiplier=1.0,
                 party_size=len(self.player_dinos)
             )
 
+            # Award XP + trigger animation
             for dino in self.player_dinos:
                 dino['xp_gain_pending'] = True
                 dino['xp'] += xp_gain
-                # Check for level-up
                 new_level = XPtoLevel(dino['xp'])
                 if new_level > dino['level']:
-                    dino['level'] = new_level
-                    dino['max_hp'] += 5  # optional: increase stats per level
-                    dino['hp'] = dino['max_hp']  # refill on level up
-                    # (optional) learn new moves here
-            self.message_box.show(f"{self.enemy_dino['name']} was caught! Each party dino gained {xp_gain} XP!", wait_for_input= True)
+                    dino['level'] = int(new_level)
+                    dino['max_hp'] += 5
+                    dino['hp'] = dino['max_hp']
 
+            # Queue up multi-step messages and set post-action
+            self.message_box.queue_messages(
+                [
+                    f"You caught {self.enemy_dino['name']}!",
+                    f"{self.enemy_dino['name']} was added to your party!",
+                    f"Each party dino gained {xp_gain} XP!"
+                ],wait_for_input=True, on_complete=self.pop_to_world
 
+            )
 
-            # End encounter and return to world first
-            self.pop_to_world()
-
-            # Prepare the next message after first is dismissed
-            self._post_catch_message = f"{self.enemy_dino['name']} has been added to your party!"
         else:
-            self.message_box.show(f"{self.enemy_dino['name']} broke free!", wait_for_input=True)
-            self._post_catch_message = None
-            if 'items' in self.state_stack:
-                self.pop_state()
+            # Fail case: stay in encounter
+            self.message_box.queue_messages(
+                [f"{self.enemy_dino['name']} broke free!", "What will you do?"],wait_for_input=True
+            )
+
+
+
+            
+            # # Show message that dino was caught
+            # self.message_box.show(f"You caught {self.enemy_dino['name']}!", wait_for_input=True)
+
+            #             # Award XP to all dinos in party
+            # xp_gain = calculate_xp_gain(
+            #     player_level=max(d['level'] for d in self.player_dinos),
+            #     opponent_level=self.enemy_dino['level'],
+            #     state_multiplier=1.0,  # catching bonus
+            #     party_size=len(self.player_dinos)
+            # )
+
+            # for dino in self.player_dinos:
+            #     dino['xp_gain_pending'] = True
+            #     dino['xp'] += xp_gain
+            #     # Check for level-up
+            #     new_level = XPtoLevel(dino['xp'])
+            #     if new_level > dino['level']:
+            #         dino['level'] = new_level
+            #         dino['max_hp'] += 5  # optional: increase stats per level
+            #         dino['hp'] = dino['max_hp']  # refill on level up
+            #         # (optional) learn new moves here
+            # self.message_box.show(f"{self.enemy_dino['name']} was caught! Each party dino gained {xp_gain} XP!", wait_for_input= True)
+
+
+
+        #     # End encounter and return to world first
+        #     self.pop_to_world()
+
+        #     # Prepare the next message after first is dismissed
+        #     self._post_catch_message = f"{self.enemy_dino['name']} has been added to your party!"
+        # else:
+        #     self.message_box.show(f"{self.enemy_dino['name']} broke free!", wait_for_input=True)
+        #     self._post_catch_message = None
+        #     if 'items' in self.state_stack:
+        #         self.pop_state()
 
 
 
