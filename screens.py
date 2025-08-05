@@ -218,6 +218,7 @@ class PartyScreen:
         self.bg_color = (30, 30, 30)
         self.font = game.fonts['BATTLE2']
         self.small_font = pygame.font.SysFont('Arial', 22)
+        self.smaller_font = pygame.font.SysFont('Arial', 20)
         self.selected_index = 0
         # self.party_size = len(game.player_dinos)
 
@@ -267,13 +268,13 @@ class PartyScreen:
             # screen.blit(lvl_text, (rect.x + 155, rect.y + 5)) # top right
 
             screen.blit(name_text, (rect.x + 10, rect.y + 5)) # top left
-            screen.blit(lvl_text, (rect.x + 10, rect.y + 40)) # top right
-            # screen.blit(hp_text, (rect.x + 10, rect.y + 35)) #hp text
+            screen.blit(lvl_text, (rect.x + 10, rect.y + 25)) # top right
+            # screen.blit(hp_text, (rect.x + 10, rect.y + 45)) #hp text
 
             ### SPRITE ICON
             sprite_icon = dino['image']  # <-- use the current dino in the loop
             sprite_icon_scaled = pygame.transform.scale(sprite_icon, (50,50))
-            screen.blit(sprite_icon_scaled, (rect.x + 130, rect.y + 15))
+            screen.blit(sprite_icon_scaled, (rect.x + 140, rect.y + 5))
 
         # --- Right top: preview box ---
         
@@ -324,7 +325,7 @@ class PartyScreen:
 
 
         # --- Right bottom: stats box ---
-        stats_rect = pygame.Rect(240, 230, 380, 200)
+        stats_rect = pygame.Rect(240, 230, 380, 240)
         pygame.draw.rect(screen, (50, 50, 50), stats_rect)
         pygame.draw.rect(screen, (0, 0, 0), stats_rect, 3)
 
@@ -340,16 +341,22 @@ class PartyScreen:
             screen.blit(stat_text, (stats_rect.x + 10, stats_rect.y + 10 + i * 25))
 
         # --- Moves section (inside same box) ---
-        move_box_width = stats_rect.width - 20
+        move_box_width = stats_rect.width - 200
         move_box_height = 25
         move_start_x = stats_rect.x + 10
         move_start_y = stats_rect.y + 120  # starts below stats area
         move_spacing = 5
 
-        for i, move_name in enumerate(selected_dino['moves']):
-            # Get move type & color
-            move_type = MOVE_DATA.get(move_name, {}).get("type", "normal")
+        for i, move in enumerate(selected_dino['moves']):
+            move_name = move['name']
+            move_type = move['type']  # <-- use pre-stored type
+            move_damage = move['damage']
+            move_accuracy = move['accuracy']
+
+            # Color based on type
             move_color = TYPE_DATA.get(move_type, {}).get("color", (200, 200, 200))
+
+
 
             # Move rect
             move_rect = pygame.Rect(
@@ -364,8 +371,12 @@ class PartyScreen:
             pygame.draw.rect(screen, (0, 0, 0), move_rect, 2)
 
             # Render move text
-            move_text = self.small_font.render(move_name, True, (0, 0, 0))
-            screen.blit(move_text, (move_rect.x + 8, move_rect.y + 4))
+            move_text = self.smaller_font.render(move_name, True, (255, 255, 255))
+            move_stats = self.smaller_font.render(f"{move_damage}/{move_accuracy}", True, (255, 255, 255))
+
+            screen.blit(move_text, (move_rect.x + 8, move_rect.y ))
+            screen.blit(move_stats, (move_rect.x + 125, move_rect.y ))
+
 
 
 

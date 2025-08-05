@@ -7,7 +7,7 @@ import os
 import csv
 import config
 from screens import Encounter, EncounterUI, ItemsScreen, PartyScreen, MessageBox
-from data import DINO_DATA
+from data import DINO_DATA,MOVE_DATA
 import random
 
 # image processor
@@ -74,9 +74,26 @@ class Game:
         self.encounter_text = 'A wild Dino appeared!'
         self.encounter = Encounter(self.fonts, "Anemamace")
 
+
+
     def create_dino(self, name, level):
-        from data import DINO_DATA
+        from data import DINO_DATA, MOVE_DATA
         base_stats = DINO_DATA[name]['stats']
+        
+        # Get all moves this dino knows
+        learned_moves = [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level]
+        
+        # Attach full move data (name, damage, accuracy, type)
+        moves_with_data = []
+        for move in learned_moves:
+            move_info = MOVE_DATA.get(move, {})
+            moves_with_data.append({
+                "name": move,
+                "type": move_info.get("type", "normal"),
+                "damage": move_info.get("damage", 0),
+                "accuracy": move_info.get("accuracy", 100)
+            })
+        
         return {
             "name": name,
             "level": level,
@@ -86,9 +103,29 @@ class Game:
             "attack": base_stats['attack'],
             "defense": base_stats['defense'],
             "speed": base_stats['speed'],
-            "moves": [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level],
-            "image": self.player_dino_images[name]  # <-- Load the sprite automatically
+            "moves": moves_with_data,  # <-- now moves are full dictionaries with stats
+            "image": self.player_dino_images[name]
         }
+
+
+    # def create_dino(self, name, level):
+    #     from data import DINO_DATA,MOVE_DATA
+    #     base_stats = DINO_DATA[name]['stats']
+    #     move_stats = MOVE_DATA[name]
+    #     return {
+    #         "name": name,
+    #         "level": level,
+    #         "type": base_stats['type'],
+    #         "hp": base_stats['health'],
+    #         "max_hp": base_stats['health'],
+    #         "attack": base_stats['attack'],
+    #         "defense": base_stats['defense'],
+    #         "speed": base_stats['speed'],
+    #         "moves": [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level],
+    #         'damage': move_stats[move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level],
+    #         'accuracy': [],
+    #         "image": self.player_dino_images[name]  # <-- Load the sprite automatically
+        
     
     @property
     def state(self):

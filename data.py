@@ -1,4 +1,5 @@
 import config
+import math
 
 TRAINER_DATA = {
     't1': {
@@ -19,7 +20,7 @@ TRAINER_DATA = {
 DINO_DATA = {
     'Vusion': {
         'stats': {'type': ['dark','magma'], 'health': 120, 'attack': 155, 'defense': 70, 'speed': 125},
-        'moves': {0: 'Force Shift', 16: 'Shadow Veil'},
+        'moves': {0: 'Force Shift', 9: 'Fireball', 14: 'Conduit Surge',19: 'Shadow Veil'},
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 125, 'defense': 100, 'speed':90},
@@ -88,7 +89,25 @@ MOVE_DATA = {
     'Double Jab': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'spike'},
     'Whirlpool': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
     'Shadow Veil': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'dark'},
+    'Fireball': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'magma'},
+    'Lava Burst': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'magma'},
+    'Flame Shatter': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'magma'},
+    'Wave Dash': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
+    'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Poison Ivy': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Conduit Surge': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+    'Translucent Wave': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'light'},
+    'Freeze Blast': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+
+
 
 
     
     }
+
+
+def LevelXP(level):
+    return (level*.2)**2 
+
+def XPtoLevel(XP):
+    return (.2)*math.sqrt(XP)
