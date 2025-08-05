@@ -1,6 +1,6 @@
 import pygame
 import config
-from data import DINO_DATA, TYPE_DATA, MOVE_DATA
+from data import *
 # import game
 
 # image loader
@@ -311,11 +311,31 @@ class PartyScreen:
         type_y = preview_rect.bottom - type_text.get_height() - 10
         name_x = preview_rect.left + 10
         name_y = preview_rect.top + 10
-        hp_x = preview_rect.left +10
-        hp_y = preview_rect.bottom - hp_text.get_height() - 10
+        hp_x = preview_rect.right - hp_text.get_width() - 10
+        hp_y = preview_rect.top + 10
         screen.blit(name_surface, (name_x,name_y))
         screen.blit(hp_text, (hp_x, hp_y))
         screen.blit(type_text, (type_x, type_y)) #dynamic
+
+        # # --- XP BAR ---
+        current_xp = selected_dino.get("xp", 0)
+        xp_to_next = selected_dino.get("xp_to_next", 1)
+        fill_ratio = min(current_xp / xp_to_next, 1)  # Clamp between 0-1
+
+        xp_bar_width = preview_rect.width - 250  # padding inside preview box
+        xp_bar_height = 15
+        xp_bar_x = preview_rect.x + 5
+        xp_bar_y = preview_rect.bottom - xp_bar_height - 3
+
+        xp_text = self.smaller_font.render(f"XP: {int(current_xp)}/{int(xp_to_next)}", True, (255, 255, 255))
+        screen.blit(xp_text, (xp_bar_x + 2 , xp_bar_y - 23))
+
+        # Draw background (white)
+        pygame.draw.rect(screen, (255, 255, 255), (xp_bar_x, xp_bar_y, xp_bar_width, xp_bar_height))
+        # Draw filled part (blue)
+        pygame.draw.rect(screen, (0, 100, 255), (xp_bar_x, xp_bar_y, int(xp_bar_width * fill_ratio), xp_bar_height))
+        # Outline
+        pygame.draw.rect(screen, (0, 0, 0), (xp_bar_x, xp_bar_y, xp_bar_width, xp_bar_height), 2)
 
         # screen.blit(type_text, (preview_rect.x + 315, preview_rect.y + 175)) #hard coded
         # Sprite

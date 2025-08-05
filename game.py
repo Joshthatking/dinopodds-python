@@ -7,8 +7,9 @@ import os
 import csv
 import config
 from screens import Encounter, EncounterUI, ItemsScreen, PartyScreen, MessageBox
-from data import DINO_DATA,MOVE_DATA
+from data import *
 import random
+import math
 
 # image processor
 def load_image(path, alpha=False):
@@ -104,8 +105,23 @@ class Game:
             "defense": base_stats['defense'],
             "speed": base_stats['speed'],
             "moves": moves_with_data,  # <-- now moves are full dictionaries with stats
-            "image": self.player_dino_images[name]
+            "image": self.player_dino_images[name],
+            "xp": 0,  # current XP at this level
+            "xp_to_next": LevelXP(level + 1)  # XP required for next level
         }
+    
+
+    ## XP LOGIC
+    def add_xp(self, dino, earned_xp):
+        dino["xp"] += earned_xp
+
+        # Check if level-up
+        new_level = int(XPtoLevel(dino["xp"]))
+        if new_level > dino["level"]:
+            dino["level"] = new_level
+            # Optional: update stats on level-up
+            print(f"{dino['name']} leveled up to {dino['level']}!")
+
 
 
     # def create_dino(self, name, level):
