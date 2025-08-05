@@ -104,21 +104,30 @@ class Game:
             "attack": base_stats['attack'],
             "defense": base_stats['defense'],
             "speed": base_stats['speed'],
-            "moves": moves_with_data,  # <-- now moves are full dictionaries with stats
+            "moveset": moves_with_data,  # <-- now moves are full dictionaries with stats
+            "moves": [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level],
             "image": self.player_dino_images[name],
-            "xp": 0,  # current XP at this level
-            "xp_to_next": LevelXP(level + 1)  # XP required for next level
+            "xp": 0,  # Start with 0 XP earned for this level
+            "xp_to_next": LevelXP(level + 1) - LevelXP(level),  # XP required for next level
+            # "xp": LevelXP(level),  # Start at XP for this level #### actually no we want to start at 0 for each level when aqcuired
+            "xp_to_next_total": LevelXP(level + 1),  # XP total required for next level
+            "displayed_xp": 0,  # For smooth animation
+
+
         }
     
 
     ## XP LOGIC
-    def add_xp(self, dino, earned_xp):
+    def add_xp(self, dino, earned_xp,level):
+        earned_xp = 0 #placeholder for when we store it from battles
         dino["xp"] += earned_xp
 
         # Check if level-up
-        new_level = int(XPtoLevel(dino["xp"]))
-        if new_level > dino["level"]:
-            dino["level"] = new_level
+        level_xp = int(LevelXP(dino['level'])) #total xp earned at level
+        currentxp = int(int(LevelXP(dino['level']))) + earned_xp #total xp earned at level plus xp from battles
+        next_level_xp = int(LevelXP(dino['level'+1])) #total xp needed for next level
+        if currentxp > next_level_xp:
+            dino["level"] = next_level_xp
             # Optional: update stats on level-up
             print(f"{dino['name']} leveled up to {dino['level']}!")
 
@@ -342,6 +351,14 @@ class Game:
                     self.fading = False
                     # Instead of self.state = 'encounter', push encounter
                     self.push_state('encounter')
+            for dino in self.player_dinos:
+                if dino.get('xp_gain_pending', False):
+                    if dino['displayed_xp'] < dino['xp']:
+                        dino['displayed_xp'] += min(2, dino['xp'] - dino['displayed_xp'])
+                    else:
+                        dino['xp_gain_pending'] = False  # Stop animating when done
+
+
 
         self.message_box.update(self.clock.get_time())
 
@@ -451,6 +468,28 @@ class Game:
             
             # Show message that dino was caught
             self.message_box.show(f"You caught {self.enemy_dino['name']}!", wait_for_input=True)
+
+                        # Award XP to all dinos in party
+            xp_gain = calculate_xp_gain(
+                player_level=max(d['level'] for d in self.player_dinos),
+                opponent_level=self.enemy_dino['level'],
+                state_multiplier=1.0,  # catching bonus
+                party_size=len(self.player_dinos)
+            )
+
+            for dino in self.player_dinos:
+                dino['xp_gain_pending'] = True
+                dino['xp'] += xp_gain
+                # Check for level-up
+                new_level = XPtoLevel(dino['xp'])
+                if new_level > dino['level']:
+                    dino['level'] = new_level
+                    dino['max_hp'] += 5  # optional: increase stats per level
+                    dino['hp'] = dino['max_hp']  # refill on level up
+                    # (optional) learn new moves here
+            self.message_box.show(f"{self.enemy_dino['name']} was caught! Each party dino gained {xp_gain} XP!", wait_for_input= True)
+
+
 
             # End encounter and return to world first
             self.pop_to_world()

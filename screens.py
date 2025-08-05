@@ -28,6 +28,7 @@ class EncounterUI:
     def __init__(self, fonts):
         self.font = fonts['DIALOGUE']
         self.small_font = fonts['BAG']
+        self.smaller_font = fonts['XS']
         self.selected_option = 0  # 0=Fight,1=Bag,2=Party,3=Run
         self.actions = ["Fight", "Bag", "Party", "Run"]
         # FIGHT MODE
@@ -69,6 +70,19 @@ class EncounterUI:
         surface.blit(player_name, (player_info_rect.x + 10, player_info_rect.y + 15))
         surface.blit(player_lvl, (player_info_rect.x + 160, player_info_rect.y + 15))
         self.draw_hp_bar(surface, player_info_rect.x + 10, player_info_rect.y + 40, 200, 15, player_dino['hp'] / player_dino['max_hp'])
+
+
+        # --- XP Bar ---
+        xp_progress = player_dino['displayed_xp'] / player_dino['xp_to_next']
+        xp_bar_rect = pygame.Rect(player_info_rect.x , player_info_rect.y + 80, 200, 8)
+        pygame.draw.rect(surface, (255, 255, 255), xp_bar_rect)  # Background
+        pygame.draw.rect(surface, (0, 0, 255), 
+            (xp_bar_rect.x, xp_bar_rect.y, xp_bar_rect.width * xp_progress, xp_bar_rect.height))  # Fill
+        pygame.draw.rect(surface, (0, 0, 0), xp_bar_rect, 2)  # Outline
+        xp_text = self.small_font.render(f"XP: {int(player_dino['displayed_xp'])}/{int(player_dino['xp_to_next'])}", True, (0, 0, 0))
+        surface.blit(xp_text, (xp_bar_rect.x, xp_bar_rect.y - 15))
+
+
         # Player HP text
         player_hp_text = self.small_font.render(f"{player_dino['hp']}/{player_dino['max_hp']}", True, (0, 0, 0))
         surface.blit(player_hp_text, (player_info_rect.x + 120, player_info_rect.y + 60))  # Adjust X/Y as needed
@@ -367,7 +381,7 @@ class PartyScreen:
         move_start_y = stats_rect.y + 120  # starts below stats area
         move_spacing = 5
 
-        for i, move in enumerate(selected_dino['moves']):
+        for i, move in enumerate(selected_dino['moveset']):
             move_name = move['name']
             move_type = move['type']  # <-- use pre-stored type
             move_damage = move['damage']

@@ -107,7 +107,30 @@ MOVE_DATA = {
 
 
 def LevelXP(level):
-    return (level*.2)**2 
+    return (level*1.93)**2 
 
 def XPtoLevel(XP):
-    return (.2)*math.sqrt(XP)
+    return int(math.sqrt(XP)/1.93)
+
+
+def calculate_xp_gain(player_level, opponent_level, base_xp=50, state_multiplier=1.0, party_size=1):
+    # Level difference factor (punish farming low levels)
+    level_factor = max(0.2, opponent_level / player_level)  # minimum 0.2 so it never hits zero
+    
+    # Diminishing returns: scale XP when overleveled
+    if player_level > opponent_level:
+        diminishing = 1 - ((player_level - opponent_level) * 0.02)  # lose 5% per level over
+        diminishing = max(diminishing, 0.2)  # never go below 20%
+    else:
+        diminishing = 1.0  # full XP if enemy is >= level
+    
+    # Base XP calc
+    xp = base_xp * opponent_level * level_factor * diminishing
+    
+    # Context multiplier (bosses, events, etc.)
+    xp *= state_multiplier
+    
+    # Split XP among party members
+    xp /= max(party_size, 1)
+    
+    return int(xp)
