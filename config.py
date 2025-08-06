@@ -144,5 +144,5 @@ ITEMS = {
 #### SPAWN POINTS
 
 SPAWN_POINTS = {
-    'home': (9,5)
+    'home': (15,57)
 }

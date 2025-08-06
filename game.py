@@ -30,7 +30,6 @@ class Game:
         self.fonts = {name: pygame.font.Font(path, size) for name, (path, size) in config.FONT_DEFS.items()}
         self.tile_images = {key: load_image(path, alpha=True) for key, path in config.TILE_PATHS.items()}  
 
-        self.enemy_dino = {"name": "Anemamace", "level": 3, "hp": 20, "max_hp": 20}
 
         self.previous_state = 'world'
         self.player = Player(spawn_point='home')
@@ -51,6 +50,13 @@ class Game:
             self.create_dino('Vusion', 3)
         ]
         self.active_dino_index = 0
+
+        #ENEMY DINOS
+        # self.enemy_dino = {"name": "Anemamace", "level": 3, "hp": 20, "max_hp": 20}
+        self.enemy_dino = self.create_dino('Anemamace',random.randint(3,7))
+
+
+
         # MENU
         self.menu = Menu(self)
         self.party_screen = PartyScreen(self)  # <-- pass game, not fonts
@@ -58,7 +64,7 @@ class Game:
 
         # ITEMS
         self.item_image = pygame.image.load(config.ITEMS["DinoPod"]['icon']).convert_alpha()
-        self.items_on_map = {(12, 5): 'DinoPod', (12, 6): 'DinoPod'}
+        self.items_on_map = {(18, 57): 'DinoPod', (18, 56): 'DinoPod'}
         self.inventory = {item: 0 for item in config.ITEMS.keys()}
         self.item_icons = {key: pygame.image.load(data["icon"]).convert_alpha() for key, data in config.ITEMS.items()}
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
@@ -83,8 +89,14 @@ class Game:
 
     def create_dino(self, name, level):
         from data import DINO_DATA, MOVE_DATA
-        base_stats = DINO_DATA[name]['stats']
-        
+        base_stats = DINO_DATA[name]['stats']  # Example: { "hp": 35, "attack": 20, "defense": 15, "speed": 18 }
+        p = 1.4  # Adjust growth curve for HP if needed
+            
+        max_hp = HP_Base(base_stats["health"], level, p)
+        attack = Base_Stats(base_stats["attack"], level)
+        defense = Base_Stats(base_stats["defense"], level)
+        speed = Base_Stats(base_stats["speed"], level)
+            
         # Get all moves this dino knows
         learned_moves = [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level]
         
@@ -103,11 +115,11 @@ class Game:
             "name": name,
             "level": level,
             "type": base_stats['type'],
-            "hp": base_stats['health'],
-            "max_hp": base_stats['health'],
-            "attack": base_stats['attack'],
-            "defense": base_stats['defense'],
-            "speed": base_stats['speed'],
+            "hp": max_hp,
+            "max_hp": max_hp,
+            "attack": attack,
+            "defense": defense,
+            "speed": speed,
             "moveset": moves_with_data,  # <-- now moves are full dictionaries with stats
             "moves": [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level],
             "image": self.player_dino_images[name],
@@ -505,9 +517,16 @@ class Game:
                 self.enemy_dino["name"], 
                 self.enemy_dino["level"]
             )
+            # caught_dino = self.enemy_dino.copy()
             caught_dino['xp'] = 0
             caught_dino['displayed_xp'] = 0
-            self.player_dinos.append(caught_dino)
+            # Rebuild full data for party, but preserve current stats like HP
+            base_dino = self.create_dino(self.enemy_dino["name"], self.enemy_dino["level"])
+            base_dino["hp"] = self.enemy_dino["hp"]  # preserve damaged HP
+            base_dino["xp"] = self.enemy_dino.get("xp", 0)  # preserve XP if you track it
+            self.player_dinos.append(base_dino)
+
+            # self.player_dinos.append(caught_dino)
 
             # Calculate XP
             xp_gain = calculate_xp_gain(
@@ -519,13 +538,18 @@ class Game:
 
             # Award XP + trigger animation
             for dino in self.player_dinos:
-                dino['xp_gain_pending'] = True
                 dino['xp'] += xp_gain
                 new_level = XPtoLevel(dino['xp'])
                 if new_level > dino['level']:
                     dino['level'] = int(new_level)
-                    dino['max_hp'] += 5
-                    dino['hp'] = dino['max_hp']
+                    p = 1.2
+                    base_stats = config.DINOS[dino["name"]]
+                    dino['max_hp'] = HP_Base(base_stats["hp"], dino['level'], p)
+                    dino['attack'] = Base_Stats(base_stats["attack"], dino['level'])
+                    dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
+                    dino['speed'] = Base_Stats(base_stats["speed"], dino['level'])
+                    dino['hp'] = dino['max_hp']  # Heal to full on level-up (optional)
+
 
             # Queue up multi-step messages and set post-action
             self.message_box.queue_messages(
