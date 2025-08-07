@@ -58,9 +58,9 @@ class Game:
         self.party_screen = PartyScreen(self)  # <-- pass game, not fonts
         self.party_screen.reset()
 
-        # ITEMS
+        # ITEMS ON MAP
         self.item_image = pygame.image.load(config.ITEMS["DinoPod"]['icon']).convert_alpha()
-        self.items_on_map = {(18, 57): 'DinoPod', (18, 56): 'DinoPod'}
+        self.items_on_map = {(18, 57): 'DinoPod', (18, 56): 'DinoPod', (18,41): 'DinoPod'}
         self.inventory = {item: 0 for item in config.ITEMS.keys()}
         self.item_icons = {key: pygame.image.load(data["icon"]).convert_alpha() for key, data in config.ITEMS.items()}
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
@@ -188,7 +188,7 @@ class Game:
         #Encounter Zones
     def get_player_zone(self,player_x, player_y):
         # You could use ranges or a separate tile map for zone info
-        if 36 < player_y < 67 and 2 < player_x < 42:
+        if 26 < player_y < 67 and 2 < player_x < 42:
             return "starter_grass"
         elif 90 <= player_y < 120:
             return "deep_jungle"
@@ -561,9 +561,9 @@ class Game:
                 new_level = XPtoLevel(dino['xp'])
                 if new_level > dino['level']:
                     dino['level'] = int(new_level)
-                    p = 1.2
-                    base_stats = config.DINOS[dino["name"]]
-                    dino['max_hp'] = HP_Base(base_stats["hp"], dino['level'], p)
+                    # p = 1.2
+                    base_stats = DINO_DATA[dino["name"]['stats']]
+                    dino['max_hp'] = HP_Base(base_stats["health"], dino['level'])
                     dino['attack'] = Base_Stats(base_stats["attack"], dino['level'])
                     dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
                     dino['speed'] = Base_Stats(base_stats["speed"], dino['level'])
@@ -572,6 +572,7 @@ class Game:
             
             #Add New Dino After XP 
             self.player_dinos.append(base_dino)
+            
 
 
 

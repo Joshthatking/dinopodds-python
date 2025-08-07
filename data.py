@@ -161,7 +161,7 @@ def calculate_xp_gain(player_level, opponent_level, base_xp=50, state_multiplier
 
 ##################### BASE STATS ##################
 
-def HP_Base(base_hp,level, p):
+def HP_Base(base_hp,level, p=1.4):
     return round(base_hp * (level / 50) ** p + 10)
 
 def Base_Stats(base, level):

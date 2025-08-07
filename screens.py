@@ -73,13 +73,13 @@ class EncounterUI:
 
 
         # --- XP Bar ---
-        xp_progress = player_dino['displayed_xp'] / player_dino['xp_to_next']
+        xp_progress = player_dino['xp'] / player_dino['xp_to_next']
         xp_bar_rect = pygame.Rect(player_info_rect.x + 5, player_info_rect.y + 77, 200, 8)
         pygame.draw.rect(surface, (255, 255, 255), xp_bar_rect)  # Background
         pygame.draw.rect(surface, (0, 0, 255), 
             (xp_bar_rect.x, xp_bar_rect.y, xp_bar_rect.width * xp_progress, xp_bar_rect.height))  # Fill
         pygame.draw.rect(surface, (0, 0, 0), xp_bar_rect, 2)  # Outline
-        xp_text = self.small_font.render(f"XP: {int(player_dino['displayed_xp'])}/{int(player_dino['xp_to_next'])}", True, (0, 0, 0))
+        xp_text = self.small_font.render(f"XP: {int(player_dino['xp'])}/{int(player_dino['xp_to_next'])}", True, (0, 0, 0))
         surface.blit(xp_text, (xp_bar_rect.x, xp_bar_rect.y - 17))
 
 
