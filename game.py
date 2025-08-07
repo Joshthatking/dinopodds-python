@@ -513,20 +513,19 @@ class Game:
         pod_rate = config.ITEMS["DinoPod"]["catch_rate"]
         success = random.random() < pod_rate
         if success:
-            caught_dino = self.create_dino(
-                self.enemy_dino["name"], 
-                self.enemy_dino["level"]
-            )
-            # caught_dino = self.enemy_dino.copy()
-            caught_dino['xp'] = 0
-            caught_dino['displayed_xp'] = 0
+            # caught_dino = self.create_dino(
+            #     self.enemy_dino["name"], 
+            #     self.enemy_dino["level"]
+            # )
+            # # caught_dino = self.enemy_dino.copy()
+            # caught_dino['xp'] = 0
+            # caught_dino['displayed_xp'] = 0
             # Rebuild full data for party, but preserve current stats like HP
             base_dino = self.create_dino(self.enemy_dino["name"], self.enemy_dino["level"])
-            base_dino["hp"] = self.enemy_dino["hp"]  # preserve damaged HP
-            base_dino["xp"] = self.enemy_dino.get("xp", 0)  # preserve XP if you track it
-            self.player_dinos.append(base_dino)
-
-            # self.player_dinos.append(caught_dino)
+            # Preserve damaged HP from battle
+            base_dino["hp"] = min(self.enemy_dino["hp"], base_dino["max_hp"])  # just in case  
+            # base_dino["xp"] = self.enemy_dino.get("xp", 0)  # preserve XP if you track it
+            base_dino["xp"] = 0  # preserve XP if you track it
 
             # Calculate XP
             xp_gain = calculate_xp_gain(
@@ -549,6 +548,11 @@ class Game:
                     dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
                     dino['speed'] = Base_Stats(base_stats["speed"], dino['level'])
                     dino['hp'] = dino['max_hp']  # Heal to full on level-up (optional)
+
+            
+            #Add New Dino After XP 
+            self.player_dinos.append(base_dino)
+
 
 
             # Queue up multi-step messages and set post-action

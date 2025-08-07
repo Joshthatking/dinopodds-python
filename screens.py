@@ -315,7 +315,7 @@ class PartyScreen:
 
         # Name
         name_surface = self.font.render(selected_dino['name'], True, (255, 255, 255))
-        hp_text = self.small_font.render(f"HP: {dino['hp']}/{dino['max_hp']}", True, (255, 255, 255))
+        hp_text = self.small_font.render(f"HP: {selected_dino['hp']}/{selected_dino['max_hp']}", True, (255, 255, 255))
         # Format type(s) nicely: "dark" or "dark/spike"
         type_str = "/".join(types)
         type_text = self.small_font.render(type_str, True, (255, 255, 255))
