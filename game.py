@@ -51,10 +51,6 @@ class Game:
         ]
         self.active_dino_index = 0
 
-        #ENEMY DINOS
-        # self.enemy_dino = {"name": "Anemamace", "level": 3, "hp": 20, "max_hp": 20}
-        self.enemy_dino = self.create_dino('Anemamace',random.randint(3,7))
-
 
 
         # MENU
@@ -76,17 +72,8 @@ class Game:
         self._post_catch_message = None  # Initialize this variable
 
 
-        # ENCOUNTER
-        self.encounter_ui = EncounterUI(self.fonts)
-        self.encounter_text = 'A wild Dino appeared!'
-        self.encounter = Encounter(self.fonts, "Anemamace")
-        self.message_queue = []
-        self.processing_messages = False
-        self.post_message_action = None  # For optional callbacks after messages finish
 
-
-
-
+    ############ PLAYERS DINO'S ###########
     def create_dino(self, name, level):
         from data import DINO_DATA, MOVE_DATA
         base_stats = DINO_DATA[name]['stats']  # Example: { "hp": 35, "attack": 20, "defense": 15, "speed": 18 }
@@ -196,20 +183,52 @@ class Game:
         self.processing_messages = True
         self.post_message_action = post_action
         self.message_box.show(self.message_queue.pop(0), wait_for_input=True)
+    
+
+        #Encounter Zones
+    def get_player_zone(self,player_x, player_y):
+        # You could use ranges or a separate tile map for zone info
+        if 36 < player_y < 67 and 2 < player_x < 42:
+            return "starter_grass"
+        elif 90 <= player_y < 120:
+            return "deep_jungle"
+        elif player_y >= 200:
+            return "volcano_top"
+        return None
 
 
 
-
-    def trigger_encounter(self, dino_key='Anemamace'):
+    ###### TRIGGER ENCOUNTER LOGIC ##########
+    def trigger_encounter(self):
         print('Encounter Trigger')
         self.fading = True
         self.fade_alpha = 0
+
+        tile_x = self.player.rect.x // config.TILE_SIZE
+        tile_y = self.player.rect.y // config.TILE_SIZE
+        zone = self.get_player_zone(tile_x, tile_y)
+
+        if zone in ENCOUNTER_ZONES:
+            zone_data = ENCOUNTER_ZONES[zone]
+            dino_key = random.choice(zone_data["dinos"])
+            level = random.randint(*zone_data["level_range"])
+        else:
+            print("No valid zone found, using fallback encounter.")
+            dino_key = "Anemamace"
+            level = random.randint(12, 20)
+
+        self.enemy_dino = self.create_dino(dino_key, level)
+
+        self.encounter_ui = EncounterUI(self.fonts)
+        self.encounter_text = f"A wild {dino_key} appeared!"
         self.encounter = Encounter(self.fonts, dino_key)
-        self.enemy_dino = {"name": dino_key, "level": 3, "hp": 20, "max_hp": 20}
-        self.encounter_text = f"A wild {dino_key.capitalize()} appeared!"
+        self.message_queue = []
+        self.processing_messages = False
+        self.post_message_action = None
+
         self.queue_messages(
-    [f"A wild {self.enemy_dino['name']} appeared!", "What will you do?"]
-)
+            [f"A wild {self.enemy_dino['name']} appeared!", "What will you do?"]
+        )
 
 
     def load_csv_map(self, filename):
@@ -437,6 +456,7 @@ class Game:
                 self.render_surface.blit(sprite.image, (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
             self.screen.blit(scaled_surface, (0, 0))
+        
         elif background_state == 'encounter':
             # Usually encounter is top state, but in case bottom is encounter
             self.encounter.draw(self.screen)

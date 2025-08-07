@@ -106,6 +106,29 @@ MOVE_DATA = {
     }
 
 
+
+
+
+
+################## ENCOUNTER ZONES ####################
+# encounter_data.py or near your config
+ENCOUNTER_ZONES = {
+    "starter_grass": {
+        "dinos": ["Anemamace", "Corlave"],
+        "level_range": (3, 7)
+    },
+    "deep_jungle": {
+        "dinos": ["Venoshade", "Terraptor", "Leafu"],
+        "level_range": (5, 10)
+    },
+    "volcano_top": {
+        "dinos": ["Magmara", "Ashfang", "Crateradon"],
+        "level_range": (10, 15)
+    }
+}
+
+
+
 def LevelXP(level):
     return (level*1.93)**2 
 

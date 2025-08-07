@@ -8,8 +8,10 @@ if __name__ == '__main__':
     game.run()
 
 
-##  box logic if you have more than 5 dinos. add symbols for stats
+##  box logic if you have more than 5 dinos. add symbols for stats!
 
-# add message order in encounters, finalize xp logic, transitions? party box logic? basics for attacking?
+# ad finalize xp logic (too high right now on catching), transitions? party box logic? basics for attacking?
 
-### fix hp in party, add unique spawns on certain range of g tiles, add attack and defense math
+###  add attack and defense math
+
+###### make sure each encounter is completely random, add level up once xp goes over and a screen that shows stats boosted with current + and then new 

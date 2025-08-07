@@ -103,13 +103,14 @@ ENCOUNTER_BG_PATH = os.path.join(ASSETS_PATH, 'Grass_Encounter.png')
 ENCOUNTER_DINOS_PATHS = {
     'Vusion': os.path.join(DINOS_PATH, 'Vusion_Encounter.png'),
     'Anemamace': os.path.join(DINOS_PATH, 'Anemamace_Idle1.png'),
-    'Corlave': os.path.join(DINOS_PATH, 'Corlave_Idle.png'),
+    'Corlave': os.path.join(DINOS_PATH, 'Corlave_Idle1.png'),
 }
 
 #PLAYER DINOS
 PLAYER_DINO_PATH = {
     'Vusion': os.path.join(DINOS_PATH, 'Vusion_AttackXXL.png'),
     'Anemamace': os.path.join(DINOS_PATH,'Anemamace_Idle1.png'),
+    'Corlave': os.path.join(DINOS_PATH, 'Corlave_Idle1.png'),
 }
 
 #ICON DINOS
