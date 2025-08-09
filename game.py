@@ -6,7 +6,7 @@ from player import Player
 import os 
 import csv
 import config
-from screens import Encounter, EncounterUI, ItemsScreen, PartyScreen, MessageBox
+from screens import *
 from data import *
 import random
 import math
@@ -71,6 +71,10 @@ class Game:
         self.message_box = MessageBox(config.WIDTH, config.HEIGHT, self.fonts)
         self._post_catch_message = None  # Initialize this variable
 
+        #LEVEL UP
+        self.level_up_ui = None
+
+
 
 
     ############ PLAYERS DINO'S ###########
@@ -120,19 +124,60 @@ class Game:
         }
     
 
-    ## XP LOGIC
-    def add_xp(self, dino, earned_xp,level):
-        earned_xp = 0 #placeholder for when we store it from battles
-        dino["xp"] += earned_xp
 
-        # Check if level-up
-        level_xp = int(LevelXP(dino['level'])) #total xp earned at level
-        currentxp = int(int(LevelXP(dino['level']))) + earned_xp #total xp earned at level plus xp from battles
-        next_level_xp = int(LevelXP(dino['level'+1])) #total xp needed for next level
-        if currentxp > next_level_xp:
-            dino["level"] = next_level_xp
-            # Optional: update stats on level-up
-            print(f"{dino['name']} leveled up to {dino['level']}!")
+    def add_xp(self, dino, amount):
+        dino["xp"] += amount
+
+        # Check if they leveled up
+        leveled_up = False
+        while dino["xp"] >= dino["xp_to_next"]:
+            leveled_up = True
+            dino['xp'] = dino['xp'] - dino['xp_to_next'] #bring xp back to scale with level
+
+            
+            # Save old stats for UI
+            old_level = dino["level"]
+            old_stats = {
+                "hp": HP_Base(dino["base_hp"], old_level),
+                "attack": Base_Stats(dino["base_attack"], old_level),
+                "defense": Base_Stats(dino["base_defense"], old_level),
+                "speed": Base_Stats(dino["base_speed"], old_level)
+            }
+
+            # Increase level
+            dino["level"] += 1
+
+            # Calculate new XP threshold
+            dino["xp_to_next"] = dino['xp_to_next']
+
+            # Save new stats for UI
+            new_stats = {
+                "hp": HP_Base(dino["base_hp"], dino["level"]),
+                "attack": Base_Stats(dino["base_attack"], dino["level"]),
+                "defense": Base_Stats(dino["base_defense"], dino["level"]),
+                "speed": Base_Stats(dino["base_speed"], dino["level"])
+            }
+
+            # Create level-up UI screen to block inputs
+            self.level_up_ui = LevelUpUI(dino, old_stats, new_stats)
+            break  # Only show one popup per XP award
+
+        return leveled_up
+
+
+    # ## XP LOGIC
+    # def add_xp(self, dino, earned_xp,level):
+    #     earned_xp = 0 #placeholder for when we store it from battles
+    #     dino["xp"] += earned_xp
+
+    #     # Check if level-up
+    #     level_xp = int(LevelXP(dino['level'])) #total xp earned at level
+    #     currentxp = int(int(LevelXP(dino['level']))) + earned_xp #total xp earned at level plus xp from battles
+    #     next_level_xp = int(LevelXP(dino['level'+1])) #total xp needed for next level
+    #     if currentxp > next_level_xp:
+    #         dino["level"] = next_level_xp
+    #         # Optional: update stats on level-up
+    #         print(f"{dino['name']} leveled up to {dino['level']}!")
 
 
 
@@ -257,6 +302,7 @@ class Game:
             if self.message_box.visible:
                 self.message_box.handle_event(event)
                 return  # Block all other inputs until messages are done
+            
 
 
         # # --- Handle queued messages first ---
@@ -466,6 +512,8 @@ class Game:
         if current_state == 'encounter':
             self.encounter.draw(self.screen)
             self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index], self.enemy_dino, self.encounter_text)
+
+
         elif current_state in ('menu', 'party', 'items'):
             # Tint background only if world is background
             if background_state == 'world':
@@ -487,6 +535,7 @@ class Game:
         # Message box
         if self.message_box.visible:
             self.message_box.draw(self.screen)
+
 
         pygame.display.flip()
 
@@ -558,11 +607,14 @@ class Game:
             # Award XP + trigger animation
             for dino in self.player_dinos:
                 dino['xp'] += xp_gain
-                new_level = XPtoLevel(dino['xp'])
-                if new_level > dino['level']:
-                    dino['level'] = int(new_level)
+                # new_level = XPtoLevel(dino['xp'])
+                while dino['xp'] >= dino['xp_to_next']:
+                    dino['xp'] = dino['xp'] - dino['xp_to_next']  + 1#recycle through xp for specific new level
+                    dino['level'] += 1
+                    dino['xp_to_next'] =LevelXP(dino['level']+1) - LevelXP(dino['level'])
+
                     # p = 1.2
-                    base_stats = DINO_DATA[dino["name"]['stats']]
+                    base_stats = DINO_DATA[dino["name"]]['stats']
                     dino['max_hp'] = HP_Base(base_stats["health"], dino['level'])
                     dino['attack'] = Base_Stats(base_stats["attack"], dino['level'])
                     dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])

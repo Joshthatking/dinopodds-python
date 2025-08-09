@@ -35,6 +35,12 @@ class EncounterUI:
         self.in_fight_menu = False
         self.move_selected = 0
 
+        #LEVEL UP
+        self.level_up_popup = None
+
+    def show_level_up(self, dino, old_stats, new_stats):
+        self.level_up_popup = LevelUpPopup(dino, old_stats, new_stats)
+
     def draw_panel(self, surface, rect, bg_color=(245, 245, 245), border_color=(0, 0, 0), border_width=3):
         pygame.draw.rect(surface, bg_color, rect)
         pygame.draw.rect(surface, border_color, rect, border_width)
@@ -85,7 +91,8 @@ class EncounterUI:
 
         # Player HP text
         player_hp_text = self.small_font.render(f"{player_dino['hp']}/{player_dino['max_hp']}", True, (0, 0, 0))
-        surface.blit(player_hp_text, (player_info_rect.x + 120, player_info_rect.y + 60))  # Adjust X/Y as needed
+        surface.blit(player_hp_text,(player_info_rect.right - 70, player_info_rect.bottom -40))
+        # surface.blit(player_hp_text, (player_info_rect.x + 120, player_info_rect.y + 60))  # Adjust X/Y as needed
 
         #Player Dino ###########
     # Draw player's active dino (bottom left above message box)
@@ -95,6 +102,16 @@ class EncounterUI:
         scaled = pygame.transform.scale(player_dino['image'], (270, 270))
         surface.blit(scaled, player_dino_rect)
 
+
+        #LEVEL UP
+        if self.level_up_popup and self.level_up_popup.active:
+            # Dim the background
+            dim = pygame.Surface(surface.get_size(), flags=pygame.SRCALPHA)
+            dim.fill((0, 0, 0, 150))  # Black with alpha 150 (out of 255)
+            surface.blit(dim, (0, 0))
+
+            # Draw the popup
+            self.level_up_popup.draw(surface)
 
         # Text box
         wrapped_lines = self.wrap_text(encounter_text, self.font, text_box_rect.width - 40)
@@ -165,6 +182,9 @@ class EncounterUI:
         return lines
 
     def handle_input(self, event,player_dino):
+        if self.level_up_popup and self.level_up_popup.active:
+            self.level_up_popup.handle_event(event)
+            return  # block normal encounter input
         if event.type == pygame.KEYDOWN:
             if not self.in_fight_menu:  # On main menu
                 if event.key == pygame.K_w:
@@ -201,24 +221,75 @@ class EncounterUI:
                 elif event.key == pygame.K_i: #block i key from exiting
                     None
 
+class LevelUpPopup:
+    def __init__(self, dino, old_stats, new_stats):
+        self.dino = dino
+        self.old_stats = old_stats
+        self.new_stats = new_stats
+        self.active = True
+
+    def draw(self, screen):
+        popup_rect = pygame.Rect(100, 100, 300, 200)
+        pygame.draw.rect(screen, (255, 255, 255), popup_rect)
+        pygame.draw.rect(screen, (0, 0, 0), popup_rect, 2)
+
+        font = pygame.font.Font(None, 28)
+        lines = [
+            f"{self.dino.name} leveled up!",
+            f"HP: {self.old_stats['hp']} → {self.new_stats['hp']}",
+            f"ATK: {self.old_stats['attack']} → {self.new_stats['attack']}",
+            f"DEF: {self.old_stats['defense']} → {self.new_stats['defense']}",
+            f"SPD: {self.old_stats['speed']} → {self.new_stats['speed']}"
+        ]
+
+        for i, line in enumerate(lines):
+            text = font.render(line, True, (0, 0, 0))
+            screen.blit(text, (popup_rect.x + 10, popup_rect.y + 10 + i * 30))
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            self.active = False
 
 
-        # if event.type == pygame.KEYDOWN:
-        #     if event.key == pygame.K_w:  # up
-        #         if self.selected_option in (2, 3):
-        #             self.selected_option -= 2
-        #     elif event.key == pygame.K_s:  # down
-        #         if self.selected_option in (0, 1):
-        #             self.selected_option += 2
-        #     elif event.key == pygame.K_a:  # left
-        #         if self.selected_option % 2 == 1:
-        #             self.selected_option -= 1
-        #     elif event.key == pygame.K_d:  # right
-        #         if self.selected_option % 2 == 0:
-        #             self.selected_option += 1
-        #     elif event.key == pygame.K_j:  # confirm
-        #         return self.actions[self.selected_option]
-        # return None
+
+#### LEVEL UP ==== ###
+class LevelUpUI:
+    def __init__(self, dino_name, old_level, new_level, old_stats, new_stats):
+        self.dino_name = dino_name
+        self.old_level = old_level
+        self.new_level = new_level
+        self.old_stats = old_stats
+        self.new_stats = new_stats
+        self.active = True
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_SPACE, pygame.K_RETURN):
+                self.active = False
+
+    def draw(self, surface, font):
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        surface.blit(overlay, (0, 0))
+
+        title = font.render(
+            f"{self.dino_name} leveled up! ({self.old_level} → {self.new_level})",
+            True, (255, 255, 255)
+        )
+        surface.blit(title, (50, 50))
+
+        y_offset = 120
+        for stat in self.old_stats.keys():
+            old_val = self.old_stats[stat]
+            new_val = self.new_stats[stat]
+            diff = new_val - old_val
+            stat_text = font.render(
+                f"{stat.capitalize()}: {old_val} → {new_val} (+{diff})",
+                True, (255, 255, 255)
+            )
+            surface.blit(stat_text, (80, y_offset))
+            y_offset += 40
+
 
 
 # === Party Screen ===

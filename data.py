@@ -166,4 +166,3 @@ def HP_Base(base_hp,level, p=1.4):
 
 def Base_Stats(base, level):
     return round(base * (level/50 ))
-
