@@ -50,6 +50,8 @@ class Game:
             self.create_dino('Vusion', 3)
         ]
         self.active_dino_index = 0
+        self.box_dinos = []  # dinos stored in the box
+
 
 
 
