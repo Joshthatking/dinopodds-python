@@ -47,9 +47,12 @@ class Game:
         self.player_dino_images = {name: load_image(path, alpha=True) for name, path in config.PLAYER_DINO_PATH.items()}
         self.player_dinos = [
             self.create_dino('Vusion', 12),
-            self.create_dino('Vusion', 3)
+            self.create_dino('Vusion', 3),
+            self.create_dino('Corlave', 5),
+            self.create_dino('Corlave', 16)
         ]
         self.active_dino_index = 0
+        self.PARTY_LIMIT = 5
         self.box_dinos = []  # dinos stored in the box
 
 
@@ -624,20 +627,23 @@ class Game:
                     dino['hp'] = dino['max_hp']  # Heal to full on level-up (optional)
 
             
-            #Add New Dino After XP 
-            self.player_dinos.append(base_dino)
-            
+    # Decide destination for the new dino
+            if len(self.player_dinos) < self.PARTY_LIMIT:
+                self.player_dinos.append(base_dino)
+                added_msg = f"{self.enemy_dino['name']} was added to your party!"
+            else:
+                self.box_dinos.append(base_dino)
+                added_msg = f"{self.enemy_dino['name']} was sent to your Box!"
 
-
-
-            # Queue up multi-step messages and set post-action
+            # Messages and return
             self.message_box.queue_messages(
                 [
                     f"You caught {self.enemy_dino['name']}!",
-                    f"{self.enemy_dino['name']} was added to your party!",
+                    added_msg,
                     f"Each party dino gained {xp_gain} XP!"
-                ],wait_for_input=True, on_complete=self.pop_to_world
-
+                ],
+                wait_for_input=True,
+                on_complete=self.pop_to_world
             )
 
         else:

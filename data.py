@@ -45,15 +45,15 @@ TYPE_DATA = {
         'color': config.AQUA
     },
     'magma': {
-        'super_eff': ['earth', 'metal'],
-        'weak_eff': ['magma', 'ancient', 'rock'],
+        'super_eff': ['earth', 'ice'],
+        'weak_eff': ['magma', 'ancient', 'rock', 'aqua'],
         'resist':['magma', 'ice'],
         'weak_to': ['aqua', 'rock'],
         'color': config.MAGMA
     },
     'earth': {
         'super_eff': ['aqua', 'rock', 'lighting'],
-        'weak_eff': ['earth', 'ancient', 'metal'],
+        'weak_eff': ['earth', 'ancient', 'flying'],
         'resist':['earth', 'spike'],
         'weak_to': ['magma', 'ice', 'flying'],
         'color': config.EARTH
@@ -66,10 +66,10 @@ TYPE_DATA = {
         'color': config.DARK
     },
     'light': {
-        'super_eff': ['dark', 'ancient', 'spike'],
+        'super_eff': ['dark', 'ancient', 'light'],
         'weak_eff': ['earth', 'lightning', 'metal'],
         'resist': ['spike', 'ice', 'rock'],
-        'weak_to': ['lightning'],
+        'weak_to': ['lightning', 'ancient'],
         'color': config.SOFT_WHITE
     },
     'spike': {
@@ -82,6 +82,27 @@ TYPE_DATA = {
 }
 
 #electric,rock,flying,ancient,ice
+
+
+TYPE_CHART = {
+    'aqua': {'aqua': 5, 'magma': 20, 'earth': 5, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lightning': 10, 'ice': 10, 'ancient': 5},
+    'magma': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 5, 'lighting': 10, 'ice': 20, 'ancient': 5},
+    'earth': {'aqua': 20, 'magma': 5, 'earth': 5, 'flying': 5, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lighting': 20, 'ice': 10,'ancient': 5},
+    'flying': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 20, 'rock': 5, 'lighting': 5, 'ice': 10,'ancient': 10},
+    'dark': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 20 , 'light': 5, 'spike': 20, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 10},
+    'light': {'aqua': 10, 'magma': 10, 'earth': 5, 'flying': 10, 'dark': 20 , 'light': 20, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 5},
+    'spike': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 5 , 'light': 5, 'spike': 10, 'rock': 20, 'lighting': 10, 'ice': 10,'ancient': 20},
+    'rock': {'aqua': 10, 'magma': 20, 'earth': 10, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 5, 'rock': 5, 'lighting': 20, 'ice': 20,'ancient': 10},
+    'lightning': {'aqua': 20, 'magma': 10, 'earth': 5, 'flying': 20, 'dark': 10 , 'light': 20, 'spike': 5, 'rock': 5, 'lighting': 10, 'ice': 10,'ancient': 5},
+    'ice': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 5,'ancient': 20},
+    'ancient': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 10 , 'light': 20, 'spike': 5, 'rock': 5, 'lighting': 10, 'ice': 10,'ancient': 20},
+
+
+
+}
+
+
+
 
 
 MOVE_DATA = {
@@ -166,3 +187,12 @@ def HP_Base(base_hp,level, p=1.4):
 
 def Base_Stats(base, level):
     return round(base * (level/50 ))
+
+
+################## BATTLE MATHEMATICS #################
+
+def Damage(level, attack, power, defender_defense, STAB, effectiveness, random): #randoom 217-255 , STAB (1,1.5), Type Modifier (40,20,10,5,2.5)
+    return ((((((((2*level / 7) * attack * power)/defender_defense)/50)+2)*STAB)*effectiveness/10)*random)/255
+
+# tesing = Damage(16,18,30,17,1.5,10,220)
+# print(tesing) -----> 6.34
