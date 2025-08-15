@@ -84,7 +84,7 @@ TYPE_DATA = {
 #electric,rock,flying,ancient,ice
 
 
-TYPE_CHART = {
+TYPE_CHART_VAL = {
     'aqua': {'aqua': 5, 'magma': 20, 'earth': 5, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lightning': 10, 'ice': 10, 'ancient': 5},
     'magma': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 5, 'lighting': 10, 'ice': 20, 'ancient': 5},
     'earth': {'aqua': 20, 'magma': 5, 'earth': 5, 'flying': 5, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lighting': 20, 'ice': 10,'ancient': 5},
@@ -136,7 +136,7 @@ MOVE_DATA = {
 ENCOUNTER_ZONES = {
     "starter_grass": {
         "dinos": ["Anemamace", "Corlave"],
-        "level_range": (3, 7)
+        "level_range": (20, 25)
     },
     "deep_jungle": {
         "dinos": ["Venoshade", "Terraptor", "Leafu"],
@@ -196,3 +196,35 @@ def Damage(level, attack, power, defender_defense, STAB, effectiveness, random):
 
 # tesing = Damage(16,18,30,17,1.5,10,220)
 # print(tesing) -----> 6.34
+
+
+
+def type_effectiveness_value(move_type: str, defender_types):
+    """
+    Returns effectiveness on the same 10-based scale:
+      10 -> 1.0x (neutral)
+      20 -> 2.0x (super)
+       5 -> 0.5x (not very)
+       0 -> 0.0x (immune)
+    Combine multipliers multiplicatively.
+    """
+    if isinstance(defender_types, str):
+        defender_types = [defender_types]
+
+    value = 10  # neutral
+    for t in defender_types:
+        v = TYPE_CHART_VAL.get(move_type, {}).get(t, 10)
+        # Correct combination: multiply and keep result on 10 scale
+        value = (value * v) // 10
+    return int(value)
+
+
+def stab_multiplier(move_type: str, attacker_types):
+    if isinstance(attacker_types, str):
+        attacker_types = [attacker_types]
+    return 1.5 if move_type in attacker_types else 1.0
+
+def random_damage_factor():
+    # Your formula expects 217..255 inclusive
+    import random
+    return random.randint(217, 255)

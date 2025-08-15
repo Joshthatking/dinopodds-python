@@ -80,6 +80,11 @@ class Game:
         self.level_up_ui = None
 
 
+        #BATTLES
+        self.awaiting_switch = False   # waiting for player to pick a replacement during encounter
+
+
+
 
 
     ############ PLAYERS DINO'S ###########
@@ -307,28 +312,6 @@ class Game:
             if self.message_box.visible:
                 self.message_box.handle_event(event)
                 return  # Block all other inputs until messages are done
-            
-
-
-        # # --- Handle queued messages first ---
-        #     if self.processing_messages and self.message_box.wait_for_input:
-        #         if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j):
-        #             if self.message_queue:
-        #                 # Show the next queued message
-        #                 self.message_box.show(self.message_queue.pop(0), wait_for_input=True)
-        #             else:
-        #                 # No more messages; hide box and run post-action
-        #                 self.message_box.hide()
-        #                 self.processing_messages = False
-        #                 if self.post_message_action:
-        #                     if callable(self.post_message_action):
-        #                         self.post_message_action()
-        #                     elif isinstance(self.post_message_action, str) and self.post_message_action == "return_to_world":
-        #                         self.pop_state()
-        #                     self.post_message_action = None
-        #             continue  # Skip all other input while processing messages
-                # If waiting for SPACE/J to close the message, block other inputs
-                # continue
 
             # ---- WORLD ----
             if self.state == 'world':
@@ -383,32 +366,68 @@ class Game:
 
             # ---- ENCOUNTER ----
             elif self.state == 'encounter':
-                # First, handle message box input blocking for running
+                active = self.player_dinos[self.active_dino_index]
+
+                # 1) If active dino fainted and swap not yet requested
+                if active.get('hp', 0) <= 0 and not getattr(self, "awaiting_switch", False):
+                    alive = [d for d in self.player_dinos if d.get('hp', 0) > 0]
+                    if alive:
+                        # Queue fainted message, then request player swap
+                        self.message_box.queue_messages(
+                            [f"{active['name']} fainted!"],
+                            wait_for_input=True,
+                            on_complete=lambda: self.request_party_swap(active['name'])
+                        )
+                        self.awaiting_switch = True  # set flag so input is blocked until swap
+                    else:
+                        # No alive dinos → blackout
+                        if self.awaiting_switch == False:
+                            self.message_box.queue_messages(
+                                ["You blacked out!"],
+                                wait_for_input=True,
+                                on_complete=self.pop_to_world
+                            )
+                        else:
+                            pass
+                    
+                    return  # stop processing any further input this frame
+
+                # 2) Block inputs if message box is waiting for player to click
                 if self.message_box.visible and self.message_box.wait_for_input:
-                    # During message, block run (ignore 'i')
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-                        # Ignore run input until dialogue is done
-                        continue  # or just don't call pop_to_world()
-                else:
-                    # Normal encounter input handling
-                    result = self.encounter_ui.handle_input(event, self.player_dinos[self.active_dino_index])
-                    if result == "Fight":
-                        print("Fight selected!")
-                    elif result == "Run":
-                        self.queue_messages(
-                        [f"You ran away safely!"], 
-                        post_action="return_to_world"
-                    )
-                        self.pop_to_world()
-                        print("Run away!")
-                    elif result == "Bag":
-                        self.push_state('items')
-                        print("Bag Opening")
-                    elif result == 'Party':
-                        self.push_state('party')
-                        print("Switching Dino")
-                    elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-                        self.pop_to_world()
+                        # Ignore run attempts during message
+                        return
+                    else:
+                        self.message_box.handle_event(event)
+                        return
+
+                # 3) Block inputs while awaiting a forced party swap
+                if getattr(self, "awaiting_switch", False):
+                    # PartyScreen will handle selection; ignore other inputs
+                    return
+
+                # 4) Normal encounter input handling
+                result = self.encounter_ui.handle_input(event, active)
+
+                # 5) Process moves selected in fight menu
+                if isinstance(result, str) and result.startswith("UseMove:"):
+                    move_name = result.split("UseMove:", 1)[1]
+                    self.use_player_move_by_name(move_name)  # damage, fainting, xp handled here
+                    return
+
+                # 6) Other encounter commands
+                if result == "Fight":
+                    print("Fight selected!")
+                elif result == "Run":
+                    self.queue_messages([f"You ran away safely!"], post_action="return_to_world")
+                    self.pop_to_world()
+                    print("Run away!")
+                elif result == "Bag":
+                    self.push_state('items')
+                    print("Bag Opening")
+                elif result == 'Party':
+                    self.push_state('party')
+                    print("Switching Dino")
 
             # ---- ZOOM ----
             if event.type == pygame.KEYDOWN:
@@ -690,8 +709,230 @@ class Game:
         #     self._post_catch_message = None
         #     if 'items' in self.state_stack:
         #         self.pop_state()
+    
+
+    def use_player_move(self, move_index: int):
+        """Player uses a move on the wild enemy."""
+        if self.message_box.visible:
+            return  # avoid double inputs during messages
+
+        attacker = self.player_dinos[self.active_dino_index]
+        defender = self.enemy_dino
+
+        # Safety
+        if move_index < 0 or move_index >= len(attacker['moveset']):
+            return
+
+        move = attacker['moveset'][move_index]
+        move_name = move['name']
+        power = max(0, move.get('damage', 0))
+        acc = move.get('accuracy', 100)
+        mtype = move.get('type', 'normal')
+
+        # 1) Accuracy check
+        if random.random() * 100 > acc:
+            self.message_box.queue_messages(
+                [f"{attacker['name']} used {move_name}!", "But it missed!", "What will you do?"],
+                wait_for_input=True
+            )
+            # Enemy gets a turn after miss
+            self._enemy_turn()
+            return
+
+        # 2) Multipliers
+        STAB = stab_multiplier(mtype, attacker['type'])
+        eff_val = type_effectiveness_value(mtype, defender['type'])  # 10=neutral
+        rnd = random_damage_factor()
+
+        # 3) Compute damage
+        # Make sure attack/defense are at least 1 to avoid div-by-zero
+        atk = max(1, attacker['attack'])
+        dfs = max(1, defender['defense'])
+        lvl = max(1, attacker['level'])
+
+        raw_damage = Damage(lvl, atk, power, dfs, STAB, eff_val, rnd)
+        dmg = max(1, int(raw_damage)) if power > 0 else 0
+
+        # 4) Apply damage
+        defender['hp'] = max(0, defender['hp'] - dmg)
+
+        # 5) Build result messages
+        msgs = [f"{attacker['name']} used {move_name}!"]
+        if eff_val > 10:
+            msgs.append("It's super effective!")
+        elif eff_val < 10 and eff_val > 0:
+            msgs.append("It's not very effective...")
+        elif eff_val <= 0:
+            msgs.append("It had no effect...")
+
+        if defender['hp'] <= 0:
+            msgs.append(f"The wild {defender['name']} fainted!")
+            # Award XP to current party on KO
+            xp_gain = calculate_xp_gain(
+                player_level=max(d['level'] for d in self.player_dinos),
+                opponent_level=defender['level'],
+                state_multiplier=1.25,
+                party_size=len(self.player_dinos)
+            )
+            # Level up logic (handles multiple levels)
+            level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
+            msgs.append(f"Each party dino gained {xp_gain} XP!")
+            msgs.extend(level_up_msgs)
+
+            # After KO + messages, go back to world
+            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.pop_to_world)
+            return print(eff_val, raw_damage)
+        else:
+            # Not KO — continue with enemy turn after messages
+            msgs.append("What will you do?")
+            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self._enemy_turn) 
+        
+    def _enemy_turn(self):
+        defender = self.player_dinos[self.active_dino_index]
+        attacker = self.enemy_dino
+
+        if defender.get('hp',0) <= 0:
+            alive = [d for d in self.player_dinos if d.get('hp',0) >0]
+            if alive:
+                self.awaiting_switch = True
+                self.message_box.queue_messages(
+                    [f"{defender['name']} fainted!"],
+                        wait_for_input=True,
+                        on_complete=lambda: self.request_party_swap(defender['name'])
+                    )
+                return  # stop further input this frame
 
 
+            else:
+                if self.awaiting_switch == False:
+                    # No alive dinos, black out
+                    self.message_box.queue_messages(
+                        ["You blacked out!"], wait_for_input=True, on_complete=self.pop_to_world
+                    )
+                else:
+                    pass
+            return  # stop enemy turn, wait for player selection
+
+
+        if not attacker.get('moveset'):
+            # No moves? Just say it loafs around
+            self.message_box.queue_messages(
+                [f"The wild {attacker['name']} is loafing around.", "What will you do?"],
+                wait_for_input=True
+            )
+            return
+
+        move = random.choice(attacker['moveset'])
+        mtype = move.get('type', 'normal')
+        power = max(0, move.get('damage', 0))
+        acc = move.get('accuracy', 100)
+
+        # Accuracy
+        if random.random() * 100 >= acc:
+            self.message_box.queue_messages(
+                [f"The wild {attacker['name']} used {move['name']}!", "But it missed!", "What will you do?"],
+                wait_for_input=True
+            )
+            return
+
+        STAB = stab_multiplier(mtype, attacker['type'])
+        eff_val = type_effectiveness_value(mtype, defender['type'])
+        rnd = random_damage_factor()
+
+        atk = max(1, attacker['attack'])
+        dfs = max(1, defender['defense'])
+        lvl = max(1, attacker['level'])
+
+        raw_damage = Damage(lvl, atk, power, dfs, STAB, eff_val, rnd)
+        dmg = max(1, int(raw_damage)) if power > 0 else 0
+        defender['hp'] = max(0, defender['hp'] - dmg)
+
+        msgs = [f"The wild {attacker['name']} used {move['name']}!"]
+        if eff_val > 10: msgs.append("It's super effective!")
+        elif eff_val < 10 and eff_val > 0: msgs.append("It's not very effective...")
+        elif eff_val <= 0: msgs.append("It had no effect...")
+
+        if defender['hp'] <= 0:
+            msgs.append(f"{defender['name']} fainted!")
+            # Force switch to next available party member or end encounter if none
+            if not self.request_party_swap('name'):
+                msgs.append("You blacked out!")
+                self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.pop_to_world)
+                return
+
+        msgs.append("What will you do?")
+        self.message_box.queue_messages(msgs, wait_for_input=True)
+    
+
+    def _grant_party_xp_and_level_ups(self, xp_gain: int):
+        msgs = []
+        for dino in self.player_dinos:
+            dino['xp'] += xp_gain
+            # multiple level-ups if enough XP
+            while dino['xp'] >= dino['xp_to_next']:
+                dino['xp'] -= dino['xp_to_next']
+                dino['level'] += 1
+                # recompute next threshold and stats
+                base = DINO_DATA[dino["name"]]['stats']
+                dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
+                dino['max_hp'] = HP_Base(base["health"], dino['level'])
+                dino['attack'] = Base_Stats(base["attack"], dino['level'])
+                dino['defense'] = Base_Stats(base["defense"], dino['level'])
+                dino['speed'] = Base_Stats(base["speed"], dino['level'])
+                dino['hp'] = dino['max_hp']  # optional heal on level-up
+                msgs.append(f"{dino['name']} grew to Lv {dino['level']}!")
+        return msgs
+    
+
+
+    def use_player_move_by_name(self, move_name: str):
+        """Find the move by name on the active dino, then delegate to use_player_move(index)."""
+        attacker = self.player_dinos[self.active_dino_index]
+
+        # 1) Prefer moveset with full dicts
+        for i, m in enumerate(attacker.get('moveset', [])):
+            if m.get('name') == move_name:
+                self.use_player_move(i)
+                return
+
+        # 2) Fallback to plain name list (attacker['moves'])
+        for i, n in enumerate(attacker.get('moves', [])):
+            if n == move_name:
+                self.use_player_move(i)
+                return
+
+        # 3) Not found -> message
+        self.message_box.queue_messages(
+            [f"{attacker['name']} doesn't know {move_name}.", "What will you do?"],
+            wait_for_input=True
+        )
+    
+        
+    def request_party_swap(self, fainted_name):
+        """
+        Called when active dino faints.
+        Shows a message first, then forces the player to choose a replacement.
+        """
+        self.awaiting_switch = True
+
+        # Queue the faint message first
+        self.message_box.queue_messages(
+            [f"{fainted_name} has fainted!"],
+            wait_for_input=True,
+            on_complete=self._open_party_forced_swap
+        )
+
+    def _open_party_forced_swap(self):
+        """
+        Called after faint message is acknowledged.
+        Opens the PartyScreen in forced-swap mode.
+        """
+        # Push PartyScreen if not already on stack
+        if self.state_stack[-1] != 'party':
+            self.push_state('party')
+
+        # Ensure PartyScreen knows it's awaiting a forced swap
+        self.awaiting_switch = True
 
 
 

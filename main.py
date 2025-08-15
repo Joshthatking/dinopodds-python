@@ -10,9 +10,8 @@ if __name__ == '__main__':
 
 ## add symbols for stats!
 
-# ad finalize xp logic (too high right now on catching), transitions? party box logic? basics for attacking?
 
-###  add attack and defense math
+###  add attack and defense math ---- > logic for battles, also a button to switch to active in party, also evolution logic
 
 ######  xp screen that shows stats boosted with current + and then new 
 # then add attack and defense logic for moves,

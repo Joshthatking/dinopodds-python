@@ -309,53 +309,83 @@ class PartyScreen:
         self.selected_index = 0
 
     def handle_event(self, event, game):
-        if event.type == pygame.KEYDOWN:
+        if event.type != pygame.KEYDOWN:
+            return None
+
+        in_encounter = 'encounter' in game.state_stack
+        awaiting = getattr(game, "awaiting_switch", False)
+
+        # Force party view if forced swap is active
+        if awaiting:
+            self.mode = 'party'
+            current_list = game.player_dinos
+        else:
             current_list = self.get_current_list(game)
-            list_length = len(current_list)
 
-                            # Always allow toggling modes with 'u' even if list empty
-    # Don't allow box mode if in encounter state
-            in_encounter = 'encounter' in game.state_stack
+        list_length = len(current_list)
 
-            if event.key == pygame.K_u:
-                if not in_encounter:
-                    # Toggle between party and box mode
-                    if self.mode == 'party':
-                        self.mode = 'box'
-                        self.selected_index = 0 if len(game.box_dinos) > 0 else -1
-                    else:
-                        self.mode = 'party'
-                        self.selected_index = 0
-                else:
-                    # Maybe play a 'locked' sound or show a message
-                    pass
-                # Reset selected_index to 0 or safe fallback
+        # Always allow toggling modes with 'u', except during encounter/forced swap
+        if event.key == pygame.K_u:
+            if not in_encounter and not awaiting:
+                self.mode = 'box' if self.mode == 'party' else 'party'
                 new_list = self.get_current_list(game)
                 self.selected_index = 0 if len(new_list) > 0 else 0
-                return None
+            return None  # ignore U if in encounter/forced swap
 
-            # If current list is empty, ignore navigation or move commands
-            if list_length == 0:
-                # Possibly show some message here if you want
-                return None
-            
+        # Navigation: only if list not empty
+        if list_length > 0:
             if event.key == pygame.K_w:
                 self.selected_index = (self.selected_index - 1) % list_length
+                return None
             elif event.key == pygame.K_s:
                 self.selected_index = (self.selected_index + 1) % list_length
-            elif event.key == pygame.K_o and self.mode == 'party' and not in_encounter:  # Move from party to box
+                return None
+
+        # Forced-swap selection: player must choose a living dino
+        if awaiting and in_encounter and event.key == pygame.K_j:
+            if 0 <= self.selected_index < len(game.player_dinos):
+                chosen = game.player_dinos[self.selected_index]
+
+                if chosen.get('hp', 0) <= 0:
+                    game.message_box.queue_messages(
+                        [f"{chosen['name']} has no HP! Choose another."], 
+                        wait_for_input=True
+                    )
+                    return None
+
+                # Perform the swap
+                game.active_dino_index = self.selected_index
+                game.awaiting_switch = False
+                game.pop_state()  # close PartyScreen
+
+                # Show confirmation text AFTER party screen is visible
+                game.message_box.queue_messages([f"Go, {chosen['name']}!", "What will you do?"], wait_for_input=True)
+            return None  # ignore other keys during forced swap
+
+        # Normal party/box interactions (outside forced swap)
+        if event.key == pygame.K_o:
+            if awaiting or in_encounter:
+                return None  # cannot move dinos during encounter/forced swap
+
+            if self.mode == 'party':
                 self.move_party_to_box(game)
-            elif event.key == pygame.K_o and self.mode == 'box':  # Move from box to party
+                self.selected_index = min(self.selected_index, len(game.player_dinos) - 1) if game.player_dinos else 0
+            else:
                 self.move_box_to_party(game)
-            elif event.key == pygame.K_SPACE:
-                # Your existing logic for exiting menu or states
-                if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' and game.state_stack[0] == 'world':
-                    game.pop_state()
-                    game.pop_state()
-                    game.push_state('menu')
-                else:
-                    return 'back'
+                self.selected_index = min(self.selected_index, len(game.box_dinos) - 1) if game.box_dinos else 0
+            return None
+
+        # Space/back handling
+        if event.key == pygame.K_SPACE:
+            if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' and game.state_stack[0] == 'world':
+                game.pop_state()
+                game.pop_state()
+                game.push_state('menu')
+            else:
+                return 'back'
+
         return None
+
 
     def get_current_list(self, game):
         if self.mode == 'party':
@@ -396,6 +426,12 @@ class PartyScreen:
             no_dinos_text = self.font.render("No dinos in this list", True, (255, 255, 255))
             screen.blit(no_dinos_text, (20, 20))
             return
+        
+        #if knocked out in battle
+        if self.game.awaiting_switch:
+            header = self.small_font.render("Choose replacement (use J)", True, (255, 200, 0))
+            screen.blit(header, (240, 0))
+
 
         # Draw left panel (list)
         box_width, box_height = 200, 70
@@ -440,7 +476,7 @@ class PartyScreen:
         if self.mode == 'party':
             instruct_text = self.small_font.render("Press O to send to Box", True, (255, 255, 255))
         else:
-            instruct_text = self.small_font.render("Press 0 to send to Party", True, (255, 255, 255))
+            instruct_text = self.small_font.render("Press O to send to Party", True, (255, 255, 255))
         screen.blit(instruct_text, (self.width - 240, self.height - 30))
 
     def draw_preview(self, screen, dino):
