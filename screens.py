@@ -311,6 +311,13 @@ class PartyScreen:
     def handle_event(self, event, game):
         if event.type != pygame.KEYDOWN:
             return None
+        
+
+            # --- BLOCK ALL OTHER INPUTS DURING FORCED SWAP ---
+        if getattr(game, "awaiting_switch", False):
+            # Only allow moving selection (W/S) and confirming with J
+            if event.key not in [pygame.K_w, pygame.K_s, pygame.K_j]:
+                return None  # ignore all other keys
 
         in_encounter = 'encounter' in game.state_stack
         awaiting = getattr(game, "awaiting_switch", False)
@@ -438,7 +445,15 @@ class PartyScreen:
         start_x, start_y = 20, 20
         for i, dino in enumerate(dinos):
             rect = pygame.Rect(start_x, start_y + i * (box_height + 10), box_width, box_height)
-            color = (0, 150, 255) if i == self.selected_index else (70, 70, 70)
+            
+            # Determine color: selected, normal, or fainted
+            if dino.get('hp', 0) <= 0:
+                color = (30, 30, 30)  # grey for fainted
+            elif i == self.selected_index:
+                color = (0, 150, 255)  # selected
+            else:
+                color = (70, 70, 70)   # normal
+
             pygame.draw.rect(screen, color, rect)
             pygame.draw.rect(screen, (0, 0, 0), rect, 2)
 
@@ -450,6 +465,12 @@ class PartyScreen:
             sprite_icon = dino['image']
             sprite_icon_scaled = pygame.transform.scale(sprite_icon, (50, 50))
             screen.blit(sprite_icon_scaled, (rect.x + 140, rect.y + 5))
+
+            # Fainted label
+            if dino.get('hp', 0) <= 0:
+                faint_text = self.small_font.render("Fainted", True, (255, 255, 255))
+                faint_rect = faint_text.get_rect(center=rect.center)
+                screen.blit(faint_text, faint_rect)
 
         # Draw preview of selected dino
         selected_dino = dinos[self.selected_index]

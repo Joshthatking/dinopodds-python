@@ -21,3 +21,7 @@ if __name__ == '__main__':
 # then learn how to add new NPC's that have dialogue for battles
 # also begin adding triggered events based on location and order of things
 
+#### THINGS TO ADD FOR BATTLES
+## 1) no xp if fainted at end of battle
+## 2) make xp for leveling up more
+## 3) be able to swap and it count as a turn, same for a failed catch attempt

@@ -791,31 +791,26 @@ class Game:
         defender = self.player_dinos[self.active_dino_index]
         attacker = self.enemy_dino
 
-        if defender.get('hp',0) <= 0:
-            alive = [d for d in self.player_dinos if d.get('hp',0) >0]
+        # If defender already fainted, block enemy turn until swap
+        if defender.get('hp', 0) <= 0:
+            alive = [d for d in self.player_dinos if d.get('hp', 0) > 0]
             if alive:
                 self.awaiting_switch = True
                 self.message_box.queue_messages(
                     [f"{defender['name']} fainted!"],
-                        wait_for_input=True,
-                        on_complete=lambda: self.request_party_swap(defender['name'])
-                    )
-                return  # stop further input this frame
-
-
+                    wait_for_input=True,
+                    on_complete=lambda: self.request_party_swap(defender['name'])
+                )
             else:
-                if self.awaiting_switch == False:
-                    # No alive dinos, black out
-                    self.message_box.queue_messages(
-                        ["You blacked out!"], wait_for_input=True, on_complete=self.pop_to_world
-                    )
-                else:
-                    pass
-            return  # stop enemy turn, wait for player selection
+                self.message_box.queue_messages(
+                    ["You blacked out!"],
+                    wait_for_input=True,
+                    on_complete=self.pop_to_world
+                )
+            return
 
-
+        # --- Enemy move selection ---
         if not attacker.get('moveset'):
-            # No moves? Just say it loafs around
             self.message_box.queue_messages(
                 [f"The wild {attacker['name']} is loafing around.", "What will you do?"],
                 wait_for_input=True
@@ -827,7 +822,6 @@ class Game:
         power = max(0, move.get('damage', 0))
         acc = move.get('accuracy', 100)
 
-        # Accuracy
         if random.random() * 100 >= acc:
             self.message_box.queue_messages(
                 [f"The wild {attacker['name']} used {move['name']}!", "But it missed!", "What will you do?"],
@@ -838,13 +832,11 @@ class Game:
         STAB = stab_multiplier(mtype, attacker['type'])
         eff_val = type_effectiveness_value(mtype, defender['type'])
         rnd = random_damage_factor()
-
         atk = max(1, attacker['attack'])
         dfs = max(1, defender['defense'])
         lvl = max(1, attacker['level'])
 
-        raw_damage = Damage(lvl, atk, power, dfs, STAB, eff_val, rnd)
-        dmg = max(1, int(raw_damage)) if power > 0 else 0
+        dmg = max(1, int(Damage(lvl, atk, power, dfs, STAB, eff_val, rnd))) if power > 0 else 0
         defender['hp'] = max(0, defender['hp'] - dmg)
 
         msgs = [f"The wild {attacker['name']} used {move['name']}!"]
@@ -853,16 +845,25 @@ class Game:
         elif eff_val <= 0: msgs.append("It had no effect...")
 
         if defender['hp'] <= 0:
-            msgs.append(f"{defender['name']} fainted!")
-            # Force switch to next available party member or end encounter if none
-            if not self.request_party_swap('name'):
+            alive = [d for d in self.player_dinos if d.get('hp', 0) > 0]
+            if alive:
+                self.awaiting_switch = True
+                msgs.append(f"{defender['name']} fainted!")
+                self.message_box.queue_messages(
+                    msgs,
+                    wait_for_input=True,
+                    on_complete=lambda: self.request_party_swap(defender['name'])
+                )
+                return
+            else:
+                msgs.append(f"{defender['name']} fainted!")
                 msgs.append("You blacked out!")
                 self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.pop_to_world)
                 return
 
         msgs.append("What will you do?")
         self.message_box.queue_messages(msgs, wait_for_input=True)
-    
+
 
     def _grant_party_xp_and_level_ups(self, xp_gain: int):
         msgs = []

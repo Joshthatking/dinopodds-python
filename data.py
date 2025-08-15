@@ -136,7 +136,7 @@ MOVE_DATA = {
 ENCOUNTER_ZONES = {
     "starter_grass": {
         "dinos": ["Anemamace", "Corlave"],
-        "level_range": (20, 25)
+        "level_range": (15, 18)
     },
     "deep_jungle": {
         "dinos": ["Venoshade", "Terraptor", "Leafu"],
