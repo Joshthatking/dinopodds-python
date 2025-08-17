@@ -136,7 +136,7 @@ MOVE_DATA = {
 ENCOUNTER_ZONES = {
     "starter_grass": {
         "dinos": ["Anemamace", "Corlave"],
-        "level_range": (15, 18)
+        "level_range": (13, 14)
     },
     "deep_jungle": {
         "dinos": ["Venoshade", "Terraptor", "Leafu"],
@@ -157,13 +157,13 @@ def XPtoLevel(XP):
     return int(math.sqrt(XP)/1.93)
 
 
-def calculate_xp_gain(player_level, opponent_level, base_xp=50, state_multiplier=1.0, party_size=1):
+def calculate_xp_gain(player_level, opponent_level, base_xp=8, state_multiplier=1.0, party_size=1):
     # Level difference factor (punish farming low levels)
     level_factor = max(0.2, opponent_level / player_level)  # minimum 0.2 so it never hits zero
     
     # Diminishing returns: scale XP when overleveled
     if player_level > opponent_level:
-        diminishing = 1 - ((player_level - opponent_level) * 0.02)  # lose 5% per level over
+        diminishing = 1 - ((player_level - opponent_level) * 0.05)  # lose 5% per level over
         diminishing = max(diminishing, 0.2)  # never go below 20%
     else:
         diminishing = 1.0  # full XP if enemy is >= level
@@ -179,6 +179,10 @@ def calculate_xp_gain(player_level, opponent_level, base_xp=50, state_multiplier
     
     return int(xp)
 
+### .5 for catching
+### .65 for encounters
+### .75 for battles
+### 1 for Rivals, Gyms, Elite 4
 
 ##################### BASE STATS ##################
 

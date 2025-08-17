@@ -82,6 +82,8 @@ class Game:
 
         #BATTLES
         self.awaiting_switch = False   # waiting for player to pick a replacement during encounter
+        self.current_turn = None      # 'player' or 'enemy'
+
 
 
 
@@ -281,9 +283,25 @@ class Game:
         self.processing_messages = False
         self.post_message_action = None
 
+        # self.set_first_turn()
+
         self.queue_messages(
             [f"A wild {self.enemy_dino['name']} appeared!", "What will you do?"]
         )
+
+
+    # def set_first_turn(self):
+    #     p = self.player_dinos[self.active_dino_index]
+    #     e = self.enemy_dino
+    #     p_spd = max(0, p.get('speed', 0))
+    #     e_spd = max(0, e.get('speed', 0))
+
+    #     if p_spd > e_spd:
+    #         self.current_turn = 'player'
+    #     elif e_spd > p_spd:
+    #         self.current_turn = 'enemy'
+    #     else:
+    #         self.current_turn = random.choice(['player', 'enemy'])  # speed tie
 
 
     def load_csv_map(self, filename):
@@ -428,6 +446,7 @@ class Game:
                 elif result == 'Party':
                     self.push_state('party')
                     print("Switching Dino")
+
 
             # ---- ZOOM ----
             if event.type == pygame.KEYDOWN:
@@ -602,6 +621,7 @@ class Game:
         self.update_camera()
     
     def attempt_catch(self):
+        msgs = []
         self.inventory["DinoPod"] = max(0, self.inventory["DinoPod"] - 1)
         pod_rate = config.ITEMS["DinoPod"]["catch_rate"]
         success = random.random() < pod_rate
@@ -620,30 +640,69 @@ class Game:
             # base_dino["xp"] = self.enemy_dino.get("xp", 0)  # preserve XP if you track it
             base_dino["xp"] = 0  # preserve XP if you track it
 
+
+            alive_dinos = [d for d in self.player_dinos if d.get('hp', 0) > 0]
+            if not alive_dinos:
+                return
+            
+
+            #Active Dino
+            active = self.player_dinos[self.active_dino_index]
+            
+
             # Calculate XP
             xp_gain = calculate_xp_gain(
-                player_level=max(d['level'] for d in self.player_dinos),
+                player_level=self.player_dinos[self.active_dino_index]['level'],
                 opponent_level=self.enemy_dino['level'],
-                state_multiplier=1.0,
-                party_size=len(self.player_dinos)
+                state_multiplier=.5, # 50% less xp for catching 
+                party_size=len(alive_dinos)
             )
 
             # Award XP + trigger animation
-            for dino in self.player_dinos:
-                dino['xp'] += xp_gain
-                # new_level = XPtoLevel(dino['xp'])
-                while dino['xp'] >= dino['xp_to_next']:
-                    dino['xp'] = dino['xp'] - dino['xp_to_next']  + 1#recycle through xp for specific new level
-                    dino['level'] += 1
-                    dino['xp_to_next'] =LevelXP(dino['level']+1) - LevelXP(dino['level'])
+            for dino in alive_dinos:
+                if dino is active: 
+                    dino['xp'] += int(round(xp_gain * 1.3))
+                else:
 
-                    # p = 1.2
-                    base_stats = DINO_DATA[dino["name"]]['stats']
-                    dino['max_hp'] = HP_Base(base_stats["health"], dino['level'])
-                    dino['attack'] = Base_Stats(base_stats["attack"], dino['level'])
-                    dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
-                    dino['speed'] = Base_Stats(base_stats["speed"], dino['level'])
-                    dino['hp'] = dino['max_hp']  # Heal to full on level-up (optional)
+                    dino['xp'] += xp_gain
+                    # new_level = XPtoLevel(dino['xp'])
+                    while dino['xp'] >= dino['xp_to_next']:
+                        base_stats = DINO_DATA[dino["name"]]['stats']
+                        prev_hp = HP_Base(base_stats['health'], dino['level'])
+                        dino['xp'] = dino['xp'] - dino['xp_to_next']  + 1#recycle through xp for specific new level
+                        dino['level'] += 1
+                        dino['xp_to_next'] =LevelXP(dino['level']+1) - LevelXP(dino['level'])
+
+                        # p = 1.2
+                        dino['max_hp'] = HP_Base(base_stats["health"], dino['level'])
+                        dino['attack'] = Base_Stats(base_stats["attack"], dino['level'])
+                        dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
+                        dino['speed'] = Base_Stats(base_stats["speed"], dino['level'])
+                        dino['hp'] = (dino['max_hp'] - prev_hp) + dino['hp'] # Heal to full on level-up (optional)
+
+                        self.message_box.queue_messages(
+                    (f" {dino['name']} grew to Lv {dino['level']}!"),wait_for_input=True)
+                    # return msgs
+
+
+
+            # active['xp'] += xp_gain *1.3
+            # while active['xp'] >= active['xp_to_next']:
+
+            #     base_stats = DINO_DATA[active["name"]]['stats']
+            #     prev_hp = HP_Base(base_stats['health'], active['level'])
+            #     active['xp'] = active['xp'] - active['xp_to_next']  + 1#recycle through xp for specific new level
+            #     active['level'] += 1
+            #     active['xp_to_next'] =LevelXP(active['level']+1) - LevelXP(active['level'])
+
+            #     # p = 1.2
+            #     active['max_hp'] = HP_Base(base_stats["health"], active['level'])
+            #     active['attack'] = Base_Stats(base_stats["attack"], active['level'])
+            #     active['defense'] = Base_Stats(base_stats["defense"], active['level'])
+            #     active['speed'] = Base_Stats(base_stats["speed"], active['level'])
+            #     active['hp'] = (active['max_hp'] - prev_hp) + active['hp'] # Heal to full on level-up (optional)
+
+
 
             
     # Decide destination for the new dino
@@ -709,7 +768,7 @@ class Game:
         #     self._post_catch_message = None
         #     if 'items' in self.state_stack:
         #         self.pop_state()
-    
+
 
     def use_player_move(self, move_index: int):
         """Player uses a move on the wild enemy."""
@@ -769,9 +828,9 @@ class Game:
             msgs.append(f"The wild {defender['name']} fainted!")
             # Award XP to current party on KO
             xp_gain = calculate_xp_gain(
-                player_level=max(d['level'] for d in self.player_dinos),
+                player_level=self.player_dinos[self.active_dino_index]['level'],
                 opponent_level=defender['level'],
-                state_multiplier=1.25,
+                state_multiplier=.65,
                 party_size=len(self.player_dinos)
             )
             # Level up logic (handles multiple levels)
@@ -867,20 +926,37 @@ class Game:
 
     def _grant_party_xp_and_level_ups(self, xp_gain: int):
         msgs = []
-        for dino in self.player_dinos:
-            dino['xp'] += xp_gain
+        alive_dinos = [d for d in self.player_dinos if d.get('hp', 0) > 0]
+        if not alive_dinos:
+            return  # nobody to award
+        
+    # Split XP across *alive* members only
+        per_dino_xp = calculate_xp_gain(
+            player_level=self.player_dinos[self.active_dino_index]['level'],
+            opponent_level=self.enemy_dino['level'],
+            # base_xp=40,
+            state_multiplier=.66,
+            party_size=len(alive_dinos)  # <<< alive only
+        )
+
+
+        for dino in alive_dinos:
+            dino['xp'] += per_dino_xp
             # multiple level-ups if enough XP
             while dino['xp'] >= dino['xp_to_next']:
+                base = DINO_DATA[dino["name"]]['stats']
+                prev_hp = HP_Base(base['health'], dino['level'])
                 dino['xp'] -= dino['xp_to_next']
                 dino['level'] += 1
                 # recompute next threshold and stats
-                base = DINO_DATA[dino["name"]]['stats']
                 dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
                 dino['max_hp'] = HP_Base(base["health"], dino['level'])
                 dino['attack'] = Base_Stats(base["attack"], dino['level'])
                 dino['defense'] = Base_Stats(base["defense"], dino['level'])
                 dino['speed'] = Base_Stats(base["speed"], dino['level'])
-                dino['hp'] = dino['max_hp']  # optional heal on level-up
+                # Optional: heal on level up (comment out if you don’t want this)
+                dino['hp'] = (dino['max_hp'] - prev_hp) + dino['hp']
+
                 msgs.append(f"{dino['name']} grew to Lv {dino['level']}!")
         return msgs
     

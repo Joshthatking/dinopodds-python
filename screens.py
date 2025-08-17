@@ -364,6 +364,8 @@ class PartyScreen:
                 game.active_dino_index = self.selected_index
                 game.awaiting_switch = False
                 game.pop_state()  # close PartyScreen
+                #switch turn
+                # game.current_turn = 'player'
 
                 # Show confirmation text AFTER party screen is visible
                 game.message_box.queue_messages([f"Go, {chosen['name']}!", "What will you do?"], wait_for_input=True)

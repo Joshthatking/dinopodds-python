@@ -11,7 +11,7 @@ if __name__ == '__main__':
 ## add symbols for stats!
 
 
-###  add attack and defense math ---- > logic for battles, also a button to switch to active in party, also evolution logic
+###  also a button to switch to active in party, also evolution logic
 
 ######  xp screen that shows stats boosted with current + and then new 
 # then add attack and defense logic for moves,
@@ -22,6 +22,6 @@ if __name__ == '__main__':
 # also begin adding triggered events based on location and order of things
 
 #### THINGS TO ADD FOR BATTLES
-## 1) no xp if fainted at end of battle
-## 2) make xp for leveling up more
+## 1) no xp if fainted at end of battle COMPLETE
+## 2) make xp for leveling up more;; -- or award less xp!
 ## 3) be able to swap and it count as a turn, same for a failed catch attempt
