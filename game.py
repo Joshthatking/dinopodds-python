@@ -662,6 +662,8 @@ class Game:
             for dino in alive_dinos:
                 if dino is active: 
                     dino['xp'] += int(round(xp_gain * 1.3))
+                    self.message_box.queue_messages(
+                    (f" {dino['name']} grew to Lv {dino['level']}!"),wait_for_input=True)
                 else:
 
                     dino['xp'] += xp_gain
@@ -713,17 +715,30 @@ class Game:
                 self.box_dinos.append(base_dino)
                 added_msg = f"{self.enemy_dino['name']} was sent to your Box!"
 
-            # Messages and return
-            self.message_box.queue_messages(
-                [
-                    f"You caught {self.enemy_dino['name']}!",
-                    added_msg,
-                    f"Each party dino gained {xp_gain} XP!"
-                ],
-                wait_for_input=True,
-                on_complete=self.pop_to_world
-            )
 
+            # Messages and return
+            if len(self.player_dinos) > 2:
+                self.message_box.queue_messages(
+                    [
+                     f"You caught {self.enemy_dino['name']}!",
+                    added_msg,
+                    f"{active['name']} has gained {int(xp_gain * 1.3)} XP!",
+                    f"Each party dino gained {xp_gain} XP!"
+
+                    ], wait_for_input= True, on_complete=self.pop_to_world
+                )
+            else: 
+                self.message_box.queue_messages(
+                    [
+                        f"You caught {self.enemy_dino['name']}!",
+                        added_msg,
+                        f"{active['name']} has gained {int(xp_gain * 1.3)} XP!"
+                    ],
+                    wait_for_input=True,
+                    on_complete=self.pop_to_world
+                )
+
+            
         else:
             # Fail case: stay in encounter
             self.message_box.queue_messages(
@@ -835,6 +850,7 @@ class Game:
             )
             # Level up logic (handles multiple levels)
             level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
+            msgs.append(f"{attacker['name']} has gained {int(xp_gain*1.3)} XP!")
             msgs.append(f"Each party dino gained {xp_gain} XP!")
             msgs.extend(level_up_msgs)
 
