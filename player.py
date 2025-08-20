@@ -175,6 +175,11 @@ class Player(pygame.sprite.Sprite):
             if (tile_x, tile_y) == (ix, iy):
                 blocked = True
                 break
+        
+
+        # NEW: block if this tile is part of any solid world entity (e.g., dinocenter)
+        if (tile_x, tile_y) in game.solid_tiles:
+            blocked = True
 
         # Check map boundaries and tile blockage
         if (0 <= tile_y < len(game.world_map) and

@@ -157,7 +157,7 @@ def XPtoLevel(XP):
     return int(math.sqrt(XP)/1.93)
 
 
-def calculate_xp_gain(player_level, opponent_level, base_xp=8, state_multiplier=1.0, party_size=1):
+def calculate_xp_gain(player_level, opponent_level, base_xp=7, state_multiplier=1.0, party_size=1):
     # Level difference factor (punish farming low levels)
     level_factor = max(0.2, opponent_level / player_level)  # minimum 0.2 so it never hits zero
     

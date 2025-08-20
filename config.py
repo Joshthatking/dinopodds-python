@@ -119,6 +119,9 @@ ICON_DINOS_PATH = {
     'Anemamace': os.path.join(DINOS_PATH,'Anemamace_Icon.png'),
 }
 
+MAP_ENTITY_PATH = {
+    'dinocenter': os.path.join(ASSETS_PATH, 'dinocenter.png'),
+}
 
 
 # #Item assets
@@ -145,5 +148,16 @@ ITEMS = {
 #### SPAWN POINTS
 
 SPAWN_POINTS = {
-    'home': (15,57)
+    'home': (33,29)
 }
+
+
+
+
+class MapEntity(pygame.sprite.Sprite):
+    def __init__(self, image, tile_x, tile_y, tile_size, solid=True):
+        super().__init__()
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (tile_x * tile_size, tile_y * tile_size)
+        self.solid = solid

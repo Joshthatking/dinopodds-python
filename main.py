@@ -23,5 +23,11 @@ if __name__ == '__main__':
 
 #### THINGS TO ADD FOR BATTLES
 ## 1) no xp if fainted at end of battle COMPLETE
-## 2) make xp for leveling up more;; -- or award less xp!
+## 2) make xp for leveling up more;; -- or award less xp! - COMPLETE for now
 ## 3) be able to swap and it count as a turn, same for a failed catch attempt
+
+## 4) Evolution logic after battles 
+## 5) Moveset logic for when you have 4 and can learn a new one
+## 6) Moveset randomness set for encounters based on level (amount of moves + which moves)
+## 7) Build DinoCenter for healing
+## 8) Add Trainer Sprites around map for battles - this includes LOS detection, facing when speaking, battle animation, trainer moveset, no dinopod during battles, currency system

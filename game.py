@@ -71,6 +71,28 @@ class Game:
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
         self.items_screen = ItemsScreen(self.inventory, self.item_icons, self.item_descriptions, self.fonts)
         self.items_screen.reset()
+
+
+        #MAP BUILDINGS/OBJECTS
+        self.entities = pygame.sprite.Group()     # non-animated world objects
+        self.entity_colliders = []                # list of rects (or keep sprites to check .rect)
+        self.solid_tiles = set()   # tiles that are always collidable (buildings, rocks, etc.)
+        self.map_entities = []
+
+            ### entities
+        self.dinocenter_img = pygame.image.load(config.MAP_ENTITY_PATH['dinocenter']).convert_alpha()
+        self.dinocenter_img = pygame.transform.scale(self.dinocenter_img, (config.TILE_SIZE *5, config.TILE_SIZE *5)) # for re-scaling
+        dcx, dcy = 36,28 
+        dinocenter = config.MapEntity(self.dinocenter_img, dcx,dcy, config.TILE_SIZE, solid = True)
+        self.entities.add(dinocenter)
+        self._add_solid_rect_as_tiles(dinocenter.rect)
+        self._add_map_entity('dinocenter', self.dinocenter_img, dcx, dcy)
+
+
+
+
+
+
         
         # MESSAGE BOX
         self.message_box = MessageBox(config.WIDTH, config.HEIGHT, self.fonts)
@@ -85,7 +107,43 @@ class Game:
         self.current_turn = None      # 'player' or 'enemy'
 
 
+    ######## COLLISION ASSETS HELPER ##########
+    def _add_solid_rect_as_tiles(self, rect):
+        ts = config.TILE_SIZE
+        left   = rect.left   // ts
+        right  = (rect.right  - 1) // ts
+        top    = rect.top    // ts
+        bottom = (rect.bottom - 1) // ts
+        for ty in range(top, bottom + 1):
+            for tx in range(left, right + 1):
+                self.solid_tiles.add((tx, ty))
+    
+    def _add_map_entity(self, name, image, tile_x, tile_y):
+        """Place an entity at tile coords (tile_x, tile_y). Registers its rect and blocked tiles."""
+        ts = config.TILE_SIZE
+        img = image
+        rect = img.get_rect()
+        # Position top-left at the tile coordinates (adjust if your art's anchor differs)
+        rect.topleft = (tile_x * ts, tile_y * ts)
 
+        # Save entity
+        ent = {"name": name, "image": img, "tile": (tile_x, tile_y), "rect": rect}
+        self.map_entities.append(ent)
+
+        # Register all tiles the rect covers as solid
+        left   = rect.left   // ts
+        right  = (rect.right  - 1) // ts
+        top    = rect.top    // ts
+        bottom = (rect.bottom - 1) // ts
+        for ty in range(top, bottom + 1):
+            for tx in range(left, right + 1):
+                self.solid_tiles.add((tx, ty))
+        
+
+        # solid_top = bottom  # only the lowest row
+        # for ty in range(solid_top, bottom + 1):
+        #     for tx in range(left, right + 1):
+        #         self.solid_tiles.add((tx, ty))
 
 
 
@@ -225,6 +283,7 @@ class Game:
     def pop_to_world(self):
         while len(self.state_stack) >1:
             self.pop_state()
+
 
 
     
@@ -602,6 +661,14 @@ class Game:
         for (x, y), item_name in self.items_on_map.items():
             icon = self.item_icons[item_name]
             surface.blit(icon, (x * config.TILE_SIZE - self.camera_x, y * config.TILE_SIZE - self.camera_y))
+        
+        # MAP ENTITIES
+        # draw map entities (dinocenter, etc.) on top of tiles/items
+        for ent in self.map_entities:
+            ex = ent['rect'].x - self.camera_x
+            ey = ent['rect'].y - self.camera_y
+            surface.blit(ent['image'], (ex, ey))
+
 
     def update_camera(self):
         render_w = config.WIDTH // self.zoom
@@ -850,8 +917,9 @@ class Game:
             )
             # Level up logic (handles multiple levels)
             level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
-            msgs.append(f"{attacker['name']} has gained {int(xp_gain*1.3)} XP!")
-            msgs.append(f"Each party dino gained {xp_gain} XP!")
+            msgs.append(f"{attacker['name']} has gained {int(round(xp_gain*1.3))} XP!")
+            if len(self.player_dinos) > 1:
+                msgs.append(f"Each party dino gained {xp_gain} XP!")
             msgs.extend(level_up_msgs)
 
             # After KO + messages, go back to world
@@ -951,29 +1019,38 @@ class Game:
             player_level=self.player_dinos[self.active_dino_index]['level'],
             opponent_level=self.enemy_dino['level'],
             # base_xp=40,
-            state_multiplier=.66,
+            state_multiplier=.65,
             party_size=len(alive_dinos)  # <<< alive only
         )
+        #Active Dino
+        active = self.player_dinos[self.active_dino_index]
 
 
+        # Award XP + trigger animation
         for dino in alive_dinos:
-            dino['xp'] += per_dino_xp
-            # multiple level-ups if enough XP
-            while dino['xp'] >= dino['xp_to_next']:
-                base = DINO_DATA[dino["name"]]['stats']
-                prev_hp = HP_Base(base['health'], dino['level'])
-                dino['xp'] -= dino['xp_to_next']
-                dino['level'] += 1
-                # recompute next threshold and stats
-                dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
-                dino['max_hp'] = HP_Base(base["health"], dino['level'])
-                dino['attack'] = Base_Stats(base["attack"], dino['level'])
-                dino['defense'] = Base_Stats(base["defense"], dino['level'])
-                dino['speed'] = Base_Stats(base["speed"], dino['level'])
-                # Optional: heal on level up (comment out if you don’t want this)
-                dino['hp'] = (dino['max_hp'] - prev_hp) + dino['hp']
+            if dino is active: 
+                dino['xp'] += int(round(xp_gain * 1.3))
+                # msgs.append((f" {dino['name']} grew to Lv {dino['level']}!"))
+            else:
 
-                msgs.append(f"{dino['name']} grew to Lv {dino['level']}!")
+                dino['xp'] += xp_gain
+                # new_level = XPtoLevel(dino['xp'])
+                while dino['xp'] >= dino['xp_to_next']:
+                    base_stats = DINO_DATA[dino["name"]]['stats']
+                    prev_hp = HP_Base(base_stats['health'], dino['level'])
+                    dino['xp'] = dino['xp'] - dino['xp_to_next']  + 1#recycle through xp for specific new level
+                    dino['level'] += 1
+                    dino['xp_to_next'] =LevelXP(dino['level']+1) - LevelXP(dino['level'])
+
+                    # p = 1.2
+                    dino['max_hp'] = HP_Base(base_stats["health"], dino['level'])
+                    dino['attack'] = Base_Stats(base_stats["attack"], dino['level'])
+                    dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
+                    dino['speed'] = Base_Stats(base_stats["speed"], dino['level'])
+                    # Optional: heal on level up (comment out if you don’t want this)
+                    dino['hp'] = (dino['max_hp'] - prev_hp) + dino['hp']
+
+                    msgs.append(f"{dino['name']} grew to Lv {dino['level']}!")
         return msgs
     
 
