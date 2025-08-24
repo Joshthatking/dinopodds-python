@@ -101,9 +101,9 @@ TILE_PATHS = {
 # Encounter assets
 ENCOUNTER_BG_PATH = os.path.join(ASSETS_PATH, 'Grass_Encounter.png')
 ENCOUNTER_DINOS_PATHS = {
-    'Vusion': os.path.join(DINOS_PATH, 'Vusion_Encounter.png'),
-    'Anemamace': os.path.join(DINOS_PATH, 'Anemamace_Idle1.png'),
-    'Corlave': os.path.join(DINOS_PATH, 'Corlave_Idle1.png'),
+    'Vusion': os.path.join(DINOS_PATH, 'Vusion_Idle1.png'), 'Vusion2': os.path.join(DINOS_PATH, 'Vusion_Idle2.png'),
+    'Anemamace': os.path.join(DINOS_PATH, 'Anemamace_Idle1.png'), 'Anemamace2': os.path.join(DINOS_PATH, 'Anemamace_Idle2.png'),
+    'Corlave': os.path.join(DINOS_PATH, 'Corlave_Idle1.png'), 'Corlave2': os.path.join(DINOS_PATH, 'Corlave_Idle2.png'),
 }
 
 #PLAYER DINOS
@@ -136,7 +136,7 @@ ITEMS = {
         "name": "DinoPod",
         "icon": os.path.join(ITEMS_PATH, "dinopodd.png"),
         "description": " A basic device used to capture wild Dinos",
-        'catch_rate': .99 # 30% chance
+        'catch_rate': .09 # 30% chance
     },
     "DinoCapsule": {
         "name": "DinoCapsule",

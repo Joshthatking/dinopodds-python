@@ -31,3 +31,6 @@ if __name__ == '__main__':
 ## 6) Moveset randomness set for encounters based on level (amount of moves + which moves)
 ## 7) Build DinoCenter for healing
 ## 8) Add Trainer Sprites around map for battles - this includes LOS detection, facing when speaking, battle animation, trainer moveset, no dinopod during battles, currency system
+
+#8/22 - enemy turn after failed catch attempt
+#8/23 - worked on adding idle animations to party preview and start of encounter -- fix encounter animation

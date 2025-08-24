@@ -44,6 +44,14 @@ class Game:
         self.fading = False
 
         # DINO DATA
+        self.dino_frames = {}
+        for base in ("Vusion", "Anemamace", "Corlave"):
+            img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
+            img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
+            self.dino_frames[base] = [img1, img2]
+        self.active_dino_index = 0
+        self.PARTY_LIMIT = 5
+        self.box_dinos = []  # dinos stored in the box
         self.player_dino_images = {name: load_image(path, alpha=True) for name, path in config.PLAYER_DINO_PATH.items()}
         self.player_dinos = [
             self.create_dino('Vusion', 12),
@@ -51,9 +59,7 @@ class Game:
             self.create_dino('Corlave', 5),
             self.create_dino('Corlave', 16)
         ]
-        self.active_dino_index = 0
-        self.PARTY_LIMIT = 5
-        self.box_dinos = []  # dinos stored in the box
+        
 
 
 
@@ -105,6 +111,8 @@ class Game:
         #BATTLES
         self.awaiting_switch = False   # waiting for player to pick a replacement during encounter
         self.current_turn = None      # 'player' or 'enemy'
+        self.encounter_anim = None
+
 
 
     ######## COLLISION ASSETS HELPER ##########
@@ -184,6 +192,7 @@ class Game:
             "moveset": moves_with_data,  # <-- now moves are full dictionaries with stats
             "moves": [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level],
             "image": self.player_dino_images[name],
+            "frames": self.dino_frames.get(name),
             "xp": 0,  # Start with 0 XP earned for this level
             "xp_to_next": LevelXP(level + 1) - LevelXP(level),  # XP required for next level
             # "xp": LevelXP(level),  # Start at XP for this level #### actually no we want to start at 0 for each level when aqcuired
@@ -343,10 +352,21 @@ class Game:
         self.post_message_action = None
 
         # self.set_first_turn()
+        frames = self.dino_frames.get(self.enemy_dino['name'], [self.enemy_dino['image']])
+        # Start a short "intro" animation
+        now = pygame.time.get_ticks()
+        self.encounter_anim = {
+            "frames": frames,
+            "frame_idx": 0,
+            "last_switch": now,
+            "interval": 250,    # switch frames every 250ms
+            "start_time": now,
+            "duration": 1000    # animate for 1s (adjust)
+        }
 
-        self.queue_messages(
-            [f"A wild {self.enemy_dino['name']} appeared!", "What will you do?"]
-        )
+        # self.queue_messages(
+        #     [f"A wild {self.enemy_dino['name']} appeared!", "What will you do?"]
+        # )
 
 
     # def set_first_turn(self):
@@ -615,6 +635,36 @@ class Game:
             self.encounter.draw(self.screen)
             self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index], self.enemy_dino, self.encounter_text)
 
+            if self.encounter_anim:
+                anim = self.encounter_anim
+                now = pygame.time.get_ticks()
+
+                # advance frame if interval elapsed
+                if now - anim["last_switch"] >= anim["interval"]:
+                    anim["frame_idx"] = (anim["frame_idx"] + 1) % len(anim["frames"])
+                    anim["last_switch"] = now
+
+                # choose frame
+                frame = anim["frames"][anim["frame_idx"]]
+
+                # Where to draw it: use the Encounter's configured position
+                # self.encounter.dino_pos is in screen coordinates (per your Encounter class)
+                draw_x, draw_y = self.encounter.dino_pos
+
+                # If your Encounter.draw used the raw image size, blit it as-is. If you scale in Encounter, scale here too:
+                # e.g. scaled = pygame.transform.scale(frame, (270, 270))
+                scaled = frame  # or scale if you want a specific size
+                self.screen.blit(scaled, (draw_x, draw_y))
+
+                # End animation when duration expired
+                if now - anim["start_time"] >= anim["duration"]:
+                    self.encounter_anim = None
+                    # Now queue the encounter intro message(s)
+                    self.message_box.queue_messages(
+                        [f"A wild {self.enemy_dino['name']} appeared!", "What will you do?"],
+                        wait_for_input=True
+                    )
+
 
         elif current_state in ('menu', 'party', 'items'):
             # Tint background only if world is background
@@ -809,8 +859,11 @@ class Game:
         else:
             # Fail case: stay in encounter
             self.message_box.queue_messages(
-                [f"{self.enemy_dino['name']} broke free!", "What will you do?"],wait_for_input=True
+                [f"{self.enemy_dino['name']} broke free!"],wait_for_input=True, on_complete=lambda: self._enemy_turn()
+
             )
+            #If not catch, enemy turn to attack -- happens too quick
+            return 
 
 
 

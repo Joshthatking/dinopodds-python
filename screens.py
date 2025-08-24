@@ -20,7 +20,7 @@ class Encounter:
 
     def draw(self, screen):
         screen.blit(self.bg, (0, 0))
-        screen.blit(self.dino, self.dino_pos)  # Dino
+        # screen.blit(self.dino, self.dino_pos)  # Dino
 
 
 # === Encounter UI ===
@@ -305,6 +305,12 @@ class PartyScreen:
         self.selected_index = 0
         self.mode = 'party'  # 'party' or 'box'
 
+        #preview animation
+        self.preview_frame = 0
+        self.preview_last_switch = 0
+        self.preview_selected_id = None
+        self.preview_interval_ms = 250  # swap every 0.25s
+
     def reset(self):
         self.selected_index = 0
 
@@ -502,22 +508,26 @@ class PartyScreen:
             instruct_text = self.small_font.render("Press O to send to Party", True, (255, 255, 255))
         screen.blit(instruct_text, (self.width - 240, self.height - 30))
 
+
+
+
     def draw_preview(self, screen, dino):
         preview_rect = pygame.Rect(240, 20, 380, 200)
         pygame.draw.rect(screen, (0, 0, 0), preview_rect, 3)
 
+        # Background by type(s)
         types = dino['type'] if isinstance(dino['type'], list) else [dino['type']]
         colors = [TYPE_DATA.get(t, {}).get("color", (100, 200, 230)) for t in types]
-
         if len(colors) == 1:
             pygame.draw.rect(screen, colors[0], preview_rect)
         else:
             top_rect = pygame.Rect(preview_rect.x, preview_rect.y, preview_rect.width, preview_rect.height // 2)
-            bottom_rect = pygame.Rect(preview_rect.x, preview_rect.y + preview_rect.height // 2, preview_rect.width,
-                                      preview_rect.height // 2)
+            bottom_rect = pygame.Rect(preview_rect.x, preview_rect.y + preview_rect.height // 2,
+                                    preview_rect.width, preview_rect.height // 2)
             pygame.draw.rect(screen, colors[0], top_rect)
             pygame.draw.rect(screen, colors[1], bottom_rect)
 
+        # Text
         name_surface = self.font.render(dino['name'], True, (255, 255, 255))
         hp_text = self.small_font.render(f"HP: {dino['hp']}/{dino['max_hp']}", True, (255, 255, 255))
         type_str = "/".join(types)
@@ -536,7 +546,7 @@ class PartyScreen:
 
         # XP Bar
         current_xp = dino.get("xp", 0)
-        xp_to_next = dino.get("xp_to_next", 1)
+        xp_to_next = max(1, dino.get("xp_to_next", 1))
         fill_ratio = min(current_xp / xp_to_next, 1)
 
         xp_bar_width = preview_rect.width - 250
@@ -551,10 +561,117 @@ class PartyScreen:
         pygame.draw.rect(screen, (0, 100, 255), (xp_bar_x, xp_bar_y, int(xp_bar_width * fill_ratio), xp_bar_height))
         pygame.draw.rect(screen, (0, 0, 0), (xp_bar_x, xp_bar_y, xp_bar_width, xp_bar_height), 2)
 
+        # --- Preview animation ---
+        now = pygame.time.get_ticks()
+        sel_id = dino.get("name")
+
+        # reset animation if selection changed
+        if self.preview_selected_id != sel_id:
+            self.preview_selected_id = sel_id
+            self.preview_frame = 0
+            self.preview_last_switch = now
+
+        frames = dino.get("frames")
+        if frames and len(frames) > 1:
+            if now - self.preview_last_switch >= self.preview_interval_ms:
+                self.preview_frame = (self.preview_frame + 1) % len(frames)
+                self.preview_last_switch = now
+            frame_img = frames[self.preview_frame]
+        else:
+            frame_img = dino.get("image")
+
         # Sprite
-        sprite = dino['image']
-        sprite_scaled = pygame.transform.scale(sprite, (150, 150))
+        sprite_scaled = pygame.transform.scale(frame_img, (150, 150))
         screen.blit(sprite_scaled, (preview_rect.centerx - 50, preview_rect.centery - 70))
+
+
+
+
+
+
+
+
+
+
+    # def draw_preview(self, screen, dino):
+    #     preview_rect = pygame.Rect(240, 20, 380, 200)
+    #     pygame.draw.rect(screen, (0, 0, 0), preview_rect, 3)
+
+    #     types = dino['type'] if isinstance(dino['type'], list) else [dino['type']]
+    #     colors = [TYPE_DATA.get(t, {}).get("color", (100, 200, 230)) for t in types]
+
+    #     if len(colors) == 1:
+    #         pygame.draw.rect(screen, colors[0], preview_rect)
+    #     else:
+    #         top_rect = pygame.Rect(preview_rect.x, preview_rect.y, preview_rect.width, preview_rect.height // 2)
+    #         bottom_rect = pygame.Rect(preview_rect.x, preview_rect.y + preview_rect.height // 2, preview_rect.width,
+    #                                   preview_rect.height // 2)
+    #         pygame.draw.rect(screen, colors[0], top_rect)
+    #         pygame.draw.rect(screen, colors[1], bottom_rect)
+
+    #     name_surface = self.font.render(dino['name'], True, (255, 255, 255))
+    #     hp_text = self.small_font.render(f"HP: {dino['hp']}/{dino['max_hp']}", True, (255, 255, 255))
+    #     type_str = "/".join(types)
+    #     type_text = self.small_font.render(type_str, True, (255, 255, 255))
+
+    #     type_x = preview_rect.right - type_text.get_width() - 10
+    #     type_y = preview_rect.bottom - type_text.get_height() - 10
+    #     name_x = preview_rect.left + 10
+    #     name_y = preview_rect.top + 10
+    #     hp_x = preview_rect.right - hp_text.get_width() - 10
+    #     hp_y = preview_rect.top + 10
+
+    #     screen.blit(name_surface, (name_x, name_y))
+    #     screen.blit(hp_text, (hp_x, hp_y))
+    #     screen.blit(type_text, (type_x, type_y))
+
+    #     # XP Bar
+    #     current_xp = dino.get("xp", 0)
+    #     xp_to_next = dino.get("xp_to_next", 1)
+    #     fill_ratio = min(current_xp / xp_to_next, 1)
+
+    #     xp_bar_width = preview_rect.width - 250
+    #     xp_bar_height = 15
+    #     xp_bar_x = preview_rect.x + 5
+    #     xp_bar_y = preview_rect.bottom - xp_bar_height - 3
+
+    #     xp_text = self.smaller_font.render(f"XP: {int(current_xp)}/{int(xp_to_next)}", True, (255, 255, 255))
+    #     screen.blit(xp_text, (xp_bar_x + 2, xp_bar_y - 23))
+
+    #     pygame.draw.rect(screen, (255, 255, 255), (xp_bar_x, xp_bar_y, xp_bar_width, xp_bar_height))
+    #     pygame.draw.rect(screen, (0, 100, 255), (xp_bar_x, xp_bar_y, int(xp_bar_width * fill_ratio), xp_bar_height))
+    #     pygame.draw.rect(screen, (0, 0, 0), (xp_bar_x, xp_bar_y, xp_bar_width, xp_bar_height), 2)
+
+
+    #     #### preview animation
+    #     selected_dino = dino[self.selected_index]  # or the arg to draw_preview
+    #     now = pygame.time.get_ticks()
+
+    #     # reset animation if selection changed
+    #     sel_id = selected_dino.get("name")
+    #     if self.preview_selected_id != sel_id:
+    #         self.preview_selected_id = sel_id
+    #         self.preview_frame = 0
+    #         self.preview_last_switch = now
+
+    #     # advance the frame if we have multiple frames
+    #     if "frames" in selected_dino and len(selected_dino["frames"]) > 1:
+    #         if now - self.preview_last_switch >= self.preview_interval_ms:
+    #             self.preview_frame = (self.preview_frame + 1) % len(selected_dino["frames"])
+    #             self.preview_last_switch = now
+    #         frame_img = selected_dino["frames"][self.preview_frame]
+    #     else:
+    #         frame_img = selected_dino["image"]
+
+    #     #SPRITE
+    #     # blit (reuse your existing preview_rect placement) 
+    #     sprite_scaled = pygame.transform.scale(frame_img, (150, 150))
+    #     screen.blit(sprite_scaled, (preview_rect.centerx - 50, preview_rect.centery - 70))
+
+        # Sprite
+        # sprite = dino['image']
+        # sprite_scaled = pygame.transform.scale(sprite, (150, 150))
+        # screen.blit(sprite_scaled, (preview_rect.centerx - 50, preview_rect.centery - 70))
 
         # Stats box
         stats_rect = pygame.Rect(240, 230, 380, 240)
