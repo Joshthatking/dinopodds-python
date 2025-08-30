@@ -98,7 +98,7 @@ TYPE_DATA = {
         'weak_eff': ['earth', 'spike', 'rock', 'ancient'],
         'resist': ['flying'],
         'weak_to': ['rock', 'earth'],
-        'color': config.LIGHNING
+        'color': config.LIGHTNING
     },
     'ice': {
         'super_eff': ['earth', 'flying', 'ancient'],

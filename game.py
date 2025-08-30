@@ -524,6 +524,9 @@ class Game:
                     print("Bag Opening")
                 elif result == 'Party':
                     self.push_state('party')
+                    if getattr(self, "after_swap", False):
+                        self.after_swap = False
+                        self.enemy_turn()   # enemy gets to move after your swap
                     print("Switching Dino")
 
 

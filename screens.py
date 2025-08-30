@@ -191,6 +191,8 @@ class EncounterUI:
         if current_line:
             lines.append(current_line.strip())
         return lines
+    
+
 
     def handle_input(self, event,player_dino):
         if self.level_up_popup and self.level_up_popup.active:
@@ -316,6 +318,7 @@ class PartyScreen:
         self.selected_index = 0
         self.mode = 'party'  # 'party' or 'box'
 
+
         #preview animation
         self.preview_frame = 0
         self.preview_last_switch = 0
@@ -387,6 +390,31 @@ class PartyScreen:
                 # Show confirmation text AFTER party screen is visible
                 game.message_box.queue_messages([f"Go, {chosen['name']}!", "What will you do?"], wait_for_input=True)
             return None  # ignore other keys during forced swap
+        
+
+                # Voluntary swap during encounter
+        if in_encounter and not awaiting and event.key == pygame.K_j:
+            if 0 <= self.selected_index < len(game.player_dinos):
+                chosen = game.player_dinos[self.selected_index]
+
+                if chosen.get('hp', 0) <= 0:
+                    game.message_box.queue_messages(
+                        [f"{chosen['name']} has no HP! Choose another."], 
+                        wait_for_input=True
+                    )
+                    return None
+
+                # Perform the swap
+                game.active_dino_index = self.selected_index
+                game.pop_state()  # close PartyScreen
+
+                # Queue the swap message
+                game.message_box.queue_messages(
+                    [f"{chosen['name']}, I choose you!"],
+                    on_complete=game._enemy_turn  # <-- enemy goes right after
+                )
+            return None
+
 
         # Normal party/box interactions (outside forced swap)
         if event.key == pygame.K_o:
@@ -411,6 +439,20 @@ class PartyScreen:
                 return 'back'
 
         return None
+    
+
+    ######## Choosing new dino in encounter
+    def handle_party_select(self, index):
+        chosen = self.player_dinos[index]
+        if chosen["hp"] <= 0:
+            self.message_box.queue_messages(["That dino has fainted!"])
+            return
+
+        # swap
+        self.active_dino_index = index
+        self.pop_state()  # return to encounter
+        self.after_swap = True  # flag to trigger enemy turn
+
 
 
     def get_current_list(self, game):

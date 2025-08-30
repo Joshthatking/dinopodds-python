@@ -24,14 +24,17 @@ if __name__ == '__main__':
 #### THINGS TO ADD FOR BATTLES
 ## 1) no xp if fainted at end of battle COMPLETE
 ## 2) make xp for leveling up more;; -- or award less xp! - COMPLETE for now
-## 3) be able to swap and it count as a turn, same for a failed catch attempt
+## 3) be able to swap and it count as a turn, same for a failed catch attempt  -- COMPLETE
 
 ## 4) Evolution logic after battles 
 ## 5) Moveset logic for when you have 4 and can learn a new one
-## 6) Moveset randomness set for encounters based on level (amount of moves + which moves)
-## 7) Build DinoCenter for healing
+## 6) Moveset randomness set for WILD encounters based on level (amount of moves + which moves)
+## 7) Build DinoCenter for healing -- logic half done, design not
 ## 8) Add Trainer Sprites around map for battles - this includes LOS detection, facing when speaking, battle animation, trainer moveset, no dinopod during battles, currency system
+## 9) Encounter Trainer Animation, ball thrown and catch animation
+## 10) Build Assets for First and Second Gyms and Towns 
 
 #8/22 - enemy turn after failed catch attempt
 #8/23 - worked on adding idle animations to party preview and start of encounter -- fix encounter animation
 #8/27 - Dinopodd throw and open animation for catching
+#8/30 - Fixed Encounter Animation, added all colors and adjusted type effectiveness, Switch turn after swapping DINO
