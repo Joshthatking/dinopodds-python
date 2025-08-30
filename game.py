@@ -632,38 +632,41 @@ class Game:
 
         # Draw overlays/UI based on current top state
         if current_state == 'encounter':
-            self.encounter.draw(self.screen)
-            self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index], self.enemy_dino, self.encounter_text)
-
             if self.encounter_anim:
                 anim = self.encounter_anim
                 now = pygame.time.get_ticks()
 
-                # advance frame if interval elapsed
+                # Advance frame
                 if now - anim["last_switch"] >= anim["interval"]:
                     anim["frame_idx"] = (anim["frame_idx"] + 1) % len(anim["frames"])
                     anim["last_switch"] = now
 
-                # choose frame
                 frame = anim["frames"][anim["frame_idx"]]
+                self.encounter.current_dino_surface = frame  # <- keep updating Encounter’s surface
+                self.encounter.draw(self.screen)
 
-                # Where to draw it: use the Encounter's configured position
-                # self.encounter.dino_pos is in screen coordinates (per your Encounter class)
-                draw_x, draw_y = self.encounter.dino_pos
-
-                # If your Encounter.draw used the raw image size, blit it as-is. If you scale in Encounter, scale here too:
-                # e.g. scaled = pygame.transform.scale(frame, (270, 270))
-                scaled = frame  # or scale if you want a specific size
-                self.screen.blit(scaled, (draw_x, draw_y))
-
-                # End animation when duration expired
+                # End animation
                 if now - anim["start_time"] >= anim["duration"]:
                     self.encounter_anim = None
-                    # Now queue the encounter intro message(s)
+                    # Lock to first idle frame
+                    self.encounter.current_dino_surface = anim["frames"][0]
+                    self.enemy_dino["image"] = anim["frames"][0]
                     self.message_box.queue_messages(
                         [f"A wild {self.enemy_dino['name']} appeared!", "What will you do?"],
                         wait_for_input=True
                     )
+            else:
+                # No anim -> just draw encounter
+                self.encounter.draw(self.screen)
+
+            # UI on top
+            self.encounter_ui.draw(
+                self.screen,
+                self.player_dinos[self.active_dino_index],
+                self.enemy_dino,
+                self.encounter_text
+            )
+
 
 
         elif current_state in ('menu', 'party', 'items'):

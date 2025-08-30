@@ -18,9 +18,20 @@ class Encounter:
         self.dino = load_image(config.ENCOUNTER_DINOS_PATHS[dino_key], alpha=True)  # Load dino sprite
         self.dino_pos = (380, 10)  # Dino position
 
+        self.frames = []
+        if dino_key in config.ENCOUNTER_DINOS_PATHS:
+            self.frames.append(load_image(config.ENCOUNTER_DINOS_PATHS[dino_key], alpha=True))
+        if dino_key + "2" in config.ENCOUNTER_DINOS_PATHS:
+            self.frames.append(load_image(config.ENCOUNTER_DINOS_PATHS[dino_key + "2"], alpha=True))
+
+        # Start with first frame as default
+        self.current_dino_surface = self.frames[0] if self.frames else None
+
     def draw(self, screen):
         screen.blit(self.bg, (0, 0))
         # screen.blit(self.dino, self.dino_pos)  # Dino
+        if self.current_dino_surface:
+            screen.blit(self.current_dino_surface, self.dino_pos)
 
 
 # === Encounter UI ===

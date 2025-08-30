@@ -9,7 +9,7 @@ BLACK = (0,0,0)
 WHITE = (255,255,255)
 RED = (255,0,0)
 DARK = "#201624"
-LIGHT = '#c8c8c8'
+LIGHT = "#fffef0"
 GRAY = '#3a373b'
 LIGHT_GRAY = '#4b484d'
 MAGMA = '#f8a060'
@@ -18,6 +18,12 @@ EARTH = '#64a990'
 SOFT_WHITE = '#f0f0f0'
 ROCK = "#57513e"
 SPIKE = "#d4ba93"
+FLYING = "#b1c5da"
+LIGHTNING = "#fff646"
+ICE = "#15dcee"
+ANCIENT = "#712B81"
+
+
 
 
 

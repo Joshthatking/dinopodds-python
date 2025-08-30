@@ -40,44 +40,79 @@ TYPE_DATA = {
     'aqua': {
         'super_eff': ['magma', 'rock'],
         'weak_eff': ['aqua', 'ancient', 'earth'],
-        'resist':['aqua', 'ace'],
+        'resist':['aqua', 'ice', 'magma'],
         'weak_to': ['earth', 'lightning'],
         'color': config.AQUA
     },
     'magma': {
         'super_eff': ['earth', 'ice'],
         'weak_eff': ['magma', 'ancient', 'rock', 'aqua'],
-        'resist':['magma', 'ice'],
+        'resist':['magma', 'ice', 'earth'],
         'weak_to': ['aqua', 'rock'],
         'color': config.MAGMA
     },
     'earth': {
         'super_eff': ['aqua', 'rock', 'lighting'],
-        'weak_eff': ['earth', 'ancient', 'flying'],
-        'resist':['earth', 'spike'],
-        'weak_to': ['magma', 'ice', 'flying'],
+        'weak_eff': ['earth', 'ancient', 'flying', 'magma'],
+        'resist':['earth', 'aqua', 'lightning', 'light'],
+        'weak_to': ['magma', 'ice', 'flying', 'spike'],
         'color': config.EARTH
     },
     'dark': {
-        'super_eff': ['spike', 'monster'],
-        'weak_eff': ['dark', 'light'],
-        'resist':['lightning', 'spike', 'dark'],
-        'weak_to': ['light', 'goo'],
+        'super_eff': ['spike', 'dark'],
+        'weak_eff': ['light'],
+        'resist':['spike', 'ancient'],
+        'weak_to': ['light', 'dark'],
         'color': config.DARK
     },
     'light': {
         'super_eff': ['dark', 'ancient', 'light'],
-        'weak_eff': ['earth', 'lightning', 'metal'],
-        'resist': ['spike', 'ice', 'rock'],
-        'weak_to': ['lightning', 'ancient'],
+        'weak_eff': ['earth'],
+        'resist': ['spike', 'dark'],
+        'weak_to': ['lightning', 'ancient', 'light'],
         'color': config.SOFT_WHITE
     },
     'spike': {
-        'super_eff': ['ancient', 'metal', 'rock'],
-        'weak_eff': ['dark', 'earth', 'light'],
-        'resist': ['flying', 'ice'],
-        'weak_to': ['dark', 'light'],
+        'super_eff': ['ancient', 'earth', 'rock'],
+        'weak_eff': ['dark','light'],
+        'resist': ['rock', 'lightning', 'ancient'],
+        'weak_to': ['dark', 'flying'],
         'color': config.SPIKE
+    },
+    'flying': {
+        'super_eff': ['earth', 'spike'],
+        'weak_eff': ['rock', 'lightning'],
+        'resist': ['earth'],
+        'weak_to': ['rock', 'ice', 'lightning'],
+        'color': config.FLYING
+    },
+    'rock': {
+        'super_eff': ['magma', 'flying', 'lightning', 'ice'],
+        'weak_eff': ['spike', 'rock'],
+        'resist': ['flying', 'lightning','ancient'],
+        'weak_to': ['aqua', 'earth','spike'],
+        'color': config.ROCK
+    },
+    'lightning': {
+        'super_eff': ['flying', 'aqua', 'light'],
+        'weak_eff': ['earth', 'spike', 'rock', 'ancient'],
+        'resist': ['flying'],
+        'weak_to': ['rock', 'earth'],
+        'color': config.LIGHNING
+    },
+    'ice': {
+        'super_eff': ['earth', 'flying', 'ancient'],
+        'weak_eff': ['aqua', 'ice', 'magma'],
+        'resist': ['ice'],
+        'weak_to': ['rock', 'magma'],
+        'color': config.ICE
+    },
+    'ancient': {
+        'super_eff': ['ancient', 'light'],
+        'weak_eff': ['spike', 'rock'],
+        'resist': ['aqua', 'magma', 'earth', 'lightning'],
+        'weak_to': ['ancient', 'ice', 'spike'],
+        'color': config.ANCIENT
     }
 }
 
@@ -90,12 +125,12 @@ TYPE_CHART_VAL = {
     'earth': {'aqua': 20, 'magma': 5, 'earth': 5, 'flying': 5, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lighting': 20, 'ice': 10,'ancient': 5},
     'flying': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 20, 'rock': 5, 'lighting': 5, 'ice': 10,'ancient': 10},
     'dark': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 20 , 'light': 5, 'spike': 20, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 10},
-    'light': {'aqua': 10, 'magma': 10, 'earth': 5, 'flying': 10, 'dark': 20 , 'light': 20, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 5},
+    'light': {'aqua': 10, 'magma': 10, 'earth': 5, 'flying': 10, 'dark': 20 , 'light': 20, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 20},
     'spike': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 5 , 'light': 5, 'spike': 10, 'rock': 20, 'lighting': 10, 'ice': 10,'ancient': 20},
     'rock': {'aqua': 10, 'magma': 20, 'earth': 10, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 5, 'rock': 5, 'lighting': 20, 'ice': 20,'ancient': 10},
     'lightning': {'aqua': 20, 'magma': 10, 'earth': 5, 'flying': 20, 'dark': 10 , 'light': 20, 'spike': 5, 'rock': 5, 'lighting': 10, 'ice': 10,'ancient': 5},
     'ice': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 5,'ancient': 20},
-    'ancient': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 10 , 'light': 20, 'spike': 5, 'rock': 5, 'lighting': 10, 'ice': 10,'ancient': 20},
+    'ancient': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 5 , 'light': 20, 'spike': 5, 'rock': 5, 'lighting': 10, 'ice': 10,'ancient': 20},
 
 
 

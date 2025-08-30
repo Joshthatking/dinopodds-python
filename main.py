@@ -34,3 +34,4 @@ if __name__ == '__main__':
 
 #8/22 - enemy turn after failed catch attempt
 #8/23 - worked on adding idle animations to party preview and start of encounter -- fix encounter animation
+#8/27 - Dinopodd throw and open animation for catching
