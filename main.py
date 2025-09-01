@@ -10,6 +10,8 @@ if __name__ == '__main__':
 
 ## add symbols for stats!
 
+#### make an active spot, different highlight in party preview, allow switching from party screen overworld, always comes out first, maybe add a 2nd active for doubles?
+
 
 ###  also a button to switch to active in party, also evolution logic
 
@@ -38,4 +40,4 @@ if __name__ == '__main__':
 #8/23 - worked on adding idle animations to party preview and start of encounter -- fix encounter animation
 #8/27 - Dinopodd throw and open animation for catching
 #8/30 - Fixed Encounter Animation, added all colors and adjusted type effectiveness, Switch turn after swapping DINO
-#8/31 - Evolution Logic - COMPLETE ---- fix moves shown in party screen, also soon need logic for choosing moves when at 4 already
+#8/31 - Evolution Logic - COMPLETE ----  also soon need logic for choosing moves when at 4 already 

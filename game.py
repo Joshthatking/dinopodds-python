@@ -424,6 +424,18 @@ class Game:
         # old_moves = dino.get('moves', [])
         # learnable = [move for lvl, move in new_data['moves'].items() if lvl <= level]
         # dino['moves'] = list(set(old_moves + learnable))
+        
+
+        # --- Rebuild moveset for UI preview ---
+        dino['moveset'] = []
+        for move_name in dino['moves']:
+            move_data = MOVE_DATA.get(move_name, {})
+            dino['moveset'].append({
+                "name": move_name,
+                "type": move_data.get("type", "normal"),
+                "damage": move_data.get("damage", 0),
+                "accuracy": move_data.get("accuracy", 100),
+            })
 
         return old_name, new_name
 
@@ -1181,37 +1193,94 @@ class Game:
         elif eff_val <= 0:
             msgs.append("It had no effect...")
 
+
+        ### AFTER KO ####
+
         if defender['hp'] <= 0:
+            # Enemy fainted
             msgs.append(f"The wild {defender['name']} fainted!")
-            # Award XP to current party on KO
+
             xp_gain = calculate_xp_gain(
                 player_level=self.player_dinos[self.active_dino_index]['level'],
                 opponent_level=defender['level'],
                 state_multiplier=.65,
                 party_size=len(self.player_dinos)
             )
-            # Level up logic (handles multiple levels)
+
             level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
-            
             msgs.append(f"{attacker['name']} has gained {int(round(xp_gain*1.3))} XP!")
             if len(self.player_dinos) > 1:
                 msgs.append(f"Each party dino gained {xp_gain} XP!")
             msgs.extend(level_up_msgs)
 
-            ############ EVOLUTIONS ?? ############
-            for dino in self.player_dinos:
-                evo_target = self.check_evolution(dino)
-                if evo_target:
-                    self.start_evolution(dino, evo_target)
+            # Evolution check AFTER level-up messages
+            def handle_evolutions():
+                evolved = False
+                for dino in self.player_dinos:
+                    evo_target = self.check_evolution(dino)
+                    if evo_target:
+                        evolved = True
+                        self.start_evolution(dino, evo_target)
+                        self.pop_to_world()
+                if not evolved:
+                    self.pop_to_world()
 
+            self.message_box.queue_messages(
+                msgs,
+                wait_for_input=True,
+                on_complete=handle_evolutions
+            )
+            return  # <- ensures enemy turn does NOT happen if fainted
 
-            # After KO + messages, go back to world
-            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.pop_to_world)
-            return print(eff_val, raw_damage)
         else:
-            # Not KO — continue with enemy turn after messages
+            # Enemy survived → enemy’s turn after your messages
             msgs.append("What will you do?")
-            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self._enemy_turn) 
+            self.message_box.queue_messages(
+                msgs,
+                wait_for_input=True,
+                on_complete=self._enemy_turn
+            )
+            return
+
+
+
+
+
+
+
+
+
+        # if defender['hp'] <= 0:
+        #     msgs.append(f"The wild {defender['name']} fainted!")
+        #     # Award XP to current party on KO
+        #     xp_gain = calculate_xp_gain(
+        #         player_level=self.player_dinos[self.active_dino_index]['level'],
+        #         opponent_level=defender['level'],
+        #         state_multiplier=.65,
+        #         party_size=len(self.player_dinos)
+        #     )
+        #     # Level up logic (handles multiple levels)
+        #     level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
+            
+        #     msgs.append(f"{attacker['name']} has gained {int(round(xp_gain*1.3))} XP!")
+        #     if len(self.player_dinos) > 1:
+        #         msgs.append(f"Each party dino gained {xp_gain} XP!")
+        #     msgs.extend(level_up_msgs)
+
+        #     ############ EVOLUTIONS ?? ############
+        #     for dino in self.player_dinos:
+        #         evo_target = self.check_evolution(dino)
+        #         if evo_target:
+        #             self.start_evolution(dino, evo_target)
+
+
+        #     # After KO + messages, go back to world
+        #     self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.pop_to_world)
+        #     return print(eff_val, raw_damage)
+        # else:
+        #     # Not KO — continue with enemy turn after messages
+        #     msgs.append("What will you do?")
+        #     self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self._enemy_turn) 
         
     def _enemy_turn(self):
         defender = self.player_dinos[self.active_dino_index]
