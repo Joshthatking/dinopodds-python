@@ -29,9 +29,9 @@ DINO_DATA = {
     'Corlave': {
         'stats': {'type': ['aqua'], 'health': 80, 'attack': 55, 'defense': 40, 'speed':25},
         'moves': {0: 'Whirlpool', 17: 'Wave Dash'},
-        'evolve': 17},
+        'evolve': {17: 'Anemamace'},
     }
-    
+}
 
 
 
@@ -171,7 +171,7 @@ MOVE_DATA = {
 ENCOUNTER_ZONES = {
     "starter_grass": {
         "dinos": ["Anemamace", "Corlave"],
-        "level_range": (13, 14)
+        "level_range": (17, 18)
     },
     "deep_jungle": {
         "dinos": ["Venoshade", "Terraptor", "Leafu"],

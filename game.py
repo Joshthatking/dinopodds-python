@@ -242,6 +242,44 @@ class Game:
             break  # Only show one popup per XP award
 
         return leveled_up
+    
+
+    def award_xp(self, dino, amount):
+        """Give XP to a single dino and handle level-ups + evolution."""
+        dino['xp'] += amount
+
+        while dino['xp'] >= dino['xp_to_next']:
+            base_stats = DINO_DATA[dino["name"]]['stats']
+            prev_hp = HP_Base(base_stats['health'], dino['level'])
+
+            # Use up the XP for this level
+            dino['xp'] -= dino['xp_to_next']
+            dino['level'] += 1
+
+            # Update xp_to_next
+            dino['xp_to_next'] = LevelXP(dino['level']+1) - LevelXP(dino['level'])
+
+            # Recalculate stats
+            dino['max_hp'] = HP_Base(base_stats["health"], dino['level'])
+            dino['attack'] = Base_Stats(base_stats["attack"], dino['level'])
+            dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
+            dino['speed'] = Base_Stats(base_stats["speed"], dino['level'])
+
+            # Heal by the HP gained
+            dino['hp'] += (dino['max_hp'] - prev_hp)
+
+            # Level-up message
+            self.message_box.queue_messages(
+                [f"{dino['name']} grew to Lv {dino['level']}!"], wait_for_input=True
+            )
+
+            # Evolution check
+            evo_target = self.check_evolution(dino)
+            if evo_target:
+                self.start_evolution(dino, evo_target)
+                break  # stop after first evo trigger so the queued evolution runs cleanly
+
+
 
 
     # ## XP LOGIC
@@ -320,6 +358,88 @@ class Game:
         elif player_y >= 200:
             return "volcano_top"
         return None
+    
+
+    ### EVOLUTIONS
+    def check_evolution(self, dino):
+        data = DINO_DATA[dino['name']]
+        evo_table = data.get('evolve')
+
+        if not evo_table:
+            return None
+
+        # Find if level matches an evolution
+        for evo_level, evo_target in evo_table.items():
+            if dino['level'] >= evo_level:
+                return evo_target
+        return None
+        
+    def do_evolution(self, dino, new_name):
+        old_name = dino['name']
+        level = dino['level']
+
+        # HP ratio
+        hp_ratio = dino['hp'] / dino['max_hp'] if dino.get('max_hp', 0) > 0 else 1.0
+
+        # Pull new species data
+        new_data = DINO_DATA[new_name]
+        base_stats = new_data['stats']
+
+        # Update identity
+        dino['name'] = new_name
+        dino['stats'] = base_stats
+
+        # Update sprite + animation frames
+        dino['image'] = self.player_dino_images[new_name]  # single image for menus/world
+        if new_name in self.dino_frames:
+            dino['frames'] = self.dino_frames[new_name]  # for encounter animations
+
+        # Recalculate stats
+        dino['max_hp']  = HP_Base(base_stats['health'], level)
+        dino['attack']  = Base_Stats(base_stats['attack'], level)
+        dino['defense'] = Base_Stats(base_stats['defense'], level)
+        dino['speed']   = Base_Stats(base_stats['speed'], level)
+
+        # Scale HP proportionally
+        dino['hp'] = max(1, int(dino['max_hp'] * hp_ratio))
+
+        # Update moves
+        # Ensure 'moves' exists
+        if 'moves' not in dino:
+            dino['moves'] = []
+
+        # Gather old moves
+        old_moves = dino['moves'][:]
+
+        # Get new moves learnable at current level
+        learnable = [move for lvl, move in new_data['moves'].items() if lvl <= level]
+
+        # Merge old moves with learnable, preserving order
+        for move in learnable:
+            if move not in old_moves:
+                old_moves.append(move)
+
+        # Assign back
+        dino['moves'] = old_moves
+        # old_moves = dino.get('moves', [])
+        # learnable = [move for lvl, move in new_data['moves'].items() if lvl <= level]
+        # dino['moves'] = list(set(old_moves + learnable))
+
+        return old_name, new_name
+
+
+
+    def start_evolution(self, dino, evo_target):
+        old_name = dino['name']
+        new_name = evo_target
+
+        self.message_box.queue_messages(
+            [f"What? {old_name} is evolving!", f"Congratulations! Your {old_name} evolved into {new_name}!"],
+            on_complete=lambda: self.do_evolution(dino, new_name)
+        )
+
+
+
 
 
 
@@ -742,95 +862,54 @@ class Game:
         render_h = int(config.HEIGHT / self.zoom)
         self.render_surface = pygame.Surface((render_w, render_h))
         self.update_camera()
+
+
+
+
+
     
+
+
+
+
     def attempt_catch(self):
-        msgs = []
+        # consume a pod
         self.inventory["DinoPod"] = max(0, self.inventory["DinoPod"] - 1)
         pod_rate = config.ITEMS["DinoPod"]["catch_rate"]
         success = random.random() < pod_rate
+
         if success:
-            # caught_dino = self.create_dino(
-            #     self.enemy_dino["name"], 
-            #     self.enemy_dino["level"]
-            # )
-            # # caught_dino = self.enemy_dino.copy()
-            # caught_dino['xp'] = 0
-            # caught_dino['displayed_xp'] = 0
-            # Rebuild full data for party, but preserve current stats like HP
+            # Build the caught dino from base data (preserve current battle HP)
             base_dino = self.create_dino(self.enemy_dino["name"], self.enemy_dino["level"])
-            # Preserve damaged HP from battle
-            base_dino["hp"] = min(self.enemy_dino["hp"], base_dino["max_hp"])  # just in case  
-            # base_dino["xp"] = self.enemy_dino.get("xp", 0)  # preserve XP if you track it
-            base_dino["xp"] = 0  # preserve XP if you track it
+            base_dino["hp"] = min(self.enemy_dino["hp"], base_dino["max_hp"])
+            base_dino["xp"] = 0
 
+            # Who gets XP? All party dinos with HP > 0
+            alive = [d for d in self.player_dinos if d.get('hp', 0) > 0]
+            active = self.player_dinos[self.active_dino_index] if self.player_dinos else None
 
-            alive_dinos = [d for d in self.player_dinos if d.get('hp', 0) > 0]
-            if not alive_dinos:
-                return
-            
+            # Calculate XP (50% for catches)
+            if alive and active is not None:
+                xp_gain = calculate_xp_gain(
+                    player_level=active['level'],
+                    opponent_level=self.enemy_dino['level'],
+                    state_multiplier=0.5,
+                    party_size=len(alive)
+                )
 
-            #Active Dino
-            active = self.player_dinos[self.active_dino_index]
-            
+                # Give XP: active gets +30%
+                for d in alive:
+                    bonus = 1.3 if d is active else 1.0
+                    self.award_xp(d, int(round(xp_gain * bonus)))
 
-            # Calculate XP
-            xp_gain = calculate_xp_gain(
-                player_level=self.player_dinos[self.active_dino_index]['level'],
-                opponent_level=self.enemy_dino['level'],
-                state_multiplier=.5, # 50% less xp for catching 
-                party_size=len(alive_dinos)
-            )
+            # After XP, see who should evolve
+            to_evolve = []
+            for d in self.player_dinos:
+                target = self.check_evolution(d)
+                if target:
+                    to_evolve.append((d, target))
 
-            # Award XP + trigger animation
-            for dino in alive_dinos:
-                if dino is active: 
-                    dino['xp'] += int(round(xp_gain * 1.3))
-                    self.message_box.queue_messages(
-                    (f" {dino['name']} grew to Lv {dino['level']}!"),wait_for_input=True)
-                else:
-
-                    dino['xp'] += xp_gain
-                    # new_level = XPtoLevel(dino['xp'])
-                    while dino['xp'] >= dino['xp_to_next']:
-                        base_stats = DINO_DATA[dino["name"]]['stats']
-                        prev_hp = HP_Base(base_stats['health'], dino['level'])
-                        dino['xp'] = dino['xp'] - dino['xp_to_next']  + 1#recycle through xp for specific new level
-                        dino['level'] += 1
-                        dino['xp_to_next'] =LevelXP(dino['level']+1) - LevelXP(dino['level'])
-
-                        # p = 1.2
-                        dino['max_hp'] = HP_Base(base_stats["health"], dino['level'])
-                        dino['attack'] = Base_Stats(base_stats["attack"], dino['level'])
-                        dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
-                        dino['speed'] = Base_Stats(base_stats["speed"], dino['level'])
-                        dino['hp'] = (dino['max_hp'] - prev_hp) + dino['hp'] # Heal to full on level-up (optional)
-
-                        self.message_box.queue_messages(
-                    (f" {dino['name']} grew to Lv {dino['level']}!"),wait_for_input=True)
-                    # return msgs
-
-
-
-            # active['xp'] += xp_gain *1.3
-            # while active['xp'] >= active['xp_to_next']:
-
-            #     base_stats = DINO_DATA[active["name"]]['stats']
-            #     prev_hp = HP_Base(base_stats['health'], active['level'])
-            #     active['xp'] = active['xp'] - active['xp_to_next']  + 1#recycle through xp for specific new level
-            #     active['level'] += 1
-            #     active['xp_to_next'] =LevelXP(active['level']+1) - LevelXP(active['level'])
-
-            #     # p = 1.2
-            #     active['max_hp'] = HP_Base(base_stats["health"], active['level'])
-            #     active['attack'] = Base_Stats(base_stats["attack"], active['level'])
-            #     active['defense'] = Base_Stats(base_stats["defense"], active['level'])
-            #     active['speed'] = Base_Stats(base_stats["speed"], active['level'])
-            #     active['hp'] = (active['max_hp'] - prev_hp) + active['hp'] # Heal to full on level-up (optional)
-
-
-
-            
-    # Decide destination for the new dino
+            # Put the caught dino into party or box
             if len(self.player_dinos) < self.PARTY_LIMIT:
                 self.player_dinos.append(base_dino)
                 added_msg = f"{self.enemy_dino['name']} was added to your party!"
@@ -838,38 +917,175 @@ class Game:
                 self.box_dinos.append(base_dino)
                 added_msg = f"{self.enemy_dino['name']} was sent to your Box!"
 
+            # Build catch summary messages
+            msgs = [f"You caught {self.enemy_dino['name']}!", added_msg]
+            if alive and active is not None:
+                msgs.append(f"{active['name']} has gained {int(round(xp_gain * 1.3))} XP!")
+                if len(alive) > 1:
+                    msgs.append(f"Each party dino gained {xp_gain} XP!")
 
-            # Messages and return
-            if len(self.player_dinos) > 2:
-                self.message_box.queue_messages(
-                    [
-                     f"You caught {self.enemy_dino['name']}!",
-                    added_msg,
-                    f"{active['name']} has gained {int(xp_gain * 1.3)} XP!",
-                    f"Each party dino gained {xp_gain} XP!"
+            # Chain: show catch msgs -> run evolutions (if any) -> pop to world
+            def run_evolutions(i=0):
+                if i >= len(to_evolve):
+                    # done with evolutions: return to world
+                    self.pop_to_world()
+                    return
 
-                    ], wait_for_input= True, on_complete=self.pop_to_world
-                )
-            else: 
+                dino, target = to_evolve[i]
+                old_name = dino['name']
+
+                def do_next():
+                    # Perform the actual evolution
+                    old_species, new_species = self.do_evolution(dino, target)
+
+                    # Show the "congratulations" message AFTER stats update
+                    self.message_box.queue_messages(
+                        [f"Congratulations! Your {old_species} evolved into {new_species}!"],
+                        wait_for_input=True,
+                        on_complete=lambda: run_evolutions(i + 1)
+                    )
+
+                # First show the "is evolving" message
                 self.message_box.queue_messages(
-                    [
-                        f"You caught {self.enemy_dino['name']}!",
-                        added_msg,
-                        f"{active['name']} has gained {int(xp_gain * 1.3)} XP!"
-                    ],
+                    [f"What? {old_name} is evolving!"],
                     wait_for_input=True,
-                    on_complete=self.pop_to_world
+                    on_complete=do_next
                 )
+            self.message_box.queue_messages(
+            msgs,
+            wait_for_input=True,
+            on_complete=lambda: run_evolutions(0)  # start evolution chain
+        )
+
+            return
+
+        # ---- FAIL: break free -> enemy turn after dialog ----
+        self.message_box.queue_messages(
+            [f"{self.enemy_dino['name']} broke free!"],
+            wait_for_input=True,
+            on_complete=self._enemy_turn  # pass the function, don’t call it here
+        )
+        return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    # def attempt_catch(self):
+    #     msgs = []
+    #     self.inventory["DinoPod"] = max(0, self.inventory["DinoPod"] - 1)
+    #     pod_rate = config.ITEMS["DinoPod"]["catch_rate"]
+    #     success = random.random() < pod_rate
+    #     if success:
+    #         # caught_dino = self.create_dino(
+    #         #     self.enemy_dino["name"], 
+    #         #     self.enemy_dino["level"]
+    #         # )
+    #         # # caught_dino = self.enemy_dino.copy()
+    #         # caught_dino['xp'] = 0
+    #         # caught_dino['displayed_xp'] = 0
+    #         # Rebuild full data for party, but preserve current stats like HP
+    #         base_dino = self.create_dino(self.enemy_dino["name"], self.enemy_dino["level"])
+    #         # Preserve damaged HP from battle
+    #         base_dino["hp"] = min(self.enemy_dino["hp"], base_dino["max_hp"])  # just in case  
+    #         # base_dino["xp"] = self.enemy_dino.get("xp", 0)  # preserve XP if you track it
+    #         base_dino["xp"] = 0  # preserve XP if you track it
+
+
+    #         alive_dinos = [d for d in self.player_dinos if d.get('hp', 0) > 0]
+    #         if not alive_dinos:
+    #             return
+            
+
+    #         #Active Dino
+    #         active = self.player_dinos[self.active_dino_index]
+            
+
+    #         # Calculate XP
+    #         xp_gain = calculate_xp_gain(
+    #             player_level=self.player_dinos[self.active_dino_index]['level'],
+    #             opponent_level=self.enemy_dino['level'],
+    #             state_multiplier=.5, # 50% less xp for catching 
+    #             party_size=len(alive_dinos)
+    #         )
+
+    #                     # Award XP + trigger animation
+    #                     # Active Dino
+    #         active = self.player_dinos[self.active_dino_index]
+
+    #         # Calculate XP
+    #         xp_gain = calculate_xp_gain(
+    #             player_level=active['level'],
+    #             opponent_level=self.enemy_dino['level'],
+    #             state_multiplier=.5, # 50% less xp for catching 
+    #             party_size=len(alive_dinos)
+    #         )
+
+    #         # Give XP
+    #         for dino in alive_dinos:
+    #             if dino is active:
+    #                 self.award_xp(dino, int(round(xp_gain * 1.3)))
+    #             else:
+    #                 self.award_xp(dino, xp_gain)
+    #                 # return msgs
+            
+    # # Decide destination for the new dino
+    #         if len(self.player_dinos) < self.PARTY_LIMIT:
+    #             self.player_dinos.append(base_dino)
+    #             added_msg = f"{self.enemy_dino['name']} was added to your party!"
+    #         else:
+    #             self.box_dinos.append(base_dino)
+    #             added_msg = f"{self.enemy_dino['name']} was sent to your Box!"
+
+
+    #         # Messages and return
+    #         if len(self.player_dinos) > 2:
+    #             self.message_box.queue_messages(
+    #                 [
+    #                  f"You caught {self.enemy_dino['name']}!",
+    #                 added_msg,
+    #                 f"{active['name']} has gained {int(xp_gain * 1.3)} XP!",
+    #                 f"Each party dino gained {xp_gain} XP!"
+
+    #                 ], wait_for_input= True, on_complete=self.pop_to_world
+    #             )
+    #         else: 
+    #             self.message_box.queue_messages(
+    #                 [
+    #                     f"You caught {self.enemy_dino['name']}!",
+    #                     added_msg,
+    #                     f"{active['name']} has gained {int(xp_gain * 1.3)} XP!"
+    #                 ],
+    #                 wait_for_input=True,
+    #                 on_complete=self.pop_to_world
+    #             )
 
             
-        else:
-            # Fail case: stay in encounter
-            self.message_box.queue_messages(
-                [f"{self.enemy_dino['name']} broke free!"],wait_for_input=True, on_complete=lambda: self._enemy_turn()
+    #     else:
+    #         # Fail case: stay in encounter
+    #         self.message_box.queue_messages(
+    #             [f"{self.enemy_dino['name']} broke free!"],wait_for_input=True, on_complete=lambda: self._enemy_turn()
 
-            )
-            #If not catch, enemy turn to attack -- happens too quick
-            return 
+    #         )
+    #         #If not catch, enemy turn to attack -- happens too quick
+    #         return 
 
 
 
@@ -976,10 +1192,18 @@ class Game:
             )
             # Level up logic (handles multiple levels)
             level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
+            
             msgs.append(f"{attacker['name']} has gained {int(round(xp_gain*1.3))} XP!")
             if len(self.player_dinos) > 1:
                 msgs.append(f"Each party dino gained {xp_gain} XP!")
             msgs.extend(level_up_msgs)
+
+            ############ EVOLUTIONS ?? ############
+            for dino in self.player_dinos:
+                evo_target = self.check_evolution(dino)
+                if evo_target:
+                    self.start_evolution(dino, evo_target)
+
 
             # After KO + messages, go back to world
             self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.pop_to_world)

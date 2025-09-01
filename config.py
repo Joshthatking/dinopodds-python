@@ -142,7 +142,7 @@ ITEMS = {
         "name": "DinoPod",
         "icon": os.path.join(ITEMS_PATH, "dinopodd.png"),
         "description": " A basic device used to capture wild Dinos",
-        'catch_rate': .09 # 30% chance
+        'catch_rate': .9 # 30% chance
     },
     "DinoCapsule": {
         "name": "DinoCapsule",
@@ -154,7 +154,7 @@ ITEMS = {
 #### SPAWN POINTS
 
 SPAWN_POINTS = {
-    'home': (33,29)
+    'home': (20,57)   #Town 1 33,29 
 }
 
 

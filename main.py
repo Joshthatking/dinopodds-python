@@ -38,3 +38,4 @@ if __name__ == '__main__':
 #8/23 - worked on adding idle animations to party preview and start of encounter -- fix encounter animation
 #8/27 - Dinopodd throw and open animation for catching
 #8/30 - Fixed Encounter Animation, added all colors and adjusted type effectiveness, Switch turn after swapping DINO
+#8/31 - Evolution Logic - COMPLETE ---- fix moves shown in party screen, also soon need logic for choosing moves when at 4 already
