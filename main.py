@@ -41,3 +41,7 @@ if __name__ == '__main__':
 #8/27 - Dinopodd throw and open animation for catching
 #8/30 - Fixed Encounter Animation, added all colors and adjusted type effectiveness, Switch turn after swapping DINO
 #8/31 - Evolution Logic - COMPLETE ----  also soon need logic for choosing moves when at 4 already 
+
+################## April 2026 - Claude Assistance ##############
+#4/28 - Rewrote code to clean up, fixed encounter messages in left box, fixed sizing, attempted to resolve sprite location in encounter
+#

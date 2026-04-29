@@ -1,5 +1,6 @@
 import config
 import math
+import random
 
 TRAINER_DATA = {
     't1': {
@@ -121,8 +122,8 @@ TYPE_DATA = {
 
 TYPE_CHART_VAL = {
     'aqua': {'aqua': 5, 'magma': 20, 'earth': 5, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lightning': 10, 'ice': 10, 'ancient': 5},
-    'magma': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 5, 'lighting': 10, 'ice': 20, 'ancient': 5},
-    'earth': {'aqua': 20, 'magma': 5, 'earth': 5, 'flying': 5, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lighting': 20, 'ice': 10,'ancient': 5},
+    'magma': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 5, 'lightning': 10, 'ice': 20, 'ancient': 5},
+    'earth': {'aqua': 20, 'magma': 5, 'earth': 5, 'flying': 5, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lightning': 20, 'ice': 10,'ancient': 5},
     'flying': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 20, 'rock': 5, 'lighting': 5, 'ice': 10,'ancient': 10},
     'dark': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 20 , 'light': 5, 'spike': 20, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 10},
     'light': {'aqua': 10, 'magma': 10, 'earth': 5, 'flying': 10, 'dark': 20 , 'light': 20, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 20},
@@ -264,6 +265,4 @@ def stab_multiplier(move_type: str, attacker_types):
     return 1.5 if move_type in attacker_types else 1.0
 
 def random_damage_factor():
-    # Your formula expects 217..255 inclusive
-    import random
     return random.randint(217, 255)

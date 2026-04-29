@@ -1,13 +1,10 @@
 import os
 import pygame
-#######################
-#### Configurations ###
-#######################
 
-#COLORS
-BLACK = (0,0,0)
-WHITE = (255,255,255)
-RED = (255,0,0)
+# Colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
 DARK = "#201624"
 LIGHT = "#fffef0"
 GRAY = '#3a373b'
@@ -23,77 +20,37 @@ LIGHTNING = "#fff646"
 ICE = "#15dcee"
 ANCIENT = "#712B81"
 
-
-
-
-
-# SCREEN
-WIDTH = 640 
-HEIGHT = 480 
+# Screen
+WIDTH = 640
+HEIGHT = 480
 FPS = 60
 
-#WORLD
+# World
 TILE_SIZE = 32
-
-# PLAYER
 PLAYER_SPEED = TILE_SIZE
 
+# Font paths
+FONT_PATH_B = os.path.join('assets', 'Items', 'PixeloidSans-Bold.ttf')
+FONT_PATH   = os.path.join('assets', 'Items', 'PixeloidSans.ttf')
+FONT_PATH_R = os.path.join('assets', 'Items', 'PixeloidMono.ttf')
 
-
-
-FONT_PATH_B = os.path.join('assets','Items', 'PixeloidSans-Bold.ttf')
-FONT_PATH = os.path.join('assets','Items', 'PixeloidSans.ttf')
-FONT_PATH_R = os.path.join('assets', 'Items','PixeloidMono.ttf' )
-
-
-FONT_XS = 12
-FONT_SMALL = 16
+FONT_XS     = 12
+FONT_SMALL  = 16
 FONT_MEDIUM = 24
-FONT_LARGE = 28
+FONT_LARGE  = 28
 
-# Just a mapping of font names to (path, size)
 FONT_DEFS = {
-    "BAG": (FONT_PATH_B, FONT_SMALL),
-    "BATTLE": (FONT_PATH_B, FONT_MEDIUM),
-    "BATTLE2": (FONT_PATH_R, FONT_SMALL),
-    "XS": (FONT_PATH_B, FONT_XS),
-    "BAG2": (FONT_PATH_B, FONT_SMALL),
-    "PARTY": (FONT_PATH_B, FONT_MEDIUM),
+    "BAG":      (FONT_PATH_B, FONT_SMALL),
+    "BATTLE":   (FONT_PATH_B, FONT_MEDIUM),
+    "BATTLE2":  (FONT_PATH_R, FONT_SMALL),
+    "XS":       (FONT_PATH_B, FONT_XS),
     "DIALOGUE": (FONT_PATH_B, FONT_LARGE),
 }
 
-##############
-### TILES ####
-##############
-
-# tile_images = {
-#     "G": pygame.image.load(os.path.join("assets/MapAssets", "grassa.png")),
-#     "g": pygame.image.load(os.path.join("assets/MapAssets", "grass_spawn.png")),
-#     "W": pygame.image.load(os.path.join("assets/MapAssets", "water1.png")),
-#     "t": pygame.image.load(os.path.join("assets/MapAssets", "tree1.png")),
-#     "T": pygame.image.load(os.path.join("assets/MapAssets", "tree2.png")),
-#     "g": pygame.image.load(os.path.join('assets/MapAssets', 'grass_spawn.png')),
-# }
-
-# DINOS_PATH = os.path.join('assets/DINOS')
-
-# DINOS = {
-#     'vusion': load_image(os.path.join(DINOS_PATH, 'Vusion_Encounter.png'),alpha = True),
-# }
-
-# ENCOUNTER_BG = pygame.image.load(os.path.join('assets/MapAssets/Grass_Encounter.png'))
-
-
-#spawn blocks/grass/snow
-# overlay_tiles = {
-#     "g": pygame.image.load(os.path.join('assets/MapAssets', 'grass_spawn.png')),
-# }
-
-
-# Paths
+# Asset paths
 ASSETS_PATH = "assets/MapAssets"
-DINOS_PATH = "assets/DINOS"
-ITEMS_PATH = "assets/Items"
+DINOS_PATH  = "assets/DINOS"
+ITEMS_PATH  = "assets/Items"
 
 # Map tiles
 TILE_PATHS = {
@@ -107,57 +64,46 @@ TILE_PATHS = {
 # Encounter assets
 ENCOUNTER_BG_PATH = os.path.join(ASSETS_PATH, 'Grass_Encounter.png')
 ENCOUNTER_DINOS_PATHS = {
-    'Vusion': os.path.join(DINOS_PATH, 'Vusion_Idle1.png'), 'Vusion2': os.path.join(DINOS_PATH, 'Vusion_Idle2.png'),
-    'Anemamace': os.path.join(DINOS_PATH, 'Anemamace_Idle1.png'), 'Anemamace2': os.path.join(DINOS_PATH, 'Anemamace_Idle2.png'),
-    'Corlave': os.path.join(DINOS_PATH, 'Corlave_Idle1.png'), 'Corlave2': os.path.join(DINOS_PATH, 'Corlave_Idle2.png'),
+    'Vusion':     os.path.join(DINOS_PATH, 'Vusion_Idle1.png'),
+    'Vusion2':    os.path.join(DINOS_PATH, 'Vusion_Idle2.png'),
+    'Anemamace':  os.path.join(DINOS_PATH, 'Anemamace_Idle1.png'),
+    'Anemamace2': os.path.join(DINOS_PATH, 'Anemamace_Idle2.png'),
+    'Corlave':    os.path.join(DINOS_PATH, 'Corlave_Idle1.png'),
+    'Corlave2':   os.path.join(DINOS_PATH, 'Corlave_Idle2.png'),
 }
 
-#PLAYER DINOS
 PLAYER_DINO_PATH = {
-    'Vusion': os.path.join(DINOS_PATH, 'Vusion_AttackXXL.png'),
-    'Anemamace': os.path.join(DINOS_PATH,'Anemamace_Idle1.png'),
-    'Corlave': os.path.join(DINOS_PATH, 'Corlave_Idle1.png'),
+    'Vusion':    os.path.join(DINOS_PATH, 'Vusion_AttackXXL.png'),
+    'Anemamace': os.path.join(DINOS_PATH, 'Anemamace_Idle1.png'),
+    'Corlave':   os.path.join(DINOS_PATH, 'Corlave_Idle1.png'),
 }
 
-#ICON DINOS
 ICON_DINOS_PATH = {
-        'Vusion': os.path.join(DINOS_PATH, 'Vusion_Icon.png'),
-    'Anemamace': os.path.join(DINOS_PATH,'Anemamace_Icon.png'),
+    'Vusion':    os.path.join(DINOS_PATH, 'Vusion_Icon.png'),
+    'Anemamace': os.path.join(DINOS_PATH, 'Anemamace_Icon.png'),
 }
 
 MAP_ENTITY_PATH = {
-    'dinocenter': os.path.join(ASSETS_PATH, 'dinocenter.png'),
+    'dinocenter': os.path.join(ASSETS_PATH, 'dc.png'),
 }
-
-
-# #Item assets
-# ITEMS = {
-#     'dp': os.path.join(ITEMS_PATH, 'dinopodd.png'),
-#     'dp2': os.path.join(ITEMS_PATH, 'dinpodd.png'),
-# }
-
 
 ITEMS = {
     "DinoPod": {
         "name": "DinoPod",
         "icon": os.path.join(ITEMS_PATH, "dinopodd.png"),
-        "description": " A basic device used to capture wild Dinos",
-        'catch_rate': .9 # 30% chance
+        "description": "A basic device used to capture wild Dinos",
+        "catch_rate": 0.9,
     },
     "DinoCapsule": {
         "name": "DinoCapsule",
         "icon": os.path.join(ITEMS_PATH, "dinpodd.png"),
-        "description": "A basic device used to capture wild Dinos"
-    }
+        "description": "A basic device used to capture wild Dinos",
+    },
 }
-
-#### SPAWN POINTS
 
 SPAWN_POINTS = {
-    'home': (20,57)   #Town 1 33,29 
+    'home': (33, 29),
 }
-
-
 
 
 class MapEntity(pygame.sprite.Sprite):
