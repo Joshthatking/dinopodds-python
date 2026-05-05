@@ -17,8 +17,8 @@ class Player(pygame.sprite.Sprite):
         self.image = self.animations['down'][0]
         self.rect = self.image.get_rect()
 
-        col, row = config.SPAWN_POINTS.get(spawn_point, (0, 0))
-        self.rect.topleft = (col * config.TILE_SIZE, row * config.TILE_SIZE)
+        px, py = config.SPAWN_POINTS.get(spawn_point, (0, 0))
+        self.rect.topleft = (px, py)
 
         self.tile_size = config.TILE_SIZE
         self.moving = False
@@ -31,6 +31,8 @@ class Player(pygame.sprite.Sprite):
 
         self.anim_index = 0
         self.anim_timer = 0
+        self.turn_timer = 0.0
+        self.turn_delay = 0.08
 
     def update(self, keys, game, dt):
         if game.state_stack[-1] != 'world' or (game.message_box and game.message_box.visible):
@@ -60,6 +62,10 @@ class Player(pygame.sprite.Sprite):
                 self.moving = False
                 self.anim_index = 0
                 self.image = self.animations[self.direction][0]
+            return
+
+        if self.turn_timer > 0:
+            self.turn_timer = max(0.0, self.turn_timer - dt)
             return
 
         new_x, new_y = self.rect.x, self.rect.y
@@ -96,6 +102,7 @@ class Player(pygame.sprite.Sprite):
                 input_detected = True
 
         if facing_changed:
+            self.turn_timer = self.turn_delay
             self.anim_index = 0
             self.image = self.animations[self.direction][0]
             return
@@ -105,15 +112,13 @@ class Player(pygame.sprite.Sprite):
 
         tile_x = (new_x + self.rect.width // 2) // self.tile_size
         tile_y = (new_y + self.rect.height // 2) // self.tile_size
-        blocked_tiles = {"W", "T", "t"}
+        blocked = (tile_x, tile_y) in game.solid_tiles or \
+                  (tile_x, tile_y) in game.solid_tile_coords or \
+                  any((tile_x, tile_y) == pos for pos in game.items_on_map)
 
-        blocked = (tile_x, tile_y) in game.solid_tiles or any(
-            (tile_x, tile_y) == pos for pos in game.items_on_map
-        )
-
-        if (0 <= tile_y < len(game.world_map) and
-                0 <= tile_x < len(game.world_map[0]) and
-                game.world_map[tile_y][tile_x] not in blocked_tiles and
+        min_tx, min_ty, max_tx, max_ty = game.world_bounds
+        if (min_tx <= tile_x < max_tx and
+                min_ty <= tile_y < max_ty and
                 not blocked):
             self.target_x = new_x
             self.target_y = new_y
@@ -133,8 +138,5 @@ class Player(pygame.sprite.Sprite):
             return
         tile_x = self.rect.x // config.TILE_SIZE
         tile_y = self.rect.y // config.TILE_SIZE
-        if (0 <= tile_y < len(game.world_map) and
-                0 <= tile_x < len(game.world_map[0]) and
-                game.world_map[tile_y][tile_x] == 'g' and
-                random.random() < 0.15):
+        if ((tile_x, tile_y) in game.encounter_tile_coords and random.random() < 0.15):
             game.trigger_encounter()

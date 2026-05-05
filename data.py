@@ -3,16 +3,16 @@ import math
 import random
 
 TRAINER_DATA = {
-    't1': {
-        'dinos': {0: ('Anemamace',7), 1:('Vusion',8)},
+    'amber': {
+        'dinos': {0: ('Anemamace', 7), 1: ('Vusion', 8)},
         'dialog': {
-			'default': ['Hey Trainer!', 'Lets Battle!'], 
-			'defeated': ['You are very strong!', 'Let\'s fight again sometime?']},
-		'directions': ['down'],
-		'look_around': True,
-		'defeated': False,
-		'biome': 'forest'
-		},
+            'default': ['Hey Trainer!', 'Lets Battle!'],
+            'defeated': ['You are very strong!', "Let's fight again sometime?"]},
+        'directions': ['down'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest'
+    },
 
 }
 
@@ -24,14 +24,22 @@ DINO_DATA = {
         'moves': {0: 'Force Shift', 9: 'Fireball', 14: 'Conduit Surge',19: 'Shadow Veil'},
         'evolve': None},
     'Anemamace': {
-        'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 125, 'defense': 100, 'speed':90},
+        'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 110, 'defense': 115, 'speed':90},
         'moves': {0: 'Double Jab', 9: 'Whirlpool', 17: 'Wave Dash'},
         'evolve': None},
     'Corlave': {
-        'stats': {'type': ['aqua'], 'health': 80, 'attack': 55, 'defense': 40, 'speed':25},
+        'stats': {'type': ['aqua'], 'health': 80, 'attack': 55, 'defense': 50, 'speed':25},
         'moves': {0: 'Whirlpool', 17: 'Wave Dash'},
-        'evolve': {17: 'Anemamace'},
-    }
+        'evolve': {17: 'Anemamace'}},
+    'Creuw': {
+        'stats': {'type': ['flying'], 'health': 50, 'attack': 65, 'defense': 40, 'speed':65},
+        'moves': {0: 'Air Strike', 15: 'Shadow Veil'},
+        'evolve': {15: 'Luna'}},
+    'Luna': {
+        'stats': {'type': ['flying', 'dark'], 'health': 100, 'attack': 145, 'defense': 70, 'speed':135},
+        'moves': {0: 'Air Strike', 15: 'Shadow Veil'},
+        'evolve': None},
+    
 }
 
 
@@ -127,7 +135,7 @@ TYPE_CHART_VAL = {
     'flying': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 20, 'rock': 5, 'lighting': 5, 'ice': 10,'ancient': 10},
     'dark': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 20 , 'light': 5, 'spike': 20, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 10},
     'light': {'aqua': 10, 'magma': 10, 'earth': 5, 'flying': 10, 'dark': 20 , 'light': 20, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 20},
-    'spike': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 5 , 'light': 5, 'spike': 10, 'rock': 20, 'lighting': 10, 'ice': 10,'ancient': 20},
+    'spike': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 5 , 'light': 5, 'spike': 10, 'rock': 20, 'lighting': 10, 'ice': 10,'ancient': 10},
     'rock': {'aqua': 10, 'magma': 20, 'earth': 10, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 5, 'rock': 5, 'lighting': 20, 'ice': 20,'ancient': 10},
     'lightning': {'aqua': 20, 'magma': 10, 'earth': 5, 'flying': 20, 'dark': 10 , 'light': 20, 'spike': 5, 'rock': 5, 'lighting': 10, 'ice': 10,'ancient': 5},
     'ice': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 5,'ancient': 20},
@@ -155,6 +163,9 @@ MOVE_DATA = {
     'Conduit Surge': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Translucent Wave': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'light'},
     'Freeze Blast': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+    'Air Strike': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'flying'},
+    'Mach Speed': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'flying'},
+    'Wind Fracture': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'flying'},
 
 
 
@@ -170,10 +181,29 @@ MOVE_DATA = {
 ################## ENCOUNTER ZONES ####################
 # encounter_data.py or near your config
 ENCOUNTER_ZONES = {
-    "starter_grass": {
+    # "grass": {
+    #     "dinos": ["Anemamace", "Corlave"],
+    #     "level_range": (17, 18)
+    # },
+
+    "route1_grass": {
         "dinos": ["Anemamace", "Corlave"],
-        "level_range": (17, 18)
+        "level_range": (3,7)
     },
+    "route1+_grass": {
+        "dinos": ["Creuw"],
+        "level_range": (8, 9)
+    },
+
+    "town1_grass": {
+        "dinos": ["Luna"],
+        "level_range": (15, 18)
+    },
+
+
+        ######## fill more
+
+
     "deep_jungle": {
         "dinos": ["Venoshade", "Terraptor", "Leafu"],
         "level_range": (5, 10)
@@ -183,6 +213,26 @@ ENCOUNTER_ZONES = {
         "level_range": (10, 15)
     }
 }
+
+
+# off from TILED WORLD by -5,26
+x_offset = -5
+y_offset = 32
+ZONE_REGIONS = [
+    # (x1, y1, x2, y2, zone_name) in tile coords
+    (1+x_offset, -30+y_offset,  18+x_offset, 0+y_offset, "route1_grass"),
+    (1+x_offset, -44+y_offset, 18+x_offset, -38+y_offset, "route1+_grass"),
+    (1+x_offset, -35+y_offset, 13+x_offset, -31+y_offset, "route1+_grass"),
+    (16+x_offset, -37+y_offset, 18+x_offset, -37+y_offset, "town1_grass"),
+]
+
+def get_zone_for_tile(tx, ty):
+    for x1, y1, x2, y2, zone in ZONE_REGIONS:
+        if x1 <= tx <= x2 and y1 <= ty <= y2:
+            return zone
+    return None
+
+
 
 
 

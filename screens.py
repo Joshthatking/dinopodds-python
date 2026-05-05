@@ -28,6 +28,7 @@ def wrap_text(text, font, max_width):
 class Encounter:
     def __init__(self, fonts, dino_key="default"):
         self.fonts = fonts
+        self.dino_key = dino_key
         self.bg = load_image(config.ENCOUNTER_BG_PATH)
         self.frames = []
         if dino_key in config.ENCOUNTER_DINOS_PATHS:
@@ -39,7 +40,9 @@ class Encounter:
     def draw(self, screen):
         screen.blit(self.bg, (0, 0))
         if self.current_dino_surface:
-            scaled = pygame.transform.scale(self.current_dino_surface, (150, 150))
+            mult = config.ENCOUNTER_DINO_SIZES.get(self.dino_key, 1.0)
+            size = int(config.ENCOUNTER_BASE_SIZE * mult)
+            scaled = pygame.transform.scale(self.current_dino_surface, (size, size))
             rect = scaled.get_rect()
             rect.centerx = screen.get_width() - 157
             rect.centery = 155
@@ -57,6 +60,53 @@ class EncounterUI:
         self.in_fight_menu = False
         self.move_selected = 0
         self.level_up_popup = None
+        self.enemy_hp_display = None
+        self.player_hp_display = None
+        self._hp_speed = 0.35  # ratio per second
+        self._last_player_dino = None
+        self.xp_display = None
+        self._last_xp_level = None
+        self._xp_speed = 0.25  # ratio per second
+        self.xp_frozen = True
+
+    def update(self, dt, player_dino, enemy_dino):
+        target_p = player_dino['hp'] / max(1, player_dino['max_hp'])
+        target_e = enemy_dino['hp'] / max(1, enemy_dino['max_hp'])
+        if self.player_hp_display is None or self._last_player_dino is not player_dino:
+            self.player_hp_display = target_p
+            self._last_player_dino = player_dino
+        if self.enemy_hp_display is None:
+            self.enemy_hp_display = target_e
+        self.player_hp_display = self._slide(self.player_hp_display, target_p, dt)
+        self.enemy_hp_display  = self._slide(self.enemy_hp_display,  target_e, dt)
+
+        xp_ratio = player_dino['xp'] / max(1, player_dino['xp_to_next'])
+        if self.xp_display is None:
+            self.xp_display = xp_ratio
+            self._last_xp_level = player_dino['level']
+        elif self._last_xp_level != player_dino['level']:
+            self.xp_display = 0.0
+            self._last_xp_level = player_dino['level']
+        if not self.xp_frozen:
+            self.xp_display = self._slide(self.xp_display, xp_ratio, dt, self._xp_speed)
+
+    def _slide(self, current, target, dt, speed=None):
+        if speed is None:
+            speed = self._hp_speed
+        diff = target - current
+        step = speed * dt
+        if abs(diff) <= step:
+            return target
+        return current + step * (1 if diff > 0 else -1)
+
+    def is_hp_animating(self, player_dino, enemy_dino):
+        tp = player_dino['hp'] / max(1, player_dino['max_hp'])
+        te = enemy_dino['hp'] / max(1, enemy_dino['max_hp'])
+        return (self.player_hp_display is not None and abs(self.player_hp_display - tp) > 0.001) or \
+               (self.enemy_hp_display  is not None and abs(self.enemy_hp_display  - te) > 0.001)
+
+    def unfreeze_xp(self):
+        self.xp_frozen = False
 
     def show_level_up(self, dino, old_stats, new_stats):
         self.level_up_popup = LevelUpPopup(dino, old_stats, new_stats)
@@ -84,21 +134,22 @@ class EncounterUI:
         self.draw_panel(surface, enemy_info_rect)
         self.draw_panel(surface, player_info_rect)
 
+        ep = self.enemy_hp_display  if self.enemy_hp_display  is not None else enemy_dino['hp']  / max(1, enemy_dino['max_hp'])
+        pp = self.player_hp_display if self.player_hp_display is not None else player_dino['hp'] / max(1, player_dino['max_hp'])
+
         # Enemy info
         surface.blit(self.small_font.render(enemy_dino['name'], True, (0, 0, 0)),
                      (enemy_info_rect.x + 10, enemy_info_rect.y + 12))
         surface.blit(self.small_font.render(f"Lv{enemy_dino['level']}", True, (0, 0, 0)),
                      (enemy_info_rect.x + 160, enemy_info_rect.y + 12))
-        self.draw_hp_bar(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 40, 200, 15,
-                         enemy_dino['hp'] / enemy_dino['max_hp'])
+        self.draw_hp_bar(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 40, 200, 15, ep)
 
         # Player info
         surface.blit(self.small_font.render(player_dino['name'], True, (0, 0, 0)),
                      (player_info_rect.x + 10, player_info_rect.y + 15))
         surface.blit(self.small_font.render(f"Lv{player_dino['level']}", True, (0, 0, 0)),
                      (player_info_rect.x + 160, player_info_rect.y + 15))
-        self.draw_hp_bar(surface, player_info_rect.x + 10, player_info_rect.y + 40, 200, 15,
-                         player_dino['hp'] / player_dino['max_hp'])
+        self.draw_hp_bar(surface, player_info_rect.x + 10, player_info_rect.y + 40, 200, 15, pp)
 
         # HP text
         surface.blit(
@@ -107,11 +158,11 @@ class EncounterUI:
         )
 
         # XP bar
-        xp_progress = player_dino['xp'] / player_dino['xp_to_next']
+        xp_progress = self.xp_display if self.xp_display is not None else player_dino['xp'] / max(1, player_dino['xp_to_next'])
         xp_bar_rect = pygame.Rect(player_info_rect.x + 5, player_info_rect.y + 77, 200, 8)
         pygame.draw.rect(surface, (255, 255, 255), xp_bar_rect)
         pygame.draw.rect(surface, (0, 0, 255),
-                         (xp_bar_rect.x, xp_bar_rect.y, xp_bar_rect.width * xp_progress, xp_bar_rect.height))
+                         (xp_bar_rect.x, xp_bar_rect.y, int(xp_bar_rect.width * xp_progress), xp_bar_rect.height))
         pygame.draw.rect(surface, (0, 0, 0), xp_bar_rect, 2)
         surface.blit(
             self.small_font.render(f"XP: {int(player_dino['xp'])}/{int(player_dino['xp_to_next'])}", True, (0, 0, 0)),
@@ -383,6 +434,20 @@ class PartyScreen:
             screen.blit(self.font.render(f"Lv{dino['level']}", True, (255, 255, 255)), (rect.x + 10, rect.y + 25))
             icon_scaled = pygame.transform.scale(dino['image'], (50, 50))
             screen.blit(icon_scaled, (rect.x + 140, rect.y + 5))
+            # HP bar
+            max_hp = max(1, dino.get('max_hp', 1))
+            hp = dino.get('hp', 0)
+            pct = hp / max_hp
+            bar_x, bar_y, bar_w, bar_h = rect.x + 10, rect.y + 48, 120, 8
+            pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_w, bar_h))
+            if pct > 0.5:
+                bar_color = (80, 200, 80)
+            elif pct > 0.2:
+                bar_color = (220, 180, 0)
+            else:
+                bar_color = (200, 60, 60)
+            pygame.draw.rect(screen, bar_color, (bar_x, bar_y, int(bar_w * pct), bar_h))
+            pygame.draw.rect(screen, (0, 0, 0), (bar_x, bar_y, bar_w, bar_h), 1)
             if dino.get('hp', 0) <= 0:
                 faint_text = self.small_font.render("Fainted", True, (255, 255, 255))
                 screen.blit(faint_text, faint_text.get_rect(center=rect.center))
@@ -578,9 +643,17 @@ class MessageBox:
         self.wait_for_input = False
         self.on_complete = None
         self.messages = []
+        self.char_index = 0
+        self.char_timer = 0.0
+        self.char_delay = 0.03  # seconds per character
+
+    def _start_message(self, message):
+        self.message = message
+        self.char_index = 0
+        self.char_timer = 0.0
 
     def show(self, message, duration=2, wait_for_input=False):
-        self.message = message
+        self._start_message(message)
         self.visible = True
         self.wait_for_input = wait_for_input
         self.timer = duration * 1000 if duration > 0 else 0
@@ -590,32 +663,44 @@ class MessageBox:
         self.visible = True
         self.wait_for_input = wait_for_input
         self.on_complete = on_complete
-        self.message = self.messages.pop(0)
+        self._start_message(self.messages.pop(0))
         self.timer = 0
 
     def handle_event(self, event):
-        if (self.visible and self.wait_for_input and
+        if not (self.visible and self.wait_for_input and
                 event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j)):
-            if self.messages:
-                self.message = self.messages.pop(0)
-            else:
-                self.hide()
-                if self.on_complete:
-                    self.on_complete()
+            return
+        if self.char_index < len(self.message):
+            self.char_index = len(self.message)
+        elif self.messages:
+            self._start_message(self.messages.pop(0))
+        else:
+            self.hide()
+            if self.on_complete:
+                self.on_complete()
 
     def hide(self):
         self.visible = False
         self.message = ""
         self.wait_for_input = False
         self.messages = []
+        self.char_index = 0
+        self.char_timer = 0.0
 
     def update(self, dt):
-        if self.visible and self.timer > 0 and not self.wait_for_input:
+        if not self.visible:
+            return
+        if self.char_index < len(self.message):
+            self.char_timer += dt
+            steps = int(self.char_timer / self.char_delay)
+            if steps:
+                self.char_index = min(self.char_index + steps, len(self.message))
+                self.char_timer -= steps * self.char_delay
+        elif self.timer > 0 and not self.wait_for_input:
             self.timer -= dt
             if self.timer <= 0:
                 if self.messages:
-                    self.message = self.messages.pop(0)
-                    self.timer = 0
+                    self._start_message(self.messages.pop(0))
                 else:
                     self.hide()
                     if self.on_complete:
@@ -625,14 +710,26 @@ class MessageBox:
         if not self.visible:
             return
         available_w = self.width - 120
-        lines = wrap_text(self.message, self.font, available_w)
+        full_lines = wrap_text(self.message, self.font, available_w)
+        # Reveal only up to char_index characters, preserving line structure
+        chars_left = self.char_index
+        display_lines = []
+        for line in full_lines:
+            if chars_left <= 0:
+                break
+            if chars_left >= len(line):
+                display_lines.append(line)
+                chars_left -= len(line) + 1
+            else:
+                display_lines.append(line[:chars_left])
+                chars_left = 0
         line_h = self.font.get_height() + 4
         pad = 15
-        box_h = max(80, len(lines) * line_h + pad * 2)
+        box_h = max(80, len(full_lines) * line_h + pad * 2)
         box_rect = pygame.Rect(50, surface.get_height() - box_h - 20, self.width - 100, box_h)
         pygame.draw.rect(surface, (255, 255, 255), box_rect)
         pygame.draw.rect(surface, (0, 0, 0), box_rect, 3)
-        for i, line in enumerate(lines):
+        for i, line in enumerate(display_lines):
             surface.blit(self.font.render(line, True, (0, 0, 0)),
                          (box_rect.x + 10, box_rect.y + pad + i * line_h))
 

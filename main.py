@@ -1,4 +1,5 @@
 import pygame
+import pytmx
 import config
 from game import Game
 
@@ -44,4 +45,13 @@ if __name__ == '__main__':
 
 ################## April 2026 - Claude Assistance ##############
 #4/28 - Rewrote code to clean up, fixed encounter messages in left box, fixed sizing, attempted to resolve sprite location in encounter
-#
+#5/3 - TILED CONVERSION - new map built in tiled with deviantart assets - Layers 4>= render above player, collision = FALSE
+#5/4 - .WORLD and folder reorganization for TILED, GYM 1 almost - COMPLETE
+#5/4 - Cont.
+# battle mechanic dialogue = TYPED, health bar slide - COMPLETE
+# Movement logic - stop moving after encounter / move only direction already facing - COMPLETE
+# New map SPECIFIC ENCOUNTER LOGIC - COMPLETE in data.py
+# Adjust CUSTOM Encounter size logic - COMPLETE in config.py
+# NPC addition, Sprite sheet logic, npc interaction + walking up to battle logic - COMPLETE
+# battle animation for attacks
+# event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings

@@ -1,0 +1,17 @@
+- Encounter Perspective
+96x96 pixel art sprite in GBA-era Pokémon style (like Pokémon FireRed and LeafGreen), based on (description or image). 3/4 top-down view, strong silhouette. Limited palette (≤10 colors), clean crisp pixels (no anti-aliasing), top-left lighting, subtle shading, transparent background. Avoid gradients, realism, or modern rendering
+
+
+- Battle perspective
+
+Using the provided image as the exact reference for design, create a back-facing battle sprite in the style of Game Boy Advance Pokémon games like FireRed/LeafGreen.
+Show the character from behind at a 3/4 angle (over-the-shoulder view), as if it is facing an opponent.
+Maintain all original colors, proportions, and key features, but reinterpret them from the rear perspective.
+Use pixel art style, 96x96 resolution, limited color palette, sharp edges, no anti-aliasing.
+The pose should feel battle-ready, slightly dynamic, similar to official Pokémon back sprites.
+Transparent background.
+
+
+
+
+

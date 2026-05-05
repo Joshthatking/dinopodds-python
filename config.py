@@ -48,9 +48,11 @@ FONT_DEFS = {
 }
 
 # Asset paths
-ASSETS_PATH = "assets/MapAssets"
-DINOS_PATH  = "assets/DINOS"
-ITEMS_PATH  = "assets/Items"
+ASSETS_PATH  = "assets/MapAssets"
+DINOS_PATH   = "assets/DINOS"
+DINOS_FRONT  = "assets/DINOS/FRONT"
+DINOS_BACK   = "assets/DINOS/BACK"
+ITEMS_PATH   = "assets/Items"
 
 # Map tiles
 TILE_PATHS = {
@@ -64,23 +66,42 @@ TILE_PATHS = {
 # Encounter assets
 ENCOUNTER_BG_PATH = os.path.join(ASSETS_PATH, 'Grass_Encounter.png')
 ENCOUNTER_DINOS_PATHS = {
-    'Vusion':     os.path.join(DINOS_PATH, 'Vusion_Idle1.png'),
-    'Vusion2':    os.path.join(DINOS_PATH, 'Vusion_Idle2.png'),
-    'Anemamace':  os.path.join(DINOS_PATH, 'Anemamace_Idle1.png'),
-    'Anemamace2': os.path.join(DINOS_PATH, 'Anemamace_Idle2.png'),
-    'Corlave':    os.path.join(DINOS_PATH, 'Corlave_Idle1.png'),
-    'Corlave2':   os.path.join(DINOS_PATH, 'Corlave_Idle2.png'),
+    'Vusion':     os.path.join(DINOS_FRONT, 'Vusion.png'),
+    'Vusion2':    os.path.join(DINOS_FRONT, 'Vusion2.png'),
+    'Anemamace':  os.path.join(DINOS_FRONT, 'Anemamace.png'),
+    'Anemamace2': os.path.join(DINOS_FRONT, 'Anemamace2.png'),
+    'Corlave':    os.path.join(DINOS_FRONT, 'Corlave.png'),
+    'Corlave2':   os.path.join(DINOS_FRONT, 'Corlave2.png'),
+    'Creuw':      os.path.join(DINOS_FRONT, 'Creuw.png'),
+    'Creuw2':     os.path.join(DINOS_FRONT, 'Creuw.png'),
+    'Luna':       os.path.join(DINOS_FRONT, 'Luna.png'),
+    'Luna2':      os.path.join(DINOS_FRONT, 'Luna.png'),
+}
+
+NPC_SHEETS = {
+    # trainer_id -> path to 4x4 spritesheet (32x32 per cell)
+    # row 0=down, 1=left, 2=right, 3=up  |  col 0=still, 1=walk, 2=still, 3=walk
+    'amber': os.path.join('assets', 'NPC', 'Professor_Amber.png'),
+}
+
+ENCOUNTER_BASE_SIZE = 150
+ENCOUNTER_DINO_SIZES = {
+    # Scale multipliers relative to ENCOUNTER_BASE_SIZE (1.0 = 150x150)
+    'Creuw': 0.70,
+    'Luna':  1.35,
 }
 
 PLAYER_DINO_PATH = {
-    'Vusion':    os.path.join(DINOS_PATH, 'Vusion_AttackXXL.png'),
-    'Anemamace': os.path.join(DINOS_PATH, 'Anemamace_Idle1.png'),
-    'Corlave':   os.path.join(DINOS_PATH, 'Corlave_Idle1.png'),
+    'Vusion':    os.path.join(DINOS_BACK,  'Vusion_back.png'),
+    'Anemamace': os.path.join(DINOS_FRONT, 'Anemamace.png'),
+    'Corlave':   os.path.join(DINOS_FRONT, 'Corlave.png'),
+    'Creuw':   os.path.join(DINOS_FRONT, 'Creuw.png'),
+    'Luna':   os.path.join(DINOS_FRONT, 'Luna.png'),
+
 }
 
 ICON_DINOS_PATH = {
     'Vusion':    os.path.join(DINOS_PATH, 'Vusion_Icon.png'),
-    'Anemamace': os.path.join(DINOS_PATH, 'Anemamace_Icon.png'),
 }
 
 MAP_ENTITY_PATH = {
@@ -102,7 +123,7 @@ ITEMS = {
 }
 
 SPAWN_POINTS = {
-    'home': (33, 29),
+    'home': (160, 1248),  # START_TOWN tile (10,7) in world pixels
 }
 
 

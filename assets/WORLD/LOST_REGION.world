@@ -1,0 +1,62 @@
+{
+    "maps": [
+        {
+            "fileName": "../MAPS/START_TOWN.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": 1024
+        },
+        {
+            "fileName": "../MAPS/ROUTE_1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": 544
+        },
+        {
+            "fileName": "../MAPS/ROUTE_1.2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": 64
+        },
+        {
+            "fileName": "../MAPS/ROUTE_1.3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": -416
+        },
+        {
+            "fileName": "../MAPS/ROUTE_1.4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": -896
+        },
+        {
+            "fileName": "../MAPS/TOWN_1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": -416
+        },
+        {
+            "fileName": "../MAPS/TOWN_1.2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": 64
+        },
+        {
+            "fileName": "../MAPS/START_COAST.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -800,
+            "y": 1024
+        }
+    ],
+    "onlyShowAdjacentMaps": false,
+    "type": "world"
+}

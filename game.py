@@ -1,12 +1,13 @@
 import pygame
+import pytmx
+import json
 from player import Player
+from npc import NPC
 import os
-import csv
 import config
 from screens import *
 from data import *
 import random
-import math
 
 
 class Game:
@@ -19,22 +20,21 @@ class Game:
         self.state_stack = ['world']
 
         self.fonts = {name: pygame.font.Font(path, size) for name, (path, size) in config.FONT_DEFS.items()}
-        self.tile_images = {key: load_image(path, alpha=True) for key, path in config.TILE_PATHS.items()}
-
-        self.player = Player(spawn_point='home')
-        self.all_sprites = pygame.sprite.Group(self.player)
-
         self.camera_x, self.camera_y = 0, 0
         self.zoom = 1.25
         self.render_surface = pygame.Surface((config.WIDTH // self.zoom, config.HEIGHT // self.zoom))
-        self.world_map = self.load_csv_map('MAP_DINO.csv')
+        self.world_maps, self.solid_tile_coords, self.encounter_tile_coords, self.tile_types = self.load_world('LOST_REGION.world')
+        self.world_bounds = self._compute_world_bounds()
+
+        self.player = Player(spawn_point='home')
+        self.all_sprites = pygame.sprite.Group(self.player)
 
         self.fade_alpha = 0
         self.fading = False
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -57,27 +57,33 @@ class Game:
 
         # Items
         self.item_image = pygame.image.load(config.ITEMS["DinoPod"]['icon']).convert_alpha()
-        self.items_on_map = {(18, 57): 'DinoPod', (18, 56): 'DinoPod', (18, 41): 'DinoPod'}
+        self.items_on_map = {}
         self.inventory = {item: 0 for item in config.ITEMS.keys()}
         self.item_icons = {key: pygame.image.load(data["icon"]).convert_alpha() for key, data in config.ITEMS.items()}
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
         self.items_screen = ItemsScreen(self.inventory, self.item_icons, self.item_descriptions, self.fonts)
         self.items_screen.reset()
 
-        # Map entities
+        # Map entities (populated via Tiled object layers in future)
         self.solid_tiles = set()
         self.map_entities = []
-        self.dinocenter_img = pygame.image.load(config.MAP_ENTITY_PATH['dinocenter']).convert_alpha()
-        self.dinocenter_img = pygame.transform.scale(self.dinocenter_img, (config.TILE_SIZE * 5, config.TILE_SIZE * 5))
-        self._add_map_entity('dinocenter', self.dinocenter_img, 36, 28)
 
         # Message box
         self.message_box = MessageBox(config.WIDTH, self.fonts)
+
+        # NPCs
+        self.npcs = [
+            NPC('amber', tile_x=5, tile_y=34, facing='down', sight_range=4),
+        ]
+        for npc in self.npcs:
+            self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
 
         # Battle state
         self.awaiting_switch = False
         self.current_turn = None
         self.encounter_anim = None
+        self.is_trainer_battle = False
+        self.current_trainer_npc = None
 
     # --- Entity / Collision Helpers ---
 
@@ -256,21 +262,24 @@ class Game:
     # --- Encounter ---
 
     def get_player_zone(self, player_x, player_y):
-        if 26 < player_y < 67 and 2 < player_x < 42:
-            return "starter_grass"
-        elif 90 <= player_y < 120:
-            return "deep_jungle"
-        elif player_y >= 200:
-            return "volcano_top"
-        return None
+        zone = get_zone_for_tile(player_x, player_y)
+        if zone:
+            return zone
+        return self.tile_types.get((player_x, player_y))
 
     def trigger_encounter(self):
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        self.player.pos_x = float(self.player.rect.x)
+        self.player.pos_y = float(self.player.rect.y)
         self.fading = True
         self.fade_alpha = 0
 
         tile_x = self.player.rect.x // config.TILE_SIZE
         tile_y = self.player.rect.y // config.TILE_SIZE
         zone = self.get_player_zone(tile_x, tile_y)
+        print(f"[ENCOUNTER] tile=({tile_x},{tile_y}) zone={zone}")
 
         if zone in ENCOUNTER_ZONES:
             zone_data = ENCOUNTER_ZONES[zone]
@@ -296,13 +305,101 @@ class Game:
             "duration": 1000,
         }
 
+    def start_trainer_battle(self, npc):
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        self.player.pos_x = float(self.player.rect.x)
+        self.player.pos_y = float(self.player.rect.y)
+        self.fading = True
+        self.fade_alpha = 0
+        self.is_trainer_battle = True
+        self.current_trainer_npc = npc
+
+        data = TRAINER_DATA.get(npc.trainer_id, {})
+        dinos = data.get('dinos', {})
+        first_key = min(dinos.keys())
+        dino_name, dino_level = dinos[first_key]
+
+        self.enemy_dino = self.create_dino(dino_name, dino_level)
+        self.encounter_ui = EncounterUI(self.fonts)
+        self.encounter_text = f"Trainer sent out {dino_name}!"
+        self.encounter = Encounter(self.fonts, dino_name)
+
+        now = pygame.time.get_ticks()
+        frames = self.dino_frames.get(dino_name, [self.enemy_dino['image']])
+        self.encounter_anim = {
+            "frames": frames,
+            "frame_idx": 0,
+            "last_switch": now,
+            "interval": 250,
+            "start_time": now,
+            "duration": 1000,
+        }
+
     # --- Map ---
 
-    def load_csv_map(self, filename):
-        path = os.path.join('assets/MapAssets', filename)
-        with open(path, newline='', encoding='utf-8-sig') as csvfile:
-            reader = csv.reader(csvfile)
-            return [[cell.strip() if cell.strip() else 'T' for cell in row] for row in reader]
+    def load_world(self, filename):
+        path = os.path.join('assets/WORLD', filename)
+        with open(path) as f:
+            world_json = json.load(f)
+
+        world_dir = os.path.dirname(os.path.abspath(path))
+        ts = config.TILE_SIZE
+        world_maps = []
+        solid = set()
+        encounter = set()
+        tile_types = {}
+
+        for m in world_json['maps']:
+            tmx_path = os.path.normpath(os.path.join(world_dir, m['fileName']))
+            try:
+                tmx = pytmx.load_pygame(tmx_path, pixelalpha=True)
+            except Exception as e:
+                print(f"Skipping {m['fileName']}: {e}")
+                continue
+
+            wx, wy = m['x'], m['y']
+            wtx, wty = wx // ts, wy // ts
+
+            for layer in tmx.visible_layers:
+                if isinstance(layer, pytmx.TiledTileLayer):
+                    above = self._layer_num(layer) >= 4
+                    for x, y, gid in layer:
+                        if not gid:
+                            continue
+                        props = tmx.get_tile_properties_by_gid(gid) or {}
+                        wpos = (wtx + x, wty + y)
+                        if props.get('collision') and not above:
+                            solid.add(wpos)
+                        if props.get('encounter'):
+                            encounter.add(wpos)
+                            tile_type = props.get('type')
+                            if tile_type:
+                                tile_types[wpos] = tile_type
+                elif isinstance(layer, pytmx.TiledObjectGroup):
+                    for obj in layer:
+                        props = obj.properties or {}
+                        if props.get('collision'):
+                            tx0 = wtx + int(obj.x // ts)
+                            ty0 = wty + int(obj.y // ts)
+                            tx1 = wtx + int((obj.x + obj.width - 1) // ts)
+                            ty1 = wty + int((obj.y + obj.height - 1) // ts)
+                            for ty in range(ty0, ty1 + 1):
+                                for tx in range(tx0, tx1 + 1):
+                                    solid.add((tx, ty))
+
+            world_maps.append({'tmx': tmx, 'x': wx, 'y': wy, 'width': m['width'], 'height': m['height']})
+
+        return world_maps, solid, encounter, tile_types
+
+    def _compute_world_bounds(self):
+        ts = config.TILE_SIZE
+        min_tx = min(m['x'] // ts for m in self.world_maps)
+        min_ty = min(m['y'] // ts for m in self.world_maps)
+        max_tx = max((m['x'] + m['width']) // ts for m in self.world_maps)
+        max_ty = max((m['y'] + m['height']) // ts for m in self.world_maps)
+        return (min_tx, min_ty, max_tx, max_ty)
 
     # --- Main Loop ---
 
@@ -383,6 +480,12 @@ class Game:
                 if self.awaiting_switch:
                     return
 
+                if self.enemy_dino.get('hp', 0) <= 0:
+                    return
+
+                if self.encounter_ui.is_hp_animating(active, self.enemy_dino):
+                    return
+
                 result = self.encounter_ui.handle_input(event, active)
 
                 if isinstance(result, str) and result.startswith("UseMove:"):
@@ -408,7 +511,34 @@ class Game:
         if event.key == pygame.K_i:
             self.push_state('menu')
         elif event.key == pygame.K_j:
-            self.pickup_item()
+            if not self.interact_with_npc():
+                self.pickup_item()
+
+    def interact_with_npc(self):
+        if self.fading:
+            return False
+        px = self.player.rect.x // config.TILE_SIZE
+        py = self.player.rect.y // config.TILE_SIZE
+        if self.player.facing == 'up':    py -= 1
+        elif self.player.facing == 'down': py += 1
+        elif self.player.facing == 'left': px -= 1
+        elif self.player.facing == 'right': px += 1
+        for npc in self.npcs:
+            if npc.tile_x == px and npc.tile_y == py:
+                data = TRAINER_DATA.get(npc.trainer_id, {})
+                if npc.defeated:
+                    npc.face_toward_player(self.player)
+                    dialog = data.get('dialog', {}).get('defeated', ["..."])
+                    self.message_box.queue_messages(dialog, wait_for_input=True)
+                    return True
+                if npc.state == 'idle':
+                    npc.face_toward_player(self.player)
+                    dialog = data.get('dialog', {}).get('default', ["..."])
+                    self.message_box.queue_messages(dialog, wait_for_input=True)
+                    return True
+                # NPC is spotted/walking/done — battle flow already in progress, swallow the input
+                return True
+        return False
 
     def pickup_item(self):
         px = self.player.rect.x // config.TILE_SIZE
@@ -425,8 +555,13 @@ class Game:
     # --- Update ---
 
     def update(self, dt):
+        self.message_box.update(dt)
+
+        if 'encounter' in self.state_stack and hasattr(self, 'encounter_ui'):
+            active = self.player_dinos[self.active_dino_index]
+            self.encounter_ui.update(dt, active, self.enemy_dino)
+
         if self.message_box.visible:
-            self.message_box.update(dt)
             return
 
         if self.state == 'world':
@@ -434,6 +569,8 @@ class Game:
             if not self.fading:
                 self.all_sprites.update(keys, self, dt)
                 self.update_camera()
+                for npc in self.npcs:
+                    npc.update(dt, self.player, self)
             else:
                 self.fade_alpha += 10
                 if self.fade_alpha >= 255:
@@ -450,10 +587,13 @@ class Game:
         current_state = self.state
 
         if background_state == 'world':
-            self.draw_map(self.render_surface)
+            self.draw_map_below(self.render_surface)
+            for npc in self.npcs:
+                npc.draw(self.render_surface, self.camera_x, self.camera_y)
             for sprite in self.all_sprites:
                 self.render_surface.blit(sprite.image,
                                          (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
+            self.draw_map_above(self.render_surface)
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
             self.screen.blit(scaled_surface, (0, 0))
 
@@ -484,7 +624,7 @@ class Game:
                 self.encounter.draw(self.screen)
 
             msg_active = self.message_box.visible
-            display_text = self.message_box.message if msg_active else self.encounter_text
+            display_text = self.message_box.message[:self.message_box.char_index] if msg_active else self.encounter_text
             self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index],
                                    self.enemy_dino, display_text, show_actions=not msg_active)
 
@@ -514,16 +654,39 @@ class Game:
         overlay.fill((0, 0, 0, 120))
         self.screen.blit(overlay, (0, 0))
 
-    def draw_map(self, surface):
-        for row_idx, row in enumerate(self.world_map):
-            for col_idx, tile in enumerate(row):
-                if tile:
-                    x = col_idx * config.TILE_SIZE - self.camera_x
-                    y = row_idx * config.TILE_SIZE - self.camera_y
-                    surface.blit(self.tile_images[tile], (x, y))
+    def _layer_num(self, layer):
+        parts = layer.name.split()
+        try:
+            return int(parts[-1])
+        except (ValueError, IndexError):
+            return 0
+
+    def draw_map_below(self, surface):
+        ts = config.TILE_SIZE
+        for wmap in self.world_maps:
+            ox, oy = wmap['x'] - self.camera_x, wmap['y'] - self.camera_y
+            for layer in wmap['tmx'].visible_layers:
+                if isinstance(layer, pytmx.TiledTileLayer) and self._layer_num(layer) < 4:
+                    for x, y, gid in layer:
+                        if gid:
+                            img = wmap['tmx'].get_tile_image_by_gid(gid)
+                            if img:
+                                surface.blit(img, (ox + x * ts, oy + y * ts))
         for (x, y), item_name in self.items_on_map.items():
             surface.blit(self.item_icons[item_name],
-                         (x * config.TILE_SIZE - self.camera_x, y * config.TILE_SIZE - self.camera_y))
+                         (x * ts - self.camera_x, y * ts - self.camera_y))
+
+    def draw_map_above(self, surface):
+        ts = config.TILE_SIZE
+        for wmap in self.world_maps:
+            ox, oy = wmap['x'] - self.camera_x, wmap['y'] - self.camera_y
+            for layer in wmap['tmx'].visible_layers:
+                if isinstance(layer, pytmx.TiledTileLayer) and self._layer_num(layer) >= 4:
+                    for x, y, gid in layer:
+                        if gid:
+                            img = wmap['tmx'].get_tile_image_by_gid(gid)
+                            if img:
+                                surface.blit(img, (ox + x * ts, oy + y * ts))
         for ent in self.map_entities:
             surface.blit(ent['image'], (ent['rect'].x - self.camera_x, ent['rect'].y - self.camera_y))
 
@@ -532,10 +695,12 @@ class Game:
         render_h = config.HEIGHT // self.zoom
         self.camera_x = self.player.rect.centerx - render_w // 2
         self.camera_y = self.player.rect.centery - render_h // 2
-        max_x = len(self.world_map[0]) * config.TILE_SIZE - render_w
-        max_y = len(self.world_map) * config.TILE_SIZE - render_h
-        self.camera_x = max(0, min(self.camera_x, max_x))
-        self.camera_y = max(0, min(self.camera_y, max_y))
+        min_cx = min(m['x'] for m in self.world_maps)
+        min_cy = min(m['y'] for m in self.world_maps)
+        max_cx = max(m['x'] + m['width'] for m in self.world_maps) - render_w
+        max_cy = max(m['y'] + m['height'] for m in self.world_maps) - render_h
+        self.camera_x = max(min_cx, min(self.camera_x, max_cx))
+        self.camera_y = max(min_cy, min(self.camera_y, max_cy))
 
     def set_zoom(self, zoom):
         self.zoom = round(max(1.0, min(1.75, zoom)), 2)
@@ -661,12 +826,15 @@ class Game:
                 party_size=len(self.player_dinos)
             )
             level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
-            msgs.append(f"{attacker['name']} has gained {int(round(xp_gain * 1.3))} XP!")
+            xp_msgs = [f"{attacker['name']} has gained {int(round(xp_gain * 1.3))} XP!"]
             if len(self.player_dinos) > 1:
-                msgs.append(f"Each party dino gained {xp_gain} XP!")
-            msgs.extend(level_up_msgs)
+                xp_msgs.append(f"Each party dino gained {xp_gain} XP!")
+            xp_msgs.extend(level_up_msgs)
 
             def handle_evolutions():
+                if self.is_trainer_battle and self.current_trainer_npc:
+                    self.current_trainer_npc.defeated = True
+                    self.is_trainer_battle = False
                 evolved = False
                 for dino in self.player_dinos:
                     evo_target = self.check_evolution(dino)
@@ -677,7 +845,11 @@ class Game:
                 if not evolved:
                     self.pop_to_world()
 
-            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=handle_evolutions)
+            def show_xp():
+                self.encounter_ui.unfreeze_xp()
+                self.message_box.queue_messages(xp_msgs, wait_for_input=True, on_complete=handle_evolutions)
+
+            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=show_xp)
         else:
             msgs.append("What will you do?")
             self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self._enemy_turn)
