@@ -119,7 +119,7 @@ class EncounterUI:
         pygame.draw.rect(surface, back_color, (x, y, width, height))
         pygame.draw.rect(surface, front_color, (x, y, int(width * max(0, min(1, percent))), height))
 
-    def draw(self, surface, player_dino, enemy_dino, encounter_text, show_actions=True):
+    def draw(self, surface, player_dino, enemy_dino, encounter_text, show_actions=True, trainer_total=0, trainer_defeated=0, pod_icon=None, msg_awaiting_input=False):
         if not show_actions:
             self.in_fight_menu = False  # can't be in fight menu while a message is showing
         screen_w, screen_h = surface.get_size()
@@ -133,6 +133,24 @@ class EncounterUI:
         self.draw_panel(surface, actions_rect)
         self.draw_panel(surface, enemy_info_rect)
         self.draw_panel(surface, player_info_rect)
+
+        # Trainer dino indicator: 6 slots top-left, filled with pod icon, darkened when defeated
+        if trainer_total > 0 and pod_icon is not None:
+            icon_size, icon_gap = 22, 4
+            for i in range(6):
+                slot = pygame.Rect(5 + i * (icon_size + icon_gap), 5, icon_size, icon_size)
+                if i < trainer_total:
+                    scaled = pygame.transform.scale(pod_icon, (icon_size, icon_size))
+                    if i < trainer_defeated:
+                        dark = scaled.copy()
+                        overlay = pygame.Surface((icon_size, icon_size), pygame.SRCALPHA)
+                        overlay.fill((0, 0, 0, 160))
+                        dark.blit(overlay, (0, 0))
+                        surface.blit(dark, slot)
+                    else:
+                        surface.blit(scaled, slot)
+                else:
+                    pygame.draw.rect(surface, (80, 80, 80), slot, 1)
 
         ep = self.enemy_hp_display  if self.enemy_hp_display  is not None else enemy_dino['hp']  / max(1, enemy_dino['max_hp'])
         pp = self.player_hp_display if self.player_hp_display is not None else player_dino['hp'] / max(1, player_dino['max_hp'])
@@ -164,8 +182,9 @@ class EncounterUI:
         pygame.draw.rect(surface, (0, 0, 255),
                          (xp_bar_rect.x, xp_bar_rect.y, int(xp_bar_rect.width * xp_progress), xp_bar_rect.height))
         pygame.draw.rect(surface, (0, 0, 0), xp_bar_rect, 2)
+        displayed_xp = int(xp_progress * player_dino['xp_to_next'])
         surface.blit(
-            self.small_font.render(f"XP: {int(player_dino['xp'])}/{int(player_dino['xp_to_next'])}", True, (0, 0, 0)),
+            self.small_font.render(f"XP: {displayed_xp}/{int(player_dino['xp_to_next'])}", True, (0, 0, 0)),
             (xp_bar_rect.x, xp_bar_rect.y - 17)
         )
 
@@ -188,6 +207,13 @@ class EncounterUI:
         for i, line in enumerate(lines[:5]):
             surface.blit(self.small_font.render(line, True, (0, 0, 0)),
                          (text_box_rect.x + 20, text_box_rect.y + 12 + i * 20))
+
+        if msg_awaiting_input and pygame.time.get_ticks() // 400 % 2:
+            cx = text_box_rect.right - 18
+            cy = text_box_rect.bottom - 10
+            pygame.draw.polygon(surface, (0, 0, 0), [
+                (cx - 8, cy - 7), (cx + 8, cy - 7), (cx, cy + 3)
+            ])
 
         # Action / Fight menu — hidden while a message is displaying
         if not show_actions:
@@ -732,6 +758,14 @@ class MessageBox:
         for i, line in enumerate(display_lines):
             surface.blit(self.font.render(line, True, (0, 0, 0)),
                          (box_rect.x + 10, box_rect.y + pad + i * line_h))
+
+        if self.wait_for_input and self.char_index >= len(self.message):
+            if pygame.time.get_ticks() // 400 % 2:
+                cx = box_rect.right - 18
+                cy = box_rect.bottom - 10
+                pygame.draw.polygon(surface, (0, 0, 0), [
+                    (cx - 8, cy - 7), (cx + 8, cy - 7), (cx, cy + 3)
+                ])
 
 
 # === Main Menu ===

@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="1">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="11">
  <tileset firstgid="1" source="../TILESET/Base1.tsx"/>
  <tileset firstgid="273" source="../TILESET/OG_TILE.tsx"/>
  <group id="2" name="ground0"/>
+ <objectgroup id="10" name="home">
+  <object id="2" name="home" x="512.333" y="320" width="29.6667" height="25.3333">
+   <properties>
+    <property name="entrance_id" value="home"/>
+   </properties>
+  </object>
+  <object id="3" x="708.667" y="288.333" visible="0"/>
+ </objectgroup>
  <layer id="1" name="Tile Layer 1" width="20" height="15">
   <data encoding="csv">
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -15,7 +23,7 @@
 1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-1,1,1,1,1,10,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,10,1,1,1,1,1,1,1,1,1,1,272,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -35,7 +43,7 @@
 39,40,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 39,40,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 39,40,0,0,0,0,10,0,0,0,0,0,0,0,0,0,0,0,0,0,
-39,52,31,31,31,32,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+39,52,31,31,31,32,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
 66,66,66,66,61,40,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 58,58,58,58,57,40,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 58,58,58,58,57,52,31,31,31,31,31,31,31,31,31,31,31,31,31,0,

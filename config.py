@@ -123,7 +123,8 @@ ITEMS = {
 }
 
 SPAWN_POINTS = {
-    'home': (160, 1248),  # START_TOWN tile (10,7) in world pixels
+    'home':      (160, 1248),   # START_TOWN tile (10,7) in world pixels
+    'town1':  (608, -672),   # TOWN_1.3 tile (25, -21) in world pixels
 }
 
 

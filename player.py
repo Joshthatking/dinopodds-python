@@ -37,6 +37,8 @@ class Player(pygame.sprite.Sprite):
     def update(self, keys, game, dt):
         if game.state_stack[-1] != 'world' or (game.message_box and game.message_box.visible):
             return
+        if any(npc.state in ('spotted', 'walking') for npc in getattr(game, 'npcs', [])):
+            return
 
         if self.moving:
             step = self.move_speed * dt
@@ -132,6 +134,7 @@ class Player(pygame.sprite.Sprite):
             self.image = self.animations[self.direction][0]
 
         self.check_for_encounter(game)
+        self.check_for_entrance(game)
 
     def check_for_encounter(self, game):
         if game.state_stack[-1] != 'world':
@@ -140,3 +143,14 @@ class Player(pygame.sprite.Sprite):
         tile_y = self.rect.y // config.TILE_SIZE
         if ((tile_x, tile_y) in game.encounter_tile_coords and random.random() < 0.15):
             game.trigger_encounter()
+
+    def check_for_entrance(self, game):
+        if game.state_stack[-1] != 'world':
+            return
+        tile_x = self.rect.x // config.TILE_SIZE
+        tile_y = self.rect.y // config.TILE_SIZE
+        print(f"[DEBUG] player tile=({tile_x},{tile_y})  entrances={list(game.entrance_tile_coords.keys())}  exits={list(game.exit_tile_coords)}")
+        if (tile_x, tile_y) in game.entrance_tile_coords:
+            game.trigger_entrance(game.entrance_tile_coords[(tile_x, tile_y)], tile_x, tile_y)
+        elif (tile_x, tile_y) in game.exit_tile_coords:
+            game.trigger_exit()

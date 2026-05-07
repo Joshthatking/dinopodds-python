@@ -23,10 +23,15 @@ class Game:
         self.camera_x, self.camera_y = 0, 0
         self.zoom = 1.25
         self.render_surface = pygame.Surface((config.WIDTH // self.zoom, config.HEIGHT // self.zoom))
-        self.world_maps, self.solid_tile_coords, self.encounter_tile_coords, self.tile_types = self.load_world('LOST_REGION.world')
+        self.current_world_file = 'LOST_REGION.world'
+        (self.world_maps, self.solid_tile_coords, self.encounter_tile_coords,
+         self.tile_types, self.entrance_tile_coords, self.exit_tile_coords) = self.load_world('LOST_REGION.world')
         self.world_bounds = self._compute_world_bounds()
+        print(f"[DEBUG] entrance_tile_coords: {self.entrance_tile_coords}")
+        print(f"[DEBUG] exit_tile_coords: {self.exit_tile_coords}")
 
-        self.player = Player(spawn_point='home')
+        # DETERMINE PLAYER SPAWN
+        self.player = Player(spawn_point='town1')
         self.all_sprites = pygame.sprite.Group(self.player)
 
         self.fade_alpha = 0
@@ -84,6 +89,14 @@ class Game:
         self.encounter_anim = None
         self.is_trainer_battle = False
         self.current_trainer_npc = None
+        self.trainer_dino_queue = []
+        self.trainer_dinos_total = 0
+        self.trainer_dinos_defeated = 0
+
+        # World transitions
+        self.world_stack = []          # saved states for returning from interiors
+        self.entrance_fade_state = None  # None | 'out' | 'in'
+        self.entrance_pending = None
 
     # --- Entity / Collision Helpers ---
 
@@ -318,8 +331,12 @@ class Game:
 
         data = TRAINER_DATA.get(npc.trainer_id, {})
         dinos = data.get('dinos', {})
-        first_key = min(dinos.keys())
-        dino_name, dino_level = dinos[first_key]
+        sorted_keys = sorted(dinos.keys())
+        dino_name, dino_level = dinos[sorted_keys[0]]
+
+        self.trainer_dino_queue = [(dinos[k][0], dinos[k][1]) for k in sorted_keys[1:]]
+        self.trainer_dinos_total = len(sorted_keys)
+        self.trainer_dinos_defeated = 0
 
         self.enemy_dino = self.create_dino(dino_name, dino_level)
         self.encounter_ui = EncounterUI(self.fonts)
@@ -337,6 +354,138 @@ class Game:
             "duration": 1000,
         }
 
+    # --- World Transitions ---
+
+    def _load_world_data(self, world_file):
+        self.current_world_file = world_file
+        if world_file.endswith('.tmx'):
+            result = self._load_single_tmx(world_file)
+        else:
+            result = self.load_world(world_file)
+        (self.world_maps, self.solid_tile_coords, self.encounter_tile_coords,
+         self.tile_types, self.entrance_tile_coords, self.exit_tile_coords) = result
+        self.world_bounds = self._compute_world_bounds()
+
+    def _load_single_tmx(self, filename):
+        """Load one .tmx file directly — used for small interior maps."""
+        path = os.path.join('assets/WORLD', filename)
+        tmx = pytmx.load_pygame(path, pixelalpha=True)
+        ts = config.TILE_SIZE
+        solid, encounter, tile_types, entrances, exits = set(), set(), {}, {}, set()
+        for layer in tmx.visible_layers:
+            if isinstance(layer, pytmx.TiledTileLayer):
+                above = self._layer_num(layer) >= 4
+                for x, y, gid in layer:
+                    if not gid:
+                        continue
+                    props = tmx.get_tile_properties_by_gid(gid) or {}
+                    wpos = (x, y)
+                    if props.get('collision') and not above:
+                        solid.add(wpos)
+                    if props.get('encounter'):
+                        encounter.add(wpos)
+                        if props.get('type'):
+                            tile_types[wpos] = props['type']
+                    eid = props.get('entrance_id') or (f'{x}_{y}' if props.get('entrance') else None)
+                    if eid:
+                        entrances[wpos] = eid
+                    if props.get('exit'):
+                        exits.add(wpos)
+            elif isinstance(layer, pytmx.TiledObjectGroup):
+                for obj in layer:
+                    props = obj.properties or {}
+                    ox, oy = int(obj.x // ts), int(obj.y // ts)
+                    if props.get('collision'):
+                        for ty in range(oy, int((obj.y + obj.height - 1) // ts) + 1):
+                            for tx in range(ox, int((obj.x + obj.width - 1) // ts) + 1):
+                                solid.add((tx, ty))
+                    eid = props.get('entrance_id') or (f'{ox}_{oy}' if props.get('entrance') else None)
+                    if eid:
+                        entrances[(ox, oy)] = eid
+                    if props.get('exit'):
+                        exits.add((ox, oy))
+        world_maps = [{'tmx': tmx, 'x': 0, 'y': 0,
+                        'width': tmx.width * ts, 'height': tmx.height * ts}]
+        print(f"[DEBUG] _load_single_tmx({filename}): entrances={list(entrances.items())} exits={list(exits)}")
+        return world_maps, solid, encounter, tile_types, entrances, exits
+
+    def _place_player(self, tile_x, tile_y):
+        self.player.rect.x = tile_x * config.TILE_SIZE
+        self.player.rect.y = tile_y * config.TILE_SIZE
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        self.player.pos_x = float(self.player.rect.x)
+        self.player.pos_y = float(self.player.rect.y)
+        self.player.moving = False
+        self.update_camera()
+
+    def trigger_entrance(self, entrance_id, tile_x, tile_y):
+        print(f"[DEBUG] trigger_entrance called: id={entrance_id} tile=({tile_x},{tile_y})")
+        if self.fading or self.entrance_fade_state is not None:
+            return
+        self.entrance_pending = (entrance_id, tile_x, tile_y)
+        self.entrance_fade_state = 'out'
+        self.fade_alpha = 0
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+
+    def _do_entrance_teleport(self, pending):
+        entrance_id, tile_x, tile_y = pending
+        print(f"[DEBUG] _do_entrance_teleport: id={entrance_id}")
+        dest = ENTRANCE_DATA.get(entrance_id)
+        print(f"[DEBUG] ENTRANCE_DATA lookup: {dest}")
+        if not dest:
+            return  # no map configured yet, fade back in silently
+        self.world_stack.append({
+            'file': self.current_world_file,
+            'entrance_tile_x': tile_x,
+            'entrance_tile_y': tile_y,
+            'entrance_facing': self.player.facing,
+            'npcs': self.npcs,
+        })
+        self._load_world_data(dest['world'])
+        self.npcs = []
+        tx, ty = dest['spawn']
+        self._place_player(tx, ty)
+
+    def trigger_exit(self):
+        if not self.world_stack or self.entrance_fade_state is not None:
+            return
+        self.entrance_pending = '__exit__'
+        self.entrance_fade_state = 'out'
+        self.fade_alpha = 0
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+
+    def _do_exit_teleport(self):
+        if not self.world_stack:
+            return
+        prev = self.world_stack.pop()
+        self._load_world_data(prev['file'])
+        self.npcs = prev['npcs']
+        for npc in self.npcs:
+            self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
+        # Place player one tile behind where they entered, facing back out
+        reverse = {'up': 'down', 'down': 'up', 'left': 'right', 'right': 'left'}
+        step = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}
+        dx, dy = step[reverse[prev['entrance_facing']]]
+        self._place_player(prev['entrance_tile_x'] + dx, prev['entrance_tile_y'] + dy)
+
+    def _send_next_trainer_dino(self):
+        dino_name, dino_level = self.trainer_dino_queue.pop(0)
+        self.enemy_dino = self.create_dino(dino_name, dino_level)
+        self.encounter_ui.enemy_hp_display = None
+        self.encounter_ui.in_fight_menu = False
+        self.encounter_ui.xp_frozen = True
+        self.encounter_text = f"Trainer sent out {dino_name}!"
+        self.encounter = Encounter(self.fonts, dino_name)
+        self.message_box.queue_messages(
+            [f"Trainer sent out {dino_name}!", "What will you do?"],
+            wait_for_input=True
+        )
+
     # --- Map ---
 
     def load_world(self, filename):
@@ -350,6 +499,8 @@ class Game:
         solid = set()
         encounter = set()
         tile_types = {}
+        entrances = {}  # (tx, ty) -> entrance_id string
+        exits = set()   # (tx, ty) tiles that return to previous world
 
         for m in world_json['maps']:
             tmx_path = os.path.normpath(os.path.join(world_dir, m['fileName']))
@@ -377,21 +528,31 @@ class Game:
                             tile_type = props.get('type')
                             if tile_type:
                                 tile_types[wpos] = tile_type
+                        eid = props.get('entrance_id') or (f'{wpos[0]}_{wpos[1]}' if props.get('entrance') else None)
+                        if eid:
+                            entrances[wpos] = eid
+                        if props.get('exit'):
+                            exits.add(wpos)
                 elif isinstance(layer, pytmx.TiledObjectGroup):
                     for obj in layer:
                         props = obj.properties or {}
+                        ox = wtx + int(obj.x // ts)
+                        oy = wty + int(obj.y // ts)
                         if props.get('collision'):
-                            tx0 = wtx + int(obj.x // ts)
-                            ty0 = wty + int(obj.y // ts)
                             tx1 = wtx + int((obj.x + obj.width - 1) // ts)
                             ty1 = wty + int((obj.y + obj.height - 1) // ts)
-                            for ty in range(ty0, ty1 + 1):
-                                for tx in range(tx0, tx1 + 1):
+                            for ty in range(oy, ty1 + 1):
+                                for tx in range(ox, tx1 + 1):
                                     solid.add((tx, ty))
+                        eid = props.get('entrance_id') or (f'{ox}_{oy}' if props.get('entrance') else None)
+                        if eid:
+                            entrances[(ox, oy)] = eid
+                        if props.get('exit'):
+                            exits.add((ox, oy))
 
             world_maps.append({'tmx': tmx, 'x': wx, 'y': wy, 'width': m['width'], 'height': m['height']})
 
-        return world_maps, solid, encounter, tile_types
+        return world_maps, solid, encounter, tile_types, entrances, exits
 
     def _compute_world_bounds(self):
         ts = config.TILE_SIZE
@@ -414,6 +575,12 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+                return
+
+            # Block all input while HP bars are animating in battle
+            if ('encounter' in self.state_stack and hasattr(self, 'encounter_ui') and
+                    self.encounter_ui.is_hp_animating(
+                        self.player_dinos[self.active_dino_index], self.enemy_dino)):
                 return
 
             if self.message_box.visible:
@@ -481,9 +648,6 @@ class Game:
                     return
 
                 if self.enemy_dino.get('hp', 0) <= 0:
-                    return
-
-                if self.encounter_ui.is_hp_animating(active, self.enemy_dino):
                     return
 
                 result = self.encounter_ui.handle_input(event, active)
@@ -565,8 +729,22 @@ class Game:
             return
 
         if self.state == 'world':
-            keys = pygame.key.get_pressed()
-            if not self.fading:
+            if self.entrance_fade_state == 'out':
+                self.fade_alpha = min(255, self.fade_alpha + 10)
+                if self.fade_alpha >= 255:
+                    if self.entrance_pending == '__exit__':
+                        self._do_exit_teleport()
+                    else:
+                        self._do_entrance_teleport(self.entrance_pending)
+                    self.entrance_pending = None
+                    self.entrance_fade_state = 'in'
+            elif self.entrance_fade_state == 'in':
+                self.fade_alpha = max(0, self.fade_alpha - 10)
+                if self.fade_alpha <= 0:
+                    self.fade_alpha = 0
+                    self.entrance_fade_state = None
+            elif not self.fading:
+                keys = pygame.key.get_pressed()
                 self.all_sprites.update(keys, self, dt)
                 self.update_camera()
                 for npc in self.npcs:
@@ -600,7 +778,10 @@ class Game:
         elif background_state == 'encounter':
             self.encounter.draw(self.screen)
             self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index],
-                                   self.enemy_dino, self.encounter_text)
+                                   self.enemy_dino, self.encounter_text,
+                                   trainer_total=self.trainer_dinos_total if self.is_trainer_battle else 0,
+                                   trainer_defeated=self.trainer_dinos_defeated,
+                                   pod_icon=self.item_image if self.is_trainer_battle else None)
 
         if current_state == 'encounter':
             if self.encounter_anim:
@@ -617,7 +798,7 @@ class Game:
                     self.encounter.current_dino_surface = anim["frames"][0]
                     self.enemy_dino["image"] = anim["frames"][0]
                     self.message_box.queue_messages(
-                        [f"A wild {self.enemy_dino['name']} appeared!", "What will you do?"],
+                        [self.encounter_text, "What will you do?"],
                         wait_for_input=True
                     )
             else:
@@ -625,8 +806,14 @@ class Game:
 
             msg_active = self.message_box.visible
             display_text = self.message_box.message[:self.message_box.char_index] if msg_active else self.encounter_text
+            msg_awaiting = (msg_active and self.message_box.wait_for_input and
+                            self.message_box.char_index >= len(self.message_box.message))
             self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index],
-                                   self.enemy_dino, display_text, show_actions=not msg_active)
+                                   self.enemy_dino, display_text, show_actions=not msg_active,
+                                   trainer_total=self.trainer_dinos_total if self.is_trainer_battle else 0,
+                                   trainer_defeated=self.trainer_dinos_defeated,
+                                   pod_icon=self.item_image if self.is_trainer_battle else None,
+                                   msg_awaiting_input=msg_awaiting)
 
         elif current_state in ('menu', 'party', 'items'):
             if background_state == 'world':
@@ -638,7 +825,7 @@ class Game:
             elif current_state == 'items':
                 self.items_screen.draw(self.screen)
 
-        if self.fading:
+        if self.fading or self.entrance_fade_state is not None:
             fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))
             fade_surface.set_alpha(self.fade_alpha)
             fade_surface.fill((0, 0, 0))
@@ -778,6 +965,8 @@ class Game:
     def use_player_move(self, move_index):
         if self.message_box.visible:
             return
+        if self.enemy_dino.get('hp', 0) <= 0:
+            return
         attacker = self.player_dinos[self.active_dino_index]
         defender = self.enemy_dino
 
@@ -818,6 +1007,7 @@ class Game:
             msgs.append("It had no effect...")
 
         if defender['hp'] <= 0:
+            self.encounter_ui.in_fight_menu = False
             msgs.append(f"The wild {defender['name']} fainted!")
             xp_gain = calculate_xp_gain(
                 player_level=self.player_dinos[self.active_dino_index]['level'],
@@ -832,8 +1022,13 @@ class Game:
             xp_msgs.extend(level_up_msgs)
 
             def handle_evolutions():
-                if self.is_trainer_battle and self.current_trainer_npc:
-                    self.current_trainer_npc.defeated = True
+                if self.is_trainer_battle:
+                    self.trainer_dinos_defeated += 1
+                    if self.trainer_dino_queue:
+                        self._send_next_trainer_dino()
+                        return
+                    if self.current_trainer_npc:
+                        self.current_trainer_npc.defeated = True
                     self.is_trainer_battle = False
                 evolved = False
                 for dino in self.player_dinos:

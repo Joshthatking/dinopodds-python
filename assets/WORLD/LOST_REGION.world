@@ -55,6 +55,13 @@
             "width": 640,
             "x": -800,
             "y": 1024
+        },
+        {
+            "fileName": "../MAPS/TOWN_1.3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": -896
         }
     ],
     "onlyShowAdjacentMaps": false,

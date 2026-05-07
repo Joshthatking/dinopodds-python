@@ -53,5 +53,17 @@ if __name__ == '__main__':
 # New map SPECIFIC ENCOUNTER LOGIC - COMPLETE in data.py
 # Adjust CUSTOM Encounter size logic - COMPLETE in config.py
 # NPC addition, Sprite sheet logic, npc interaction + walking up to battle logic - COMPLETE
-# battle animation for attacks
+
+#5/5
+#NPC bug fix on dinos in battle, show icon of # of dinos now and when fainted
+#DIALOGUE - adjust where it forces you to interact to go to next line, when you interact before done typing it goes to end of message then you must interact again
+#fix xp gain until after dino is defeated to show and add to xp bar
+#ENTRANCE metadata teleport to interior.world and have set place for each teleport
+##### ENTRANCE - create Object layer, make rectangle over entrance, put string entrance_id = home 
+
+#5/6
+### FIX EXIT AND ENTRANCE on JET HOME - COMPLETE
+#5/7
+#HEALING center and purchasing items center with NPC and dialogue logic
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
+# battle animation for attacks

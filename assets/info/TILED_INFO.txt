@@ -1,0 +1,29 @@
+------ TILED INFO -------
+
+CUSTOM PROPERTIES
+
+type - grass/water/tallgrass/sand/cave
+encounter - TRUE/FALSE
+collision - TRUE/FALSE
+interact - TRUE/FALSE
+entrance - TRUE/FALSE
+npc - TRUE/FALSE
+battle - TRUE/FALSE
+
+
+
+--------------------
+LAYERS
+--------------------
+Layer 1 - GROUND 
+Layer 2 - Details
+*Player Sprite*
+Layer 3 - Above Player - Collisions
+Layer 4 - Top - As of now no Collisions
+Layer 5 - Even Higher
+
+OBJECT LAYERS - for entrances
+entrance_id = home (for example)
+
+
+SAVE and Replace files .tmx, and .tsx when changes are made

@@ -178,6 +178,18 @@ MOVE_DATA = {
 
 
 
+################## ENTRANCE DATA ####################
+# Map entrance_id (set as a Tiled string property "entrance_id" on each entrance tile)
+# to the interior world file and spawn tile coords (tx, ty).
+# Add an entry here for every building you create.
+ENTRANCE_DATA = {
+    'home':       {'world': 'HOME_JET.tmx',        'spawn': (9, 11)},
+    'jet_room':   {'world': 'HOME_JET2.tmx',       'spawn': (9, 10)},
+    'dinocenter':   {'world': 'DINOCENTER.tmx',       'spawn': (9, 12)},
+
+    # 'house_amber': {'world': 'HOUSE_AMBER.world',  'spawn': (3, 6)},
+}
+
 ################## ENCOUNTER ZONES ####################
 # encounter_data.py or near your config
 ENCOUNTER_ZONES = {
