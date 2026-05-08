@@ -63,7 +63,9 @@ if __name__ == '__main__':
 
 #5/6
 ### FIX EXIT AND ENTRANCE on JET HOME - COMPLETE
+#Dino center complete with teleport
 #5/7
+#Day/Night Cycle - COMPLETE
 #HEALING center and purchasing items center with NPC and dialogue logic
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks

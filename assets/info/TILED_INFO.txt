@@ -2,13 +2,14 @@
 
 CUSTOM PROPERTIES
 
-type - grass/water/tallgrass/sand/cave
+type - grass/water/tallgrass/sand/cave (string)
 encounter - TRUE/FALSE
 collision - TRUE/FALSE
 interact - TRUE/FALSE
 entrance - TRUE/FALSE
 npc - TRUE/FALSE
 battle - TRUE/FALSE
+exit - TRUE/CAVE
 
 
 

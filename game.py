@@ -98,6 +98,25 @@ class Game:
         self.entrance_fade_state = None  # None | 'out' | 'in'
         self.entrance_pending = None
 
+        # Day/Night Cycle
+        self.day_night_timer = 0.0
+        self.CYCLE_DURATION = 15 * 60.0  # 900 seconds per phase
+        self.is_night = False
+
+################ FORCE DAY NIGHT #############
+        self.force_night = None          # None=auto, True=force night, False=force day
+        # self.force_night = True
+##################################################
+
+        self.dn_transitioning = False
+        self.dn_transition_timer = 0.0
+        self.DN_TRANSITION_DURATION = 1.0
+        self._night_overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
+        self._night_overlay.fill((30, 15, 60, 150))
+        # self._night_overlay.fill((1, 5, 150, 150)) #ECLIPSE?
+        self._dn_fade = pygame.Surface((config.WIDTH, config.HEIGHT))
+        self._dn_fade.fill((0, 0, 0))
+
     # --- Entity / Collision Helpers ---
 
     def _add_solid_rect_as_tiles(self, rect):
@@ -719,6 +738,7 @@ class Game:
     # --- Update ---
 
     def update(self, dt):
+        self.update_day_night(dt)
         self.message_box.update(dt)
 
         if 'encounter' in self.state_stack and hasattr(self, 'encounter_ui'):
@@ -774,6 +794,14 @@ class Game:
             self.draw_map_above(self.render_surface)
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
             self.screen.blit(scaled_surface, (0, 0))
+
+            if self.night_active and not self.dn_transitioning:
+                self.screen.blit(self._night_overlay, (0, 0))
+            if self.dn_transitioning:
+                t = self.dn_transition_timer / self.DN_TRANSITION_DURATION
+                alpha = int(255 * (1.0 - abs(t * 2 - 1.0)))
+                self._dn_fade.set_alpha(alpha)
+                self.screen.blit(self._dn_fade, (0, 0))
 
         elif background_state == 'encounter':
             self.encounter.draw(self.screen)
@@ -840,6 +868,30 @@ class Game:
         overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 120))
         self.screen.blit(overlay, (0, 0))
+
+    @property
+    def night_active(self):
+        if self.force_night is not None:
+            return self.force_night
+        return self.is_night
+
+    def update_day_night(self, dt):
+        if self.dn_transitioning:
+            prev = self.dn_transition_timer
+            self.dn_transition_timer += dt
+            midpoint = self.DN_TRANSITION_DURATION / 2
+            if prev < midpoint <= self.dn_transition_timer:
+                self.is_night = not self.is_night
+            if self.dn_transition_timer >= self.DN_TRANSITION_DURATION:
+                self.dn_transitioning = False
+                self.dn_transition_timer = 0.0
+                self.day_night_timer = 0.0
+            return
+        if self.state == 'world':
+            self.day_night_timer += dt
+            if self.day_night_timer >= self.CYCLE_DURATION:
+                self.dn_transitioning = True
+                self.dn_transition_timer = 0.0
 
     def _layer_num(self, layer):
         parts = layer.name.split()
