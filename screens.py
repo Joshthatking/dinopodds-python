@@ -37,9 +37,9 @@ class Encounter:
             self.frames.append(load_image(config.ENCOUNTER_DINOS_PATHS[dino_key + "2"], alpha=True))
         self.current_dino_surface = self.frames[0] if self.frames else None
 
-    def draw(self, screen):
+    def draw(self, screen, enemy_visible=True):
         screen.blit(self.bg, (0, 0))
-        if self.current_dino_surface:
+        if self.current_dino_surface and enemy_visible:
             mult = config.ENCOUNTER_DINO_SIZES.get(self.dino_key, 1.0)
             size = int(config.ENCOUNTER_BASE_SIZE * mult)
             scaled = pygame.transform.scale(self.current_dino_surface, (size, size))
@@ -119,7 +119,7 @@ class EncounterUI:
         pygame.draw.rect(surface, back_color, (x, y, width, height))
         pygame.draw.rect(surface, front_color, (x, y, int(width * max(0, min(1, percent))), height))
 
-    def draw(self, surface, player_dino, enemy_dino, encounter_text, show_actions=True, trainer_total=0, trainer_defeated=0, pod_icon=None, msg_awaiting_input=False):
+    def draw(self, surface, player_dino, enemy_dino, encounter_text, show_actions=True, trainer_total=0, trainer_defeated=0, pod_icon=None, msg_awaiting_input=False, player_visible=True):
         if not show_actions:
             self.in_fight_menu = False  # can't be in fight menu while a message is showing
         screen_w, screen_h = surface.get_size()
@@ -189,11 +189,12 @@ class EncounterUI:
         )
 
         # Player dino sprite — sits directly on top of the left text box
-        scaled = pygame.transform.scale(player_dino['image'], (200, 200))
-        sprite_rect = scaled.get_rect()
-        sprite_rect.centerx = text_box_rect.centerx
-        sprite_rect.bottom = text_box_rect.top
-        surface.blit(scaled, sprite_rect)
+        if player_visible:
+            scaled = pygame.transform.scale(player_dino['image'], (200, 200))
+            sprite_rect = scaled.get_rect()
+            sprite_rect.centerx = text_box_rect.centerx
+            sprite_rect.bottom = text_box_rect.top
+            surface.blit(scaled, sprite_rect)
 
         # Level-up popup overlay
         if self.level_up_popup and self.level_up_popup.active:
@@ -674,8 +675,21 @@ class ItemsScreen:
 
         if event.key == pygame.K_j:
             item_name, _ = filtered[self.selected_index]
-            if item_name == 'DinoPod' and 'encounter' in game.state_stack:
-                game.attempt_catch()
+            item_data = config.ITEMS.get(item_name, {})
+            if item_data.get('catch_rate') is not None and 'encounter' in game.state_stack:
+                game.attempt_catch(item_name)
+                return 'used'
+            elif item_name == 'Repel' and 'encounter' not in game.state_stack:
+                if getattr(game, 'repel_steps', 0) > 0:
+                    game.message_box.queue_messages(
+                        ["A Repel is already in effect!"], wait_for_input=True)
+                else:
+                    game.inventory['Repel'] = max(0, game.inventory.get('Repel', 0) - 1)
+                    game.repel_steps = 250
+                    game.message_box.queue_messages(
+                        ["You used a Repel!",
+                         "Wild dinos will be held off for 250 steps."],
+                        wait_for_input=True)
                 return 'used'
         elif event.key == pygame.K_w:
             if self.selected_index > 0:
@@ -699,6 +713,134 @@ class ItemsScreen:
                 return 'quit'
 
         return None
+
+
+# === Shop Screen ===
+class ShopScreen:
+    def __init__(self, fonts):
+        self.fonts = fonts
+        self.font = fonts['BAG']
+        self.title_font = fonts['BATTLE']
+        self.xs_font = fonts['XS']
+        self.selected_index = 0
+        self.icons = {}  # populated by Game after image loading
+
+    def draw(self, surface, coins):
+        surface.fill((20, 15, 35))
+        W, H = surface.get_width(), surface.get_height()
+
+        title = self.title_font.render("DinoMart", True, (255, 220, 50))
+        surface.blit(title, (W // 2 - title.get_width() // 2, 18))
+
+        coin_surf = self.font.render(f"Coins: {coins}", True, (255, 220, 50))
+        surface.blit(coin_surf, (W - coin_surf.get_width() - 20, 22))
+
+        items = config.SHOP_ITEMS
+        item_h, gap, start_y = 58, 8, 80
+        for i, item in enumerate(items):
+            y = start_y + i * (item_h + gap)
+            rect = pygame.Rect(50, y, W - 100, item_h)
+            sel = (i == self.selected_index)
+            pygame.draw.rect(surface, (80, 60, 120) if sel else (40, 35, 55), rect, border_radius=7)
+            pygame.draw.rect(surface, (160, 140, 190) if sel else (90, 80, 110), rect, 2, border_radius=7)
+
+            icon = self.icons.get(item['name'])
+            if icon:
+                surface.blit(pygame.transform.scale(icon, (36, 36)), (rect.x + 10, rect.y + 11))
+
+            name_surf = self.font.render(item['name'], True, (255, 255, 255))
+            surface.blit(name_surf, (rect.x + 55, rect.y + 10))
+
+            desc = config.ITEMS.get(item['name'], {}).get('description', '')
+            if desc:
+                desc_surf = self.xs_font.render(desc[:60], True, (200, 190, 220))
+                surface.blit(desc_surf, (rect.x + 55, rect.y + 34))
+
+            affordable = coins >= item['price']
+            price_surf = self.font.render(f"{item['price']} coins", True,
+                                          (255, 220, 50) if affordable else (160, 110, 110))
+            surface.blit(price_surf, (rect.right - price_surf.get_width() - 15, rect.y + 18))
+
+        tip = self.xs_font.render("W/S: Navigate    J: Buy    SPACE: Close", True, (160, 155, 185))
+        surface.blit(tip, (W // 2 - tip.get_width() // 2, H - 25))
+
+    def handle_event(self, event, game):
+        if event.type != pygame.KEYDOWN:
+            return None
+        items = config.SHOP_ITEMS
+        if event.key == pygame.K_w:
+            self.selected_index = (self.selected_index - 1) % len(items)
+        elif event.key == pygame.K_s:
+            self.selected_index = (self.selected_index + 1) % len(items)
+        elif event.key == pygame.K_j:
+            item = items[self.selected_index]
+            if game.coins >= item['price']:
+                game.coins -= item['price']
+                game.inventory[item['name']] = game.inventory.get(item['name'], 0) + 1
+                game.message_box.queue_messages(
+                    [f"Bought {item['name']}!"], wait_for_input=True)
+                return 'bought'
+            else:
+                game.message_box.queue_messages(["Not enough coins!"], wait_for_input=True)
+        elif event.key == pygame.K_SPACE:
+            return 'back'
+        return None
+
+
+# === Yes/No Prompt ===
+class YesNoPrompt:
+    BOX_W = 90
+    BOX_H = 68
+
+    def __init__(self, question, fonts, width=640, height=480):
+        self.question = question
+        self.font     = fonts['DIALOGUE']
+        self.opt_font = fonts['BAG']
+        self.selected = 0   # 0 = Yes, 1 = No
+        self.width    = width
+        self.height   = height
+
+    def handle_event(self, event):
+        """Returns 'yes', 'no', or None."""
+        if event.type != pygame.KEYDOWN:
+            return None
+        if event.key == pygame.K_SPACE:
+            return 'no'
+        if event.key == pygame.K_s:
+            self.selected = 1
+        elif event.key == pygame.K_w:
+            self.selected = 0
+        elif event.key == pygame.K_j:
+            return 'yes' if self.selected == 0 else 'no'
+        return None
+
+    def draw(self, surface):
+        pad = 15
+        line_h = self.font.get_height() + 4
+        avail_w = self.width - 100 - self.BOX_W - 20
+        lines = wrap_text(self.question, self.font, avail_w)
+        box_h = max(80, len(lines) * line_h + pad * 2)
+        q_rect = pygame.Rect(50, self.height - box_h - 20, avail_w, box_h)
+        pygame.draw.rect(surface, (255, 255, 255), q_rect)
+        pygame.draw.rect(surface, (0, 0, 0), q_rect, 3)
+        for i, line in enumerate(lines):
+            surface.blit(self.font.render(line, True, (0, 0, 0)),
+                         (q_rect.x + 10, q_rect.y + pad + i * line_h))
+
+        opts   = ['Yes', 'No']
+        opt_h  = self.opt_font.get_height() + 10
+        yn_rect = pygame.Rect(self.width - 50 - self.BOX_W,
+                              self.height - 20 - self.BOX_H,
+                              self.BOX_W, self.BOX_H)
+        pygame.draw.rect(surface, (255, 255, 255), yn_rect)
+        pygame.draw.rect(surface, (0, 0, 0), yn_rect, 3)
+        for i, opt in enumerate(opts):
+            y = yn_rect.y + 10 + i * opt_h
+            if i == self.selected:
+                surface.blit(self.opt_font.render(u'▶', True, (0, 0, 0)),
+                             (yn_rect.x + 8, y))
+            surface.blit(self.opt_font.render(opt, True, (0, 0, 0)),
+                         (yn_rect.x + 26, y))
 
 
 # === Message Box ===
@@ -817,23 +959,68 @@ class Menu:
     def __init__(self, game):
         self.game = game
         self.font = pygame.font.SysFont("arial", 24)
+        self.small_font = pygame.font.SysFont("arial", 16)
         self.selected_index = 0
         self.options = ["Party", "Items", "Save Game", "Options"]
         self.width = 220
         self.margin = 15
         self.line_height = 40
+        self._badge_img = None  # set externally when badge PNG is provided
 
     def draw(self, screen):
-        panel_rect = pygame.Rect(screen.get_width() - self.width - 20, 50, self.width, 320)
+        W = screen.get_width()
+        x = W - self.width - 20
+
+        # ── Options panel ──────────────────────────────────────────────
+        panel_rect = pygame.Rect(x, 50, self.width, 220)
         pygame.draw.rect(screen, (255, 255, 240), panel_rect)
         pygame.draw.rect(screen, (0, 0, 0), panel_rect, 3)
-        screen.blit(self.font.render("Menu", True, (0, 0, 0)), (panel_rect.x + self.margin, panel_rect.y + 10))
+        screen.blit(self.font.render("Menu", True, (0, 0, 0)),
+                    (panel_rect.x + self.margin, panel_rect.y + 8))
         for i, option in enumerate(self.options):
-            y = panel_rect.y + 50 + i * self.line_height
+            y = panel_rect.y + 46 + i * self.line_height
             if i == self.selected_index:
                 pygame.draw.rect(screen, (200, 200, 255),
-                                 (panel_rect.x + 5, y - 5, panel_rect.width - 10, 30), border_radius=5)
-            screen.blit(self.font.render(option, True, (0, 0, 0)), (panel_rect.x + self.margin, y))
+                                 (panel_rect.x + 5, y - 4, panel_rect.width - 10, 28),
+                                 border_radius=5)
+            screen.blit(self.font.render(option, True, (0, 0, 0)),
+                        (panel_rect.x + self.margin, y))
+
+        # ── Trainer card panel ─────────────────────────────────────────
+        card_rect = pygame.Rect(x, panel_rect.bottom + 8, self.width, 148)
+        pygame.draw.rect(screen, (230, 225, 255), card_rect)
+        pygame.draw.rect(screen, (80, 60, 130), card_rect, 3)
+
+        screen.blit(self.small_font.render("TRAINER", True, (80, 60, 130)),
+                    (card_rect.x + self.margin, card_rect.y + 6))
+
+        # Badge slot
+        badge_x = card_rect.x + self.margin
+        badge_y = card_rect.y + 26
+        badge_rect = pygame.Rect(badge_x, badge_y, 48, 48)
+        if self._badge_img:
+            screen.blit(pygame.transform.scale(self._badge_img, (48, 48)), badge_rect)
+        else:
+            pygame.draw.rect(screen, (200, 195, 230), badge_rect, border_radius=6)
+            pygame.draw.rect(screen, (80, 60, 130), badge_rect, 2, border_radius=6)
+            lbl = self.small_font.render("BADGE", True, (110, 90, 160))
+            screen.blit(lbl, (badge_rect.centerx - lbl.get_width() // 2,
+                               badge_rect.centery - lbl.get_height() // 2))
+
+        # Coins display
+        coin_y = badge_y + 56
+        pygame.draw.circle(screen, (255, 200, 30),
+                           (card_rect.x + self.margin + 10, coin_y + 10), 10)
+        pygame.draw.circle(screen, (200, 150, 0),
+                           (card_rect.x + self.margin + 10, coin_y + 10), 10, 2)
+        coins_surf = self.font.render(f"{self.game.coins}", True, (40, 30, 10))
+        screen.blit(coins_surf, (card_rect.x + self.margin + 26, coin_y))
+
+        # Repel status
+        if getattr(self.game, 'repel_steps', 0) > 0:
+            rep_surf = self.small_font.render(
+                f"Repel: {self.game.repel_steps} steps", True, (30, 120, 50))
+            screen.blit(rep_surf, (card_rect.x + self.margin, coin_y + 32))
 
     def handle_event(self, event):
         if event.type != pygame.KEYDOWN:

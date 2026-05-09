@@ -72,10 +72,22 @@ class Game:
         self.items_on_map = {}
         self._apply_ball_items(_init_ball_items)
         self.inventory = {item: 0 for item in config.ITEMS.keys()}
-        self.item_icons = {key: pygame.image.load(data["icon"]).convert_alpha() for key, data in config.ITEMS.items()}
+        self.item_icons = {}
+        for key, data in config.ITEMS.items():
+            try:
+                self.item_icons[key] = pygame.image.load(data["icon"]).convert_alpha()
+            except Exception:
+                surf = pygame.Surface((32, 32), pygame.SRCALPHA)
+                surf.fill((200, 100, 200))
+                self.item_icons[key] = surf
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
         self.items_screen = ItemsScreen(self.inventory, self.item_icons, self.item_descriptions, self.fonts)
         self.items_screen.reset()
+
+        # Shop
+        self.shop_screen = ShopScreen(self.fonts)
+        for item_name in (s['name'] for s in config.SHOP_ITEMS):
+            self.shop_screen.icons[item_name] = self.item_icons.get(item_name)
 
         # Map entities (populated via Tiled object layers in future)
         self.solid_tiles = set()
@@ -84,12 +96,24 @@ class Game:
         # Message box
         self.message_box = MessageBox(config.WIDTH, self.fonts)
 
-        # NPCs
-        self.npcs = [
-            NPC('amber', tile_x=5, tile_y=34, facing='down', sight_range=4),
-        ]
-        for npc in self.npcs:
-            self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
+        # Heal animation state
+        self.heal_anim = None
+        self.yes_no_prompt = None
+        self.ball_icons = {}
+        for name, path in config.BALL_ICONS.items():
+            try:
+                self.ball_icons[name] = pygame.image.load(path).convert_alpha()
+            except Exception:
+                surf = pygame.Surface((16, 16), pygame.SRCALPHA)
+                surf.fill((200, 200, 200))
+                self.ball_icons[name] = surf
+
+        # NPCs — populated per-world via WORLD_NPCS config
+        self.npcs = []
+        self._spawn_world_npcs('LOST_REGION.world')
+
+        # Hit flash state
+        self.hit_flash = None   # None | {'target':'player'|'enemy','timer':0,'duration':1.5,'interval':0.08}
 
         # Battle state
         self.awaiting_switch = False
@@ -101,10 +125,21 @@ class Game:
         self.trainer_dinos_total = 0
         self.trainer_dinos_defeated = 0
 
+        # Player stats counters
+        self.stats_blackouts        = 0
+        self.stats_dinos_fainted    = 0
+        self.stats_enemies_defeated = 0
+
+        # Economy
+        self.coins       = 1000
+        self.repel_steps = 0
+
         # World transitions
         self.world_stack = []          # saved states for returning from interiors
         self.entrance_fade_state = None  # None | 'out' | 'in'
         self.entrance_pending = None
+        self.last_dinocenter_world = None  # world file of most-recently visited DinoCenter
+        self.last_dinocenter_tile  = None  # (tx, ty) overworld tile just outside it
 
         # Day/Night Cycle
         self.day_night_timer = 0.0
@@ -124,6 +159,12 @@ class Game:
         # self._night_overlay.fill((1, 5, 150, 150)) #ECLIPSE?
         self._dn_fade = pygame.Surface((config.WIDTH, config.HEIGHT))
         self._dn_fade.fill((0, 0, 0))
+
+################ ECLIPSE MODE: EVENT OVERLAY #################
+        self.event_overlay_active = False   # flip True during special events
+        self._event_overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
+        self._event_overlay.fill((8, 0, 55, 210))   # deep blue-purple, heavier than night
+#################################################
 
     # --- Entity / Collision Helpers ---
 
@@ -156,6 +197,38 @@ class Game:
     def pop_to_world(self):
         while len(self.state_stack) > 1:
             self.pop_state()
+
+    def trigger_blackout(self):
+        self.stats_blackouts += 1
+        for dino in self.player_dinos:
+            dino['hp'] = dino['max_hp']
+
+        self.pop_to_world()
+        self.fading = False
+        self.encounter_anim = None
+        self.awaiting_switch = False
+        self.is_trainer_battle = False
+        self.entrance_fade_state = None
+
+        # Unwind interior world stack back to the overworld
+        while self.world_stack:
+            prev = self.world_stack.pop()
+            if not self.world_stack:
+                self._load_world_data(prev['file'])
+                self.npcs = prev['npcs']
+                for npc in self.npcs:
+                    self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
+
+        # Place player at last DinoCenter or home spawn
+        if self.last_dinocenter_tile is not None:
+            tx, ty = self.last_dinocenter_tile
+        else:
+            px, py = config.SPAWN_POINTS.get('home', (160, 1248))
+            tx, ty = px // config.TILE_SIZE, py // config.TILE_SIZE
+
+        self._place_player(tx, ty)
+        self.fade_alpha = 255
+        self.entrance_fade_state = 'in'
 
     # --- Dino Creation ---
 
@@ -477,8 +550,13 @@ class Game:
             'entrance_facing': self.player.facing,
             'npcs': self.npcs,
         })
+        if 'DINOCENTER' in dest['world'].upper():
+            _step = {'up': (0, 1), 'down': (0, -1), 'left': (1, 0), 'right': (-1, 0)}
+            dx, dy = _step.get(self.player.facing, (0, 1))
+            self.last_dinocenter_world = self.current_world_file
+            self.last_dinocenter_tile  = (tile_x + dx, tile_y + dy)
         self._load_world_data(dest['world'])
-        self.npcs = []
+        self._spawn_world_npcs(dest['world'])
         tx, ty = dest['spawn']
         self._place_player(tx, ty)
 
@@ -614,10 +692,18 @@ class Game:
                 self.running = False
                 return
 
-            # Block all input while HP bars are animating in battle
-            if ('encounter' in self.state_stack and hasattr(self, 'encounter_ui') and
-                    self.encounter_ui.is_hp_animating(
-                        self.player_dinos[self.active_dino_index], self.enemy_dino)):
+            # Block all input during the heal animation
+            if self.heal_anim:
+                return
+
+            # Yes/No heal prompt
+            if self.yes_no_prompt:
+                result = self.yes_no_prompt.handle_event(event)
+                if result == 'yes':
+                    self.yes_no_prompt = None
+                    self.trigger_heal_sequence()
+                elif result == 'no':
+                    self.yes_no_prompt = None
                 return
 
             if self.dino_pickup_popup and self.dino_pickup_popup.active:
@@ -626,9 +712,23 @@ class Game:
                     self.dino_pickup_popup = None
                 return
 
+            # Message box is processed first, but not while HP bars are animating in battle
             if self.message_box.visible:
-                self.message_box.handle_event(event)
+                hp_animating = (
+                    'encounter' in self.state_stack and
+                    hasattr(self, 'encounter_ui') and
+                    self.encounter_ui.is_hp_animating(
+                        self.player_dinos[self.active_dino_index], self.enemy_dino)
+                )
+                if not hp_animating:
+                    self.message_box.handle_event(event)
                 return
+
+            # Block encounter actions while HP bars animate
+            if ('encounter' in self.state_stack and hasattr(self, 'encounter_ui') and
+                    self.encounter_ui.is_hp_animating(
+                        self.player_dinos[self.active_dino_index], self.enemy_dino)):
+                continue
 
             if self.state == 'world':
                 self.handle_world_event(event)
@@ -669,7 +769,17 @@ class Game:
                     self.pop_state()
                     self.items_screen.reset()
 
+            elif self.state == 'shop':
+                result = self.shop_screen.handle_event(event, self)
+                if result == 'back':
+                    self.pop_state()
+                    self.shop_screen.selected_index = 0
+
             elif self.state == 'encounter':
+                # No input of any kind during the intro animation
+                if self.encounter_anim is not None:
+                    return
+
                 active = self.player_dinos[self.active_dino_index]
 
                 if active.get('hp', 0) <= 0 and not self.awaiting_switch:
@@ -683,7 +793,7 @@ class Game:
                         self.awaiting_switch = True
                     else:
                         self.message_box.queue_messages(
-                            ["You blacked out!"], wait_for_input=True, on_complete=self.pop_to_world
+                            ["You blacked out!", "Be careful next time..."], wait_for_input=True, on_complete=self.trigger_blackout
                         )
                     return
 
@@ -691,6 +801,8 @@ class Game:
                     return
 
                 if self.enemy_dino.get('hp', 0) <= 0:
+                    if not self.message_box.visible:
+                        self.pop_to_world()  # safety net: enemy fainted but exit was missed
                     return
 
                 result = self.encounter_ui.handle_input(event, active)
@@ -721,30 +833,101 @@ class Game:
             if not self.interact_with_npc():
                 self.pickup_item()
 
+    def _spawn_world_npcs(self, world_file):
+        self.npcs = []
+        for spec in config.WORLD_NPCS.get(world_file, []):
+            trainer_id, tx, ty, facing, sight, npc_type = spec
+            npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
+                      facing=facing, sight_range=sight, npc_type=npc_type)
+            self.npcs.append(npc)
+            self.solid_tile_coords.add((tx, ty))
+
+    def trigger_heal_sequence(self):
+        n = len(self.player_dinos)
+        if n == 0:
+            return
+        fallback = self.ball_icons['DinoPod']
+        ball_imgs = [
+            self.ball_icons.get(d.get('caught_ball', 'DinoPod'), fallback)
+            for d in self.player_dinos
+        ]
+        self.heal_anim = {'current': 0, 'total': n, 'timer': 0.0,
+                          'per_pod': 0.55, 'ball_imgs': ball_imgs}
+
+    def update_heal_anim(self, dt):
+        if not self.heal_anim:
+            return
+        self.heal_anim['timer'] += dt
+        if self.heal_anim['timer'] >= self.heal_anim['per_pod']:
+            self.heal_anim['timer'] = 0.0
+            self.heal_anim['current'] += 1
+            if self.heal_anim['current'] >= self.heal_anim['total']:
+                for dino in self.player_dinos:
+                    dino['hp'] = dino['max_hp']
+                self.heal_anim = None
+                self.message_box.queue_messages(
+                    ["Your Dinos have been healed! Please come again!"],
+                    wait_for_input=True)
+
+    def _draw_heal_anim(self, surface):
+        anim = self.heal_anim
+        healer = next((n for n in self.npcs if n.npc_type == 'healer'), None)
+        if not healer:
+            return
+        ts = config.TILE_SIZE
+        ball_imgs = anim['ball_imgs']
+        machine_x = healer.tile_x * ts - self.camera_x
+        machine_y = (healer.tile_y - 3) * ts - self.camera_y
+        offset = -(anim['total'] * 9)
+        for i in range(anim['current']):
+            small = pygame.transform.scale(ball_imgs[i], (16, 16))
+            surface.blit(small, (machine_x + offset + i * 18, machine_y))
+        if anim['current'] < anim['total']:
+            img = ball_imgs[anim['current']]
+            progress = anim['timer'] / anim['per_pod']
+            start_y = float(healer.tile_y * ts)
+            end_y = float((healer.tile_y - 3) * ts)
+            cy = start_y + (end_y - start_y) * progress
+            surface.blit(img, (float(healer.tile_x * ts) - self.camera_x,
+                                cy - self.camera_y))
+
+    def _open_heal_prompt(self):
+        self.yes_no_prompt = YesNoPrompt(
+            "Shall I heal your Dinos?", self.fonts, config.WIDTH, config.HEIGHT)
+
     def interact_with_npc(self):
         if self.fading:
             return False
         px = self.player.rect.x // config.TILE_SIZE
         py = self.player.rect.y // config.TILE_SIZE
-        if self.player.facing == 'up':    py -= 1
-        elif self.player.facing == 'down': py += 1
-        elif self.player.facing == 'left': px -= 1
-        elif self.player.facing == 'right': px += 1
+        dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[self.player.facing]
+        candidates = [(px + dx, py + dy), (px + dx * 2, py + dy * 2)]
         for npc in self.npcs:
-            if npc.tile_x == px and npc.tile_y == py:
-                data = TRAINER_DATA.get(npc.trainer_id, {})
-                if npc.defeated:
-                    npc.face_toward_player(self.player)
-                    dialog = data.get('dialog', {}).get('defeated', ["..."])
-                    self.message_box.queue_messages(dialog, wait_for_input=True)
-                    return True
-                if npc.state == 'idle':
-                    npc.face_toward_player(self.player)
-                    dialog = data.get('dialog', {}).get('default', ["..."])
-                    self.message_box.queue_messages(dialog, wait_for_input=True)
-                    return True
-                # NPC is spotted/walking/done — battle flow already in progress, swallow the input
+            if (npc.tile_x, npc.tile_y) not in candidates:
+                continue
+            npc.face_toward_player(self.player)
+            if npc.npc_type == 'healer':
+                self.message_box.queue_messages(
+                    ["Welcome to the DinoCenter!"],
+                    wait_for_input=True,
+                    on_complete=self._open_heal_prompt)
                 return True
+            if npc.npc_type == 'shop':
+                self.message_box.queue_messages(
+                    ["Welcome to the DinoMart!", "Take a look at what we have!"],
+                    wait_for_input=True,
+                    on_complete=lambda: self.push_state('shop'))
+                return True
+            data = TRAINER_DATA.get(npc.trainer_id, {})
+            if npc.defeated:
+                dialog = data.get('dialog', {}).get('defeated', ["..."])
+                self.message_box.queue_messages(dialog, wait_for_input=True)
+                return True
+            if npc.state == 'idle':
+                dialog = data.get('dialog', {}).get('default', ["..."])
+                self.message_box.queue_messages(dialog, wait_for_input=True)
+                return True
+            return True
         return False
 
     def _apply_ball_items(self, ball_items):
@@ -770,6 +953,7 @@ class Game:
         if item_name in config.DINO_BALL_MAP:
             dino_name = config.DINO_BALL_MAP[item_name]
             new_dino = self.create_dino(dino_name, config.DINO_BALL_LEVEL)
+            new_dino['caught_ball'] = 'ballwhite'
             party_full = len(self.player_dinos) >= self.PARTY_LIMIT
             if party_full:
                 self.box_dinos.append(new_dino)
@@ -785,11 +969,26 @@ class Game:
 
     def update(self, dt):
         self.update_day_night(dt)
+        self.update_heal_anim(dt)
+        self.update_hit_flash(dt)
         self.message_box.update(dt)
 
         if 'encounter' in self.state_stack and hasattr(self, 'encounter_ui'):
             active = self.player_dinos[self.active_dino_index]
             self.encounter_ui.update(dt, active, self.enemy_dino)
+
+        # Encounter intro animation completion — kept here so draw() never triggers game logic
+        if 'encounter' in self.state_stack and self.encounter_anim is not None:
+            now = pygame.time.get_ticks()
+            if now - self.encounter_anim["start_time"] >= self.encounter_anim["duration"]:
+                anim = self.encounter_anim
+                self.encounter_anim = None
+                self.encounter.current_dino_surface = anim["frames"][0]
+                self.enemy_dino["image"] = anim["frames"][0]
+                self.message_box.queue_messages(
+                    [self.encounter_text, "What will you do?"],
+                    wait_for_input=True
+                )
 
         if self.message_box.visible:
             return
@@ -842,6 +1041,8 @@ class Game:
                 self.render_surface.blit(sprite.image,
                                          (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
             self.draw_map_above(self.render_surface)
+            if self.heal_anim:
+                self._draw_heal_anim(self.render_surface)
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
             self.screen.blit(scaled_surface, (0, 0))
 
@@ -852,6 +1053,8 @@ class Game:
                 alpha = int(255 * (1.0 - abs(t * 2 - 1.0)))
                 self._dn_fade.set_alpha(alpha)
                 self.screen.blit(self._dn_fade, (0, 0))
+            if self.event_overlay_active:
+                self.screen.blit(self._event_overlay, (0, 0))
 
         elif background_state == 'encounter':
             self.encounter.draw(self.screen)
@@ -862,6 +1065,17 @@ class Game:
                                    pod_icon=self.item_image if self.is_trainer_battle else None)
 
         if current_state == 'encounter':
+            # Compute hit-flash sprite visibility
+            _enemy_vis = True
+            _player_vis = True
+            if self.hit_flash and not self.encounter_anim:
+                flash_count = int(self.hit_flash['timer'] / self.hit_flash['interval'])
+                vis = (flash_count % 2 == 0)
+                if self.hit_flash['target'] == 'enemy':
+                    _enemy_vis = vis
+                else:
+                    _player_vis = vis
+
             if self.encounter_anim:
                 anim = self.encounter_anim
                 now = pygame.time.get_ticks()
@@ -871,16 +1085,8 @@ class Game:
                 frame = anim["frames"][anim["frame_idx"]]
                 self.encounter.current_dino_surface = frame
                 self.encounter.draw(self.screen)
-                if now - anim["start_time"] >= anim["duration"]:
-                    self.encounter_anim = None
-                    self.encounter.current_dino_surface = anim["frames"][0]
-                    self.enemy_dino["image"] = anim["frames"][0]
-                    self.message_box.queue_messages(
-                        [self.encounter_text, "What will you do?"],
-                        wait_for_input=True
-                    )
             else:
-                self.encounter.draw(self.screen)
+                self.encounter.draw(self.screen, enemy_visible=_enemy_vis)
 
             msg_active = self.message_box.visible
             display_text = self.message_box.message[:self.message_box.char_index] if msg_active else self.encounter_text
@@ -891,10 +1097,11 @@ class Game:
                                    trainer_total=self.trainer_dinos_total if self.is_trainer_battle else 0,
                                    trainer_defeated=self.trainer_dinos_defeated,
                                    pod_icon=self.item_image if self.is_trainer_battle else None,
-                                   msg_awaiting_input=msg_awaiting)
+                                   msg_awaiting_input=msg_awaiting,
+                                   player_visible=_player_vis)
 
-        elif current_state in ('menu', 'party', 'items'):
-            if background_state == 'world':
+        elif current_state in ('menu', 'party', 'items', 'shop'):
+            if background_state == 'world' and current_state != 'shop':
                 self.draw_overlay()
             if current_state == 'menu':
                 self.menu.draw(self.screen)
@@ -902,6 +1109,8 @@ class Game:
                 self.party_screen.draw(self.screen)
             elif current_state == 'items':
                 self.items_screen.draw(self.screen)
+            elif current_state == 'shop':
+                self.shop_screen.draw(self.screen, self.coins)
 
         if self.fading or self.entrance_fade_state is not None:
             fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))
@@ -914,6 +1123,9 @@ class Game:
 
         if self.dino_pickup_popup and self.dino_pickup_popup.active:
             self.dino_pickup_popup.draw(self.screen)
+
+        if self.yes_no_prompt:
+            self.yes_no_prompt.draw(self.screen)
 
         pygame.display.flip()
 
@@ -1003,14 +1215,31 @@ class Game:
 
     # --- Battle ---
 
-    def attempt_catch(self):
-        self.inventory["DinoPod"] = max(0, self.inventory["DinoPod"] - 1)
-        success = random.random() < config.ITEMS["DinoPod"]["catch_rate"]
+    def trigger_hit_flash(self, target):
+        self.hit_flash = {'target': target, 'timer': 0.0, 'duration': 0.8, 'interval': 0.08}
+
+    def update_hit_flash(self, dt):
+        if not self.hit_flash:
+            return
+        self.hit_flash['timer'] += dt
+        if self.hit_flash['timer'] >= self.hit_flash['duration']:
+            self.hit_flash = None
+
+    def attempt_catch(self, item_name='DinoPod'):
+        if self.inventory.get(item_name, 0) <= 0:
+            self.message_box.queue_messages(
+                [f"You have no {item_name}s left!"], wait_for_input=True,
+                on_complete=self._enemy_turn)
+            return
+        self.inventory[item_name] = max(0, self.inventory[item_name] - 1)
+        catch_rate = config.ITEMS.get(item_name, {}).get("catch_rate", 0.5)
+        success = random.random() < catch_rate
 
         if success:
             base_dino = self.create_dino(self.enemy_dino["name"], self.enemy_dino["level"])
             base_dino["hp"] = min(self.enemy_dino["hp"], base_dino["max_hp"])
             base_dino["xp"] = 0
+            base_dino["caught_ball"] = item_name
 
             alive = [d for d in self.player_dinos if d.get('hp', 0) > 0]
             active = self.player_dinos[self.active_dino_index] if self.player_dinos else None
@@ -1072,6 +1301,8 @@ class Game:
     def use_player_move(self, move_index):
         if self.message_box.visible:
             return
+        if self.encounter_anim is not None:
+            return
         if self.enemy_dino.get('hp', 0) <= 0:
             return
         attacker = self.player_dinos[self.active_dino_index]
@@ -1089,9 +1320,9 @@ class Game:
         if random.random() * 100 > acc:
             self.message_box.queue_messages(
                 [f"{attacker['name']} used {move_name}!", "But it missed!", "What will you do?"],
-                wait_for_input=True
+                wait_for_input=True,
+                on_complete=self._enemy_turn
             )
-            self._enemy_turn()
             return
 
         STAB    = stab_multiplier(mtype, attacker['type'])
@@ -1104,6 +1335,8 @@ class Game:
         raw = Damage(lvl, atk, power, dfs, STAB, eff_val, rnd)
         dmg = max(1, int(raw)) if power > 0 else 0
         defender['hp'] = max(0, defender['hp'] - dmg)
+        if dmg > 0:
+            self.trigger_hit_flash('enemy')
 
         msgs = [f"{attacker['name']} used {move_name}!"]
         if eff_val > 10:
@@ -1114,6 +1347,7 @@ class Game:
             msgs.append("It had no effect...")
 
         if defender['hp'] <= 0:
+            self.stats_enemies_defeated += 1
             self.encounter_ui.in_fight_menu = False
             msgs.append(f"The wild {defender['name']} fainted!")
             xp_gain = calculate_xp_gain(
@@ -1129,6 +1363,7 @@ class Game:
             xp_msgs.extend(level_up_msgs)
 
             def handle_evolutions():
+                coin_reward = 0
                 if self.is_trainer_battle:
                     self.trainer_dinos_defeated += 1
                     if self.trainer_dino_queue:
@@ -1136,16 +1371,28 @@ class Game:
                         return
                     if self.current_trainer_npc:
                         self.current_trainer_npc.defeated = True
+                        coin_reward = TRAINER_DATA.get(
+                            self.current_trainer_npc.trainer_id, {}).get('reward_coins', 0)
                     self.is_trainer_battle = False
-                evolved = False
-                for dino in self.player_dinos:
-                    evo_target = self.check_evolution(dino)
-                    if evo_target:
-                        evolved = True
-                        self.start_evolution(dino, evo_target)
+
+                def finish_battle():
+                    evolved = False
+                    for dino in self.player_dinos:
+                        evo_target = self.check_evolution(dino)
+                        if evo_target:
+                            evolved = True
+                            self.start_evolution(dino, evo_target)
+                            self.pop_to_world()
+                    if not evolved:
                         self.pop_to_world()
-                if not evolved:
-                    self.pop_to_world()
+
+                if coin_reward > 0:
+                    self.coins += coin_reward
+                    self.message_box.queue_messages(
+                        [f"You received {coin_reward} coins!"],
+                        wait_for_input=True, on_complete=finish_battle)
+                else:
+                    finish_battle()
 
             def show_xp():
                 self.encounter_ui.unfreeze_xp()
@@ -1171,6 +1418,7 @@ class Game:
         )
 
     def _enemy_turn(self):
+        self.encounter_ui.in_fight_menu = False  # reset so next player turn starts at action menu
         defender = self.player_dinos[self.active_dino_index]
         attacker = self.enemy_dino
 
@@ -1185,7 +1433,7 @@ class Game:
                 )
             else:
                 self.message_box.queue_messages(
-                    ["You blacked out!"], wait_for_input=True, on_complete=self.pop_to_world
+                    ["You blacked out!", "Be careful next time..."], wait_for_input=True, on_complete=self.trigger_blackout
                 )
             return
 
@@ -1216,6 +1464,8 @@ class Game:
 
         dmg = max(1, int(Damage(lvl, atk, power, dfs, STAB, eff_val, rnd))) if power > 0 else 0
         defender['hp'] = max(0, defender['hp'] - dmg)
+        if dmg > 0:
+            self.trigger_hit_flash('player')
 
         msgs = [f"The wild {attacker['name']} used {move['name']}!"]
         if eff_val > 10:   msgs.append("It's super effective!")
@@ -1223,6 +1473,7 @@ class Game:
         elif eff_val <= 0: msgs.append("It had no effect...")
 
         if defender['hp'] <= 0:
+            self.stats_dinos_fainted += 1
             alive = [d for d in self.player_dinos if d.get('hp', 0) > 0]
             msgs.append(f"{defender['name']} fainted!")
             if alive:
@@ -1232,8 +1483,8 @@ class Game:
                     on_complete=lambda: self.request_party_swap(defender['name'])
                 )
             else:
-                msgs.append("You blacked out!")
-                self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.pop_to_world)
+                msgs.extend(["You blacked out!", "Be careful next time..."])
+                self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.trigger_blackout)
             return
 
         msgs.append("What will you do?")

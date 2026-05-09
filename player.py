@@ -1,6 +1,7 @@
 import pygame
 import config
 import random
+from data import ENCOUNTER_ZONES
 
 
 class Player(pygame.sprite.Sprite):
@@ -35,7 +36,10 @@ class Player(pygame.sprite.Sprite):
         self.turn_delay = 0.08
 
     def update(self, keys, game, dt):
-        if game.state_stack[-1] != 'world' or (game.message_box and game.message_box.visible):
+        if (game.state_stack[-1] != 'world' or
+                (game.message_box and game.message_box.visible) or
+                getattr(game, 'heal_anim', None) or
+                getattr(game, 'yes_no_prompt', None)):
             return
         if any(npc.state in ('spotted', 'walking') for npc in getattr(game, 'npcs', [])):
             return
@@ -141,7 +145,24 @@ class Player(pygame.sprite.Sprite):
             return
         tile_x = self.rect.x // config.TILE_SIZE
         tile_y = self.rect.y // config.TILE_SIZE
-        if ((tile_x, tile_y) in game.encounter_tile_coords and random.random() < 0.15):
+        on_enc = (tile_x, tile_y) in game.encounter_tile_coords
+
+        if getattr(game, 'repel_steps', 0) > 0:
+            game.repel_steps -= 1
+            if game.repel_steps == 0:
+                game.message_box.queue_messages(["Repel wore off!"], wait_for_input=True)
+                return
+            if on_enc:
+                lead = game.player_dinos[game.active_dino_index] if game.player_dinos else None
+                lead_level = lead['level'] if lead else 1
+                zone = game.get_player_zone(tile_x, tile_y)
+                zone_data = ENCOUNTER_ZONES.get(zone, {})
+                if zone_data.get('level_range', (99, 99))[1] < lead_level:
+                    return  # all dinos here are lower level, repel blocks them
+            else:
+                return
+
+        if on_enc and random.random() < 0.15:
             game.trigger_encounter()
 
     def check_for_entrance(self, game):

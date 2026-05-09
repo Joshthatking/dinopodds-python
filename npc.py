@@ -36,12 +36,13 @@ class NPC:
     _FACING  = {(1, 0): 'right', (-1, 0): 'left', (0, 1): 'down', (0, -1): 'up'}
     _DIR_VEC = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}
 
-    def __init__(self, trainer_id, tile_x, tile_y, facing='down', sight_range=4):
+    def __init__(self, trainer_id, tile_x, tile_y, facing='down', sight_range=4, npc_type='trainer'):
         self.trainer_id  = trainer_id
         self.tile_x      = tile_x
         self.tile_y      = tile_y
         self.facing      = facing
         self.sight_range = sight_range
+        self.npc_type    = npc_type  # 'trainer' | 'healer'
         self.state       = 'idle'   # idle | spotted | walking | done
         self.defeated    = TRAINER_DATA.get(trainer_id, {}).get('defeated', False)
 
@@ -127,6 +128,8 @@ class NPC:
     # ── update ────────────────────────────────────────────────────────────────
 
     def update(self, dt, player, game):
+        if self.npc_type in ('healer', 'shop'):
+            return
         if self.defeated or game.state != 'world' or game.message_box.visible:
             return
 

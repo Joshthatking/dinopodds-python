@@ -81,7 +81,20 @@ ENCOUNTER_DINOS_PATHS = {
 NPC_SHEETS = {
     # trainer_id -> path to 4x4 spritesheet (32x32 per cell)
     # row 0=down, 1=left, 2=right, 3=up  |  col 0=still, 1=walk, 2=still, 3=walk
-    'amber': os.path.join('assets', 'NPC', 'Professor_Amber.png'),
+    'amber':       os.path.join('assets', 'NPC', 'Professor_Amber.png'),
+    'dc_lady':     os.path.join('assets', 'NPC', 'DC_LADY.png'),
+    'dcmart_lady': os.path.join('assets', 'NPC', 'DCMart_LADY.png'),
+}
+
+# Per-world NPC definitions: (trainer_id, tile_x, tile_y, facing, sight_range, npc_type)
+WORLD_NPCS = {
+    'LOST_REGION.world': [
+        ('amber', 5, 34, 'down', 4, 'trainer'),
+    ],
+    'DINOCENTER.tmx': [
+        ('dc_lady',     9, 2, 'down', 0, 'healer'),
+        ('dcmart_lady', 3, 2, 'down', 0, 'shop'),   # adjust tile position as needed
+    ],
 }
 
 ENCOUNTER_BASE_SIZE = 150
@@ -111,16 +124,42 @@ MAP_ENTITY_PATH = {
 ITEMS = {
     "DinoPod": {
         "name": "DinoPod",
-        "icon": os.path.join(ITEMS_PATH, "dinopodd.png"),
+        "icon": os.path.join(ITEMS_PATH, "dinopod.png"),
         "description": "A basic device used to capture wild Dinos",
         "catch_rate": 0.9,
     },
     "DinoCapsule": {
         "name": "DinoCapsule",
-        "icon": os.path.join(ITEMS_PATH, "dinpodd.png"),
-        "description": "A basic device used to capture wild Dinos",
+        "icon": os.path.join(ITEMS_PATH, "dinopod+.png"),
+        "description": "A powerful device used to capture wild Dinos",
+    },
+    "Whitepod": {
+        "name": "Whitepod",
+        "icon": os.path.join(ITEMS_PATH, "ballwhite.png"),
+        "description": "Premium pod with a higher catch rate",
+        "catch_rate": 0.95,
+    },
+    "Repel": {
+        "name": "Repel",
+        "icon": os.path.join(ITEMS_PATH, "repel.png"),
+        "description": "Wards off lower-level dinos for 250 steps",
     },
 }
+
+# Ball type -> icon path (used for heal animation and party display)
+BALL_ICONS = {
+    'DinoPod':     os.path.join(ITEMS_PATH, 'dinopod.png'),
+    'DinoCapsule': os.path.join(ITEMS_PATH, 'dinopod+.png'),
+    'Whitepod':    os.path.join(ITEMS_PATH, 'ballwhite.png'),
+    'ballwhite':   os.path.join(ITEMS_PATH, 'ballwhite.png'),
+}
+
+# Items available in the DinoMart shop
+SHOP_ITEMS = [
+    {'name': 'DinoPod',  'price': 500},
+    {'name': 'Whitepod', 'price': 1500},
+    {'name': 'Repel',    'price': 1000},
+]
 
 # Ball pickups on map — Tiled object property "item" -> dino name
 DINO_BALL_MAP = {
@@ -131,8 +170,8 @@ DINO_BALL_MAP = {
 DINO_BALL_LEVEL = 5
 
 SPAWN_POINTS = {
-    'home':      (160, 1248),   # START_TOWN tile (10,7) in world pixels
-    # 'town1':  (608, -672),   # TOWN_1.3 tile (25, -21) in world pixels
+    # 'home':      (160, 1248),   # START_TOWN tile (10,7) in world pixels
+    'home':  (608, -672),   # TOWN_1.3 tile (25, -21) in world pixels
 }
 
 

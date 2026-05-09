@@ -11,7 +11,8 @@ TRAINER_DATA = {
         'directions': ['down'],
         'look_around': True,
         'defeated': False,
-        'biome': 'forest'
+        'biome': 'forest',
+        'reward_coins': 150,
     },
 
 }
@@ -261,7 +262,7 @@ def calculate_xp_gain(player_level, opponent_level, base_xp=7, state_multiplier=
     
     # Diminishing returns: scale XP when overleveled
     if player_level > opponent_level:
-        diminishing = 1 - ((player_level - opponent_level) * 0.05)  # lose 5% per level over
+        diminishing = 1 - ((player_level - opponent_level) * 0.02)  # lose 5% per level over
         diminishing = max(diminishing, 0.2)  # never go below 20%
     else:
         diminishing = 1.0  # full XP if enemy is >= level

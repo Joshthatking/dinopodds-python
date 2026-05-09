@@ -69,8 +69,18 @@ if __name__ == '__main__':
 
 #5/8
 #3 Starter spawns and pick up functions! - COMPLETE
-#HEALING center and purchasing items center with NPC and dialogue logic
+#HEALING center and purchasing items center with NPC and dialogue logic - COMPLETE
 #Sprite sheet with DC center assets and dinopod fixed for pick up and for DC animation - COMPLETE
-#Eclipse mode BOOL
+#Eclipse mode BOOL - COMPLETE
+# BATTLE Damage flashing indicator animation - COMPLETE
+
+#5/9
+#FIXEDBUG - spam j in battle no longer freezes game - COMPLETE
+#Add speed in battle to determine order
+#fix battle perspectives
+#fix xp diminishing returns and overall state multipliers
+#add type chart to read in dinocenter by pc
+#change current box system to pc system
+#add move abilities
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks
