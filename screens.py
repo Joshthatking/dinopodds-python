@@ -313,6 +313,50 @@ class LevelUpPopup:
             self.active = False
 
 
+# === Dino Ball Pickup Popup ===
+class DinoPickupPopup:
+    W, H = 260, 210
+
+    def __init__(self, dino, fonts, party_full, screen_w=640, screen_h=480):
+        self.dino = dino
+        self.fonts = fonts
+        self.active = True
+        self._overlay = pygame.Surface((screen_w, screen_h), pygame.SRCALPHA)
+        self._overlay.fill((0, 0, 0, 160))
+        self.rect = pygame.Rect((screen_w - self.W) // 2, (screen_h - self.H) // 2, self.W, self.H)
+        raw = dino['image']
+        self._dino_img = pygame.transform.scale(raw, (90, 90))
+        self._party_full = party_full
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            self.active = False
+
+    def draw(self, screen):
+        screen.blit(self._overlay, (0, 0))
+        pygame.draw.rect(screen, (245, 242, 220), self.rect, border_radius=8)
+        pygame.draw.rect(screen, (70, 50, 90), self.rect, 3, border_radius=8)
+
+        cx = self.rect.centerx
+        y = self.rect.y + 12
+
+        img_rect = self._dino_img.get_rect(centerx=cx, top=y)
+        screen.blit(self._dino_img, img_rect)
+        y += 98
+
+        name_surf = self.fonts['BAG'].render(
+            f"{self.dino['name']}  Lv.{self.dino['level']}", True, (30, 20, 50))
+        screen.blit(name_surf, name_surf.get_rect(centerx=cx, top=y))
+        y += 22
+
+        msg = "Party full! Sent to box." if self._party_full else "Added to your team!"
+        msg_surf = self.fonts['BAG'].render(msg, True, (30, 30, 30))
+        screen.blit(msg_surf, msg_surf.get_rect(centerx=cx, top=y))
+
+        prompt = self.fonts['XS'].render("[ J ] Continue", True, (100, 90, 120))
+        screen.blit(prompt, prompt.get_rect(centerx=cx, bottom=self.rect.bottom - 10))
+
+
 # === Party Screen ===
 class PartyScreen:
     def __init__(self, game):

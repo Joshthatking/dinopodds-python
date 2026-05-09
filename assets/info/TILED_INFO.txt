@@ -2,7 +2,7 @@
 
 CUSTOM PROPERTIES
 
-type - grass/water/tallgrass/sand/cave (string)
+type - grass/water/tallgrass/sand/cave/ball/heal/buy (string)
 encounter - TRUE/FALSE
 collision - TRUE/FALSE
 interact - TRUE/FALSE

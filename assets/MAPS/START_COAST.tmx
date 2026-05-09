@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="1">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="3">
  <tileset firstgid="1" source="../TILESET/Base1.tsx"/>
  <tileset firstgid="273" source="../TILESET/biomes.tsx"/>
+ <tileset firstgid="4173" source="../TILESET/DINOCENTERBALL.tsx"/>
+ <objectgroup id="6" name="dino3">
+  <object id="2" x="102.667" y="68" width="18" height="20.6667">
+   <properties>
+    <property name="ball" type="bool" value="true"/>
+    <property name="item" value="dino3"/>
+   </properties>
+  </object>
+ </objectgroup>
  <layer id="1" name="Tile Layer 1" width="20" height="15">
   <data encoding="csv">
 66,66,66,61,40,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -42,7 +51,7 @@
  </layer>
  <layer id="3" name="Tile Layer 3" width="20" height="15">
   <data encoding="csv">
-0,0,0,118,0,94,94,94,94,94,94,94,94,94,94,94,94,94,94,94,
+0,0,0,118,0,94,94,94,94,94,0,0,94,94,94,94,94,94,94,94,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,94,94,94,94,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,94,94,94,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,94,94,

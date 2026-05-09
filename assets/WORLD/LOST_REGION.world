@@ -62,6 +62,13 @@
             "width": 640,
             "x": 480,
             "y": -896
+        },
+        {
+            "fileName": "../MAPS/START_COAST_1.1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -800,
+            "y": 544
         }
     ],
     "onlyShowAdjacentMaps": false,

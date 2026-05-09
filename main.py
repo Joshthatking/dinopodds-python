@@ -66,6 +66,11 @@ if __name__ == '__main__':
 #Dino center complete with teleport
 #5/7
 #Day/Night Cycle - COMPLETE
+
+#5/8
+#3 Starter spawns and pick up functions! - COMPLETE
 #HEALING center and purchasing items center with NPC and dialogue logic
+#Sprite sheet with DC center assets and dinopod fixed for pick up and for DC animation - COMPLETE
+#Eclipse mode BOOL
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks

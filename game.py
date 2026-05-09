@@ -24,14 +24,21 @@ class Game:
         self.zoom = 1.25
         self.render_surface = pygame.Surface((config.WIDTH // self.zoom, config.HEIGHT // self.zoom))
         self.current_world_file = 'LOST_REGION.world'
+        self.map_ball_images = {}
+        self.map_ball_items = {}
+        self._ballwhite_img = pygame.transform.scale(
+            pygame.image.load('assets/Items/ballwhite.png').convert_alpha(),
+            (config.TILE_SIZE, config.TILE_SIZE))
+        self.dino_pickup_popup = None
         (self.world_maps, self.solid_tile_coords, self.encounter_tile_coords,
-         self.tile_types, self.entrance_tile_coords, self.exit_tile_coords) = self.load_world('LOST_REGION.world')
+         self.tile_types, self.entrance_tile_coords, self.exit_tile_coords,
+         _init_ball_items) = self.load_world('LOST_REGION.world')
         self.world_bounds = self._compute_world_bounds()
         print(f"[DEBUG] entrance_tile_coords: {self.entrance_tile_coords}")
         print(f"[DEBUG] exit_tile_coords: {self.exit_tile_coords}")
 
         # DETERMINE PLAYER SPAWN
-        self.player = Player(spawn_point='town1')
+        self.player = Player(spawn_point='home')
         self.all_sprites = pygame.sprite.Group(self.player)
 
         self.fade_alpha = 0
@@ -63,6 +70,7 @@ class Game:
         # Items
         self.item_image = pygame.image.load(config.ITEMS["DinoPod"]['icon']).convert_alpha()
         self.items_on_map = {}
+        self._apply_ball_items(_init_ball_items)
         self.inventory = {item: 0 for item in config.ITEMS.keys()}
         self.item_icons = {key: pygame.image.load(data["icon"]).convert_alpha() for key, data in config.ITEMS.items()}
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
@@ -382,15 +390,18 @@ class Game:
         else:
             result = self.load_world(world_file)
         (self.world_maps, self.solid_tile_coords, self.encounter_tile_coords,
-         self.tile_types, self.entrance_tile_coords, self.exit_tile_coords) = result
+         self.tile_types, self.entrance_tile_coords, self.exit_tile_coords,
+         ball_items) = result
         self.world_bounds = self._compute_world_bounds()
+        self.items_on_map = {}
+        self._apply_ball_items(ball_items)
 
     def _load_single_tmx(self, filename):
         """Load one .tmx file directly — used for small interior maps."""
         path = os.path.join('assets/WORLD', filename)
         tmx = pytmx.load_pygame(path, pixelalpha=True)
         ts = config.TILE_SIZE
-        solid, encounter, tile_types, entrances, exits = set(), set(), {}, {}, set()
+        solid, encounter, tile_types, entrances, exits, ball_items = set(), set(), {}, {}, set(), {}
         for layer in tmx.visible_layers:
             if isinstance(layer, pytmx.TiledTileLayer):
                 above = self._layer_num(layer) >= 4
@@ -414,7 +425,10 @@ class Game:
                 for obj in layer:
                     props = obj.properties or {}
                     ox, oy = int(obj.x // ts), int(obj.y // ts)
-                    if props.get('collision'):
+                    if props.get('ball'):
+                        item_name = props.get('item', 'DinoPod')
+                        ball_items[(ox, oy)] = (item_name, getattr(obj, 'image', None))
+                    elif props.get('collision'):
                         for ty in range(oy, int((obj.y + obj.height - 1) // ts) + 1):
                             for tx in range(ox, int((obj.x + obj.width - 1) // ts) + 1):
                                 solid.add((tx, ty))
@@ -426,7 +440,7 @@ class Game:
         world_maps = [{'tmx': tmx, 'x': 0, 'y': 0,
                         'width': tmx.width * ts, 'height': tmx.height * ts}]
         print(f"[DEBUG] _load_single_tmx({filename}): entrances={list(entrances.items())} exits={list(exits)}")
-        return world_maps, solid, encounter, tile_types, entrances, exits
+        return world_maps, solid, encounter, tile_types, entrances, exits, ball_items
 
     def _place_player(self, tile_x, tile_y):
         self.player.rect.x = tile_x * config.TILE_SIZE
@@ -520,6 +534,7 @@ class Game:
         tile_types = {}
         entrances = {}  # (tx, ty) -> entrance_id string
         exits = set()   # (tx, ty) tiles that return to previous world
+        ball_items = {}  # (tx, ty) -> (item_name, image)
 
         for m in world_json['maps']:
             tmx_path = os.path.normpath(os.path.join(world_dir, m['fileName']))
@@ -557,7 +572,10 @@ class Game:
                         props = obj.properties or {}
                         ox = wtx + int(obj.x // ts)
                         oy = wty + int(obj.y // ts)
-                        if props.get('collision'):
+                        if props.get('ball'):
+                            item_name = props.get('item', 'DinoPod')
+                            ball_items[(ox, oy)] = (item_name, getattr(obj, 'image', None))
+                        elif props.get('collision'):
                             tx1 = wtx + int((obj.x + obj.width - 1) // ts)
                             ty1 = wty + int((obj.y + obj.height - 1) // ts)
                             for ty in range(oy, ty1 + 1):
@@ -571,7 +589,7 @@ class Game:
 
             world_maps.append({'tmx': tmx, 'x': wx, 'y': wy, 'width': m['width'], 'height': m['height']})
 
-        return world_maps, solid, encounter, tile_types, entrances, exits
+        return world_maps, solid, encounter, tile_types, entrances, exits, ball_items
 
     def _compute_world_bounds(self):
         ts = config.TILE_SIZE
@@ -600,6 +618,12 @@ class Game:
             if ('encounter' in self.state_stack and hasattr(self, 'encounter_ui') and
                     self.encounter_ui.is_hp_animating(
                         self.player_dinos[self.active_dino_index], self.enemy_dino)):
+                return
+
+            if self.dino_pickup_popup and self.dino_pickup_popup.active:
+                self.dino_pickup_popup.handle_event(event)
+                if not self.dino_pickup_popup.active:
+                    self.dino_pickup_popup = None
                 return
 
             if self.message_box.visible:
@@ -723,6 +747,16 @@ class Game:
                 return True
         return False
 
+    def _apply_ball_items(self, ball_items):
+        for pos in list(self.map_ball_items.keys()):
+            self.items_on_map.pop(pos, None)
+        self.map_ball_items = {}
+        self.map_ball_images = {}
+        for (tx, ty), (item_name, img) in ball_items.items():
+            self.items_on_map[(tx, ty)] = item_name
+            self.map_ball_items[(tx, ty)] = item_name
+            self.map_ball_images[(tx, ty)] = img if img is not None else self._ballwhite_img
+
     def pickup_item(self):
         px = self.player.rect.x // config.TILE_SIZE
         py = self.player.rect.y // config.TILE_SIZE
@@ -730,8 +764,20 @@ class Game:
         elif self.player.facing == "down": py += 1
         elif self.player.facing == "left": px -= 1
         elif self.player.facing == "right":px += 1
-        if (px, py) in self.items_on_map:
-            item_name = self.items_on_map.pop((px, py))
+        if (px, py) not in self.items_on_map:
+            return
+        item_name = self.items_on_map.pop((px, py))
+        if item_name in config.DINO_BALL_MAP:
+            dino_name = config.DINO_BALL_MAP[item_name]
+            new_dino = self.create_dino(dino_name, config.DINO_BALL_LEVEL)
+            party_full = len(self.player_dinos) >= self.PARTY_LIMIT
+            if party_full:
+                self.box_dinos.append(new_dino)
+            else:
+                self.player_dinos.append(new_dino)
+            self.dino_pickup_popup = DinoPickupPopup(
+                new_dino, self.fonts, party_full, config.WIDTH, config.HEIGHT)
+        else:
             self.inventory[item_name] += 1
             self.message_box.queue_messages([f'Picked up a {item_name}!'], wait_for_input=True)
 
@@ -786,6 +832,10 @@ class Game:
 
         if background_state == 'world':
             self.draw_map_below(self.render_surface)
+            ts = config.TILE_SIZE
+            for (tx, ty), img in self.map_ball_images.items():
+                if (tx, ty) in self.items_on_map:
+                    self.render_surface.blit(img, (tx * ts - self.camera_x, ty * ts - self.camera_y))
             for npc in self.npcs:
                 npc.draw(self.render_surface, self.camera_x, self.camera_y)
             for sprite in self.all_sprites:
@@ -862,6 +912,9 @@ class Game:
         if self.message_box.visible and self.state != 'encounter':
             self.message_box.draw(self.screen)
 
+        if self.dino_pickup_popup and self.dino_pickup_popup.active:
+            self.dino_pickup_popup.draw(self.screen)
+
         pygame.display.flip()
 
     def draw_overlay(self):
@@ -912,6 +965,8 @@ class Game:
                             if img:
                                 surface.blit(img, (ox + x * ts, oy + y * ts))
         for (x, y), item_name in self.items_on_map.items():
+            if (x, y) in self.map_ball_items:
+                continue
             surface.blit(self.item_icons[item_name],
                          (x * ts - self.camera_x, y * ts - self.camera_y))
 
