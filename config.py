@@ -104,14 +104,6 @@ ENCOUNTER_DINO_SIZES = {
     'Luna':  1.35,
 }
 
-PLAYER_DINO_PATH = {
-    'Vusion':    os.path.join(DINOS_BACK,  'Vusion_back.png'),
-    'Anemamace': os.path.join(DINOS_FRONT, 'Anemamace.png'),
-    'Corlave':   os.path.join(DINOS_FRONT, 'Corlave.png'),
-    'Creuw':   os.path.join(DINOS_FRONT, 'Creuw.png'),
-    'Luna':   os.path.join(DINOS_FRONT, 'Luna.png'),
-
-}
 
 ICON_DINOS_PATH = {
     'Vusion':    os.path.join(DINOS_PATH, 'Vusion_Icon.png'),

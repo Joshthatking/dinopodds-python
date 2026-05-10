@@ -1,3 +1,4 @@
+import os
 import pygame
 import config
 from data import *
@@ -325,7 +326,7 @@ class DinoPickupPopup:
         self._overlay = pygame.Surface((screen_w, screen_h), pygame.SRCALPHA)
         self._overlay.fill((0, 0, 0, 160))
         self.rect = pygame.Rect((screen_w - self.W) // 2, (screen_h - self.H) // 2, self.W, self.H)
-        raw = dino['image']
+        raw = dino.get('front_image', dino['image'])
         self._dino_img = pygame.transform.scale(raw, (90, 90))
         self._party_full = party_full
 
@@ -359,100 +360,352 @@ class DinoPickupPopup:
 
 
 # === Party Screen ===
+class BoxScreen:
+    """PC Box — dual-panel: box grid (left) and party list (right)."""
+    ICON_SZ = 48
+    COLS    = 5
+    BOX_X   = 8
+    BOX_Y   = 48
+    PAR_X   = 372
+    PAR_Y   = 48
+    SLOT_W  = 56   # icon + padding
+    SLOT_H  = 70   # icon + level text + padding
+
+    def __init__(self, game):
+        self.fonts      = game.fonts
+        self.font       = game.fonts['BAG']
+        self.xs_font    = game.fonts['XS']
+        self.title_font = game.fonts['BATTLE']
+        self.panel      = 'box'
+        self.box_cursor = 0
+        self.par_cursor = 0
+        self.grabbed    = None   # {'from':'box'/'party', 'idx':int} or None
+        self._icons     = {}
+        for name, path in config.ENCOUNTER_DINOS_PATHS.items():
+            if name.endswith('2'):
+                continue
+            try:
+                img = pygame.image.load(path).convert_alpha()
+                self._icons[name] = pygame.transform.scale(img, (self.ICON_SZ, self.ICON_SZ))
+            except Exception:
+                surf = pygame.Surface((self.ICON_SZ, self.ICON_SZ), pygame.SRCALPHA)
+                surf.fill((80, 80, 160, 200))
+                self._icons[name] = surf
+
+    def reset(self):
+        self.panel      = 'box'
+        self.box_cursor = 0
+        self.par_cursor = 0
+        self.grabbed    = None
+
+    def _box_rect(self, idx):
+        col = idx % self.COLS
+        row = idx // self.COLS
+        return pygame.Rect(self.BOX_X + col * self.SLOT_W,
+                           self.BOX_Y + row * self.SLOT_H,
+                           self.ICON_SZ, self.ICON_SZ)
+
+    def _par_rect(self, idx):
+        return pygame.Rect(self.PAR_X, self.PAR_Y + idx * 62, 260, 54)
+
+    def handle_event(self, event, game):
+        if event.type != pygame.KEYDOWN:
+            return None
+
+        box   = game.box_dinos
+        party = game.player_dinos
+
+        if event.key == pygame.K_SPACE:
+            if self.grabbed:
+                self.grabbed = None
+            else:
+                return 'back'
+            return None
+
+        if self.panel == 'box':
+            n = len(box)
+            if event.key == pygame.K_d:
+                if n == 0 or self.box_cursor >= n - 1:
+                    self.panel = 'party'   # past last slot → cross to party
+                else:
+                    self.box_cursor += 1
+            elif event.key == pygame.K_a:
+                if self.box_cursor > 0:
+                    self.box_cursor -= 1
+                # at slot 0, do nothing (box is leftmost panel)
+            elif event.key == pygame.K_s:
+                self.box_cursor = min(self.box_cursor + self.COLS, max(0, n - 1))
+            elif event.key == pygame.K_w:
+                self.box_cursor = max(0, self.box_cursor - self.COLS)
+            elif event.key == pygame.K_j:
+                if self.grabbed is None:
+                    if n > 0:
+                        self.grabbed = {'from': 'box', 'idx': self.box_cursor}
+                else:
+                    src, sidx = self.grabbed['from'], self.grabbed['idx']
+                    tidx = self.box_cursor
+                    if src == 'box':
+                        if sidx != tidx and sidx < len(box) and tidx < len(box):
+                            box[sidx], box[tidx] = box[tidx], box[sidx]
+                    else:  # from party → drop in box
+                        if tidx < len(box):
+                            party[sidx], box[tidx] = box[tidx], party[sidx]
+                        elif len(party) > 1:
+                            dino = party.pop(sidx)
+                            box.append(dino)
+                            self.par_cursor = min(self.par_cursor, max(0, len(party) - 1))
+                    self.grabbed = None
+
+        else:  # party panel
+            if event.key == pygame.K_s:
+                self.par_cursor = min(self.par_cursor + 1, game.PARTY_LIMIT - 1)
+            elif event.key == pygame.K_w:
+                self.par_cursor = max(0, self.par_cursor - 1)
+            elif event.key == pygame.K_a:
+                self.panel = 'box'   # cross back to box
+            elif event.key == pygame.K_o:
+                # Quick-send highlighted party dino to next empty box slot
+                if self.par_cursor < len(party) and len(party) > 1:
+                    dino = party.pop(self.par_cursor)
+                    box.append(dino)
+                    self.par_cursor = min(self.par_cursor, max(0, len(party) - 1))
+                    self.box_cursor = len(box) - 1   # land cursor on the newly sent dino
+            elif event.key == pygame.K_j:
+                if self.grabbed is None:
+                    if self.par_cursor < len(party):
+                        self.grabbed = {'from': 'party', 'idx': self.par_cursor}
+                else:
+                    src, sidx = self.grabbed['from'], self.grabbed['idx']
+                    tidx = self.par_cursor
+                    if src == 'party':
+                        if sidx != tidx and sidx < len(party) and tidx < len(party):
+                            party[sidx], party[tidx] = party[tidx], party[sidx]
+                    else:  # from box → drop in party
+                        if tidx < len(party):
+                            box[sidx], party[tidx] = party[tidx], box[sidx]
+                        elif tidx < game.PARTY_LIMIT:
+                            dino = box.pop(sidx)
+                            party.append(dino)
+                            self.box_cursor = min(self.box_cursor, max(0, len(box) - 1))
+                    self.grabbed = None
+
+        return None
+
+    def draw(self, surface, game):
+        surface.fill((18, 10, 38))
+
+        box   = game.box_dinos
+        party = game.player_dinos
+
+        CONTENT_TOP = 52   # slots start here; leaves room for header band
+        CONTENT_BOT = 432  # slots must end above this; leaves room for status band
+
+        # ── Box panel slots ────────────────────────────────────────
+        box_active = self.panel == 'box'
+        max_rows   = 5
+        hover_name = ""
+        for idx in range(self.COLS * max_rows):
+            col  = idx % self.COLS
+            row  = idx // self.COLS
+            rect = pygame.Rect(self.BOX_X + col * self.SLOT_W,
+                               CONTENT_TOP + row * self.SLOT_H,
+                               self.ICON_SZ, self.ICON_SZ)
+            if rect.bottom > CONTENT_BOT:
+                break
+            is_cursor  = box_active and idx == self.box_cursor
+            is_grabbed = (self.grabbed and self.grabbed['from'] == 'box'
+                          and self.grabbed['idx'] == idx)
+
+            bg = (255, 210, 0) if is_grabbed else (70, 65, 130) if is_cursor else (35, 30, 65)
+            pygame.draw.rect(surface, bg, rect)
+            pygame.draw.rect(surface, (90, 80, 160), rect, 1)
+
+            if idx < len(box):
+                dino = box[idx]
+                icon = self._icons.get(dino['name'])
+                if icon:
+                    surface.blit(icon, rect.topleft)
+                surface.blit(self.xs_font.render(f"Lv{dino['level']}", True, (200, 200, 255)),
+                             (rect.x, rect.bottom + 2))
+                if is_cursor:
+                    hover_name = dino['name']
+
+        # ── Party panel slots ──────────────────────────────────────
+        par_active = self.panel == 'party'
+        for i in range(game.PARTY_LIMIT):
+            rect       = pygame.Rect(self.PAR_X, CONTENT_TOP + i * 62, 260, 54)
+            is_cursor  = par_active and i == self.par_cursor
+            is_grabbed = (self.grabbed and self.grabbed['from'] == 'party'
+                          and self.grabbed['idx'] == i)
+
+            if i >= len(party):
+                bg = (50, 90, 50) if is_cursor else (25, 25, 25)
+            elif is_grabbed:
+                bg = (255, 210, 0)
+            elif is_cursor:
+                bg = (60, 140, 60)
+            else:
+                bg = (35, 65, 35)
+
+            pygame.draw.rect(surface, bg, rect)
+            pygame.draw.rect(surface, (80, 160, 80), rect, 1)
+
+            if i < len(party):
+                dino = party[i]
+                icon = self._icons.get(dino['name'])
+                if icon:
+                    surface.blit(pygame.transform.scale(icon, (40, 40)),
+                                 (rect.x + 4, rect.y + 7))
+                surface.blit(self.font.render(dino['name'], True, (255, 255, 255)),
+                             (rect.x + 50, rect.y + 4))
+                surface.blit(self.xs_font.render(f"Lv {dino['level']}", True, (200, 200, 200)),
+                             (rect.x + 50, rect.y + 22))
+                hp_pct = dino['hp'] / max(1, dino['max_hp'])
+                bar = pygame.Rect(rect.x + 50, rect.y + 40, 160, 7)
+                pygame.draw.rect(surface, (50, 50, 50), bar)
+                clr = (80, 200, 80) if hp_pct > 0.5 else (220, 180, 0) if hp_pct > 0.2 else (200, 60, 60)
+                pygame.draw.rect(surface, clr,
+                                 (bar.x, bar.y, int(bar.w * max(0, hp_pct)), bar.h))
+            else:
+                empty_clr = (120, 180, 120) if is_cursor else (55, 70, 55)
+                surface.blit(self.xs_font.render("-- empty --", True, empty_clr),
+                             (rect.x + 50, rect.y + 22))
+
+        # ── Header band (drawn AFTER slots so text is always on top) ──
+        pygame.draw.rect(surface, (12, 8, 28), pygame.Rect(0, 0, 640, CONTENT_TOP))
+        pygame.draw.line(surface, (60, 50, 100), (0, CONTENT_TOP - 1), (640, CONTENT_TOP - 1))
+
+        surface.blit(self.title_font.render("PC  BOX", True, (220, 210, 255)), (8, 6))
+
+        box_lbl_clr  = (160, 150, 255) if box_active  else (80, 75, 140)
+        par_lbl_clr  = (140, 220, 140) if par_active  else (60, 110, 60)
+        surface.blit(self.xs_font.render("BOX", True, box_lbl_clr),  (self.BOX_X, 34))
+        surface.blit(self.xs_font.render("PARTY", True, par_lbl_clr), (self.PAR_X, 34))
+
+        # ── Status band (drawn AFTER slots so text is always on top) ──
+        pygame.draw.rect(surface, (12, 8, 28), pygame.Rect(0, CONTENT_BOT, 640, 480 - CONTENT_BOT))
+        pygame.draw.line(surface, (60, 50, 100), (0, CONTENT_BOT), (640, CONTENT_BOT))
+
+        if self.grabbed:
+            src  = self.grabbed['from']
+            sidx = self.grabbed['idx']
+            lst  = box if src == 'box' else party
+            name = lst[sidx]['name'] if sidx < len(lst) else "?"
+            surface.blit(self.font.render(f"Holding {name}  —  J=place  SPACE=cancel",
+                                          True, (255, 220, 0)), (8, CONTENT_BOT + 6))
+        else:
+            if hover_name:
+                surface.blit(self.font.render(hover_name, True, (255, 255, 200)),
+                             (8, CONTENT_BOT + 6))
+            hint = "J=grab/place   O=quick send to box   SPACE=back"
+            surface.blit(self.xs_font.render(hint, True, (100, 90, 160)), (8, CONTENT_BOT + 24))
+
+
 class PartyScreen:
     def __init__(self, game):
-        self.game = game
-        self.width = 640
-        self.height = 480
-        self.bg_color = (30, 30, 30)
-        self.font = game.fonts['BATTLE2']
-        self.small_font = pygame.font.SysFont('Arial', 22)
+        self.game         = game
+        self.width        = 640
+        self.height       = 480
+        self.bg_color     = (30, 30, 30)
+        self.font         = game.fonts['BATTLE2']
+        self.small_font   = pygame.font.SysFont('Arial', 22)
         self.smaller_font = pygame.font.SysFont('Arial', 20)
-        self.selected_index = 0
-        self.mode = 'party'
-        self.preview_frame = 0
-        self.preview_last_switch = 0
-        self.preview_selected_id = None
-        self.preview_interval_ms = 250
+        self.selected_index  = 0
+        self.picking_index   = None   # index of dino being repositioned
+        self.preview_frame        = 0
+        self.preview_last_switch  = 0
+        self.preview_selected_id  = None
+        self.preview_interval_ms  = 250
 
     def reset(self):
         self.selected_index = 0
-
-    def get_current_list(self, game):
-        return game.player_dinos if self.mode == 'party' else game.box_dinos
+        self.picking_index  = None
 
     def handle_event(self, event, game):
         if event.type != pygame.KEYDOWN:
             return None
 
         in_encounter = 'encounter' in game.state_stack
-        awaiting = getattr(game, "awaiting_switch", False)
+        awaiting     = getattr(game, "awaiting_switch", False)
 
-        if awaiting:
-            if event.key not in (pygame.K_w, pygame.K_s, pygame.K_j):
-                return None
-            self.mode = 'party'
+        party       = game.player_dinos
+        list_length = len(party)
 
-        current_list = game.player_dinos if awaiting else self.get_current_list(game)
-        list_length = len(current_list)
-
-        if event.key == pygame.K_u:
-            if not in_encounter and not awaiting:
-                self.mode = 'box' if self.mode == 'party' else 'party'
-                self.selected_index = 0
+        # Navigation (always allowed)
+        if event.key == pygame.K_w and list_length > 0:
+            self.selected_index = (self.selected_index - 1) % list_length
+            return None
+        if event.key == pygame.K_s and list_length > 0:
+            self.selected_index = (self.selected_index + 1) % list_length
             return None
 
-        if list_length > 0:
-            if event.key == pygame.K_w:
-                self.selected_index = (self.selected_index - 1) % list_length
-                return None
-            elif event.key == pygame.K_s:
-                self.selected_index = (self.selected_index + 1) % list_length
-                return None
-
-        # Forced swap (active dino fainted)
+        # ── Forced switch after faint ──────────────────────────────
         if awaiting and in_encounter and event.key == pygame.K_j:
-            if 0 <= self.selected_index < len(game.player_dinos):
-                chosen = game.player_dinos[self.selected_index]
-                if chosen.get('hp', 0) <= 0:
-                    game.message_box.queue_messages(
-                        [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
-                    return None
+            chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
+            if chosen and chosen.get('hp', 0) <= 0:
+                game.message_box.queue_messages(
+                    [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
+                return None
+            if chosen:
                 game.active_dino_index = self.selected_index
-                game.awaiting_switch = False
+                game.awaiting_switch   = False
                 game.pop_state()
                 game.message_box.queue_messages(
                     [f"Go, {chosen['name']}!", "What will you do?"], wait_for_input=True)
             return None
 
-        # Voluntary swap during encounter
+        # ── Voluntary switch during encounter ─────────────────────
         if in_encounter and not awaiting and event.key == pygame.K_j:
-            if 0 <= self.selected_index < len(game.player_dinos):
-                chosen = game.player_dinos[self.selected_index]
-                if chosen.get('hp', 0) <= 0:
-                    game.message_box.queue_messages(
-                        [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
-                    return None
+            chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
+            if chosen and chosen.get('hp', 0) <= 0:
+                game.message_box.queue_messages(
+                    [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
+                return None
+            if chosen:
                 game.active_dino_index = self.selected_index
                 game.pop_state()
                 game.message_box.queue_messages(
                     [f"{chosen['name']}, I choose you!"], on_complete=game._enemy_turn)
             return None
 
-        # Box / party transfer
-        if event.key == pygame.K_o:
-            if awaiting or in_encounter:
+        # ── Outside encounter ──────────────────────────────────────
+        if not in_encounter and not awaiting:
+            if event.key == pygame.K_j:
+                if self.picking_index is None:
+                    self.picking_index = self.selected_index
+                else:
+                    # Swap the two positions
+                    a, b = self.picking_index, self.selected_index
+                    if a != b and a < list_length and b < list_length:
+                        party[a], party[b] = party[b], party[a]
+                    self.picking_index = None
                 return None
-            if self.mode == 'party':
-                self.move_party_to_box(game)
-                self.selected_index = min(self.selected_index, max(0, len(game.player_dinos) - 1))
-            else:
-                self.move_box_to_party(game)
-                self.selected_index = min(self.selected_index, max(0, len(game.box_dinos) - 1))
-            return None
 
+            if event.key == pygame.K_o:
+                self.picking_index = None
+                if list_length <= 1:
+                    game.message_box.queue_messages(
+                        ["You must keep at least one Dino!"], wait_for_input=True)
+                else:
+                    idx  = self.selected_index
+                    dino = party[idx]
+                    screen_ref = self
+                    def _do_send(i=idx, s=screen_ref):
+                        if len(game.player_dinos) > 1:
+                            d = game.player_dinos.pop(i)
+                            game.box_dinos.append(d)
+                            s.selected_index = min(i, len(game.player_dinos) - 1)
+                    game.yes_no_prompt   = YesNoPrompt(
+                        f"Send {dino['name']} to the box?",
+                        game.fonts, config.WIDTH, config.HEIGHT)
+                    game.yes_no_callback = _do_send
+                return None
+
+        # ── Back ───────────────────────────────────────────────────
         if event.key == pygame.K_SPACE:
-            if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' and game.state_stack[0] == 'world':
+            self.picking_index = None
+            if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' \
+                    and game.state_stack[0] == 'world':
                 game.pop_state()
                 game.pop_state()
                 game.push_state('menu')
@@ -461,40 +714,25 @@ class PartyScreen:
 
         return None
 
-    def move_party_to_box(self, game):
-        if len(game.player_dinos) <= 1:
-            return
-        dino = game.player_dinos.pop(self.selected_index)
-        game.box_dinos.append(dino)
-        if not game.player_dinos:
-            self.mode = 'box'
-            self.selected_index = 0
-
-    def move_box_to_party(self, game):
-        if len(game.player_dinos) >= 5:
-            return
-        dino = game.box_dinos.pop(self.selected_index)
-        game.player_dinos.append(dino)
-        if not game.box_dinos:
-            self.mode = 'party'
-            self.selected_index = 0
-
     def draw(self, screen):
         screen.fill(self.bg_color)
-        dinos = self.get_current_list(self.game)
+        dinos = self.game.player_dinos
 
         if not dinos:
-            screen.blit(self.font.render("No dinos in this list", True, (255, 255, 255)), (20, 20))
+            screen.blit(self.font.render("No dinos in party", True, (255, 255, 255)), (20, 20))
             return
 
         if self.game.awaiting_switch:
-            screen.blit(self.small_font.render("Choose replacement (use J)", True, (255, 200, 0)), (240, 0))
+            screen.blit(self.small_font.render("Choose replacement  (J=confirm)",
+                                               True, (255, 200, 0)), (230, 2))
 
         box_w, box_h = 200, 70
         for i, dino in enumerate(dinos):
             rect = pygame.Rect(20, 20 + i * (box_h + 10), box_w, box_h)
             if dino.get('hp', 0) <= 0:
                 color = (30, 30, 30)
+            elif i == self.picking_index:
+                color = (100, 200, 255)
             elif i == self.selected_index:
                 color = (0, 150, 255)
             else:
@@ -503,20 +741,13 @@ class PartyScreen:
             pygame.draw.rect(screen, (0, 0, 0), rect, 2)
             screen.blit(self.font.render(dino['name'], True, (255, 255, 255)), (rect.x + 10, rect.y + 5))
             screen.blit(self.font.render(f"Lv{dino['level']}", True, (255, 255, 255)), (rect.x + 10, rect.y + 25))
-            icon_scaled = pygame.transform.scale(dino['image'], (50, 50))
+            icon_scaled = pygame.transform.scale(dino.get('front_image', dino['image']), (50, 50))
             screen.blit(icon_scaled, (rect.x + 140, rect.y + 5))
-            # HP bar
             max_hp = max(1, dino.get('max_hp', 1))
-            hp = dino.get('hp', 0)
-            pct = hp / max_hp
+            pct    = dino.get('hp', 0) / max_hp
             bar_x, bar_y, bar_w, bar_h = rect.x + 10, rect.y + 48, 120, 8
             pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_w, bar_h))
-            if pct > 0.5:
-                bar_color = (80, 200, 80)
-            elif pct > 0.2:
-                bar_color = (220, 180, 0)
-            else:
-                bar_color = (200, 60, 60)
+            bar_color = (80, 200, 80) if pct > 0.5 else (220, 180, 0) if pct > 0.2 else (200, 60, 60)
             pygame.draw.rect(screen, bar_color, (bar_x, bar_y, int(bar_w * pct), bar_h))
             pygame.draw.rect(screen, (0, 0, 0), (bar_x, bar_y, bar_w, bar_h), 1)
             if dino.get('hp', 0) <= 0:
@@ -525,17 +756,11 @@ class PartyScreen:
 
         self.draw_preview(screen, dinos[self.selected_index])
 
-        # Box/Party toggle button
-        label = "Box (U)" if self.mode == 'party' else "Party (U)"
-        btn_rect = pygame.Rect(self.width - 100, self.height - 60, 80, 40)
-        pygame.draw.rect(screen, (120, 120, 120), btn_rect)
-        pygame.draw.rect(screen, (0, 0, 0), btn_rect, 2)
-        btn_text = self.small_font.render(label, True, (0, 0, 0))
-        screen.blit(btn_text, (btn_rect.centerx - btn_text.get_width() // 2,
-                               btn_rect.centery - btn_text.get_height() // 2))
-
-        instruct = "Press O to send to Box" if self.mode == 'party' else "Press O to send to Party"
-        screen.blit(self.small_font.render(instruct, True, (255, 255, 255)), (self.width - 240, self.height - 30))
+        in_encounter = 'encounter' in self.game.state_stack
+        if not in_encounter and not self.game.awaiting_switch:
+            screen.blit(self.small_font.render("J=reorder  O=send to Box  SPACE=back",
+                                               True, (180, 180, 180)),
+                        (230, self.height - 24))
 
     def draw_preview(self, screen, dino):
         preview_rect = pygame.Rect(240, 20, 380, 200)
@@ -724,6 +949,8 @@ class ShopScreen:
         self.xs_font = fonts['XS']
         self.selected_index = 0
         self.icons = {}  # populated by Game after image loading
+        self.qty_mode = False
+        self.qty = 1
 
     def draw(self, surface, coins):
         surface.fill((20, 15, 35))
@@ -761,13 +988,69 @@ class ShopScreen:
                                           (255, 220, 50) if affordable else (160, 110, 110))
             surface.blit(price_surf, (rect.right - price_surf.get_width() - 15, rect.y + 18))
 
-        tip = self.xs_font.render("W/S: Navigate    J: Buy    SPACE: Close", True, (160, 155, 185))
-        surface.blit(tip, (W // 2 - tip.get_width() // 2, H - 25))
+        if self.qty_mode:
+            item  = items[self.selected_index]
+            total = item['price'] * self.qty
+            panel = pygame.Rect(W // 2 - 130, H // 2 - 60, 260, 120)
+            pygame.draw.rect(surface, (30, 25, 45), panel, border_radius=10)
+            pygame.draw.rect(surface, (160, 140, 200), panel, 2, border_radius=10)
+
+            surface.blit(self.font.render(item['name'], True, (255,255,255)),
+                         (panel.x + 10, panel.y + 10))
+
+            arrow_up   = self.font.render("▲", True, (200,180,255))
+            qty_surf   = self.title_font.render(str(self.qty), True, (255,220,50))
+            arrow_down = self.font.render("▼", True, (200,180,255))
+            surface.blit(arrow_up,   (panel.centerx - arrow_up.get_width()//2,   panel.y + 38))
+            surface.blit(qty_surf,   (panel.centerx - qty_surf.get_width()//2,    panel.y + 58))
+            surface.blit(arrow_down, (panel.centerx - arrow_down.get_width()//2,  panel.y + 84))
+
+            cost_surf = self.font.render(f"{total} coins", True,
+                                         (255,220,50) if coins >= total else (200,80,80))
+            surface.blit(cost_surf, (panel.right - cost_surf.get_width() - 12, panel.y + 10))
+
+            hint = self.xs_font.render("W▲  S▼   J=Confirm   SPACE=Cancel", True, (160,155,185))
+            surface.blit(hint, (panel.centerx - hint.get_width()//2, panel.bottom + 6))
+        else:
+            tip = self.xs_font.render("W/S: Navigate    J: Select    SPACE: Close", True, (160, 155, 185))
+            surface.blit(tip, (W // 2 - tip.get_width() // 2, H - 25))
 
     def handle_event(self, event, game):
         if event.type != pygame.KEYDOWN:
             return None
         items = config.SHOP_ITEMS
+
+        if self.qty_mode:
+            item     = items[self.selected_index]
+            max_qty  = min(99, game.coins // item['price']) if item['price'] > 0 else 99
+
+            if event.key == pygame.K_w:
+                self.qty = min(self.qty + 1, max_qty)
+            elif event.key == pygame.K_s:
+                self.qty = max(1, self.qty - 1)
+            elif event.key == pygame.K_j:
+                total = item['price'] * self.qty
+                if game.coins >= total:
+                    qty_snap = self.qty
+                    def _do_buy():
+                        game.coins -= item['price'] * qty_snap
+                        game.inventory[item['name']] = game.inventory.get(item['name'], 0) + qty_snap
+                        game.message_box.queue_messages(
+                            [f"Bought {qty_snap}x {item['name']}!"], wait_for_input=True)
+                        self.qty_mode = False
+                        self.qty = 1
+                    game.yes_no_prompt   = YesNoPrompt(
+                        f"Buy {qty_snap}x {item['name']} for {total} coins?",
+                        game.fonts, config.WIDTH, config.HEIGHT)
+                    game.yes_no_callback = _do_buy
+                else:
+                    game.message_box.queue_messages(["Not enough coins!"], wait_for_input=True)
+            elif event.key == pygame.K_SPACE:
+                self.qty_mode = False
+                self.qty = 1
+            return None
+
+        # ── Browse mode ───────────────────────────────────────────
         if event.key == pygame.K_w:
             self.selected_index = (self.selected_index - 1) % len(items)
         elif event.key == pygame.K_s:
@@ -775,11 +1058,9 @@ class ShopScreen:
         elif event.key == pygame.K_j:
             item = items[self.selected_index]
             if game.coins >= item['price']:
-                game.coins -= item['price']
-                game.inventory[item['name']] = game.inventory.get(item['name'], 0) + 1
-                game.message_box.queue_messages(
-                    [f"Bought {item['name']}!"], wait_for_input=True)
-                return 'bought'
+                max_qty = min(99, game.coins // item['price'])
+                self.qty = 1
+                self.qty_mode = True
             else:
                 game.message_box.queue_messages(["Not enough coins!"], wait_for_input=True)
         elif event.key == pygame.K_SPACE:
@@ -954,6 +1235,59 @@ class MessageBox:
                 ])
 
 
+# === Trainer Card Screen ===
+class TrainerCardScreen:
+    NUM_BADGES = 8
+
+    def __init__(self, game):
+        self.game      = game
+        self.font_lg   = game.fonts['DIALOGUE']
+        self.font_md   = game.fonts['BATTLE']
+        self.font_sm   = game.fonts['BATTLE2']
+        self.font_xs   = game.fonts['XS']
+        path = os.path.join('assets', 'SCREENS', 'Badge.png')
+        try:
+            raw = pygame.image.load(path)
+            raw = raw.convert() if not raw.get_masks()[3] else raw.convert_alpha()
+            self._bg = pygame.transform.scale(raw, (config.WIDTH, config.HEIGHT))
+            print(f"[TrainerCard] Badge.png loaded OK ({raw.get_width()}x{raw.get_height()})")
+        except Exception as e:
+            print(f"[TrainerCard] Failed to load Badge.png: {e}")
+            self._bg = None
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j, pygame.K_i):
+            self.game.pop_state()
+
+    def _fmt_time(self):
+        total = int(self.game.play_time_seconds)
+        h, rem = divmod(total, 3600)
+        m, s   = divmod(rem, 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
+    def _blit_text(self, screen, font, text, color, x, y):
+        """Blit text with a thin dark shadow for readability on any background."""
+        shadow = font.render(text, True, (0, 0, 0))
+        screen.blit(shadow, (x + 1, y + 1))
+        screen.blit(font.render(text, True, color), (x, y))
+
+    def draw(self, screen):
+        if self._bg:
+            screen.blit(self._bg, (0, 0))
+        else:
+            screen.fill((30, 20, 50))
+
+        # ── Stat values (adjust x, y to position on the card) ─────
+        self._blit_text(screen, self.font_md, "Jet",                               (255,255,255), 335, 75)   # Name
+        self._blit_text(screen, self.font_md, f"${self.game.coins:,}",             (255,255,255), 260, 140)  # Money
+        self._blit_text(screen, self.font_md, f"{len(self.game.dinos_seen)} / {len(DINO_DATA)}", (255,255,255), 290, 205)  # Dinodex
+        self._blit_text(screen, self.font_md, self._fmt_time(),                    (255,255,255), 250, 270)  # Time
+        self._blit_text(screen, self.font_md, self.game.adventure_start_date.strftime("%b %d, %Y"), (255,255,255), 170, 330)  # Started
+
+        self._blit_text(screen, self.font_xs, "SPACE / J to close",
+                        (180, 170, 150), 20, config.HEIGHT - 16)
+
+
 # === Main Menu ===
 class Menu:
     def __init__(self, game):
@@ -961,66 +1295,31 @@ class Menu:
         self.font = pygame.font.SysFont("arial", 24)
         self.small_font = pygame.font.SysFont("arial", 16)
         self.selected_index = 0
-        self.options = ["Party", "Items", "Save Game", "Options"]
+        self.options = ["Party", "Items", "Trainer Card", "Save Game", "Options"]
         self.width = 220
         self.margin = 15
         self.line_height = 40
-        self._badge_img = None  # set externally when badge PNG is provided
 
     def draw(self, screen):
         W = screen.get_width()
         x = W - self.width - 20
 
         # ── Options panel ──────────────────────────────────────────────
-        panel_rect = pygame.Rect(x, 50, self.width, 220)
+        header_h  = 46
+        panel_h   = header_h + len(self.options) * self.line_height + 10
+        panel_rect = pygame.Rect(x, 50, self.width, panel_h)
         pygame.draw.rect(screen, (255, 255, 240), panel_rect)
         pygame.draw.rect(screen, (0, 0, 0), panel_rect, 3)
         screen.blit(self.font.render("Menu", True, (0, 0, 0)),
                     (panel_rect.x + self.margin, panel_rect.y + 8))
         for i, option in enumerate(self.options):
-            y = panel_rect.y + 46 + i * self.line_height
+            y = panel_rect.y + header_h + i * self.line_height
             if i == self.selected_index:
                 pygame.draw.rect(screen, (200, 200, 255),
                                  (panel_rect.x + 5, y - 4, panel_rect.width - 10, 28),
                                  border_radius=5)
             screen.blit(self.font.render(option, True, (0, 0, 0)),
                         (panel_rect.x + self.margin, y))
-
-        # ── Trainer card panel ─────────────────────────────────────────
-        card_rect = pygame.Rect(x, panel_rect.bottom + 8, self.width, 148)
-        pygame.draw.rect(screen, (230, 225, 255), card_rect)
-        pygame.draw.rect(screen, (80, 60, 130), card_rect, 3)
-
-        screen.blit(self.small_font.render("TRAINER", True, (80, 60, 130)),
-                    (card_rect.x + self.margin, card_rect.y + 6))
-
-        # Badge slot
-        badge_x = card_rect.x + self.margin
-        badge_y = card_rect.y + 26
-        badge_rect = pygame.Rect(badge_x, badge_y, 48, 48)
-        if self._badge_img:
-            screen.blit(pygame.transform.scale(self._badge_img, (48, 48)), badge_rect)
-        else:
-            pygame.draw.rect(screen, (200, 195, 230), badge_rect, border_radius=6)
-            pygame.draw.rect(screen, (80, 60, 130), badge_rect, 2, border_radius=6)
-            lbl = self.small_font.render("BADGE", True, (110, 90, 160))
-            screen.blit(lbl, (badge_rect.centerx - lbl.get_width() // 2,
-                               badge_rect.centery - lbl.get_height() // 2))
-
-        # Coins display
-        coin_y = badge_y + 56
-        pygame.draw.circle(screen, (255, 200, 30),
-                           (card_rect.x + self.margin + 10, coin_y + 10), 10)
-        pygame.draw.circle(screen, (200, 150, 0),
-                           (card_rect.x + self.margin + 10, coin_y + 10), 10, 2)
-        coins_surf = self.font.render(f"{self.game.coins}", True, (40, 30, 10))
-        screen.blit(coins_surf, (card_rect.x + self.margin + 26, coin_y))
-
-        # Repel status
-        if getattr(self.game, 'repel_steps', 0) > 0:
-            rep_surf = self.small_font.render(
-                f"Repel: {self.game.repel_steps} steps", True, (30, 120, 50))
-            screen.blit(rep_surf, (card_rect.x + self.margin, coin_y + 32))
 
     def handle_event(self, event):
         if event.type != pygame.KEYDOWN:
@@ -1035,6 +1334,8 @@ class Menu:
                 self.game.push_state('party')
             elif selected == "Items":
                 self.game.push_state('items')
+            elif selected == "Trainer Card":
+                self.game.push_state('trainer_card')
             elif selected == "Save Game":
                 pass  # TODO: implement save
             elif selected == "Options":

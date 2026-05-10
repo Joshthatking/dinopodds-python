@@ -76,17 +76,17 @@ TYPE_DATA = {
         'color': config.DARK
     },
     'light': {
-        'super_eff': ['dark', 'ancient', 'light'],
+        'super_eff': ['dark', 'spike'],
         'weak_eff': ['earth'],
         'resist': ['spike', 'dark'],
-        'weak_to': ['lightning', 'ancient', 'light'],
+        'weak_to': ['lightning', 'ancient'],
         'color': config.SOFT_WHITE
     },
     'spike': {
         'super_eff': ['ancient', 'earth', 'rock'],
         'weak_eff': ['dark','light'],
-        'resist': ['rock', 'lightning', 'ancient'],
-        'weak_to': ['dark', 'flying'],
+        'resist': ['rock', 'ancient'],
+        'weak_to': ['dark', 'flying', 'light'],
         'color': config.SPIKE
     },
     'flying': {
@@ -105,7 +105,7 @@ TYPE_DATA = {
     },
     'lightning': {
         'super_eff': ['flying', 'aqua', 'light'],
-        'weak_eff': ['earth', 'spike', 'rock', 'ancient'],
+        'weak_eff': ['earth', 'rock', 'ancient'],
         'resist': ['flying'],
         'weak_to': ['rock', 'earth'],
         'color': config.LIGHTNING
@@ -135,10 +135,10 @@ TYPE_CHART_VAL = {
     'earth': {'aqua': 20, 'magma': 5, 'earth': 5, 'flying': 5, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lightning': 20, 'ice': 10,'ancient': 5},
     'flying': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 20, 'rock': 5, 'lighting': 5, 'ice': 10,'ancient': 10},
     'dark': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 20 , 'light': 5, 'spike': 20, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 10},
-    'light': {'aqua': 10, 'magma': 10, 'earth': 5, 'flying': 10, 'dark': 20 , 'light': 20, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 20},
-    'spike': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 5 , 'light': 5, 'spike': 10, 'rock': 20, 'lighting': 10, 'ice': 10,'ancient': 10},
+    'light': {'aqua': 10, 'magma': 10, 'earth': 5, 'flying': 10, 'dark': 20 , 'light': 10, 'spike': 20, 'rock': 10, 'lighting': 10, 'ice': 10,'ancient': 10},
+    'spike': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 5 , 'light': 5, 'spike': 10, 'rock': 20, 'lighting': 10, 'ice': 10,'ancient': 20},
     'rock': {'aqua': 10, 'magma': 20, 'earth': 10, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 5, 'rock': 5, 'lighting': 20, 'ice': 20,'ancient': 10},
-    'lightning': {'aqua': 20, 'magma': 10, 'earth': 5, 'flying': 20, 'dark': 10 , 'light': 20, 'spike': 5, 'rock': 5, 'lighting': 10, 'ice': 10,'ancient': 5},
+    'lightning': {'aqua': 20, 'magma': 10, 'earth': 5, 'flying': 20, 'dark': 10 , 'light': 20, 'spike': 10, 'rock': 5, 'lighting': 10, 'ice': 10,'ancient': 5},
     'ice': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 10, 'lighting': 10, 'ice': 5,'ancient': 20},
     'ancient': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 5 , 'light': 20, 'spike': 5, 'rock': 5, 'lighting': 10, 'ice': 10,'ancient': 20},
 
@@ -278,10 +278,10 @@ def calculate_xp_gain(player_level, opponent_level, base_xp=7, state_multiplier=
     
     return int(xp)
 
-### .5 for catching
-### .65 for encounters
-### .75 for battles
-### 1 for Rivals, Gyms, Elite 4
+### 0.5  catching
+### 0.75 wild encounters
+### 0.9  trainer battles
+### 1.0  rivals, gyms, elite 4, bosses
 
 ##################### BASE STATS ##################
 

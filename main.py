@@ -76,11 +76,16 @@ if __name__ == '__main__':
 
 #5/9
 #FIXEDBUG - spam j in battle no longer freezes game - COMPLETE
-#Add speed in battle to determine order
-#fix battle perspectives
-#fix xp diminishing returns and overall state multipliers
+#Add speed in battle to determine order - COMPLETE
+#PC system and swapping order - COMPLETE
+#fix xp diminishing returns and overall state multipliers - COMPLETE
+#fix battle perspectives - COMPLETE
+#Added Trainer Card - COMPLETE
+#Add number of items and confirmation at DC Mart- COMPLETE
+
+#5/10
 #add type chart to read in dinocenter by pc
-#change current box system to pc system
+
 #add move abilities
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks

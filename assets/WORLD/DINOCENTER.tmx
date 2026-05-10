@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="1">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="2">
  <tileset firstgid="1" source="../TILESET/dinocenter.tsx"/>
  <tileset firstgid="129" source="../TILESET/dinocenter2.tsx"/>
  <tileset firstgid="337" source="../TILESET/INTERIOR_ALL.tsx"/>
@@ -80,4 +80,14 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
+ <objectgroup id="8" name="box">
+  <properties>
+   <property name="box" type="bool" value="true"/>
+  </properties>
+  <object id="1" name="box" x="550.155" y="40.3728" width="18.68" height="19.8851">
+   <properties>
+    <property name="box" type="bool" value="true"/>
+   </properties>
+  </object>
+ </objectgroup>
 </map>
