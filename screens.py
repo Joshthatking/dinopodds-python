@@ -57,7 +57,7 @@ class EncounterUI:
         self.small_font = fonts['BAG']
         self.smaller_font = fonts['XS']
         self.selected_option = 0
-        self.actions = ["Fight", "Bag", "Party", "Run"]
+        self.actions = ["Fight", "Bag", "Party", "Run", "Defend"]
         self.in_fight_menu = False
         self.move_selected = 0
         self.level_up_popup = None
@@ -120,14 +120,44 @@ class EncounterUI:
         pygame.draw.rect(surface, back_color, (x, y, width, height))
         pygame.draw.rect(surface, front_color, (x, y, int(width * max(0, min(1, percent))), height))
 
-    def draw(self, surface, player_dino, enemy_dino, encounter_text, show_actions=True, trainer_total=0, trainer_defeated=0, pod_icon=None, msg_awaiting_input=False, player_visible=True):
+    def _draw_badges(self, surface, x, y, dino, field_effects=None, show_field=False):
+        font = self.smaller_font
+        badges = []
+        abbr = {'attack': 'ATK', 'defense': 'DEF', 'speed': 'SPD'}
+        for stat, label in abbr.items():
+            val = dino.get('stat_stages', {}).get(stat, 0)
+            if val != 0:
+                sign = '+' if val > 0 else ''
+                bg = (150, 215, 150) if val > 0 else (215, 150, 150)
+                badges.append((f"{label}{sign}{val}", bg))
+        if show_field and field_effects:
+            for fx in field_effects:
+                if fx['effect'] == 'speed_swap':
+                    badges.append(("TIME", (210, 210, 130)))
+                elif fx['effect'] == 'type_power':
+                    bt = fx.get('boost_type', '')
+                    badges.append((f"{bt[:3].upper()}+", (215, 185, 130)))
+        bx = x
+        for text, bg in badges:
+            tw, th = font.size(text)
+            pad = 3
+            bw = tw + pad * 2
+            bh = 15
+            if bx + bw > x + 205:
+                break
+            pygame.draw.rect(surface, bg,         (bx, y, bw, bh), border_radius=3)
+            pygame.draw.rect(surface, (70, 70, 70), (bx, y, bw, bh), 1, border_radius=3)
+            surface.blit(font.render(text, True, (30, 30, 30)), (bx + pad, y + (bh - th) // 2))
+            bx += bw + 3
+
+    def draw(self, surface, player_dino, enemy_dino, encounter_text, show_actions=True, trainer_total=0, trainer_defeated=0, pod_icon=None, msg_awaiting_input=False, player_visible=True, field_effects=None):
         if not show_actions:
             self.in_fight_menu = False  # can't be in fight menu while a message is showing
         screen_w, screen_h = surface.get_size()
 
         text_box_rect   = pygame.Rect(9, screen_h - 120, screen_w - 325, 115)
         actions_rect    = pygame.Rect(screen_w - 300, screen_h - 120, 287, 115)
-        enemy_info_rect = pygame.Rect(-1, 30, 220, 65)
+        enemy_info_rect = pygame.Rect(-1, 30, 220, 82)
         player_info_rect= pygame.Rect(screen_w - 220, screen_h - 242, 220, 100)
 
         self.draw_panel(surface, text_box_rect)
@@ -162,31 +192,36 @@ class EncounterUI:
         surface.blit(self.small_font.render(f"Lv{enemy_dino['level']}", True, (0, 0, 0)),
                      (enemy_info_rect.x + 160, enemy_info_rect.y + 12))
         self.draw_hp_bar(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 40, 200, 15, ep)
+        self._draw_badges(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 60,
+                          enemy_dino, field_effects, show_field=True)
 
         # Player info
+        # row 0 — name + level  (y+8)
         surface.blit(self.small_font.render(player_dino['name'], True, (0, 0, 0)),
-                     (player_info_rect.x + 10, player_info_rect.y + 15))
+                     (player_info_rect.x + 8, player_info_rect.y + 8))
         surface.blit(self.small_font.render(f"Lv{player_dino['level']}", True, (0, 0, 0)),
-                     (player_info_rect.x + 160, player_info_rect.y + 15))
-        self.draw_hp_bar(surface, player_info_rect.x + 10, player_info_rect.y + 40, 200, 15, pp)
-
-        # HP text
+                     (player_info_rect.x + 158, player_info_rect.y + 8))
+        # row 1 — HP bar (y+29, h=10)
+        self.draw_hp_bar(surface, player_info_rect.x + 8, player_info_rect.y + 29, 202, 10, pp)
+        # row 2 — HP numbers in XS font (y+41)
         surface.blit(
-            self.small_font.render(f"{player_dino['hp']}/{player_dino['max_hp']}", True, (0, 0, 0)),
-            (player_info_rect.right - 70, player_info_rect.bottom - 40)
+            self.smaller_font.render(f"HP  {player_dino['hp']}/{player_dino['max_hp']}", True, (0, 0, 0)),
+            (player_info_rect.x + 8, player_info_rect.y + 41)
         )
+        # row 3 — stat badges (y+57)
+        self._draw_badges(surface, player_info_rect.x + 8, player_info_rect.y + 57, player_dino)
 
-        # XP bar
+        # XP bar (y+88) + XP label in XS font (y+75)
         xp_progress = self.xp_display if self.xp_display is not None else player_dino['xp'] / max(1, player_dino['xp_to_next'])
-        xp_bar_rect = pygame.Rect(player_info_rect.x + 5, player_info_rect.y + 77, 200, 8)
+        xp_bar_rect = pygame.Rect(player_info_rect.x + 8, player_info_rect.y + 88, 202, 8)
         pygame.draw.rect(surface, (255, 255, 255), xp_bar_rect)
         pygame.draw.rect(surface, (0, 0, 255),
                          (xp_bar_rect.x, xp_bar_rect.y, int(xp_bar_rect.width * xp_progress), xp_bar_rect.height))
         pygame.draw.rect(surface, (0, 0, 0), xp_bar_rect, 2)
         displayed_xp = int(xp_progress * player_dino['xp_to_next'])
         surface.blit(
-            self.small_font.render(f"XP: {displayed_xp}/{int(player_dino['xp_to_next'])}", True, (0, 0, 0)),
-            (xp_bar_rect.x, xp_bar_rect.y - 17)
+            self.smaller_font.render(f"XP  {displayed_xp}/{int(player_dino['xp_to_next'])}", True, (0, 0, 0)),
+            (xp_bar_rect.x, xp_bar_rect.y - 14)
         )
 
         # Player dino sprite — sits directly on top of the left text box
@@ -221,10 +256,21 @@ class EncounterUI:
         if not show_actions:
             return
         if not self.in_fight_menu:
-            for i, action in enumerate(self.actions):
+            # 2x2 grid: Fight/Bag/Party/Run (options 0-3)
+            for i in range(4):
+                action = self.actions[i]
                 color = (0, 0, 255) if i == self.selected_option else (0, 0, 0)
                 surface.blit(self.font.render(action, True, color),
                              (actions_rect.x + 20 + (i % 2) * 120, actions_rect.y + 20 + (i // 2) * 50))
+            # DEFEND button — vertical dark blue rect on the right
+            defend_rect = pygame.Rect(actions_rect.right - 80, actions_rect.y + 5, 74, 105)
+            defend_selected = (self.selected_option == 4)
+            pygame.draw.rect(surface, (15, 25, 110), defend_rect, border_radius=5)
+            border_col = (255, 215, 0) if defend_selected else (0, 0, 60)
+            pygame.draw.rect(surface, border_col, defend_rect, 3, border_radius=5)
+            d_surf = self.small_font.render("DEFEND", True, (255, 255, 255))
+            surface.blit(d_surf, (defend_rect.centerx - d_surf.get_width() // 2,
+                                  defend_rect.centery - d_surf.get_height() // 2))
         else:
             moves = player_dino['moves']
             qw = actions_rect.width // 2
@@ -647,6 +693,9 @@ class PartyScreen:
                     [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
                 return None
             if chosen:
+                out = game.player_dinos[game.active_dino_index]
+                out['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
+                out['defending']   = False
                 game.active_dino_index = self.selected_index
                 game.awaiting_switch   = False
                 game.pop_state()
@@ -662,6 +711,9 @@ class PartyScreen:
                     [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
                 return None
             if chosen:
+                out = game.player_dinos[game.active_dino_index]
+                out['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
+                out['defending']   = False
                 game.active_dino_index = self.selected_index
                 game.pop_state()
                 game.message_box.queue_messages(
@@ -902,10 +954,18 @@ class ItemsScreen:
             item_name, _ = filtered[self.selected_index]
             item_data = config.ITEMS.get(item_name, {})
             if item_data.get('catch_rate') is not None and 'encounter' in game.state_stack:
+                if game.is_trainer_battle:
+                    game.message_box.queue_messages(
+                        ["You can't catch a trainer's dino!"], wait_for_input=True)
+                    return 'used'
                 game.attempt_catch(item_name)
                 return 'used'
-            elif item_name == 'Repel' and 'encounter' not in game.state_stack:
-                if getattr(game, 'repel_steps', 0) > 0:
+            elif item_name == 'Repel':
+                if 'encounter' in game.state_stack:
+                    game.message_box.queue_messages(
+                        ["Repels can't be used in battle!"], wait_for_input=True)
+                    return 'used'
+                elif getattr(game, 'repel_steps', 0) > 0:
                     game.message_box.queue_messages(
                         ["A Repel is already in effect!"], wait_for_input=True)
                 else:
@@ -1250,9 +1310,9 @@ class TrainerCardScreen:
             raw = pygame.image.load(path)
             raw = raw.convert() if not raw.get_masks()[3] else raw.convert_alpha()
             self._bg = pygame.transform.scale(raw, (config.WIDTH, config.HEIGHT))
-            print(f"[TrainerCard] Badge.png loaded OK ({raw.get_width()}x{raw.get_height()})")
-        except Exception as e:
-            print(f"[TrainerCard] Failed to load Badge.png: {e}")
+            # print(f"[TrainerCard] Badge.png loaded OK ({raw.get_width()}x{raw.get_height()})")
+        except Exception:
+            # print(f"[TrainerCard] Failed to load Badge.png")
             self._bg = None
 
     def handle_event(self, event):

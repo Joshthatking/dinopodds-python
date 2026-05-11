@@ -34,8 +34,8 @@ class Game:
          self.tile_types, self.entrance_tile_coords, self.exit_tile_coords,
          _init_ball_items) = self.load_world('LOST_REGION.world')
         self.world_bounds = self._compute_world_bounds()
-        print(f"[DEBUG] entrance_tile_coords: {self.entrance_tile_coords}")
-        print(f"[DEBUG] exit_tile_coords: {self.exit_tile_coords}")
+        # print(f"[DEBUG] entrance_tile_coords: {self.entrance_tile_coords}")
+        # print(f"[DEBUG] exit_tile_coords: {self.exit_tile_coords}")
 
         # DETERMINE PLAYER SPAWN
         self.player = Player(spawn_point='home')
@@ -140,6 +140,9 @@ class Game:
         self.current_turn = None
         self.encounter_anim = None
         self.is_trainer_battle = False
+        self.field_effects = []
+        self.defend_uses_remaining = 3
+        self.enemy_defend_uses_remaining = 3
         self.current_trainer_npc = None
         self.trainer_dino_queue = []
         self.trainer_dinos_total = 0
@@ -229,12 +232,17 @@ class Game:
         self.stats_blackouts += 1
         for dino in self.player_dinos:
             dino['hp'] = dino['max_hp']
+            dino['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
+            dino['defending']   = False
 
         self.pop_to_world()
         self.fading = False
         self.encounter_anim = None
         self.awaiting_switch = False
         self.is_trainer_battle = False
+        self.field_effects = []
+        self.defend_uses_remaining = 3
+        self.enemy_defend_uses_remaining = 3
         self.entrance_fade_state = None
 
         # Unwind interior world stack back to the overworld
@@ -275,6 +283,7 @@ class Game:
                 "type": m.get("type", "normal"),
                 "damage": m.get("damage", 0),
                 "accuracy": m.get("accuracy", 100),
+                "ability": m.get("ability", None),
             })
 
         return {
@@ -286,6 +295,11 @@ class Game:
             "attack": attack,
             "defense": defense,
             "speed": speed,
+            "base_attack": attack,
+            "base_defense": defense,
+            "base_speed": speed,
+            "stat_stages": {"attack": 0, "defense": 0, "speed": 0},
+            "defending": False,
             "moveset": moveset,
             "moves": learned_moves,
             "image": self.player_dino_images[name],
@@ -310,6 +324,10 @@ class Game:
             dino['attack']  = Base_Stats(base_stats["attack"], dino['level'])
             dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
             dino['speed']   = Base_Stats(base_stats["speed"], dino['level'])
+            dino['base_attack']  = dino['attack']
+            dino['base_defense'] = dino['defense']
+            dino['base_speed']   = dino['speed']
+            dino['stat_stages']  = {"attack": 0, "defense": 0, "speed": 0}
             dino['hp'] += dino['max_hp'] - prev_hp
             self.message_box.queue_messages(
                 [f"{dino['name']} grew to Lv {dino['level']}!"], wait_for_input=True
@@ -339,9 +357,126 @@ class Game:
                 dino['attack']  = Base_Stats(base_stats['attack'], dino['level'])
                 dino['defense'] = Base_Stats(base_stats['defense'], dino['level'])
                 dino['speed']   = Base_Stats(base_stats['speed'], dino['level'])
+                dino['base_attack']  = dino['attack']
+                dino['base_defense'] = dino['defense']
+                dino['base_speed']   = dino['speed']
+                dino['stat_stages']  = {"attack": 0, "defense": 0, "speed": 0}
                 dino['hp'] = dino['hp'] + (dino['max_hp'] - prev_hp)
                 msgs.append(f"{dino['name']} grew to Lv {dino['level']}!")
         return msgs
+
+    # --- Battle helpers: effective stats / move abilities / field effects ---
+
+    def _get_effective_stat(self, dino, stat):
+        stage = dino.get('stat_stages', {}).get(stat, 0)
+        mult  = STAT_STAGE_MULT.get(stage, 1.0)
+        base  = dino.get(f'base_{stat}', dino.get(stat, 1))
+        return max(1, round(base * mult))
+
+    def _apply_move_ability(self, ability, user, target):
+        if not ability:
+            return []
+        if random.randint(1, 100) > ability['chance']:
+            return []
+        msgs = []
+        if ability['kind'] == 'stat_boost':
+            subject = user if ability['target'] == 'self' else target
+            stat    = ability['stat']
+            stages  = ability['stages']
+            old     = subject.get('stat_stages', {}).get(stat, 0)
+            new     = max(-6, min(6, old + stages))
+            subject.setdefault('stat_stages', {})[stat] = new
+            if new == old:
+                msgs.append(f"{subject['name']}'s {stat.capitalize()} can't go {'higher' if stages > 0 else 'lower'}!")
+            else:
+                if stages >= 2:
+                    msg = f"{subject['name']}'s {stat.capitalize()} has surged!"
+                elif stages == 1:
+                    msg = f"{subject['name']}'s {stat.capitalize()} has been powered up!"
+                elif stages == -1:
+                    msg = f"{subject['name']}'s {stat.capitalize()} has been weakened!"
+                else:
+                    msg = f"{subject['name']}'s {stat.capitalize()} has sharply fallen!"
+                msgs.append(msg)
+        elif ability['kind'] == 'field':
+            effect = ability['effect']
+            if not any(fx['effect'] == effect for fx in self.field_effects):
+                fx = {'effect': effect, 'turns_left': ability['duration']}
+                if 'boost_type' in ability:
+                    fx['boost_type'] = ability['boost_type']
+                    fx['multiplier'] = ability['multiplier']
+                self.field_effects.append(fx)
+                if effect == 'speed_swap':
+                    msgs.append("Time has been distorted!")
+                elif effect == 'type_power':
+                    msgs.append(f"{ability['boost_type'].capitalize()} energy fills the air!")
+        elif ability['kind'] == 'heal':
+            heal_amount = int(user['max_hp'] * ability['percent'] / 100)
+            user['hp'] = min(user['max_hp'], user['hp'] + heal_amount)
+            msgs.append(f"{user['name']} restored {heal_amount} HP!")
+        return msgs
+
+    def _tick_field_effects(self):
+        msgs = []
+        for fx in self.field_effects:
+            fx['turns_left'] -= 1
+            if fx['turns_left'] <= 0:
+                if fx['effect'] == 'speed_swap':
+                    msgs.append("Time returned to normal.")
+                elif fx['effect'] == 'type_power':
+                    msgs.append(f"{fx.get('boost_type', '').capitalize()} energy dissipated.")
+        self.field_effects = [fx for fx in self.field_effects if fx['turns_left'] > 0]
+        return msgs
+
+    def _should_enemy_defend(self, rank):
+        if not self.is_trainer_battle:
+            return False
+        if rank == 'lowest':
+            return False
+        if self.enemy_dino.get('defending', False):
+            return False
+        if self.enemy_defend_uses_remaining <= 0:
+            return False
+        if rank == 'medium':
+            return random.random() < 0.15
+        if rank == 'high':
+            return random.random() < 0.25
+        return False
+
+    def _pick_enemy_move(self, attacker, defender, rank):
+        moveset = attacker.get('moveset', [])
+        if not moveset:
+            return None
+        if rank == 'lowest':
+            return random.choice(moveset)
+        player_defending = defender.get('defending', False)
+        boost_chance  = 0.20 if rank == 'medium' else 0.50
+        pierce_chance = 0.15 if rank == 'medium' else 0.25
+        if player_defending:
+            if random.random() < boost_chance:
+                stat_moves = [m for m in moveset
+                              if m.get('ability', {}).get('kind') == 'stat_boost'
+                              and m.get('ability', {}).get('target') == 'self']
+                if stat_moves:
+                    return random.choice(stat_moves)
+            if random.random() < pierce_chance:
+                pierce_moves = [m for m in moveset if m.get('pierces_defend', False)]
+                if pierce_moves:
+                    return random.choice(pierce_moves)
+        scored = []
+        for move in moveset:
+            mtype = move.get('type', 'normal')
+            eff   = type_effectiveness_value(mtype, defender['type'])
+            stab  = stab_multiplier(mtype, attacker['type'])
+            score = eff * stab * move.get('damage', 0)
+            scored.append((score, move))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        if rank == 'medium':
+            if random.random() < 0.70 and scored:
+                return scored[0][1]
+            return random.choice(moveset)
+        # high: always best-scoring move
+        return scored[0][1] if scored else random.choice(moveset)
 
     # --- Evolution ---
 
@@ -373,6 +508,10 @@ class Game:
         dino['attack']  = Base_Stats(base_stats['attack'], level)
         dino['defense'] = Base_Stats(base_stats['defense'], level)
         dino['speed']   = Base_Stats(base_stats['speed'], level)
+        dino['base_attack']  = dino['attack']
+        dino['base_defense'] = dino['defense']
+        dino['base_speed']   = dino['speed']
+        dino['stat_stages']  = {"attack": 0, "defense": 0, "speed": 0}
         dino['hp'] = max(1, int(dino['max_hp'] * hp_ratio))
 
         old_moves = dino.get('moves', [])[:]
@@ -389,6 +528,7 @@ class Game:
                 "type": m.get("type", "normal"),
                 "damage": m.get("damage", 0),
                 "accuracy": m.get("accuracy", 100),
+                "ability": m.get("ability", None),
             })
 
         return old_name, new_name
@@ -421,7 +561,7 @@ class Game:
         tile_x = self.player.rect.x // config.TILE_SIZE
         tile_y = self.player.rect.y // config.TILE_SIZE
         zone = self.get_player_zone(tile_x, tile_y)
-        print(f"[ENCOUNTER] tile=({tile_x},{tile_y}) zone={zone}")
+        # print(f"[ENCOUNTER] tile=({tile_x},{tile_y}) zone={zone}")
 
         if zone in ENCOUNTER_ZONES:
             zone_data = ENCOUNTER_ZONES[zone]
@@ -432,6 +572,9 @@ class Game:
             level = random.randint(12, 20)
 
         self.enemy_dino = self.create_dino(dino_key, level)
+        self.field_effects = []
+        self.defend_uses_remaining = 3
+        self.enemy_defend_uses_remaining = 3
         self.dinos_seen.add(dino_key)
         self.encounter_ui = EncounterUI(self.fonts)
         self.encounter_text = f"A wild {dino_key} appeared!"
@@ -469,6 +612,9 @@ class Game:
         self.trainer_dinos_defeated = 0
 
         self.enemy_dino = self.create_dino(dino_name, dino_level)
+        self.field_effects = []
+        self.defend_uses_remaining = 3
+        self.enemy_defend_uses_remaining = 3
         self.encounter_ui = EncounterUI(self.fonts)
         self.encounter_text = f"Trainer sent out {dino_name}!"
         self.encounter = Encounter(self.fonts, dino_name)
@@ -548,7 +694,7 @@ class Game:
                         exits.add((ox, oy))
         world_maps = [{'tmx': tmx, 'x': 0, 'y': 0,
                         'width': tmx.width * ts, 'height': tmx.height * ts}]
-        print(f"[DEBUG] _load_single_tmx({filename}): entrances={list(entrances.items())} exits={list(exits)}")
+        # print(f"[DEBUG] _load_single_tmx({filename}): entrances={list(entrances.items())} exits={list(exits)}")
         return world_maps, solid, encounter, tile_types, entrances, exits, ball_items
 
     def _place_player(self, tile_x, tile_y):
@@ -562,7 +708,7 @@ class Game:
         self.update_camera()
 
     def trigger_entrance(self, entrance_id, tile_x, tile_y):
-        print(f"[DEBUG] trigger_entrance called: id={entrance_id} tile=({tile_x},{tile_y})")
+        # print(f"[DEBUG] trigger_entrance called: id={entrance_id} tile=({tile_x},{tile_y})")
         if self.fading or self.entrance_fade_state is not None:
             return
         self.entrance_pending = (entrance_id, tile_x, tile_y)
@@ -574,9 +720,9 @@ class Game:
 
     def _do_entrance_teleport(self, pending):
         entrance_id, tile_x, tile_y = pending
-        print(f"[DEBUG] _do_entrance_teleport: id={entrance_id}")
+        # print(f"[DEBUG] _do_entrance_teleport: id={entrance_id}")
         dest = ENTRANCE_DATA.get(entrance_id)
-        print(f"[DEBUG] ENTRANCE_DATA lookup: {dest}")
+        # print(f"[DEBUG] ENTRANCE_DATA lookup: {dest}")
         if not dest:
             return  # no map configured yet, fade back in silently
         self.world_stack.append({
@@ -860,11 +1006,17 @@ class Game:
                     return
 
                 if result == "Run":
-                    self.pop_to_world()
+                    if self.is_trainer_battle:
+                        self.message_box.queue_messages(
+                            ["You can't run from a trainer battle!"], wait_for_input=True)
+                    else:
+                        self.pop_to_world()
                 elif result == "Bag":
                     self.push_state('items')
                 elif result == 'Party':
                     self.push_state('party')
+                elif result == 'Defend':
+                    self.use_defend()
 
             if event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_EQUALS, pygame.K_PLUS):
@@ -888,7 +1040,11 @@ class Game:
     def handle_world_event(self, event):
         if event.type != pygame.KEYDOWN:
             return
-        if event.key == pygame.K_i:
+        trainer_approaching = any(
+            npc.npc_type == 'trainer' and npc.state in ('spotted', 'walking', 'done') and not npc.defeated
+            for npc in self.npcs
+        )
+        if event.key == pygame.K_i and not self.fading and not trainer_approaching:
             self.push_state('menu')
         elif event.key == pygame.K_j:
             if self.check_box_interact():
@@ -1127,7 +1283,8 @@ class Game:
                                    self.enemy_dino, self.encounter_text,
                                    trainer_total=self.trainer_dinos_total if self.is_trainer_battle else 0,
                                    trainer_defeated=self.trainer_dinos_defeated,
-                                   pod_icon=self.item_image if self.is_trainer_battle else None)
+                                   pod_icon=self.item_image if self.is_trainer_battle else None,
+                                   field_effects=self.field_effects)
 
         if current_state == 'encounter':
             # Compute hit-flash sprite visibility
@@ -1163,7 +1320,8 @@ class Game:
                                    trainer_defeated=self.trainer_dinos_defeated,
                                    pod_icon=self.item_image if self.is_trainer_battle else None,
                                    msg_awaiting_input=msg_awaiting,
-                                   player_visible=_player_vis)
+                                   player_visible=_player_vis,
+                                   field_effects=self.field_effects)
 
         elif current_state == 'trainer_card':
             self.trainer_card_screen.draw(self.screen)
@@ -1377,17 +1535,23 @@ class Game:
             return
         attacker = self.player_dinos[self.active_dino_index]
         defender = self.enemy_dino
+        attacker['defending'] = False
 
         if move_index < 0 or move_index >= len(attacker['moveset']):
             return
 
-        move      = attacker['moveset'][move_index]
-        move_name = move['name']
-        power     = max(0, move.get('damage', 0))
-        acc       = move.get('accuracy', 100)
-        mtype     = move.get('type', 'normal')
+        move          = attacker['moveset'][move_index]
+        move_name     = move['name']
+        power         = max(0, move.get('damage', 0))
+        acc           = move.get('accuracy', 100)
+        mtype         = move.get('type', 'normal')
+        ability       = move.get('ability')
+        pierces_defend = move.get('pierces_defend', False)
 
-        player_first = attacker.get('speed', 0) >= defender.get('speed', 0)
+        speed_swap   = any(fx['effect'] == 'speed_swap' for fx in self.field_effects)
+        p_spd        = self._get_effective_stat(attacker, 'speed')
+        e_spd        = self._get_effective_stat(defender, 'speed')
+        player_first = (p_spd <= e_spd) if speed_swap else (p_spd >= e_spd)
 
         if player_first:
             if random.random() * 100 > acc:
@@ -1395,8 +1559,8 @@ class Game:
                     [f"{attacker['name']} used {move_name}!", "But it missed!"],
                     wait_for_input=True, on_complete=self._enemy_turn)
                 return
-            self._apply_player_attack(attacker, defender, move_name, power, mtype,
-                                      after=self._enemy_turn)
+            self._apply_player_attack(attacker, defender, move_name, power, mtype, ability,
+                                      pierces_defend=pierces_defend, after=self._enemy_turn)
         else:
             # Enemy is faster — it strikes first, then player attacks if still alive
             def then_player():
@@ -1408,30 +1572,48 @@ class Game:
                         [f"{p['name']} used {move_name}!", "But it missed!", "What will you do?"],
                         wait_for_input=True)
                     return
-                self._apply_player_attack(p, self.enemy_dino, move_name, power, mtype, after=None)
+                self._apply_player_attack(p, self.enemy_dino, move_name, power, mtype, ability,
+                                          pierces_defend=pierces_defend, after=None)
             self._enemy_turn(after=then_player)
 
-    def _apply_player_attack(self, attacker, defender, move_name, power, mtype, after=None):
+    def _apply_player_attack(self, attacker, defender, move_name, power, mtype, ability=None, pierces_defend=False, after=None):
+        # Trainer dino defending check
+        if self.is_trainer_battle and defender.get('defending', False) and not pierces_defend:
+            msgs = [f"{attacker['name']} used {move_name}!",
+                    f"The trainer's {defender['name']} defended and took no damage!"]
+            msgs.extend(self._apply_move_ability(ability, attacker, defender))
+            if after:
+                self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
+            else:
+                msgs.extend(self._tick_field_effects())
+                msgs.append("What will you do?")
+                self.message_box.queue_messages(msgs, wait_for_input=True)
+            return
+
         STAB    = stab_multiplier(mtype, attacker['type'])
         eff_val = type_effectiveness_value(mtype, defender['type'])
         rnd     = random_damage_factor()
-        atk     = max(1, attacker['attack'])
-        dfs     = max(1, defender['defense'])
+        atk     = self._get_effective_stat(attacker, 'attack')
+        dfs     = self._get_effective_stat(defender, 'defense')
         lvl     = max(1, attacker['level'])
 
-        raw = Damage(lvl, atk, power, dfs, STAB, eff_val, rnd)
+        type_boost = next((fx['multiplier'] for fx in self.field_effects
+                           if fx['effect'] == 'type_power' and fx.get('boost_type') == mtype), 1.0)
+        raw = Damage(lvl, atk, power, dfs, STAB, eff_val, rnd) * type_boost
         dmg = max(1, int(raw)) if power > 0 else 0
         defender['hp'] = max(0, defender['hp'] - dmg)
         if dmg > 0:
             self.trigger_hit_flash('enemy')
 
         msgs = [f"{attacker['name']} used {move_name}!"]
-        if eff_val > 10:
-            msgs.append("It's super effective!")
-        elif 0 < eff_val < 10:
-            msgs.append("It's not very effective...")
-        elif eff_val <= 0:
-            msgs.append("It had no effect...")
+        if power > 0:
+            if eff_val > 10:
+                msgs.append("It's super effective!")
+            elif 0 < eff_val < 10:
+                msgs.append("It's not very effective...")
+            elif eff_val <= 0:
+                msgs.append("It had no effect...")
+        msgs.extend(self._apply_move_ability(ability, attacker, defender))
 
         if defender['hp'] <= 0:
             self.stats_enemies_defeated += 1
@@ -1465,6 +1647,9 @@ class Game:
                     self.is_trainer_battle = False
 
                 def finish_battle():
+                    for dino in self.player_dinos:
+                        dino['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
+                        dino['defending']   = False
                     evolved = False
                     for dino in self.player_dinos:
                         evo_target = self.check_evolution(dino)
@@ -1492,6 +1677,7 @@ class Game:
             if after:
                 self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
             else:
+                msgs.extend(self._tick_field_effects())
                 msgs.append("What will you do?")
                 self.message_box.queue_messages(msgs, wait_for_input=True)
 
@@ -1508,6 +1694,25 @@ class Game:
         self.message_box.queue_messages(
             [f"{attacker['name']} doesn't know {move_name}.", "What will you do?"], wait_for_input=True
         )
+
+    def use_defend(self):
+        if self.message_box.visible or self.encounter_anim is not None:
+            return
+        attacker = self.player_dinos[self.active_dino_index]
+        if attacker.get('defending', False):
+            self.message_box.queue_messages(
+                [f"{attacker['name']} can't defend twice in a row!"], wait_for_input=True)
+            return
+        if self.defend_uses_remaining <= 0:
+            self.message_box.queue_messages(
+                ["Your team has no Defends left this battle!"], wait_for_input=True)
+            return
+        self.defend_uses_remaining -= 1
+        attacker['defending'] = True
+        self.message_box.queue_messages(
+            [f"{attacker['name']} braced for impact!",
+             f"({self.defend_uses_remaining} Defend{'s' if self.defend_uses_remaining != 1 else ''} remaining)"],
+            wait_for_input=True, on_complete=self._enemy_turn)
 
     def _enemy_turn(self, after=None):
         self.encounter_ui.in_fight_menu = False
@@ -1539,13 +1744,35 @@ class Game:
                 self.message_box.queue_messages(msgs, wait_for_input=True)
             return
 
-        move  = random.choice(attacker['moveset'])
-        mtype = move.get('type', 'normal')
-        power = max(0, move.get('damage', 0))
-        acc   = move.get('accuracy', 100)
+        # Get trainer rank for AI (wild dinos use lowest logic)
+        rank = 'lowest'
+        if self.is_trainer_battle and self.current_trainer_npc:
+            t_data = TRAINER_DATA.get(self.current_trainer_npc.trainer_id, {})
+            rank = t_data.get('rank', 'lowest')
 
-        if random.random() * 100 >= acc:
-            msgs = [f"The wild {attacker['name']} used {move['name']}!", "But it missed!"]
+        # Trainer AI: decide to defend? (checks current defending flag to block back-to-back)
+        if self._should_enemy_defend(rank):
+            self.enemy_defend_uses_remaining -= 1
+            attacker['defending'] = True
+            n = self.enemy_defend_uses_remaining
+            msgs = [f"Trainer's {attacker['name']} braced for impact!",
+                    f"({n} Defend{'s' if n != 1 else ''} remaining)"]
+            msgs.extend(self._tick_field_effects())
+            msgs.append("What will you do?")
+            self.message_box.queue_messages(msgs, wait_for_input=True)
+            return
+
+        # Taking an action — clear defending flag
+        attacker['defending'] = False
+
+        # Pick move based on rank
+        if self.is_trainer_battle:
+            move = self._pick_enemy_move(attacker, defender, rank)
+        else:
+            move = random.choice(attacker['moveset'])
+
+        if move is None:
+            msgs = [f"The wild {attacker['name']} is loafing around."]
             if after:
                 self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
             else:
@@ -1553,22 +1780,54 @@ class Game:
                 self.message_box.queue_messages(msgs, wait_for_input=True)
             return
 
+        mtype   = move.get('type', 'normal')
+        power   = max(0, move.get('damage', 0))
+        acc     = move.get('accuracy', 100)
+        ability = move.get('ability')
+        prefix  = f"Trainer's " if self.is_trainer_battle else "The wild "
+
+        if random.random() * 100 >= acc:
+            msgs = [f"{prefix}{attacker['name']} used {move['name']}!", "But it missed!"]
+            if after:
+                self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
+            else:
+                msgs.append("What will you do?")
+                self.message_box.queue_messages(msgs, wait_for_input=True)
+            return
+
+        # Defend check — pierces_defend moves bypass this
+        if defender.get('defending', False) and not move.get('pierces_defend', False):
+            msgs = [f"{prefix}{attacker['name']} used {move['name']}!",
+                    f"{defender['name']} defended and took no damage!"]
+            msgs.extend(self._apply_move_ability(ability, attacker, defender))
+            if after:
+                self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
+            else:
+                msgs.extend(self._tick_field_effects())
+                msgs.append("What will you do?")
+                self.message_box.queue_messages(msgs, wait_for_input=True)
+            return
+
         STAB    = stab_multiplier(mtype, attacker['type'])
         eff_val = type_effectiveness_value(mtype, defender['type'])
         rnd     = random_damage_factor()
-        atk     = max(1, attacker['attack'])
-        dfs     = max(1, defender['defense'])
+        atk     = self._get_effective_stat(attacker, 'attack')
+        dfs     = self._get_effective_stat(defender, 'defense')
         lvl     = max(1, attacker['level'])
 
-        dmg = max(1, int(Damage(lvl, atk, power, dfs, STAB, eff_val, rnd))) if power > 0 else 0
+        type_boost = next((fx['multiplier'] for fx in self.field_effects
+                           if fx['effect'] == 'type_power' and fx.get('boost_type') == mtype), 1.0)
+        dmg = max(1, int(Damage(lvl, atk, power, dfs, STAB, eff_val, rnd) * type_boost)) if power > 0 else 0
         defender['hp'] = max(0, defender['hp'] - dmg)
         if dmg > 0:
             self.trigger_hit_flash('player')
 
-        msgs = [f"The wild {attacker['name']} used {move['name']}!"]
-        if eff_val > 10:       msgs.append("It's super effective!")
-        elif 0 < eff_val < 10: msgs.append("It's not very effective...")
-        elif eff_val <= 0:     msgs.append("It had no effect...")
+        msgs = [f"{prefix}{attacker['name']} used {move['name']}!"]
+        if power > 0:
+            if eff_val > 10:       msgs.append("It's super effective!")
+            elif 0 < eff_val < 10: msgs.append("It's not very effective...")
+            elif eff_val <= 0:     msgs.append("It had no effect...")
+        msgs.extend(self._apply_move_ability(ability, attacker, defender))
 
         if defender['hp'] <= 0:
             self.stats_dinos_fainted += 1
@@ -1588,6 +1847,7 @@ class Game:
         if after:
             self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
         else:
+            msgs.extend(self._tick_field_effects())
             msgs.append("What will you do?")
             self.message_box.queue_messages(msgs, wait_for_input=True)
 

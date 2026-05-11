@@ -170,7 +170,7 @@ class Player(pygame.sprite.Sprite):
             return
         tile_x = self.rect.x // config.TILE_SIZE
         tile_y = self.rect.y // config.TILE_SIZE
-        print(f"[DEBUG] player tile=({tile_x},{tile_y})  entrances={list(game.entrance_tile_coords.keys())}  exits={list(game.exit_tile_coords)}")
+        # print(f"[DEBUG] player tile=({tile_x},{tile_y})  entrances={list(game.entrance_tile_coords.keys())}  exits={list(game.exit_tile_coords)}")
         if (tile_x, tile_y) in game.entrance_tile_coords:
             game.trigger_entrance(game.entrance_tile_coords[(tile_x, tile_y)], tile_x, tile_y)
         elif (tile_x, tile_y) in game.exit_tile_coords:

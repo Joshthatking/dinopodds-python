@@ -2,6 +2,13 @@ import config
 import math
 import random
 
+STAT_STAGE_MULT = {
+    -6: 0.25, -5: 0.28, -4: 0.33, -3: 0.40,
+    -2: 0.50, -1: 0.67,  0: 1.0,
+     1: 1.25,  2: 1.50,  3: 2.0,
+     4: 2.5,   5: 3.0,   6: 3.5,
+}
+
 TRAINER_DATA = {
     'amber': {
         'dinos': {0: ('Anemamace', 7), 1: ('Vusion', 8)},
@@ -13,6 +20,7 @@ TRAINER_DATA = {
         'defeated': False,
         'biome': 'forest',
         'reward_coins': 150,
+        'rank': 'medium',
     },
 
 }
@@ -22,7 +30,7 @@ TRAINER_DATA = {
 DINO_DATA = {
     'Vusion': {
         'stats': {'type': ['dark','magma'], 'health': 120, 'attack': 155, 'defense': 70, 'speed': 125},
-        'moves': {0: 'Force Shift', 9: 'Fireball', 14: 'Conduit Surge',19: 'Shadow Veil'},
+        'moves': {0: 'Force Shift', 9: 'Fireball', 10: 'Distortion', 14: 'Conduit Surge',19: 'Shadow Veil'},
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 110, 'defense': 115, 'speed':90},
@@ -30,7 +38,7 @@ DINO_DATA = {
         'evolve': None},
     'Corlave': {
         'stats': {'type': ['aqua'], 'health': 80, 'attack': 55, 'defense': 50, 'speed':25},
-        'moves': {0: 'Whirlpool', 17: 'Wave Dash'},
+        'moves': {0: 'Whirlpool', 5: 'Quick Slash', 17: 'Wave Dash'},
         'evolve': {17: 'Anemamace'}},
     'Creuw': {
         'stats': {'type': ['flying'], 'health': 50, 'attack': 65, 'defense': 40, 'speed':65},
@@ -151,27 +159,104 @@ TYPE_CHART_VAL = {
 
 
 MOVE_DATA = {
-    'Force Shift': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None,'type': 'dark'},
-    'Double Jab': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'spike'},
+    #AQUA MOVES
     'Whirlpool': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
-    'Shadow Veil': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'dark'},
+    'Hurricane': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
+    'Eternal Blue': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
+
+    'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'aqua',
+                    'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
+    #MAGMA MOVES
     'Fireball': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'magma'},
     'Lava Burst': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'magma'},
-    'Flame Shatter': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'magma'},
-    'Wave Dash': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
-    'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
-    'Poison Ivy': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
-    'Conduit Surge': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
-    'Translucent Wave': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'light'},
-    'Freeze Blast': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+    'Solar Flare': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'magma'},
+
+    'Flame Shatter':   {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'type': 'magma',
+                    'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
+    'Magma Boost':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'magma',
+                     'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'magma', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
+    #EARTH MOVES
+   'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Entangle': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    
+    'Poison Ivy':   {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'type': 'earth',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
+    'Terraform':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'earth',
+                     'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'earth', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
+    'Floral Resonance': {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'earth',
+                     'ability': {'kind': 'heal', 'percent': 25, 'chance': 100}},
+    #FLYING MOVES
     'Air Strike': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'flying'},
     'Mach Speed': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'flying'},
     'Wind Fracture': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'flying'},
 
+    'Turbo Booster':   {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'type': 'flying',
+                    'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
+    'Sky Scorch':   {'target': 'opponent', 'damage': 120, 'accuracy': 100, 'type': 'flying',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'self', 'chance': 90}},
+    #SPIKE MOVES
+    'Double Jab': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'spike'},
+    'Ripping Impact': {'target': 'opponent', 'damage': 50, 'accuracy': 90, 'ability': None, 'type': 'spike', 'pierces_defend': True},
+
+    #ROCK MOVES
+    'Boulder Smash': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'rock'},
+    'Crusher': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'rock'},
+
+    #LIGHTNING MOVES
+    'Thunder Slap': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+
+    'Conduit Surge':  {'target': 'opponent', 'damage': 50, 'accuracy': 90,  'type': 'lightning',
+                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
+    'Quantum Flux':  {'target': 'opponent', 'damage': 70, 'accuracy': 85,  'type': 'lightning',
+                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
+    'Stun':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'lightning',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
+
+    #DARK MOVES
+    'Force Shift': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None,'type': 'dark'},
+    'Shadow Veil': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'dark'},
+    'Void Collapse': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'dark', 'pierces_defend': True},
+
+    'Quick Slash':  {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'type': 'dark',
+                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
+    'Distortion':   {'target': 'opponent', 'damage': 5, 'accuracy': 100, 'type': 'dark',
+                     'ability': {'kind': 'field', 'effect': 'speed_swap', 'duration': 5, 'chance': 100}},
+    'Haunt':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'dark',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'opponent', 'chance': 100}},
+
+    #LIGHT MOVES
+    'Translucent Wave': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'light'},
+    'Piercing Light': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'light', 'pierces_defend': True},
+    'Spectral Overload': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'light'},
 
 
+    #ICE MOVES
+    'Freeze Blast': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+    'Hyperfrost': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'ice', 'pierces_defend': True},
 
-    
+    'Frozen Aura': {'target': 'self', 'damage': 10, 'accuracy': 100, 'type': 'ice',
+                     'ability': {'kind': 'heal', 'percent': 30, 'chance': 100}},
+    #ANCIENT MOVES
+    'Raging Pursuit': {'target': 'opponent', 'damage': 55, 'accuracy': 90, 'ability': None, 'type': 'ancient', 'pierces_defend': True},
+
+    'Primal Rage':  {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'ancient',
+                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
+    'Arise':  {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'ancient',
+                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
+
+    #DEBUFF MOVES
+    'Venom Decay':   {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'type': 'ancient',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
+
+
+    #HEALING MOVES
+    'Ancient Mend': {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'ancient',
+                     'ability': {'kind': 'heal', 'percent': 25, 'chance': 100}},
+
+    # --- Moves with abilities ---
+    # 'Quick Slash':  {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'type': 'dark',
+    #                  'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
+ 
     }
 
 

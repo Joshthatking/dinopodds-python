@@ -84,8 +84,14 @@ if __name__ == '__main__':
 #Add number of items and confirmation at DC Mart- COMPLETE
 
 #5/10
+#MOVE ABILITIES and text/icons - COMPLETE
+#Add a DEFEND button in battle separate from moves 3 total uses, can only use once every other turn - COMPLETE
+#Block menu ability when challenged to battle  and items and running - COMPLETE
+#Types of Ranks for trainer battles, set up moves when user defends 20-50% of the time to punish 15/25% for piercing defend - COMPLETE
+
+#NEED to fix index out of range - pc box storage when having one dino left, bug occurs during start menu party being opened after
 #add type chart to read in dinocenter by pc
 
-#add move abilities
+#add traits one for each dino family, and add natures just one per stat (increases by 5%)
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks
