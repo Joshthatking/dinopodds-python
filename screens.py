@@ -50,6 +50,324 @@ class Encounter:
             screen.blit(scaled, rect)
 
 
+# === Double Battle Background ===
+class DoubleBattleEncounter:
+    """Background + two side-by-side enemy sprites for double trainer battles."""
+
+    def __init__(self, fonts, dino1_key, dino2_key):
+        self.fonts = fonts
+        self.bg = load_image(config.DOUBLE_BATTLE_BG_PATH)
+        self.frame1 = (load_image(config.ENCOUNTER_DINOS_PATHS[dino1_key], alpha=True)
+                       if dino1_key in config.ENCOUNTER_DINOS_PATHS else None)
+        self.frame2 = (load_image(config.ENCOUNTER_DINOS_PATHS[dino2_key], alpha=True)
+                       if dino2_key in config.ENCOUNTER_DINOS_PATHS else None)
+
+    def draw(self, screen, e1_visible=True, e2_visible=True):
+        screen.blit(self.bg, (0, 0))
+        size = 110
+        sw = screen.get_width()
+        if self.frame1 and e1_visible:
+            scaled = pygame.transform.scale(self.frame1, (size, size))
+            r = scaled.get_rect(centerx=sw - 350, centery=145)
+            screen.blit(scaled, r)
+        if self.frame2 and e2_visible:
+            scaled = pygame.transform.scale(self.frame2, (size, size))
+            r = scaled.get_rect(centerx=sw - 180, centery=145)
+            screen.blit(scaled, r)
+
+
+# === Double Battle UI ===
+class DoubleBattleUI:
+    """HUD for 2v2 trainer battles: compact info boxes, no XP bar."""
+
+    def __init__(self, fonts):
+        self.font        = fonts['DIALOGUE']
+        self.small_font  = fonts['BAG']
+        self.smaller_font = fonts['XS']
+        self.selected_option = 0
+        self.actions     = ["Fight", "Bag", "Party", "Run", "Defend"]
+        self.in_fight_menu  = False
+        self.move_selected  = 0
+        self.level_up_popup = None
+        self.xp_frozen      = True   # not used visually; kept for API compat
+
+        self.enemy1_hp_display  = None
+        self.enemy2_hp_display  = None
+        self.player1_hp_display = None
+        self.player2_hp_display = None
+        self._hp_speed = 0.35
+
+        # Stored so is_hp_animating can check all four
+        self._last_p2 = None
+        self._last_e2 = None
+
+        # Double battle input phase state
+        self.in_target_menu      = False
+        self.target_idx          = 0      # 0 = enemy 1, 1 = enemy 2
+        self._pending_move_name  = None
+        self.selecting_p2        = False  # True when selecting Dino 2's action
+
+    def unfreeze_xp(self):
+        self.xp_frozen = False
+
+    def show_level_up(self, dino, old_stats, new_stats):
+        self.level_up_popup = LevelUpPopup(dino, old_stats, new_stats)
+
+    def _slide(self, current, target, dt):
+        if current is None:
+            return target
+        diff = target - current
+        step = self._hp_speed * dt
+        if abs(diff) <= step:
+            return target
+        return current + step * (1 if diff > 0 else -1)
+
+    def update(self, dt, p1, p2, e1, e2):
+        self._last_p2 = p2
+        self._last_e2 = e2
+        tp1 = p1['hp'] / max(1, p1['max_hp'])
+        tp2 = p2['hp'] / max(1, p2['max_hp']) if p2 else 0.0
+        te1 = e1['hp'] / max(1, e1['max_hp'])
+        te2 = e2['hp'] / max(1, e2['max_hp']) if e2 else 0.0
+        if self.player1_hp_display is None: self.player1_hp_display = tp1
+        if self.player2_hp_display is None: self.player2_hp_display = tp2
+        if self.enemy1_hp_display  is None: self.enemy1_hp_display  = te1
+        if self.enemy2_hp_display  is None: self.enemy2_hp_display  = te2
+        self.player1_hp_display = self._slide(self.player1_hp_display, tp1, dt)
+        self.player2_hp_display = self._slide(self.player2_hp_display, tp2, dt)
+        self.enemy1_hp_display  = self._slide(self.enemy1_hp_display,  te1, dt)
+        self.enemy2_hp_display  = self._slide(self.enemy2_hp_display,  te2, dt)
+
+    def is_hp_animating(self, p1, e1):
+        tp1 = p1['hp'] / max(1, p1['max_hp'])
+        te1 = e1['hp'] / max(1, e1['max_hp'])
+        p2  = self._last_p2
+        e2  = self._last_e2
+        tp2 = p2['hp'] / max(1, p2['max_hp']) if p2 else 0.0
+        te2 = e2['hp'] / max(1, e2['max_hp']) if e2 else 0.0
+        return (
+            (self.player1_hp_display is not None and abs(self.player1_hp_display - tp1) > 0.001) or
+            (self.enemy1_hp_display  is not None and abs(self.enemy1_hp_display  - te1) > 0.001) or
+            (self.player2_hp_display is not None and abs(self.player2_hp_display - tp2) > 0.001) or
+            (self.enemy2_hp_display  is not None and abs(self.enemy2_hp_display  - te2) > 0.001)
+        )
+
+    def _draw_panel(self, surface, rect, bg=(245, 245, 245), border=(0, 0, 0), bw=3):
+        pygame.draw.rect(surface, bg, rect)
+        pygame.draw.rect(surface, border, rect, bw)
+
+    def _draw_hp_bar(self, surface, x, y, w, h, pct,
+                     back=(200, 0, 0), front=(0, 200, 0)):
+        pct = max(0.0, min(1.0, pct))
+        pygame.draw.rect(surface, back,  (x, y, w, h))
+        pygame.draw.rect(surface, front, (x, y, int(w * pct), h))
+
+    def draw(self, surface, p1, p2, e1, e2, encounter_text,
+             show_actions=True, msg_awaiting_input=False,
+             p1_visible=True, p2_visible=True,
+             e1_visible=True, e2_visible=True,
+             active_dino=None):
+
+        sw, sh = surface.get_size()
+
+        # ── Geometry ───────────────────────────────────────────────
+        en1_rect  = pygame.Rect(0,       15,  168, 58)
+        en2_rect  = pygame.Rect(172,     15,  168, 58)
+        pl1_rect  = pygame.Rect(sw - 330, sh - 245, 155, 72)
+        pl2_rect  = pygame.Rect(sw - 170, sh - 245, 167, 72)
+        text_rect = pygame.Rect(9, sh - 120, sw - 325, 115)
+        act_rect  = pygame.Rect(sw - 300, sh - 120, 287, 115)
+
+        for r in (text_rect, act_rect, en1_rect, en2_rect, pl1_rect, pl2_rect):
+            self._draw_panel(surface, r)
+
+        # ── HP ratios ──────────────────────────────────────────────
+        ep1 = self.enemy1_hp_display  if self.enemy1_hp_display  is not None else e1['hp'] / max(1, e1['max_hp'])
+        ep2 = (self.enemy2_hp_display if self.enemy2_hp_display  is not None
+               else (e2['hp'] / max(1, e2['max_hp']) if e2 else 0.0))
+        pp1 = self.player1_hp_display if self.player1_hp_display is not None else p1['hp'] / max(1, p1['max_hp'])
+        pp2 = (self.player2_hp_display if self.player2_hp_display is not None
+               else (p2['hp'] / max(1, p2['max_hp']) if p2 else 0.0))
+
+        # ── Enemy info panels (gray out if KO'd) ──────────────────
+        sf = self.small_font
+        if ep1 <= 0.01:
+            pygame.draw.rect(surface, (180, 180, 180), en1_rect)
+            pygame.draw.rect(surface, (80, 80, 80), en1_rect, 3)
+            surface.blit(sf.render("KO", True, (120, 0, 0)), (en1_rect.x + 8, en1_rect.y + 18))
+        else:
+            surface.blit(sf.render(e1['name'],         True, (0, 0, 0)), (en1_rect.x + 8, en1_rect.y + 8))
+            surface.blit(sf.render(f"Lv{e1['level']}", True, (0, 0, 0)), (en1_rect.x + 120, en1_rect.y + 8))
+            self._draw_hp_bar(surface, en1_rect.x + 8, en1_rect.y + 34, 150, 12, ep1)
+
+        if e2:
+            if ep2 <= 0.01:
+                pygame.draw.rect(surface, (180, 180, 180), en2_rect)
+                pygame.draw.rect(surface, (80, 80, 80), en2_rect, 3)
+                surface.blit(sf.render("KO", True, (120, 0, 0)), (en2_rect.x + 8, en2_rect.y + 18))
+            else:
+                surface.blit(sf.render(e2['name'],         True, (0, 0, 0)), (en2_rect.x + 8, en2_rect.y + 8))
+                surface.blit(sf.render(f"Lv{e2['level']}", True, (0, 0, 0)), (en2_rect.x + 120, en2_rect.y + 8))
+                self._draw_hp_bar(surface, en2_rect.x + 8, en2_rect.y + 34, 150, 12, ep2)
+
+        # ── Player info panels (gray out if KO'd) ─────────────────
+        if pp1 <= 0.01:
+            pygame.draw.rect(surface, (180, 180, 180), pl1_rect)
+            pygame.draw.rect(surface, (80, 80, 80), pl1_rect, 3)
+            surface.blit(sf.render("KO", True, (120, 0, 0)), (pl1_rect.x + 6, pl1_rect.y + 26))
+        else:
+            surface.blit(sf.render(p1['name'],         True, (0, 0, 0)), (pl1_rect.x + 6, pl1_rect.y + 6))
+            surface.blit(sf.render(f"Lv{p1['level']}", True, (0, 0, 0)), (pl1_rect.x + 104, pl1_rect.y + 6))
+            self._draw_hp_bar(surface, pl1_rect.x + 6, pl1_rect.y + 30, 140, 10, pp1)
+
+        if p2:
+            if pp2 <= 0.01:
+                pygame.draw.rect(surface, (180, 180, 180), pl2_rect)
+                pygame.draw.rect(surface, (80, 80, 80), pl2_rect, 3)
+                surface.blit(sf.render("KO", True, (120, 0, 0)), (pl2_rect.x + 6, pl2_rect.y + 26))
+            else:
+                surface.blit(sf.render(p2['name'],         True, (0, 0, 0)), (pl2_rect.x + 6, pl2_rect.y + 6))
+                surface.blit(sf.render(f"Lv{p2['level']}", True, (0, 0, 0)), (pl2_rect.x + 110, pl2_rect.y + 6))
+                self._draw_hp_bar(surface, pl2_rect.x + 6, pl2_rect.y + 30, 152, 10, pp2)
+
+        # ── Player back sprites (hide if KO'd) ────────────────────
+        text_top = text_rect.top
+        if p1_visible and pp1 > 0.01:
+            img = pygame.transform.scale(p1['image'], (140, 140))
+            r   = img.get_rect(centerx=text_rect.x + 85, bottom=text_top)
+            surface.blit(img, r)
+        if p2 and p2_visible and pp2 > 0.01:
+            img = pygame.transform.scale(p2['image'], (140, 140))
+            r   = img.get_rect(centerx=text_rect.x + 235, bottom=text_top)
+            surface.blit(img, r)
+
+        # ── Level-up popup ─────────────────────────────────────────
+        if self.level_up_popup and self.level_up_popup.active:
+            dim = pygame.Surface(surface.get_size(), flags=pygame.SRCALPHA)
+            dim.fill((0, 0, 0, 150))
+            surface.blit(dim, (0, 0))
+            self.level_up_popup.draw(surface)
+
+        # ── Text box ───────────────────────────────────────────────
+        lines = wrap_text(encounter_text, sf, text_rect.width - 40)
+        for i, line in enumerate(lines[:5]):
+            surface.blit(sf.render(line, True, (0, 0, 0)),
+                         (text_rect.x + 20, text_rect.y + 12 + i * 20))
+
+        if msg_awaiting_input and pygame.time.get_ticks() // 400 % 2:
+            cx, cy = act_rect.left - 18, text_rect.bottom - 10
+            pygame.draw.polygon(surface, (0, 0, 0),
+                                [(cx - 8, cy - 7), (cx + 8, cy - 7), (cx, cy + 3)])
+
+        # ── Action / fight / target menu ───────────────────────────
+        if not show_actions:
+            return
+
+        # Label: which dino is currently selecting
+        label = "Dino 2:" if self.selecting_p2 else "Dino 1:"
+        surface.blit(self.smaller_font.render(label, True, (60, 60, 200)),
+                     (act_rect.x + 8, act_rect.y + 4))
+
+        # Target selection mode
+        if self.in_target_menu:
+            half_w = act_rect.width // 2
+            for i, en in enumerate([e1, e2]):
+                if not en:
+                    continue
+                tr = pygame.Rect(act_rect.x + i * half_w, act_rect.y + 18, half_w, act_rect.height - 22)
+                alive = en.get('hp', 0) > 0
+                bg = (180, 230, 180) if (i == self.target_idx and alive) else (210, 210, 210)
+                pygame.draw.rect(surface, bg, tr)
+                bc = (255, 215, 0) if (i == self.target_idx and alive) else (120, 120, 120)
+                pygame.draw.rect(surface, bc, tr, 3)
+                name = en['name'] if alive else "KO"
+                col  = (0, 0, 0) if alive else (140, 0, 0)
+                ts = self.small_font.render(name, True, col)
+                surface.blit(ts, (tr.centerx - ts.get_width() // 2, tr.centery - ts.get_height() // 2))
+            # Arrow hint
+            hint = self.smaller_font.render("A/D to target  J to confirm", True, (80, 80, 80))
+            surface.blit(hint, (act_rect.x + 4, act_rect.bottom - hint.get_height() - 2))
+            return
+
+        if not self.in_fight_menu:
+            for i in range(4):
+                color = (0, 0, 255) if i == self.selected_option else (0, 0, 0)
+                surface.blit(self.font.render(self.actions[i], True, color),
+                             (act_rect.x + 20 + (i % 2) * 120,
+                              act_rect.y + 20 + (i // 2) * 50))
+            defend_rect = pygame.Rect(act_rect.right - 80, act_rect.y + 5, 74, 105)
+            pygame.draw.rect(surface, (15, 25, 110), defend_rect, border_radius=5)
+            bc = (255, 215, 0) if self.selected_option == 4 else (0, 0, 60)
+            pygame.draw.rect(surface, bc, defend_rect, 3, border_radius=5)
+            ds = self.small_font.render("DEFEND", True, (255, 255, 255))
+            surface.blit(ds, (defend_rect.centerx - ds.get_width() // 2,
+                              defend_rect.centery - ds.get_height() // 2))
+        else:
+            cur = active_dino or p1
+            moves = cur.get('moves', [])
+            qw, qh = act_rect.width // 2, act_rect.height // 2
+            for i in range(4):
+                col, row = i % 2, i // 2
+                rect = pygame.Rect(act_rect.x + col * qw, act_rect.y + row * qh, qw, qh)
+                if i < len(moves):
+                    mt  = MOVE_DATA.get(moves[i], {}).get("type", "normal")
+                    bg  = TYPE_DATA.get(mt, {}).get("color", (200, 200, 200))
+                    txt = moves[i]
+                    tc  = (255, 255, 255)
+                else:
+                    bg, txt, tc = (150, 150, 150), "—", (100, 100, 100)
+                pygame.draw.rect(surface, bg, rect)
+                bc = (255, 255, 0) if i == self.move_selected else (0, 0, 0)
+                pygame.draw.rect(surface, bc, rect, 3)
+                ts = self.small_font.render(txt, True, tc)
+                surface.blit(ts, (rect.centerx - ts.get_width() // 2,
+                                  rect.centery - ts.get_height() // 2))
+
+    def handle_input(self, event, player_dino):
+        if self.level_up_popup and self.level_up_popup.active:
+            self.level_up_popup.handle_event(event)
+            return
+        if event.type != pygame.KEYDOWN:
+            return
+        if not self.in_fight_menu:
+            NAV_W = [2, 3, 0, 1, 1]
+            NAV_S = [2, 3, 0, 1, 3]
+            NAV_A = [4, 0, 4, 2, 3]
+            NAV_D = [1, 4, 3, 4, 0]
+            if event.key == pygame.K_w:
+                self.selected_option = NAV_W[self.selected_option]
+            elif event.key == pygame.K_s:
+                self.selected_option = NAV_S[self.selected_option]
+            elif event.key == pygame.K_a:
+                self.selected_option = NAV_A[self.selected_option]
+            elif event.key == pygame.K_d:
+                self.selected_option = NAV_D[self.selected_option]
+            elif event.key == pygame.K_j:
+                if self.actions[self.selected_option] == "Fight":
+                    self.in_fight_menu = True
+                else:
+                    return self.actions[self.selected_option]
+        else:
+            mc = len(player_dino['moves'])
+            if event.key == pygame.K_w:
+                self.move_selected = (self.move_selected - 2) % 4
+                while self.move_selected >= mc: self.move_selected = (self.move_selected - 1) % 4
+            elif event.key == pygame.K_s:
+                self.move_selected = (self.move_selected + 2) % 4
+                while self.move_selected >= mc: self.move_selected = (self.move_selected - 1) % 4
+            elif event.key == pygame.K_a:
+                self.move_selected = (self.move_selected - 1) % 4
+                while self.move_selected >= mc: self.move_selected = (self.move_selected - 1) % 4
+            elif event.key == pygame.K_d:
+                self.move_selected = (self.move_selected + 1) % 4
+                while self.move_selected >= mc: self.move_selected = (self.move_selected - 1) % 4
+            elif event.key == pygame.K_j:
+                if self.move_selected < mc:
+                    return f"UseMove:{player_dino['moves'][self.move_selected]}"
+            elif event.key == pygame.K_SPACE:
+                self.in_fight_menu = False
+
+
 # === Battle UI ===
 class EncounterUI:
     def __init__(self, fonts):
@@ -299,10 +617,21 @@ class EncounterUI:
         if event.type != pygame.KEYDOWN:
             return
         if not self.in_fight_menu:
+            # Grid:  [0:Fight][1:Bag] | [4:Defend]
+            #        [2:Party][3:Run] | [4:Defend]
+            # Index:  0  1  2  3  4
+            NAV_W = [2, 3, 0, 1, 1]  # up   — col wraps; Defend → Bag
+            NAV_S = [2, 3, 0, 1, 3]  # down — col wraps; Defend → Run
+            NAV_A = [4, 0, 4, 2, 3]  # left — row wraps to Defend; Defend → Run
+            NAV_D = [1, 4, 3, 4, 0]  # right — Defend wraps to Fight
             if event.key == pygame.K_w:
-                self.selected_option = (self.selected_option - 1) % len(self.actions)
+                self.selected_option = NAV_W[self.selected_option]
             elif event.key == pygame.K_s:
-                self.selected_option = (self.selected_option + 1) % len(self.actions)
+                self.selected_option = NAV_S[self.selected_option]
+            elif event.key == pygame.K_a:
+                self.selected_option = NAV_A[self.selected_option]
+            elif event.key == pygame.K_d:
+                self.selected_option = NAV_D[self.selected_option]
             elif event.key == pygame.K_j:
                 if self.actions[self.selected_option] == "Fight":
                     self.in_fight_menu = True
@@ -500,6 +829,7 @@ class BoxScreen:
                             dino = party.pop(sidx)
                             box.append(dino)
                             self.par_cursor = min(self.par_cursor, max(0, len(party) - 1))
+                            game.active_dino_index = min(game.active_dino_index, len(party) - 1)
                     self.grabbed = None
 
         else:  # party panel
@@ -516,6 +846,7 @@ class BoxScreen:
                     box.append(dino)
                     self.par_cursor = min(self.par_cursor, max(0, len(party) - 1))
                     self.box_cursor = len(box) - 1   # land cursor on the newly sent dino
+                    game.active_dino_index = min(game.active_dino_index, len(party) - 1)
             elif event.key == pygame.K_j:
                 if self.grabbed is None:
                     if self.par_cursor < len(party):
@@ -685,6 +1016,35 @@ class PartyScreen:
             self.selected_index = (self.selected_index + 1) % list_length
             return None
 
+        # ── Double battle forced replacement ──────────────────────
+        double_slot = getattr(game, 'double_replace_slot', None)
+        if double_slot is not None and in_encounter and event.key == pygame.K_j:
+            chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
+            if not chosen:
+                return None
+            if chosen.get('hp', 0) <= 0:
+                game.message_box.queue_messages(
+                    [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
+                return None
+            other_slot = 1 - double_slot
+            if self.selected_index == other_slot:
+                game.message_box.queue_messages(
+                    ["That dino is already in battle!"], wait_for_input=True)
+                return None
+            if self.selected_index == double_slot:
+                game.message_box.queue_messages(
+                    ["Choose a different dino."], wait_for_input=True)
+                return None
+            # Swap chosen dino into the fainted slot
+            chosen['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
+            chosen['defending']   = False
+            game.player_dinos[double_slot], game.player_dinos[self.selected_index] = \
+                game.player_dinos[self.selected_index], game.player_dinos[double_slot]
+            game.double_replace_slot = None
+            game.pop_state()
+            game._double_continue_replacements()
+            return None
+
         # ── Forced switch after faint ──────────────────────────────
         if awaiting and in_encounter and event.key == pygame.K_j:
             chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
@@ -705,6 +1065,11 @@ class PartyScreen:
 
         # ── Voluntary switch during encounter ─────────────────────
         if in_encounter and not awaiting and event.key == pygame.K_j:
+            active = game.player_dinos[game.active_dino_index]
+            if active.get('lock_turns_left', 0) > 0:
+                game.message_box.queue_messages(
+                    [f"{active['name']} can't switch out!"], wait_for_input=True)
+                return None
             chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
             if chosen and chosen.get('hp', 0) <= 0:
                 game.message_box.queue_messages(
@@ -747,6 +1112,7 @@ class PartyScreen:
                             d = game.player_dinos.pop(i)
                             game.box_dinos.append(d)
                             s.selected_index = min(i, len(game.player_dinos) - 1)
+                            game.active_dino_index = min(game.active_dino_index, len(game.player_dinos) - 1)
                     game.yes_no_prompt   = YesNoPrompt(
                         f"Send {dino['name']} to the box?",
                         game.fonts, config.WIDTH, config.HEIGHT)
@@ -755,7 +1121,7 @@ class PartyScreen:
 
         # ── Back ───────────────────────────────────────────────────
         if event.key == pygame.K_SPACE:
-            self.picking_index = None
+            self.reset()
             if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' \
                     and game.state_stack[0] == 'world':
                 game.pop_state()
@@ -806,6 +1172,7 @@ class PartyScreen:
                 faint_text = self.small_font.render("Fainted", True, (255, 255, 255))
                 screen.blit(faint_text, faint_text.get_rect(center=rect.center))
 
+        self.selected_index = min(self.selected_index, len(dinos) - 1)
         self.draw_preview(screen, dinos[self.selected_index])
 
         in_encounter = 'encounter' in self.game.state_stack

@@ -89,9 +89,17 @@ if __name__ == '__main__':
 #Block menu ability when challenged to battle  and items and running - COMPLETE
 #Types of Ranks for trainer battles, set up moves when user defends 20-50% of the time to punish 15/25% for piercing defend - COMPLETE
 
+#5/11
 #NEED to fix index out of range - pc box storage when having one dino left, bug occurs during start menu party being opened after
-#add type chart to read in dinocenter by pc
+#DOUBLE BATTLES 
 
+#Add Sprinting
+#Add text of xp earned in doubles
+#adjust XP again to prevent 0 in large gaps of levels
+
+#FIX Defend order always being first and not carrying over to 2nd turn
+#add type chart to read in dinocenter by pc
 #add traits one for each dino family, and add natures just one per stat (increases by 5%)
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks
+ 

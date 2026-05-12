@@ -22,6 +22,26 @@ TRAINER_DATA = {
         'reward_coins': 150,
         'rank': 'medium',
     },
+    'basic_trainer': {
+        'partner': 'basic_trainer2',
+        'dinos': {0: ('Vusion', 10)},
+        'dialog': {'default': ["Two against two!", "Double battle, go!"]},
+        'directions': ['down'],
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 250,
+        'rank': 'medium',
+    },
+    'basic_trainer2': {
+        'partner': 'basic_trainer',
+        'dinos': {0: ('Anemamace', 9)},
+        'dialog': {'default': ["We fight as one!"]},
+        'directions': ['down'],
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 250,
+        'rank': 'medium',
+    },
 
 }
 
@@ -161,14 +181,14 @@ TYPE_CHART_VAL = {
 MOVE_DATA = {
     #AQUA MOVES
     'Whirlpool': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
-    'Hurricane': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
+    'Hurricane': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
     'Eternal Blue': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
 
     'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'aqua',
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
     #MAGMA MOVES
     'Fireball': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'magma'},
-    'Lava Burst': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'magma'},
+    'Lava Burst': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'magma'},
     'Solar Flare': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'magma'},
 
     'Flame Shatter':   {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'type': 'magma',
@@ -177,10 +197,15 @@ MOVE_DATA = {
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'magma', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
     #EARTH MOVES
    'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
-    'Entangle': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Dread Thorn': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Tree Spin': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+
+
     
     'Poison Ivy':   {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'type': 'earth',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
+    'Synthesis':   {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'earth',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 2, 'target': 'self', 'chance': 100}},
     'Terraform':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'earth',
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'earth', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
     'Floral Resonance': {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'earth',
@@ -190,20 +215,39 @@ MOVE_DATA = {
     'Mach Speed': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'flying'},
     'Wind Fracture': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'flying'},
 
-    'Turbo Booster':   {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'type': 'flying',
+    'Turbo Booster':   {'target': 'self', 'damage': 0, 'accuracy': 95, 'type': 'flying',
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
-    'Sky Scorch':   {'target': 'opponent', 'damage': 120, 'accuracy': 100, 'type': 'flying',
-                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'self', 'chance': 90}},
+    'Sky Scorch':   {'target': 'opponent', 'damage': 120, 'accuracy': 90, 'type': 'flying',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'self', 'chance': 100}},
     #SPIKE MOVES
+    'Lock Jaw': {'target': 'opponent', 'damage': 30, 'accuracy': 90, 'type': 'spike',
+                 'ability': {'kind': 'lock', 'turns': 2, 'chance': 100}},
     'Double Jab': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'spike'},
     'Ripping Impact': {'target': 'opponent', 'damage': 50, 'accuracy': 90, 'ability': None, 'type': 'spike', 'pierces_defend': True},
+    'Power Fang': {'target': 'opponent', 'damage': 50, 'accuracy': 100, 'ability': None, 'type': 'spike'},
+    'Sword Slash': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'spike'},
+
+    'Spike Storm': {'target': 'opponent', 'damage': 110, 'accuracy': 95, 'type': 'spike',
+                    'ability': {'kind': 'recoil', 'percent': 25, 'chance': 100}},
+    'Quick Slash':  {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'type': 'spike',
+                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
+
 
     #ROCK MOVES
     'Boulder Smash': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'rock'},
     'Crusher': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'rock'},
 
+    'Iron Core':   {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'rock',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 2, 'target': 'self', 'chance': 100}},             
+    'Momentum':   {'target': 'opponent', 'damage': 45, 'accuracy': 90, 'type': 'rock',
+                    'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
+    'Crash Impact': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'type': 'rock',
+                     'ability': {'kind': 'recoil', 'percent': 15, 'chance': 100}},
+
     #LIGHTNING MOVES
     'Thunder Slap': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+    'Volt Storm': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+
 
     'Conduit Surge':  {'target': 'opponent', 'damage': 50, 'accuracy': 90,  'type': 'lightning',
                      'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
@@ -214,26 +258,33 @@ MOVE_DATA = {
 
     #DARK MOVES
     'Force Shift': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None,'type': 'dark'},
-    'Shadow Veil': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'dark'},
+    'Dark Energy': {'target': 'opponent', 'damage': 50, 'accuracy': 100, 'ability': None, 'type': 'dark'},
     'Void Collapse': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'dark', 'pierces_defend': True},
 
-    'Quick Slash':  {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'type': 'dark',
-                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
     'Distortion':   {'target': 'opponent', 'damage': 5, 'accuracy': 100, 'type': 'dark',
                      'ability': {'kind': 'field', 'effect': 'speed_swap', 'duration': 5, 'chance': 100}},
     'Haunt':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'dark',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'opponent', 'chance': 100}},
-
+    'Binding Curse': {'target': 'opponent', 'damage': 25, 'accuracy': 90, 'type': 'dark',
+                      'ability': {'kind': 'lock', 'turns': 2, 'chance': 100}},
+    'Shadow Veil':   {'target': 'opponent', 'damage': 50, 'accuracy': 100, 'type': 'dark',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 1, 'target': 'self', 'chance': 100}},
     #LIGHT MOVES
     'Translucent Wave': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'light'},
     'Piercing Light': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'light', 'pierces_defend': True},
     'Spectral Overload': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'light'},
 
-
+    'Refraction':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'light',
+                     'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'light', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
+   'Gamma Wave':   {'target': 'opponent', 'damage': 80, 'accuracy': 90, 'type': 'light',
+                    'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'opponent', 'chance': 100}},
     #ICE MOVES
-    'Freeze Blast': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+    'Freeze Blast': {'target': 'opponent', 'damage': 70, 'accuracy': 100, 'ability': None, 'type': 'ice'},
     'Hyperfrost': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'ice', 'pierces_defend': True},
 
+    'Hail Storm': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'type': 'ice',
+                   'ability': {'kind': 'dot', 'damage_percent': 8, 'turns': 2,
+                               'tick_msg': 'pelted by the raging hail', 'chance': 100}},
     'Frozen Aura': {'target': 'self', 'damage': 10, 'accuracy': 100, 'type': 'ice',
                      'ability': {'kind': 'heal', 'percent': 30, 'chance': 100}},
     #ANCIENT MOVES
@@ -241,7 +292,7 @@ MOVE_DATA = {
 
     'Primal Rage':  {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'ancient',
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
-    'Arise':  {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'ancient',
+    'Arise':  {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'ancient',
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
 
     #DEBUFF MOVES

@@ -81,15 +81,22 @@ ENCOUNTER_DINOS_PATHS = {
 NPC_SHEETS = {
     # trainer_id -> path to 4x4 spritesheet (32x32 per cell)
     # row 0=down, 1=left, 2=right, 3=up  |  col 0=still, 1=walk, 2=still, 3=walk
-    'amber':       os.path.join('assets', 'NPC', 'Professor_Amber.png'),
-    'dc_lady':     os.path.join('assets', 'NPC', 'DC_LADY.png'),
-    'dcmart_lady': os.path.join('assets', 'NPC', 'DCMart_LADY.png'),
+    'amber':          os.path.join('assets', 'NPC', 'Professor_Amber.png'),
+    'dc_lady':        os.path.join('assets', 'NPC', 'DC_LADY.png'),
+    'dcmart_lady':    os.path.join('assets', 'NPC', 'DCMart_LADY.png'),
+    'basic_trainer':  os.path.join('assets', 'NPC', 'BasicTrainer.png'),
+    'basic_trainer2': os.path.join('assets', 'NPC', 'BasicTrainer2.png'),
 }
+
+DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
 
 # Per-world NPC definitions: (trainer_id, tile_x, tile_y, facing, sight_range, npc_type)
 WORLD_NPCS = {
     'LOST_REGION.world': [
         ('amber', 5, 34, 'down', 4, 'trainer'),
+        # ROUTE_1.3 double battle pair — face south (down) watching for the player
+        ('basic_trainer',  -2, -4, 'down', 6, 'trainer'),
+        ('basic_trainer2', -1, -4, 'down', 6, 'trainer'),
     ],
     'DINOCENTER.tmx': [
         ('dc_lady',     9, 2, 'down', 0, 'healer'),

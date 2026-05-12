@@ -135,12 +135,42 @@ class NPC:
 
         if self.state == 'idle':
             if self.can_see_player(player):
+                # For double-battle pairs, also alert the partner immediately
+                data       = TRAINER_DATA.get(self.trainer_id, {})
+                partner_id = data.get('partner')
+                if partner_id:
+                    partner = next(
+                        (n for n in game.npcs if n.trainer_id == partner_id
+                         and not n.defeated and n.state == 'idle'),
+                        None
+                    )
+                    if partner:
+                        partner.state      = 'spotted'
+                        partner.spot_timer = 0.7
                 self.state      = 'spotted'
                 self.spot_timer = 0.7
 
         elif self.state == 'spotted':
             self.spot_timer -= dt
             if self.spot_timer <= 0:
+                data       = TRAINER_DATA.get(self.trainer_id, {})
+                partner_id = data.get('partner')
+                if partner_id and not getattr(self, '_double_engaged', False):
+                    partner = next(
+                        (n for n in game.npcs
+                         if n.trainer_id == partner_id and not n.defeated
+                         and not getattr(n, '_double_engaged', False)),
+                        None
+                    )
+                    if partner:
+                        self._double_engaged   = True
+                        partner._double_engaged = True
+                        self.state   = 'done'
+                        partner.state = 'done'
+                        self.face_toward_player(player)
+                        partner.face_toward_player(player)
+                        game.start_forced_walk_double(self, partner)
+                        return
                 self.state      = 'walking'
                 self.anim_frame = 0
                 self.anim_timer = 0.0

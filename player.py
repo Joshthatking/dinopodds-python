@@ -43,6 +43,8 @@ class Player(pygame.sprite.Sprite):
             return
         if any(npc.state in ('spotted', 'walking') for npc in getattr(game, 'npcs', [])):
             return
+        if getattr(game, 'forced_walk_npc', None):
+            return
 
         if self.moving:
             step = self.move_speed * dt
