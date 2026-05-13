@@ -24,7 +24,7 @@ TRAINER_DATA = {
     },
     'basic_trainer': {
         'partner': 'basic_trainer2',
-        'dinos': {0: ('Vusion', 10)},
+        'dinos': {0: ('Prowscar', 10)},
         'dialog': {'default': ["Two against two!", "Double battle, go!"]},
         'directions': ['down'],
         'defeated': False,
@@ -34,7 +34,7 @@ TRAINER_DATA = {
     },
     'basic_trainer2': {
         'partner': 'basic_trainer',
-        'dinos': {0: ('Anemamace', 9)},
+        'dinos': {0: ('Floravel', 9)},
         'dialog': {'default': ["We fight as one!"]},
         'directions': ['down'],
         'defeated': False,
@@ -68,7 +68,15 @@ DINO_DATA = {
         'stats': {'type': ['flying', 'dark'], 'health': 100, 'attack': 145, 'defense': 70, 'speed':135},
         'moves': {0: 'Air Strike', 15: 'Shadow Veil'},
         'evolve': None},
-    
+    'Prowscar': {
+        'stats': {'type': ['dark'], 'health': 50, 'attack': 70, 'defense': 50, 'speed': 70},
+        'moves': {0: 'Force Shift', 10: 'Shadow Veil'},
+        'evolve': None},
+    'Floravel': {
+        'stats': {'type': ['earth'], 'health': 50, 'attack': 50, 'defense': 70, 'speed': 40},
+        'moves': {0: 'Vine Snare', 10: 'Boulder Smash'},
+        'evolve': None},
+
 }
 
 
@@ -392,27 +400,13 @@ def XPtoLevel(XP):
     return int(math.sqrt(XP)/1.93)
 
 
-def calculate_xp_gain(player_level, opponent_level, base_xp=7, state_multiplier=1.0, party_size=1):
-    # Level difference factor (punish farming low levels)
-    level_factor = max(0.2, opponent_level / player_level)  # minimum 0.2 so it never hits zero
-    
-    # Diminishing returns: scale XP when overleveled
-    if player_level > opponent_level:
-        diminishing = 1 - ((player_level - opponent_level) * 0.02)  # lose 5% per level over
-        diminishing = max(diminishing, 0.2)  # never go below 20%
-    else:
-        diminishing = 1.0  # full XP if enemy is >= level
-    
-    # Base XP calc
-    xp = base_xp * opponent_level * level_factor * diminishing
-    
-    # Context multiplier (bosses, events, etc.)
-    xp *= state_multiplier
-    
-    # Split XP among party members
-    xp /= max(party_size, 1)
-    
-    return int(xp)
+def calculate_xp_gain(player_level, opponent_level, base_xp=7, state_multiplier=1.0):
+    # level_factor scales down XP when farming much-lower enemies, floor at 0.3
+    level_factor = max(0.3, opponent_level / player_level)
+
+    xp = base_xp * opponent_level * level_factor * state_multiplier
+
+    return max(6, int(xp))
 
 ### 0.5  catching
 ### 0.75 wild encounters

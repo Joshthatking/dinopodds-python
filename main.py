@@ -91,14 +91,19 @@ if __name__ == '__main__':
 
 #5/11
 #NEED to fix index out of range - pc box storage when having one dino left, bug occurs during start menu party being opened after
-#DOUBLE BATTLES 
+#DOUBLE BATTLES - COMPLETE
+#Add Sprinting - COMPLETE
+#Add text of xp earned in doubles - COMPLETE
+#adjust XP again to prevent 0 in large gaps of levels - COMPLETE* too much xp,
 
-#Add Sprinting
-#Add text of xp earned in doubles
-#adjust XP again to prevent 0 in large gaps of levels
+#5/12
+#Fix double battle screen + add Floravel and Prowscar - COMPLETE
+#FIX Defend order always being first and not carrying over to 2nd turn - COMPLETE
+#add type chart to read in dinocenter by pc - COMPLETE
 
-#FIX Defend order always being first and not carrying over to 2nd turn
-#add type chart to read in dinocenter by pc
+#5/13
+#Add more trainers to route 1
+#Adjust xp, make it less rewarding overall by a little-medium
 #add traits one for each dino family, and add natures just one per stat (increases by 5%)
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks

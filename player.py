@@ -26,6 +26,8 @@ class Player(pygame.sprite.Sprite):
         self.target_x = self.rect.x
         self.target_y = self.rect.y
         self.move_speed = 128
+        self.sprint_speed = int(self.move_speed * 1.5)
+        self.current_move_speed = self.move_speed
 
         self.pos_x = float(self.rect.x)
         self.pos_y = float(self.rect.y)
@@ -47,7 +49,7 @@ class Player(pygame.sprite.Sprite):
             return
 
         if self.moving:
-            step = self.move_speed * dt
+            step = self.current_move_speed * dt
             if self.pos_x < self.target_x:
                 self.pos_x = min(self.pos_x + step, self.target_x)
             elif self.pos_x > self.target_x:
@@ -130,6 +132,7 @@ class Player(pygame.sprite.Sprite):
                 not blocked):
             self.target_x = new_x
             self.target_y = new_y
+            self.current_move_speed = self.sprint_speed if keys[pygame.K_SPACE] else self.move_speed
             self.moving = True
             self.anim_index = 1
             self.anim_timer = 0

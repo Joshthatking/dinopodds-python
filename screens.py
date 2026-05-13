@@ -64,15 +64,15 @@ class DoubleBattleEncounter:
 
     def draw(self, screen, e1_visible=True, e2_visible=True):
         screen.blit(self.bg, (0, 0))
-        size = 110
+        size = 120
         sw = screen.get_width()
         if self.frame1 and e1_visible:
             scaled = pygame.transform.scale(self.frame1, (size, size))
-            r = scaled.get_rect(centerx=sw - 350, centery=145)
+            r = scaled.get_rect(centerx=sw - 250, centery=145)
             screen.blit(scaled, r)
         if self.frame2 and e2_visible:
             scaled = pygame.transform.scale(self.frame2, (size, size))
-            r = scaled.get_rect(centerx=sw - 180, centery=145)
+            r = scaled.get_rect(centerx=sw - 120, centery=145)
             screen.blit(scaled, r)
 
 
@@ -109,6 +109,9 @@ class DoubleBattleUI:
 
     def unfreeze_xp(self):
         self.xp_frozen = False
+
+    def is_xp_animating(self):
+        return False
 
     def show_level_up(self, dino, old_stats, new_stats):
         self.level_up_popup = LevelUpPopup(dino, old_stats, new_stats)
@@ -156,6 +159,25 @@ class DoubleBattleUI:
         pygame.draw.rect(surface, bg, rect)
         pygame.draw.rect(surface, border, rect, bw)
 
+    def _draw_slanted_panel(self, surface, x, y, w, h, slant=18,
+                             bg=(245, 245, 245), border=(0, 0, 0), bw=3,
+                             slant_side='right'):
+        """Panel with one slanted corner.
+        slant_side='right' cuts the bottom-right corner (enemy boxes).
+        slant_side='left'  cuts the bottom-left  corner (player boxes).
+        """
+        if slant_side == 'right':
+            pts = [(x, y), (x+w, y), (x+w, y+h-slant), (x+w-slant, y+h), (x, y+h)]
+        else:
+            pts = [(x, y), (x+w, y), (x+w, y+h), (x+slant, y+h), (x, y+h-slant)]
+        pygame.draw.polygon(surface, bg, pts)
+        pygame.draw.polygon(surface, border, pts, bw)
+
+    def _fit_name(self, name, font, max_w):
+        while len(name) > 1 and font.size(name)[0] > max_w:
+            name = name[:-1]
+        return name
+
     def _draw_hp_bar(self, surface, x, y, w, h, pct,
                      back=(200, 0, 0), front=(0, 200, 0)):
         pct = max(0.0, min(1.0, pct))
@@ -170,15 +192,10 @@ class DoubleBattleUI:
 
         sw, sh = surface.get_size()
 
-        # ── Geometry ───────────────────────────────────────────────
-        en1_rect  = pygame.Rect(0,       15,  168, 58)
-        en2_rect  = pygame.Rect(172,     15,  168, 58)
-        pl1_rect  = pygame.Rect(sw - 330, sh - 245, 155, 72)
-        pl2_rect  = pygame.Rect(sw - 170, sh - 245, 167, 72)
+        # ── Dialogue + action panels ───────────────────────────────
         text_rect = pygame.Rect(9, sh - 120, sw - 325, 115)
         act_rect  = pygame.Rect(sw - 300, sh - 120, 287, 115)
-
-        for r in (text_rect, act_rect, en1_rect, en2_rect, pl1_rect, pl2_rect):
+        for r in (text_rect, act_rect):
             self._draw_panel(surface, r)
 
         # ── HP ratios ──────────────────────────────────────────────
@@ -189,55 +206,64 @@ class DoubleBattleUI:
         pp2 = (self.player2_hp_display if self.player2_hp_display is not None
                else (p2['hp'] / max(1, p2['max_hp']) if p2 else 0.0))
 
-        # ── Enemy info panels (gray out if KO'd) ──────────────────
-        sf = self.small_font
-        if ep1 <= 0.01:
-            pygame.draw.rect(surface, (180, 180, 180), en1_rect)
-            pygame.draw.rect(surface, (80, 80, 80), en1_rect, 3)
-            surface.blit(sf.render("KO", True, (120, 0, 0)), (en1_rect.x + 8, en1_rect.y + 18))
-        else:
-            surface.blit(sf.render(e1['name'],         True, (0, 0, 0)), (en1_rect.x + 8, en1_rect.y + 8))
-            surface.blit(sf.render(f"Lv{e1['level']}", True, (0, 0, 0)), (en1_rect.x + 120, en1_rect.y + 8))
-            self._draw_hp_bar(surface, en1_rect.x + 8, en1_rect.y + 34, 150, 12, ep1)
+        sf  = self.small_font
+        SLANT = 18
 
+        # ── Enemy stat boxes — top-left, stacked, slanted bottom-right
+        # en1: base box; en2: slightly wider
+        en1_x, en1_y, en1_w, en1_h = 4, 26,  215, 46
+        en2_x, en2_y, en2_w, en2_h = 4, 78,  235, 46
+
+        self._draw_slanted_panel(surface, en1_x, en1_y, en1_w, en1_h, SLANT, slant_side='right')
         if e2:
-            if ep2 <= 0.01:
-                pygame.draw.rect(surface, (180, 180, 180), en2_rect)
-                pygame.draw.rect(surface, (80, 80, 80), en2_rect, 3)
-                surface.blit(sf.render("KO", True, (120, 0, 0)), (en2_rect.x + 8, en2_rect.y + 18))
-            else:
-                surface.blit(sf.render(e2['name'],         True, (0, 0, 0)), (en2_rect.x + 8, en2_rect.y + 8))
-                surface.blit(sf.render(f"Lv{e2['level']}", True, (0, 0, 0)), (en2_rect.x + 120, en2_rect.y + 8))
-                self._draw_hp_bar(surface, en2_rect.x + 8, en2_rect.y + 34, 150, 12, ep2)
+            self._draw_slanted_panel(surface, en2_x, en2_y, en2_w, en2_h, SLANT, slant_side='right')
 
-        # ── Player info panels (gray out if KO'd) ─────────────────
-        if pp1 <= 0.01:
-            pygame.draw.rect(surface, (180, 180, 180), pl1_rect)
-            pygame.draw.rect(surface, (80, 80, 80), pl1_rect, 3)
-            surface.blit(sf.render("KO", True, (120, 0, 0)), (pl1_rect.x + 6, pl1_rect.y + 26))
-        else:
-            surface.blit(sf.render(p1['name'],         True, (0, 0, 0)), (pl1_rect.x + 6, pl1_rect.y + 6))
-            surface.blit(sf.render(f"Lv{p1['level']}", True, (0, 0, 0)), (pl1_rect.x + 104, pl1_rect.y + 6))
-            self._draw_hp_bar(surface, pl1_rect.x + 6, pl1_rect.y + 30, 140, 10, pp1)
+        def draw_enemy_stat(d, pct, bx, by, bw, ko):
+            if ko:
+                surface.blit(sf.render("KO", True, (160, 0, 0)), (bx + 8, by + 14))
+                return
+            name = self._fit_name(d['name'], sf, bw - 70)
+            surface.blit(sf.render(name,             True, (0, 0, 0)), (bx + 8,      by + 6))
+            surface.blit(sf.render(f"Lv{d['level']}", True, (0, 0, 0)), (bx + bw - 55, by + 6))
+            self._draw_hp_bar(surface, bx + 8, by + 28, bw - SLANT - 12, 10, pct)
 
+        draw_enemy_stat(e1, ep1, en1_x, en1_y, en1_w, ep1 <= 0.01)
+        if e2:
+            draw_enemy_stat(e2, ep2, en2_x, en2_y, en2_w, ep2 <= 0.01)
+
+        # ── Player stat boxes — right side, stacked, slanted bottom-left
+        text_top = text_rect.top
+        pl_w  = 210
+        pl_h  = 46
+        pl_x  = sw - pl_w - 4   # flush right with small margin
+        pl1_y = text_top - pl_h - 8         # just above dialogue box
+        pl2_y = pl1_y - pl_h - 6            # stacked above pl1
+
+        self._draw_slanted_panel(surface, pl_x, pl1_y, pl_w, pl_h, SLANT, slant_side='left')
         if p2:
-            if pp2 <= 0.01:
-                pygame.draw.rect(surface, (180, 180, 180), pl2_rect)
-                pygame.draw.rect(surface, (80, 80, 80), pl2_rect, 3)
-                surface.blit(sf.render("KO", True, (120, 0, 0)), (pl2_rect.x + 6, pl2_rect.y + 26))
-            else:
-                surface.blit(sf.render(p2['name'],         True, (0, 0, 0)), (pl2_rect.x + 6, pl2_rect.y + 6))
-                surface.blit(sf.render(f"Lv{p2['level']}", True, (0, 0, 0)), (pl2_rect.x + 110, pl2_rect.y + 6))
-                self._draw_hp_bar(surface, pl2_rect.x + 6, pl2_rect.y + 30, 152, 10, pp2)
+            self._draw_slanted_panel(surface, pl_x, pl2_y, pl_w, pl_h, SLANT, slant_side='left')
+
+        def draw_player_stat(d, pct, bx, by, bw, ko):
+            if ko:
+                surface.blit(sf.render("KO", True, (160, 0, 0)), (bx + SLANT + 6, by + 14))
+                return
+            # left side is slanted at bottom only; text starts after slant offset at top (safe)
+            name = self._fit_name(d['name'], sf, bw - 70)
+            surface.blit(sf.render(name,              True, (0, 0, 0)), (bx + 8,      by + 6))
+            surface.blit(sf.render(f"Lv{d['level']}", True, (0, 0, 0)), (bx + bw - 55, by + 6))
+            self._draw_hp_bar(surface, bx + SLANT + 4, by + 28, bw - SLANT - 12, 10, pct)
+
+        draw_player_stat(p1, pp1, pl_x, pl1_y, pl_w, pp1 <= 0.01)
+        if p2:
+            draw_player_stat(p2, pp2, pl_x, pl2_y, pl_w, pp2 <= 0.01)
 
         # ── Player back sprites (hide if KO'd) ────────────────────
-        text_top = text_rect.top
         if p1_visible and pp1 > 0.01:
-            img = pygame.transform.scale(p1['image'], (140, 140))
+            img = pygame.transform.scale(p1['image'], (170, 170))
             r   = img.get_rect(centerx=text_rect.x + 85, bottom=text_top)
             surface.blit(img, r)
         if p2 and p2_visible and pp2 > 0.01:
-            img = pygame.transform.scale(p2['image'], (140, 140))
+            img = pygame.transform.scale(p2['image'], (170, 170))
             r   = img.get_rect(centerx=text_rect.x + 235, bottom=text_top)
             surface.blit(img, r)
 
@@ -387,6 +413,7 @@ class EncounterUI:
         self._last_xp_level = None
         self._xp_speed = 0.25  # ratio per second
         self.xp_frozen = True
+        self._xp_target = None
 
     def update(self, dt, player_dino, enemy_dino):
         target_p = player_dino['hp'] / max(1, player_dino['max_hp'])
@@ -400,6 +427,7 @@ class EncounterUI:
         self.enemy_hp_display  = self._slide(self.enemy_hp_display,  target_e, dt)
 
         xp_ratio = player_dino['xp'] / max(1, player_dino['xp_to_next'])
+        self._xp_target = xp_ratio
         if self.xp_display is None:
             self.xp_display = xp_ratio
             self._last_xp_level = player_dino['level']
@@ -426,6 +454,11 @@ class EncounterUI:
 
     def unfreeze_xp(self):
         self.xp_frozen = False
+
+    def is_xp_animating(self):
+        if self._xp_target is None or self.xp_display is None:
+            return False
+        return abs(self.xp_display - self._xp_target) > 0.005
 
     def show_level_up(self, dino, old_stats, new_stats):
         self.level_up_popup = LevelUpPopup(dino, old_stats, new_stats)
@@ -544,7 +577,7 @@ class EncounterUI:
 
         # Player dino sprite — sits directly on top of the left text box
         if player_visible:
-            scaled = pygame.transform.scale(player_dino['image'], (200, 200))
+            scaled = pygame.transform.scale(player_dino['image'], (230, 230))
             sprite_rect = scaled.get_rect()
             sprite_rect.centerx = text_box_rect.centerx
             sprite_rect.bottom = text_box_rect.top

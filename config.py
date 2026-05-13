@@ -76,6 +76,10 @@ ENCOUNTER_DINOS_PATHS = {
     'Creuw2':     os.path.join(DINOS_FRONT, 'Creuw.png'),
     'Luna':       os.path.join(DINOS_FRONT, 'Luna.png'),
     'Luna2':      os.path.join(DINOS_FRONT, 'Luna.png'),
+    'Prowscar':   os.path.join(DINOS_FRONT, 'Prowscar.PNG'),
+    'Prowscar2':  os.path.join(DINOS_FRONT, 'Prowscar.PNG'),
+    'Floravel':   os.path.join(DINOS_FRONT, 'Floravel.PNG'),
+    'Floravel2':  os.path.join(DINOS_FRONT, 'Floravel.PNG'),
 }
 
 NPC_SHEETS = {
@@ -169,8 +173,8 @@ DINO_BALL_MAP = {
 DINO_BALL_LEVEL = 5
 
 SPAWN_POINTS = {
-    'home':      (160, 1248),   # START_TOWN tile (10,7) in world pixels
-    # 'home':  (608, -672),   # TOWN_1.3 tile (25, -21) in world pixels
+    # 'home':      (160, 1248),   # START_TOWN tile (10,7) in world pixels
+    'home':  (608, -672),   # TOWN_1.3 tile (25, -21) in world pixels
 }
 
 
