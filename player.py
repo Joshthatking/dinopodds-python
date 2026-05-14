@@ -72,6 +72,8 @@ class Player(pygame.sprite.Sprite):
                 self.moving = False
                 self.anim_index = 0
                 self.image = self.animations[self.direction][0]
+                self.check_for_encounter(game)
+                self.check_for_entrance(game)
             return
 
         if self.turn_timer > 0:
@@ -142,8 +144,6 @@ class Player(pygame.sprite.Sprite):
             self.anim_index = 0
             self.image = self.animations[self.direction][0]
 
-        self.check_for_encounter(game)
-        self.check_for_entrance(game)
 
     def check_for_encounter(self, game):
         if game.state_stack[-1] != 'world':
@@ -151,6 +151,15 @@ class Player(pygame.sprite.Sprite):
         tile_x = self.rect.x // config.TILE_SIZE
         tile_y = self.rect.y // config.TILE_SIZE
         on_enc = (tile_x, tile_y) in game.encounter_tile_coords
+
+        # Only count as an encounter tile if a zone with actual dinos is configured.
+        # This prevents rogue encounter=True properties on non-grass tiles from
+        # triggering the Anemamace fallback.
+        zone = None
+        if on_enc:
+            zone = game.get_player_zone(tile_x, tile_y)
+            if zone not in ENCOUNTER_ZONES:
+                on_enc = False
 
         if getattr(game, 'repel_steps', 0) > 0:
             game.repel_steps -= 1
@@ -160,7 +169,6 @@ class Player(pygame.sprite.Sprite):
             if on_enc:
                 lead = game.player_dinos[game.active_dino_index] if game.player_dinos else None
                 lead_level = lead['level'] if lead else 1
-                zone = game.get_player_zone(tile_x, tile_y)
                 zone_data = ENCOUNTER_ZONES.get(zone, {})
                 if zone_data.get('level_range', (99, 99))[1] < lead_level:
                     return  # all dinos here are lower level, repel blocks them

@@ -1093,7 +1093,7 @@ class PartyScreen:
                 game.awaiting_switch   = False
                 game.pop_state()
                 game.message_box.queue_messages(
-                    [f"Go, {chosen['name']}!", "What will you do?"], wait_for_input=True)
+                    [f"{config.PLAYER_NAME} sent out {chosen['name']}!", "What will you do?"], wait_for_input=True)
             return None
 
         # ── Voluntary switch during encounter ─────────────────────

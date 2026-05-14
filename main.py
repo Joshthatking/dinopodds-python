@@ -102,9 +102,14 @@ if __name__ == '__main__':
 #add type chart to read in dinocenter by pc - COMPLETE
 
 #5/13
-#Add more trainers to route 1
-#Adjust xp, make it less rewarding overall by a little-medium
+#Add more trainers to route 1 - COMPLETE
+#Adjust xp, make it less rewarding overall by a little-medium - COMPLETE
+#Fix bug where dinos are spawning on the dotted grass - should only be encounter grass - COMPLETE
+
+#5/17
 #add traits one for each dino family, and add natures just one per stat (increases by 5%)
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
+# how to start sequential story and with save and new adventure screen at start after intro
+
 # battle animation for attacks
  

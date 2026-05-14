@@ -2,5 +2,5 @@ NEW NPC ADDITION
 
 Add an entry to TRAINER_DATA in data.py
 Add 'trainer_id': path to NPC_SHEETS in config.py with a matching 4×4 spritesheet
-Add NPC('trainer_id', tile_x, tile_y, facing, sight_range) to self.npcs in game.py
+Add NPC('trainer_id', tile_x, tile_y, facing, sight_range) to self.npcs in config.py
 

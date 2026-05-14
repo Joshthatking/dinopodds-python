@@ -13,7 +13,8 @@ def _load_sheet(trainer_id):
     Col layout: 0=still, 1=walk, 2=still, 3=walk  (cycles to still-walk-still-walk).
     Falls back to a solid-colour rect if no sheet exists.
     """
-    path = config.NPC_SHEETS.get(trainer_id)
+    sprite_key = config.NPC_SPRITE_KEY.get(trainer_id, trainer_id)
+    path = config.NPC_SHEETS.get(sprite_key)
     ts   = config.TILE_SIZE
     if path and os.path.exists(path):
         sheet  = pygame.image.load(path).convert_alpha()
@@ -134,7 +135,7 @@ class NPC:
             return
 
         if self.state == 'idle':
-            if self.can_see_player(player):
+            if not player.moving and self.can_see_player(player):
                 # For double-battle pairs, also alert the partner immediately
                 data       = TRAINER_DATA.get(self.trainer_id, {})
                 partner_id = data.get('partner')

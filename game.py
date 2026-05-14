@@ -240,6 +240,8 @@ class Game:
     def pop_to_world(self):
         while len(self.state_stack) > 1:
             self.pop_state()
+        self.awaiting_switch = False
+        self.fading = False
 
     def trigger_blackout(self):
         self.stats_blackouts += 1
@@ -634,13 +636,9 @@ class Game:
         zone = self.get_player_zone(tile_x, tile_y)
         # print(f"[ENCOUNTER] tile=({tile_x},{tile_y}) zone={zone}")
 
-        if zone in ENCOUNTER_ZONES:
-            zone_data = ENCOUNTER_ZONES[zone]
-            dino_key = random.choice(zone_data["dinos"])
-            level = random.randint(*zone_data["level_range"])
-        else:
-            dino_key = "Anemamace"
-            level = random.randint(12, 20)
+        zone_data = ENCOUNTER_ZONES[zone]
+        dino_key = random.choice(zone_data["dinos"])
+        level = random.randint(*zone_data["level_range"])
 
         self.enemy_dino = self.create_dino(dino_key, level)
         self.field_effects = []
@@ -687,7 +685,8 @@ class Game:
         self.defend_uses_remaining = 3
         self.enemy_defend_uses_remaining = 3
         self.encounter_ui = EncounterUI(self.fonts)
-        self.encounter_text = f"Trainer sent out {dino_name}!"
+        trainer_name = TRAINER_DATA.get(npc.trainer_id, {}).get('name', 'Trainer')
+        self.encounter_text = f"{trainer_name} sent out {dino_name}!"
         self.encounter = Encounter(self.fonts, dino_name)
 
         now = pygame.time.get_ticks()
@@ -868,7 +867,8 @@ class Game:
             if attacker_label == "":   # player p2 killed an enemy
                 self.stats_enemies_defeated  += 1
                 self.trainer_dinos_defeated  += 1
-                faint_msg = f"Trainer's {defender['name']} fainted!"
+                tn = self._trainer_name if defender is not self.enemy_dino2 else self._trainer_name2
+                faint_msg = f"{tn}'s {defender['name']} fainted!"
             else:                      # enemy killed a player dino
                 self.stats_dinos_fainted += 1
                 faint_msg = f"{defender['name']} fainted!"
@@ -918,7 +918,7 @@ class Game:
             if not target or target.get('hp', 0) <= 0:
                 turn_end()
                 return
-            self._auto_attack_single(e2, target, "Trainer's ", after=turn_end)
+            self._auto_attack_single(e2, target, f"{self._trainer_name2}'s ", after=turn_end)
 
         def e1_attacks():
             if e1.get('hp', 0) <= 0:
@@ -928,7 +928,7 @@ class Game:
             if not target or target.get('hp', 0) <= 0:
                 e2_attacks()
                 return
-            self._auto_attack_single(e1, target, "Trainer's ", after=e2_attacks)
+            self._auto_attack_single(e1, target, f"{self._trainer_name}'s ", after=e2_attacks)
 
         def p2_attacks():
             if not p2 or p2.get('hp', 0) <= 0:
@@ -959,9 +959,9 @@ class Game:
         xp_total = 0
         if alive and active:
             ref_level = active['level']
-            xp_total += calculate_xp_gain(ref_level, self.enemy_dino['level'], state_multiplier=0.9)
+            xp_total += calculate_xp_gain(ref_level, self.enemy_dino['level'], enemy_name=self.enemy_dino['name'], state_multiplier=0.9)
             if self.enemy_dino2:
-                xp_total += calculate_xp_gain(ref_level, self.enemy_dino2['level'], state_multiplier=0.9)
+                xp_total += calculate_xp_gain(ref_level, self.enemy_dino2['level'], enemy_name=self.enemy_dino2['name'], state_multiplier=0.9)
 
         level_up_msgs = self._grant_party_xp_and_level_ups(xp_total) if xp_total > 0 else []
 
@@ -1147,7 +1147,7 @@ class Game:
             target = p2 if (p2 and p2.get('hp', 0) > 0) else p1
             if not target or target.get('hp', 0) <= 0:
                 turn_end(); return
-            self._auto_attack_single(e2, target, "Trainer's ", after=turn_end)
+            self._auto_attack_single(e2, target, f"{self._trainer_name2}'s ", after=turn_end)
 
         def e1_attacks():
             if not e1 or e1.get('hp', 0) <= 0:
@@ -1155,7 +1155,7 @@ class Game:
             target = p1 if (p1 and p1.get('hp', 0) > 0) else p2
             if not target or target.get('hp', 0) <= 0:
                 e2_attacks(); return
-            self._auto_attack_single(e1, target, "Trainer's ", after=e2_attacks)
+            self._auto_attack_single(e1, target, f"{self._trainer_name}'s ", after=e2_attacks)
 
         def _resolve_target(targeted_e2):
             """Return the best live target, redirecting to the other enemy if the chosen one fainted."""
@@ -1398,16 +1398,24 @@ class Game:
         dx, dy = step[reverse[prev['entrance_facing']]]
         self._place_player(prev['entrance_tile_x'] + dx, prev['entrance_tile_y'] + dy)
 
+    @property
+    def _trainer_name(self):
+        return TRAINER_DATA.get(getattr(self.current_trainer_npc, 'trainer_id', ''), {}).get('name', 'Trainer')
+
+    @property
+    def _trainer_name2(self):
+        return TRAINER_DATA.get(getattr(self.current_trainer_npc2, 'trainer_id', ''), {}).get('name', 'Trainer')
+
     def _send_next_trainer_dino(self):
         dino_name, dino_level = self.trainer_dino_queue.pop(0)
         self.enemy_dino = self.create_dino(dino_name, dino_level)
         self.encounter_ui.enemy_hp_display = None
         self.encounter_ui.in_fight_menu = False
         self.encounter_ui.xp_frozen = True
-        self.encounter_text = f"Trainer sent out {dino_name}!"
+        self.encounter_text = f"{self._trainer_name} sent out {dino_name}!"
         self.encounter = Encounter(self.fonts, dino_name)
         self.message_box.queue_messages(
-            [f"Trainer sent out {dino_name}!", "What will you do?"],
+            [f"{self._trainer_name} sent out {dino_name}!", "What will you do?"],
             wait_for_input=True
         )
 
@@ -1642,7 +1650,10 @@ class Game:
                      self.enemy_dino2.get('hp', 0) <= 0)
                 )
                 if all_enemies_dead:
-                    if not self.message_box.visible:
+                    if not self.message_box.visible and not self.trainer_dino_queue:
+                        if self.is_trainer_battle and self.current_trainer_npc:
+                            self.current_trainer_npc.defeated = True
+                        self.is_trainer_battle = False
                         self.pop_to_world()  # safety net: enemy fainted but exit was missed
                     return
 
@@ -1703,7 +1714,7 @@ class Game:
             npc.npc_type == 'trainer' and npc.state in ('spotted', 'walking', 'done') and not npc.defeated
             for npc in self.npcs
         )
-        if event.key == pygame.K_i and not self.fading and not trainer_approaching:
+        if event.key == pygame.K_i and not self.fading and self.entrance_fade_state is None and not trainer_approaching:
             self.push_state('menu')
         elif event.key == pygame.K_j:
             if self.check_type_chart_interact():
@@ -1800,7 +1811,8 @@ class Game:
                     on_complete=lambda: self.push_state('shop'))
                 return True
             data = TRAINER_DATA.get(npc.trainer_id, {})
-            if npc.defeated:
+            if npc.defeated or npc.state == 'done':
+                npc.defeated = True
                 dialog = data.get('dialog', {}).get('defeated', ["..."])
                 self.message_box.queue_messages(dialog, wait_for_input=True)
                 return True
@@ -2207,6 +2219,7 @@ class Game:
                 xp_gain = calculate_xp_gain(
                     player_level=active['level'],
                     opponent_level=self.enemy_dino['level'],
+                    enemy_name=self.enemy_dino['name'],
                     state_multiplier=0.5,   # catching
                 )
                 for d in alive:
@@ -2323,7 +2336,7 @@ class Game:
                         self._apply_player_attack(_att, _def, _mn, _pwr, _mtype, _abl,
                                                   pierces_defend=_pd, after=_end_turn)
                 self.message_box.queue_messages(
-                    [f"Trainer's {self.enemy_dino['name']} braced for impact!",
+                    [f"{self._trainer_name}'s {self.enemy_dino['name']} braced for impact!",
                      f"({n} Defend{'s' if n != 1 else ''} remaining)"],
                     wait_for_input=True, on_complete=_after_announce)
                 return
@@ -2403,12 +2416,13 @@ class Game:
         if defender['hp'] <= 0:
             self.stats_enemies_defeated += 1
             self.encounter_ui.in_fight_menu = False
-            faint_prefix = "Trainer's" if self.is_trainer_battle else "The wild"
+            faint_prefix = f"{self._trainer_name}'s" if self.is_trainer_battle else "The wild"
             faint_msg = f"{faint_prefix} {defender['name']} fainted!"
             multiplier = 0.9 if self.is_trainer_battle else 0.75
             xp_gain = calculate_xp_gain(
                 player_level=attacker['level'],
                 opponent_level=defender['level'],
+                enemy_name=defender['name'],
                 state_multiplier=multiplier,
             )
             level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
@@ -2555,7 +2569,7 @@ class Game:
             self.enemy_defend_uses_remaining -= 1
             attacker['defending'] = True
             n = self.enemy_defend_uses_remaining
-            msgs = [f"Trainer's {attacker['name']} braced for impact!",
+            msgs = [f"{self._trainer_name}'s {attacker['name']} braced for impact!",
                     f"({n} Defend{'s' if n != 1 else ''} remaining)"]
             msgs.extend(self._tick_field_effects())
             self._clear_defending_flags()
@@ -2599,7 +2613,7 @@ class Game:
         power   = max(0, move.get('damage', 0))
         acc     = move.get('accuracy', 100)
         ability = move.get('ability')
-        prefix  = f"Trainer's " if self.is_trainer_battle else "The wild "
+        prefix  = f"{self._trainer_name}'s " if self.is_trainer_battle else "The wild "
 
         if random.random() * 100 >= acc:
             msgs = [f"{prefix}{attacker['name']} used {move['name']}!", "But it missed!"]

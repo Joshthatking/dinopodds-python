@@ -1,24 +1,26 @@
 import os
 import pygame
 
+PLAYER_NAME = 'Jet'
+
 # Colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 DARK = "#201624"
-LIGHT = "#fffef0"
+LIGHT = "#c0c0b9"
 GRAY = '#3a373b'
 LIGHT_GRAY = '#4b484d'
-MAGMA = '#f8a060'
+MAGMA = "#da563e"
 AQUA = '#50b0d8'
 EARTH = '#64a990'
 SOFT_WHITE = '#f0f0f0'
 ROCK = "#57513e"
 SPIKE = "#d4ba93"
 FLYING = "#b1c5da"
-LIGHTNING = "#fff646"
-ICE = "#15dcee"
-ANCIENT = "#712B81"
+LIGHTNING = "#f3ed7a"
+ICE = "#73dfe9"
+ANCIENT = "#521F45"
 
 # Screen
 WIDTH = 640
@@ -83,13 +85,21 @@ ENCOUNTER_DINOS_PATHS = {
 }
 
 NPC_SHEETS = {
-    # trainer_id -> path to 4x4 spritesheet (32x32 per cell)
+    # sprite_key -> path to 4x4 spritesheet (32x32 per cell)
     # row 0=down, 1=left, 2=right, 3=up  |  col 0=still, 1=walk, 2=still, 3=walk
-    'amber':          os.path.join('assets', 'NPC', 'Professor_Amber.png'),
-    'dc_lady':        os.path.join('assets', 'NPC', 'DC_LADY.png'),
-    'dcmart_lady':    os.path.join('assets', 'NPC', 'DCMart_LADY.png'),
-    'basic_trainer':  os.path.join('assets', 'NPC', 'BasicTrainer.png'),
-    'basic_trainer2': os.path.join('assets', 'NPC', 'BasicTrainer2.png'),
+    'amber':              os.path.join('assets', 'NPC', 'Professor_Amber.png'),
+    'dc_lady':            os.path.join('assets', 'NPC', 'DC_LADY.png'),
+    'dcmart_lady':        os.path.join('assets', 'NPC', 'DCMart_LADY.png'),
+    'basic_trainer':      os.path.join('assets', 'NPC', 'BasicTrainer.png'),
+    'basic_trainer2':     os.path.join('assets', 'NPC', 'BasicTrainer2.png'),
+    'basic_trainer_girl': os.path.join('assets', 'NPC', 'BasicGirlTrainer.png'),
+}
+
+# Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
+# If a trainer_id isn't listed here, it falls back to its own trainer_id as the key.
+NPC_SPRITE_KEY = {
+    'ethan': 'basic_trainer',
+    'shinji': 'basic_trainer2',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -98,9 +108,15 @@ DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.
 WORLD_NPCS = {
     'LOST_REGION.world': [
         ('amber', 5, 34, 'down', 4, 'trainer'),
+        #Route 1.0 single battles
+        ('basic_trainer_girl', 8, 29, 'left', 5, 'trainer'),
+        ('ethan', -4, 20, 'up', 4, 'trainer'),
+
         # ROUTE_1.3 double battle pair — face south (down) watching for the player
         ('basic_trainer',  -2, -4, 'down', 6, 'trainer'),
         ('basic_trainer2', -1, -4, 'down', 6, 'trainer'),
+        ('shinji', 13, -12, 'down', 5, 'trainer'),
+
     ],
     'DINOCENTER.tmx': [
         ('dc_lady',     9, 2, 'down', 0, 'healer'),
@@ -166,15 +182,15 @@ SHOP_ITEMS = [
 
 # Ball pickups on map — Tiled object property "item" -> dino name
 DINO_BALL_MAP = {
-    'dino1': 'Corlave',
-    'dino2': 'Corlave',
+    'dino1': 'Floravel',
+    'dino2': 'Prowscar',
     'dino3': 'Corlave',
 }
 DINO_BALL_LEVEL = 5
 
 SPAWN_POINTS = {
-    # 'home':      (160, 1248),   # START_TOWN tile (10,7) in world pixels
-    'home':  (608, -672),   # TOWN_1.3 tile (25, -21) in world pixels
+    'home':      (352, 1392),   # START_TOWN tile (10,7) in world pixels 32 per tile
+    # 'home':  (608, -672),   # TOWN_1.3 tile (25, -21) in world pixels
 }
 
 
