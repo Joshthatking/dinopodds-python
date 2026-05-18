@@ -107,7 +107,6 @@ DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.
 # Per-world NPC definitions: (trainer_id, tile_x, tile_y, facing, sight_range, npc_type)
 WORLD_NPCS = {
     'LOST_REGION.world': [
-        ('amber', 5, 34, 'down', 4, 'trainer'),
         #Route 1.0 single battles
         ('basic_trainer_girl', 8, 29, 'left', 5, 'trainer'),
         ('ethan', -4, 20, 'up', 4, 'trainer'),
@@ -189,8 +188,8 @@ DINO_BALL_MAP = {
 DINO_BALL_LEVEL = 5
 
 SPAWN_POINTS = {
-    'home':      (352, 1392),   # START_TOWN tile (10,7) in world pixels 32 per tile
-    # 'home':  (608, -672),   # TOWN_1.3 tile (25, -21) in world pixels
+    # 'home':      (352, 1392),   # START_TOWN tile (10,7) in world pixels 32 per tile
+    'home':  (608, -672),   # TOWN_1.3 tile (25, -21) in world pixels
 }
 
 

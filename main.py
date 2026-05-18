@@ -107,9 +107,14 @@ if __name__ == '__main__':
 #Fix bug where dinos are spawning on the dotted grass - should only be encounter grass - COMPLETE
 
 #5/17
-#add traits one for each dino family, and add natures just one per stat (increases by 5%)
-# event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
+#add natures just one per stat (increases by 10%) - COMPLETE
 # how to start sequential story and with save and new adventure screen at start after intro
+#Night mode and Eclipese mode overlay in battles - COMPLETE
+
+#5/18
+# Research Lab + Event 2 Returning dinos to professor
+#add traits one for each dino family
+# event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 
 # battle animation for attacks
  

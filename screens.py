@@ -1228,6 +1228,9 @@ class PartyScreen:
             pygame.draw.rect(screen, colors[1], pygame.Rect(preview_rect.x, preview_rect.y + half, preview_rect.width, half))
 
         screen.blit(self.font.render(dino['name'], True, (255, 255, 255)), (preview_rect.left + 10, preview_rect.top + 10))
+        nature = dino.get("nature", "")
+        if nature:
+            screen.blit(self.smaller_font.render(f"{nature} Nature", True, (255, 230, 100)), (preview_rect.left + 10, preview_rect.top + 32))
         hp_text = self.small_font.render(f"HP: {dino['hp']}/{dino['max_hp']}", True, (255, 255, 255))
         screen.blit(hp_text, (preview_rect.right - hp_text.get_width() - 10, preview_rect.top + 10))
         type_str = "/".join(types)
@@ -1269,9 +1272,22 @@ class PartyScreen:
         stats_rect = pygame.Rect(240, 230, 380, 240)
         pygame.draw.rect(screen, (50, 50, 50), stats_rect)
         pygame.draw.rect(screen, (0, 0, 0), stats_rect, 3)
-        for i, line in enumerate([f"HP: {dino['max_hp']}", f"Attack: {dino['attack']}",
-                                   f"Defense: {dino['defense']}", f"Speed: {dino['speed']}"]):
-            screen.blit(self.small_font.render(line, True, (255, 255, 255)),
+        nature_boosts = NATURE_BOOSTS.get(dino.get("nature", ""), {})
+        stat_rows = [
+            ("hp",      f"HP: {dino['max_hp']}"),
+            ("attack",  f"Attack: {dino['attack']}"),
+            ("defense", f"Defense: {dino['defense']}"),
+            ("speed",   f"Speed: {dino['speed']}"),
+        ]
+        for i, (stat_key, line) in enumerate(stat_rows):
+            pct = nature_boosts.get(stat_key)
+            if pct:
+                label = f"{line}  (+{int(pct * 100)}%)"
+                color = (160, 255, 140)
+            else:
+                label = line
+                color = (255, 255, 255)
+            screen.blit(self.small_font.render(label, True, color),
                         (stats_rect.x + 10, stats_rect.y + 10 + i * 25))
 
         # Moves
@@ -1749,13 +1765,101 @@ class TrainerCardScreen:
 
 
 # === Main Menu ===
+class TitleScreen:
+    def __init__(self, game):
+        self.game = game
+        self.options = ["New Game", "Continue", "Sandbox Mode"]
+        self.selected = 0
+        self.title_font = pygame.font.Font(config.FONT_PATH_B, 52)
+        self.option_font = game.fonts['DIALOGUE']
+        self.hint_font = game.fonts['XS']
+        self.fade_alpha = 255
+        self._fading_in = True
+
+    def reset(self):
+        self.selected = 0
+        self.fade_alpha = 255
+        self._fading_in = True
+
+    def update(self, dt):
+        if self._fading_in:
+            self.fade_alpha = max(0, self.fade_alpha - int(255 * dt * 1.5))
+            if self.fade_alpha == 0:
+                self._fading_in = False
+
+    def handle_event(self, event, has_save):
+        if self._fading_in:
+            return
+        if event.type != pygame.KEYDOWN:
+            return
+        if event.key in (pygame.K_w, pygame.K_UP):
+            self.selected = (self.selected - 1) % len(self.options)
+        elif event.key in (pygame.K_s, pygame.K_DOWN):
+            self.selected = (self.selected + 1) % len(self.options)
+        elif event.key in (pygame.K_j, pygame.K_RETURN):
+            self._confirm(has_save)
+
+    def _confirm(self, has_save):
+        opt = self.options[self.selected]
+        if opt == "New Game":
+            self.game.new_game()
+        elif opt == "Continue":
+            if has_save:
+                self.game.load_game()
+        elif opt == "Sandbox Mode":
+            self.game.sandbox_mode()
+
+    def draw(self, screen, has_save):
+        W, H = screen.get_width(), screen.get_height()
+        screen.fill((15, 10, 30))
+
+        pygame.draw.rect(screen, (35, 25, 65), (0, 0, W, 65))
+        pygame.draw.rect(screen, (35, 25, 65), (0, H - 50, W, 50))
+        pygame.draw.line(screen, (80, 60, 140), (0, 65), (W, 65), 2)
+        pygame.draw.line(screen, (80, 60, 140), (0, H - 50), (W, H - 50), 2)
+
+        title_surf = self.title_font.render("DINOPODDS", True, (240, 210, 70))
+        screen.blit(title_surf, (W // 2 - title_surf.get_width() // 2, 80))
+
+        sub = self.hint_font.render("A world of ancient creatures awaits...", True, (160, 140, 200))
+        screen.blit(sub, (W // 2 - sub.get_width() // 2, 148))
+
+        for i, opt in enumerate(self.options):
+            y = 210 + i * 60
+            unavailable = opt == "Continue" and not has_save
+            is_selected = i == self.selected and not unavailable
+
+            if is_selected:
+                box = pygame.Rect(W // 2 - 110, y - 10, 220, 38)
+                pygame.draw.rect(screen, (50, 38, 85), box, border_radius=7)
+                pygame.draw.rect(screen, (160, 130, 255), box, 2, border_radius=7)
+                color = (255, 230, 80)
+            elif unavailable:
+                color = (65, 60, 90)
+            else:
+                color = (190, 178, 220)
+
+            label = opt + ("  (No Save)" if unavailable else "")
+            surf = self.option_font.render(label, True, color)
+            screen.blit(surf, (W // 2 - surf.get_width() // 2, y))
+
+        hint = self.hint_font.render("W/S  Navigate       J  Select", True, (95, 85, 125))
+        screen.blit(hint, (W // 2 - hint.get_width() // 2, H - 35))
+
+        if self.fade_alpha > 0:
+            fade = pygame.Surface((W, H))
+            fade.fill((0, 0, 0))
+            fade.set_alpha(self.fade_alpha)
+            screen.blit(fade, (0, 0))
+
+
 class Menu:
     def __init__(self, game):
         self.game = game
         self.font = pygame.font.SysFont("arial", 24)
         self.small_font = pygame.font.SysFont("arial", 16)
         self.selected_index = 0
-        self.options = ["Party", "Items", "Trainer Card", "Save Game", "Options"]
+        self.options = ["Party", "Items", "Trainer Card", "Save Game", "Options", "Exit to Menu"]
         self.width = 220
         self.margin = 15
         self.line_height = 40
@@ -1797,8 +1901,15 @@ class Menu:
             elif selected == "Trainer Card":
                 self.game.push_state('trainer_card')
             elif selected == "Save Game":
-                pass  # TODO: implement save
+                self.game.save_game()
+                self.game.pop_state()
             elif selected == "Options":
                 pass  # TODO: implement options
+            elif selected == "Exit to Menu":
+                self.game.pop_state()
+                self.game.yes_no_prompt = YesNoPrompt(
+                    "Return to main menu?", self.game.fonts,
+                    config.WIDTH, config.HEIGHT)
+                self.game.yes_no_callback = self.game.exit_to_title
         elif event.key == pygame.K_SPACE:
             self.game.pop_state()

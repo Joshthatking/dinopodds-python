@@ -26,7 +26,7 @@ TRAINER_DATA = {
     'basic_trainer': {
         'name': 'Rex',
         'partner': 'basic_trainer2',
-        'dinos': {0: ('Prowscar', 10)},
+        'dinos': {0: ('Prowscar', 5)},
         'dialog': {'default': ["Two against two!", "Double battle, go!"]},
         'directions': ['down'],
         'defeated': False,
@@ -37,7 +37,7 @@ TRAINER_DATA = {
     'basic_trainer2': {
         'name': 'Luke',
         'partner': 'basic_trainer',
-        'dinos': {0: ('Floravel', 9)},
+        'dinos': {0: ('Floravel', 6)},
         'dialog': {'default': ["We fight as one!"]},
         'directions': ['down'],
         'defeated': False,
@@ -56,7 +56,7 @@ TRAINER_DATA = {
         'look_around': True,
         'defeated': False,
         'biome': 'forest',
-        'reward_coins': 120,
+        'reward_coins': 150,
         'rank': 'lowest',
     },
     'ethan': {
@@ -70,13 +70,13 @@ TRAINER_DATA = {
         'look_around': False,
         'defeated': False,
         'biome': 'forest',
-        'reward_coins': 150,
+        'reward_coins': 200,
         'rank': 'lowest',
     },
 
     'shinji': {
         'name': 'Shinji',
-        'dinos': {0: ('Prowscar', 6), 1: ('Vusion', 7)},
+        'dinos': {0: ('Prowscar', 6), 1: ('Vusion', 6)},
         'dialog': {
             'default':  ["Been waiting all day", "Let's Battle!"],
             'defeated': ["Good job, almost at the city!"]
@@ -378,6 +378,7 @@ ENTRANCE_DATA = {
     'home':       {'world': 'HOME_JET.tmx',        'spawn': (9, 11)},
     'jet_room':   {'world': 'HOME_JET2.tmx',       'spawn': (9, 10)},
     'dinocenter':   {'world': 'DINOCENTER.tmx',       'spawn': (9, 12)},
+    'research':     {'world': 'RESEARCH_LAB.tmx',    'spawn': (10, 11)},
 
     # 'house_amber': {'world': 'HOUSE_AMBER.world',  'spawn': (3, 6)},
 }
@@ -466,6 +467,18 @@ def calculate_xp_gain(player_level, opponent_level, enemy_name=None, base_xp=7, 
 ### 0.75 wild encounters
 ### 0.9  trainer battles
 ### 1.0  rivals, gyms, elite 4, bosses
+
+##################### NATURES ##################
+
+NATURE_BOOSTS = {
+    "Hardy":    {"hp": 0.10},
+    "Bulky":    {"defense": 0.10},
+    "Speedy":   {"speed": 0.10},
+    "Power":    {"attack": 0.10},
+    "Tank":     {"hp": 0.05, "defense": 0.05},
+    "Rush":     {"attack": 0.05, "speed": 0.05},
+    "Balanced": {"attack": 0.05, "defense": 0.05},
+}
 
 ##################### BASE STATS ##################
 

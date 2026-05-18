@@ -1,0 +1,27 @@
+{
+  "coins": 0,
+  "inventory": {
+    "DinoPod": 0,
+    "DinoCapsule": 0,
+    "Whitepod": 0,
+    "Repel": 0
+  },
+  "world": "LOST_REGION.world",
+  "player_x": -662,
+  "player_y": 1248,
+  "party": [],
+  "box": [],
+  "story_flags": {
+    "game_intro_done": true,
+    "amber_intro_done": true
+  },
+  "sandbox": false,
+  "badges": [],
+  "play_time": 47.63299999999917,
+  "dinos_seen": [],
+  "stats": {
+    "blackouts": 0,
+    "dinos_fainted": 0,
+    "enemies_defeated": 0
+  }
+}

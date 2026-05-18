@@ -38,6 +38,12 @@ class Player(pygame.sprite.Sprite):
         self.turn_delay = 0.08
 
     def update(self, keys, game, dt):
+        cutscene = getattr(game, 'cutscene', None)
+        if cutscene and cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing'):
+            return
+        if any(getattr(n, 'npc_type', '') == 'guard' and n.state in ('approaching', 'returning')
+               for n in getattr(game, 'npcs', [])):
+            return
         if (game.state_stack[-1] != 'world' or
                 (game.message_box and game.message_box.visible) or
                 getattr(game, 'heal_anim', None) or
@@ -128,6 +134,11 @@ class Player(pygame.sprite.Sprite):
                   (tile_x, tile_y) in game.solid_tile_coords or \
                   any((tile_x, tile_y) == pos for pos in game.items_on_map)
 
+        if (not blocked and
+                not game.story_flags.get('encounters_unlocked') and
+                (tile_x, tile_y) in game.encounter_tile_coords):
+            blocked = True
+
         min_tx, min_ty, max_tx, max_ty = game.world_bounds
         if (min_tx <= tile_x < max_tx and
                 min_ty <= tile_y < max_ty and
@@ -147,6 +158,8 @@ class Player(pygame.sprite.Sprite):
 
     def check_for_encounter(self, game):
         if game.state_stack[-1] != 'world':
+            return
+        if not game.story_flags.get('encounters_unlocked'):
             return
         tile_x = self.rect.x // config.TILE_SIZE
         tile_y = self.rect.y // config.TILE_SIZE

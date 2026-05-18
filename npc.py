@@ -94,7 +94,7 @@ class NPC:
 
     # ── movement ──────────────────────────────────────────────────────────────
 
-    def _start_step(self, player, solid):
+    def _start_step(self, player, solid, map_solid=None):
         px, py = self._player_tile(player)
         dx, dy = px - self.tile_x, py - self.tile_y
         if   abs(dx) >= abs(dy) and dx != 0: sx, sy = (1 if dx > 0 else -1), 0
@@ -102,7 +102,7 @@ class NPC:
         else:                                 return
 
         nx, ny = self.tile_x + sx, self.tile_y + sy
-        if (nx, ny) not in solid:
+        if (nx, ny) not in solid and (map_solid is None or (nx, ny) not in map_solid):
             solid.discard((self.tile_x, self.tile_y))
             self.tile_x, self.tile_y = nx, ny
             solid.add((nx, ny))
@@ -128,8 +128,97 @@ class NPC:
 
     # ── update ────────────────────────────────────────────────────────────────
 
+    def _step_toward_tile(self, tx, ty, solid, map_solid=None):
+        """Move one tile toward (tx, ty), identical logic to _start_step."""
+        dx, dy = tx - self.tile_x, ty - self.tile_y
+        if   abs(dx) >= abs(dy) and dx != 0: sx, sy = (1 if dx > 0 else -1), 0
+        elif dy != 0:                         sx, sy = 0, (1 if dy > 0 else -1)
+        else:                                 return
+        nx, ny = self.tile_x + sx, self.tile_y + sy
+        if (nx, ny) not in solid and (map_solid is None or (nx, ny) not in map_solid):
+            solid.discard((self.tile_x, self.tile_y))
+            self.tile_x, self.tile_y = nx, ny
+            solid.add((nx, ny))
+            self.facing    = self._FACING[(sx, sy)]
+            self.target_x  = float(nx * config.TILE_SIZE)
+            self.target_y  = float(ny * config.TILE_SIZE)
+            self.is_moving = True
+            self.anim_frame = 1
+            self.anim_timer = 0.0
+
+    def _update_guard(self, dt, player, game):
+        """Guard NPC: approaches player on sight, delivers warning, returns to post."""
+        if game.state != 'world':
+            return
+        if game.story_flags.get('encounters_unlocked'):
+            return
+
+        # Always resolve active slide first
+        if self.is_moving:
+            self.anim_timer += dt
+            if self.anim_timer >= self.anim_speed:
+                self.anim_timer = 0.0
+                self.anim_frame = (self.anim_frame + 1) % 4
+            self._slide(dt)
+            return
+
+        if self.state == 'idle':
+            # # Radius-based detection (commented out — too aggressive)
+            # px = player.rect.x // config.TILE_SIZE
+            # py = player.rect.y // config.TILE_SIZE
+            # dist = abs(px - self.tile_x) + abs(py - self.tile_y)
+            # if not game.message_box.visible and not player.moving and dist <= self.sight_range:
+            #     self.state = 'approaching'
+            if not game.message_box.visible and not player.moving and self.can_see_player(player):
+                self.state = 'approaching'
+
+        elif self.state == 'approaching':
+            if game.message_box.visible:
+                return
+            if self._pixel_close(player):
+                self.state = 'talking'
+                self.face_toward_player(player)
+                self.anim_frame = 0
+                dialog = getattr(self, 'block_dialog', ["..."])
+                game.message_box.queue_messages(
+                    dialog, wait_for_input=True,
+                    on_complete=lambda: self._guard_warn_done(player, game)
+                )
+            else:
+                self._start_step(player, game.solid_tile_coords, game.solid_tiles)
+
+        elif self.state == 'returning':
+            if game.message_box.visible:
+                return
+            hx, hy = self.home_tile
+            if self.tile_x == hx and self.tile_y == hy:
+                self.state  = 'idle'
+                self.facing = self.home_facing
+                self.anim_frame = 0
+            else:
+                self._step_toward_tile(hx, hy, game.solid_tile_coords, game.solid_tiles)
+
+    def _guard_warn_done(self, player, game):
+        """After guard warning dialogue: return to post and push player out of range."""
+        self.state = 'returning'
+        # Push player one tile down so she doesn't re-trigger immediately
+        px = player.rect.x // config.TILE_SIZE
+        py = player.rect.y // config.TILE_SIZE
+        ts   = config.TILE_SIZE
+        nx, ny = px, py + 1
+        all_solid = game.solid_tile_coords | game.solid_tiles
+        if (nx, ny) not in all_solid:
+            player.target_x = nx * ts
+            player.target_y = ny * ts
+            player.pos_x    = float(player.rect.x)
+            player.pos_y    = float(player.rect.y)
+            player.moving   = True
+
     def update(self, dt, player, game):
-        if self.npc_type in ('healer', 'shop'):
+        if self.npc_type in ('healer', 'shop', 'story'):
+            return
+        if self.npc_type == 'guard':
+            self._update_guard(dt, player, game)
             return
         if self.defeated or game.state != 'world' or game.message_box.visible:
             return
@@ -191,7 +280,7 @@ class NPC:
                     self.anim_frame = 0
                     self._trigger_battle(game)
                 else:
-                    self._start_step(player, game.solid_tile_coords)
+                    self._start_step(player, game.solid_tile_coords, game.solid_tiles)
 
     def face_toward_player(self, player):
         px = player.rect.x // config.TILE_SIZE

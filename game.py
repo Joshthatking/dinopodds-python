@@ -8,6 +8,9 @@ import config
 from screens import *
 from data import *
 import random
+import story as _story
+
+SAVE_PATH = 'dinopodds_save.json'
 
 
 class Game:
@@ -17,7 +20,7 @@ class Game:
         pygame.display.set_caption('DinoPodds')
         self.clock = pygame.time.Clock()
         self.running = True
-        self.state_stack = ['world']
+        self.state_stack = ['title']
 
         self.fonts = {name: pygame.font.Font(path, size) for name, (path, size) in config.FONT_DEFS.items()}
         self.camera_x, self.camera_y = 0, 0
@@ -71,14 +74,14 @@ class Game:
                 back_img = front_img
             self.player_dino_images[name]       = back_img
             self.player_dino_front_images[name] = front_img
-        self.player_dinos = [
-            self.create_dino('Vusion', 12),
-            self.create_dino('Vusion', 3),
-            self.create_dino('Corlave', 5),
-            self.create_dino('Corlave', 16),
-        ]
+        self.player_dinos = []
+
+        # Story / progress
+        self.story_flags = {}
+        self.sandbox = False
 
         # Screens
+        self.title_screen = TitleScreen(self)
         self.menu = Menu(self)
         self.party_screen = PartyScreen(self)
         self.party_screen.reset()
@@ -121,6 +124,8 @@ class Game:
         self.heal_anim = None
         self.yes_no_prompt = None
         self.yes_no_callback = None
+        self.cutscene = None
+        self.cutscene_flash = None
         self.ball_icons = {}
         for name, path in config.BALL_ICONS.items():
             try:
@@ -289,7 +294,186 @@ class Game:
         self.fade_alpha = 255
         self.entrance_fade_state = 'in'
 
+    # --- Title / New Game / Save-Load ---
+
+    def new_game(self):
+        import datetime
+        self.story_flags = {}
+        self.sandbox = False
+        self.player_dinos = []
+        self.box_dinos = []
+        self.coins = 1000
+        self.inventory = {item: 0 for item in config.ITEMS.keys()}
+        self.badges_earned = []
+        self.dinos_seen = set()
+        self.stats_blackouts = 0
+        self.stats_dinos_fainted = 0
+        self.stats_enemies_defeated = 0
+        self.play_time_seconds = 0.0
+        self.adventure_start_date = datetime.date.today()
+        self.world_stack = []
+        self._load_world_data('HOME_JET2.tmx')
+        self._spawn_world_npcs('HOME_JET2.tmx')
+        # Adjust tile coords to match your Tiled spawn point in HOME_JET2.tmx
+        self._place_player(7, 5)
+        self.state_stack = ['world']
+        self._run_story_event('game_intro')
+
+    def sandbox_mode(self):
+        self.story_flags = {e['id']: True for e in _story.STORY_EVENTS}
+        self.sandbox = True
+        self.player_dinos = [
+            self.create_dino('Vusion', 12),
+            self.create_dino('Vusion', 3),
+            self.create_dino('Corlave', 5),
+            self.create_dino('Corlave', 16),
+        ]
+        self.box_dinos = []
+        self.coins = 99999
+        self.inventory = {item: 99 for item in config.ITEMS.keys()}
+        self.badges_earned = []
+        self.dinos_seen = set(DINO_DATA.keys())
+        px, py = config.SPAWN_POINTS.get('home', (352, 1392))
+        self.player.rect.topleft = (px, py)
+        self.player.pos_x = float(px)
+        self.player.pos_y = float(py)
+        self.player.target_x = px
+        self.player.target_y = py
+        self.state_stack = ['world']
+
+    def exit_to_title(self):
+        self.pop_to_world()
+        self.state_stack = ['title']
+        self.title_screen.reset()
+
+    def save_game(self):
+        data = {
+            'coins': self.coins,
+            'inventory': self.inventory,
+            'world': self.current_world_file,
+            'player_x': self.player.rect.x,
+            'player_y': self.player.rect.y,
+            'party': [self._dino_to_dict(d) for d in self.player_dinos],
+            'box': [self._dino_to_dict(d) for d in self.box_dinos],
+            'story_flags': self.story_flags,
+            'sandbox': self.sandbox,
+            'badges': self.badges_earned,
+            'play_time': self.play_time_seconds,
+            'dinos_seen': list(self.dinos_seen),
+            'stats': {
+                'blackouts': self.stats_blackouts,
+                'dinos_fainted': self.stats_dinos_fainted,
+                'enemies_defeated': self.stats_enemies_defeated,
+            },
+        }
+        with open(SAVE_PATH, 'w') as f:
+            json.dump(data, f, indent=2)
+        self.message_box.queue_messages(["Game saved!"], wait_for_input=True)
+
+    def load_game(self):
+        try:
+            with open(SAVE_PATH) as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return
+        self.coins = data.get('coins', 0)
+        self.inventory = {**{item: 0 for item in config.ITEMS.keys()}, **data.get('inventory', {})}
+        self.story_flags = data.get('story_flags', {})
+        self.sandbox = data.get('sandbox', False)
+        self.badges_earned = data.get('badges', [])
+        self.play_time_seconds = data.get('play_time', 0.0)
+        self.dinos_seen = set(data.get('dinos_seen', []))
+        s = data.get('stats', {})
+        self.stats_blackouts = s.get('blackouts', 0)
+        self.stats_dinos_fainted = s.get('dinos_fainted', 0)
+        self.stats_enemies_defeated = s.get('enemies_defeated', 0)
+        self.player_dinos = [self._dict_to_dino(d) for d in data.get('party', [])]
+        self.box_dinos = [self._dict_to_dino(d) for d in data.get('box', [])]
+        px = data.get('player_x', config.SPAWN_POINTS['home'][0])
+        py = data.get('player_y', config.SPAWN_POINTS['home'][1])
+        self.player.rect.topleft = (px, py)
+        self.player.pos_x = float(px)
+        self.player.pos_y = float(py)
+        self.player.target_x = px
+        self.player.target_y = py
+        self.state_stack = ['world']
+
+    def _dino_to_dict(self, dino):
+        return {k: v for k, v in dino.items() if k not in ('image', 'front_image', 'frames')}
+
+    def _dict_to_dino(self, data):
+        data = dict(data)
+        name = data['name']
+        data['image'] = self.player_dino_images.get(name)
+        data['front_image'] = self.player_dino_front_images.get(name)
+        data['frames'] = self.dino_frames.get(name)
+        return data
+
+    # --- Story Events ---
+
+    def _run_story_event(self, event_id):
+        if self.story_flags.get(event_id):
+            return
+        event = next((e for e in _story.STORY_EVENTS if e['id'] == event_id), None)
+        if event:
+            self._execute_story_event(event)
+
+    def _execute_story_event(self, event):
+        msgs = event.get('messages', [])
+
+        def on_complete():
+            for item, qty in event.get('award_items', {}).items():
+                self.inventory[item] = self.inventory.get(item, 0) + qty
+            self.coins += event.get('award_coins', 0)
+            for spec in event.get('award_dinos', []):
+                dino = self.create_dino(spec['name'], spec['level'])
+                if len(self.player_dinos) < self.PARTY_LIMIT:
+                    self.player_dinos.append(dino)
+                else:
+                    self.box_dinos.append(dino)
+            for flag in event.get('sets_flags', []):
+                self.story_flags[flag] = True
+            next_id = event.get('next_event')
+            if next_id:
+                self._run_story_event(next_id)
+
+        if msgs:
+            self.message_box.queue_messages(msgs, on_complete=on_complete, wait_for_input=True)
+        else:
+            on_complete()
+
+    def check_story_events(self):
+        if self.sandbox or self.message_box.visible:
+            return
+        tx = self.player.rect.x // config.TILE_SIZE
+        ty = self.player.rect.y // config.TILE_SIZE
+        zone = self.get_player_zone(tx, ty)
+        for event in _story.STORY_EVENTS:
+            eid = event['id']
+            if self.story_flags.get(eid):
+                continue
+            trigger = event.get('trigger', {})
+            if trigger == 'new_game':
+                continue
+            if isinstance(trigger, dict):
+                if not all(self.story_flags.get(f) for f in trigger.get('requires_flags', [])):
+                    continue
+                req_zone = trigger.get('location')
+                if req_zone and zone != req_zone:
+                    continue
+                self._execute_story_event(event)
+                break
+
     # --- Dino Creation ---
+
+    def apply_nature_boost(self, dino):
+        for stat, pct in NATURE_BOOSTS.get(dino.get("nature"), {}).items():
+            if stat == "hp":
+                dino["max_hp"] += max(1, round(dino["max_hp"] * pct))
+            else:
+                bonus = max(1, round(dino[stat] * pct))
+                dino[stat] += bonus
+                dino[f"base_{stat}"] += bonus
 
     def create_dino(self, name, level):
         base_stats = DINO_DATA[name]['stats']
@@ -310,9 +494,10 @@ class Game:
                 "ability": m.get("ability", None),
             })
 
-        return {
+        dino = {
             "name": name,
             "level": level,
+            "nature": random.choice(list(NATURE_BOOSTS.keys())),
             "type": base_stats['type'],
             "hp": max_hp,
             "max_hp": max_hp,
@@ -333,6 +518,9 @@ class Game:
             "xp_to_next": LevelXP(level + 1) - LevelXP(level),
             "displayed_xp": 0,
         }
+        self.apply_nature_boost(dino)
+        dino["hp"] = dino["max_hp"]
+        return dino
 
     # --- XP & Leveling ---
 
@@ -340,7 +528,7 @@ class Game:
         dino['xp'] += amount
         while dino['xp'] >= dino['xp_to_next']:
             base_stats = DINO_DATA[dino["name"]]['stats']
-            prev_hp = HP_Base(base_stats['health'], dino['level'])
+            prev_max_hp = dino['max_hp']
             dino['xp'] -= dino['xp_to_next']
             dino['level'] += 1
             dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
@@ -352,7 +540,8 @@ class Game:
             dino['base_defense'] = dino['defense']
             dino['base_speed']   = dino['speed']
             dino['stat_stages']  = {"attack": 0, "defense": 0, "speed": 0}
-            dino['hp'] += dino['max_hp'] - prev_hp
+            self.apply_nature_boost(dino)
+            dino['hp'] += dino['max_hp'] - prev_max_hp
             self.message_box.queue_messages(
                 [f"{dino['name']} grew to Lv {dino['level']}!"], wait_for_input=True
             )
@@ -373,7 +562,7 @@ class Game:
             dino['xp'] += int(round(xp_gain * bonus))
             while dino['xp'] >= dino['xp_to_next']:
                 base_stats = DINO_DATA[dino['name']]['stats']
-                prev_hp = HP_Base(base_stats['health'], dino['level'])
+                prev_max_hp = dino['max_hp']
                 dino['xp'] -= dino['xp_to_next']
                 dino['level'] += 1
                 dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
@@ -385,7 +574,8 @@ class Game:
                 dino['base_defense'] = dino['defense']
                 dino['base_speed']   = dino['speed']
                 dino['stat_stages']  = {"attack": 0, "defense": 0, "speed": 0}
-                dino['hp'] = dino['hp'] + (dino['max_hp'] - prev_hp)
+                self.apply_nature_boost(dino)
+                dino['hp'] = dino['hp'] + (dino['max_hp'] - prev_max_hp)
                 msgs.append(f"{dino['name']} grew to Lv {dino['level']}!")
         return msgs
 
@@ -585,6 +775,7 @@ class Game:
         dino['base_defense'] = dino['defense']
         dino['base_speed']   = dino['speed']
         dino['stat_stages']  = {"attack": 0, "defense": 0, "speed": 0}
+        self.apply_nature_boost(dino)
         dino['hp'] = max(1, int(dino['max_hp'] * hp_ratio))
 
         old_moves = dino.get('moves', [])[:]
@@ -1323,7 +1514,9 @@ class Game:
                     if eid:
                         entrances[(ox, oy)] = eid
                     if props.get('exit'):
-                        exits.add((ox, oy))
+                        for ety in range(oy, int((obj.y + obj.height - 1) // ts) + 1):
+                            for etx in range(ox, int((obj.x + obj.width - 1) // ts) + 1):
+                                exits.add((etx, ety))
         world_maps = [{'tmx': tmx, 'x': 0, 'y': 0,
                         'width': tmx.width * ts, 'height': tmx.height * ts}]
         # print(f"[DEBUG] _load_single_tmx({filename}): entrances={list(entrances.items())} exits={list(exits)}")
@@ -1375,7 +1568,10 @@ class Game:
         self._place_player(tx, ty)
 
     def trigger_exit(self):
-        if not self.world_stack or self.entrance_fade_state is not None:
+        if self.entrance_fade_state is not None:
+            return
+        _home_maps = ('HOME_JET2.tmx', 'HOME_JET.tmx')
+        if not self.world_stack and self.current_world_file not in _home_maps:
             return
         self.entrance_pending = '__exit__'
         self.entrance_fade_state = 'out'
@@ -1386,6 +1582,10 @@ class Game:
 
     def _do_exit_teleport(self):
         if not self.world_stack:
+            if self.current_world_file == 'HOME_JET2.tmx':
+                self._enter_home_jet()
+            elif self.current_world_file == 'HOME_JET.tmx':
+                self._return_from_home_to_overworld()
             return
         prev = self.world_stack.pop()
         self._load_world_data(prev['file'])
@@ -1418,6 +1618,205 @@ class Game:
             [f"{self._trainer_name} sent out {dino_name}!", "What will you do?"],
             wait_for_input=True
         )
+
+    # --- Intro Cutscene ---
+
+    def _enter_home_jet(self):
+        """Transition from HOME_JET2 (Jet's room) to HOME_JET (downstairs)."""
+        self._load_world_data('HOME_JET.tmx')
+        self._spawn_world_npcs('HOME_JET.tmx')
+        for npc in self.npcs:
+            self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
+        spawn = (9, 7)  # matches HOME_JET2.tmx entrance tile
+        self._place_player(*spawn)
+
+    def _return_from_home_to_overworld(self):
+        self._load_world_data('LOST_REGION.world')
+        self._spawn_world_npcs('LOST_REGION.world')
+        for npc in self.npcs:
+            self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
+        # ── Adjust to match home exit tile in LOST_REGION.world ──
+        self._place_player(11, 44)
+        if not self.story_flags.get('amber_intro_done'):
+            self._start_amber_intro_cutscene()
+
+    def _start_amber_intro_cutscene(self):
+        # ── Adjust start tile so Amber appears a few tiles from the player ──
+        amber = NPC('amber', tile_x=2, tile_y=44, facing='down',
+                    sight_range=0, npc_type='story')
+        self.solid_tile_coords.add((amber.tile_x, amber.tile_y))
+        self.npcs.append(amber)
+        self.cutscene = {
+            'phase': 'intro_flash',
+            'npc': amber,
+            # ── Adjust to the tile just above the grass entrance ──
+            'leave_tile': (7, 34),
+        }
+        self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0}
+
+    def _update_cutscene(self, dt):
+        c = self.cutscene
+        npc = c['npc']
+
+        # Always advance NPC slide first
+        if npc.is_moving:
+            npc.anim_timer += dt
+            if npc.anim_timer >= npc.anim_speed:
+                npc.anim_timer = 0.0
+                npc.anim_frame = (npc.anim_frame + 1) % 4
+            npc._slide(dt)
+            return
+
+        if c['phase'] == 'intro_flash':
+            if not self.cutscene_flash:
+                c['phase'] = 'approaching'
+
+        elif c['phase'] == 'approaching':
+            if npc._pixel_close(self.player):
+                npc.anim_frame = 0
+                npc.face_toward_player(self.player)
+                # Turn player to face Amber
+                dx = npc.tile_x - self.player.rect.x // config.TILE_SIZE
+                dy = npc.tile_y - self.player.rect.y // config.TILE_SIZE
+                if abs(dx) >= abs(dy):
+                    d = 'right' if dx > 0 else 'left'
+                else:
+                    d = 'down' if dy > 0 else 'up'
+                self.player.facing = self.player.direction = d
+                self.player.image = self.player.animations[d][0]
+                c['phase'] = 'dialogue'
+                self.message_box.queue_messages(
+                    self._split_dialogue(
+                        "The solar flares are becoming more aggressive as time goes on,"
+                        " our field agents are rushing back to the lab before all power"
+                        " goes out and before the eclipse sets in.",
+                        "I need you to go find the 3 dinos left behind and bring them"
+                        " back to my Research Lab in Sierra Town! Be careful out there",
+                    ),
+                    wait_for_input=True, on_complete=self._on_amber_dialogue_done
+                )
+            else:
+                npc._start_step(self.player, self.solid_tile_coords, self.solid_tiles)
+
+        elif c['phase'] == 'walking_away':
+            wx, wy = c['walk_target']
+            if npc.tile_x == wx and npc.tile_y == wy:
+                # Walk done — teleport Amber to her guard tile
+                tx, ty = c['leave_tile']
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                npc.tile_x, npc.tile_y = tx, ty
+                npc.pos_x   = float(tx * config.TILE_SIZE)
+                npc.pos_y   = float(ty * config.TILE_SIZE)
+                npc.rect.topleft = (int(npc.pos_x), int(npc.pos_y))
+                npc.target_x = npc.pos_x
+                npc.target_y = npc.pos_y
+                npc.is_moving  = False
+                npc.anim_frame = 0
+                npc.npc_type    = 'guard'
+                npc.state       = 'idle'
+                npc.facing      = 'left'
+                npc.home_tile   = (tx, ty)
+                npc.home_facing = 'left'
+                npc.sight_range = 5
+                npc.block_dialog = [
+                    "I need you to collect all 3 dinos before coming back to the lab!"
+                ]
+                self.solid_tile_coords.add((tx, ty))
+                self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0}
+                c['phase'] = 'flashing'
+            else:
+                self._step_npc_toward_tile(npc, wx, wy)
+
+        elif c['phase'] == 'flashing':
+            if not self.cutscene_flash:
+                self.story_flags['amber_intro_done'] = True
+                self.event_overlay_active = True
+                self.cutscene = None
+
+    def _split_dialogue(self, *texts, lines_per_page=2):
+        """Break one or more long strings into dialogue-box-sized message chunks."""
+        font = self.message_box.font
+        avail_w = self.message_box.width - 120
+        pages = []
+        for text in texts:
+            all_lines = wrap_text(text, font, avail_w)
+            for i in range(0, len(all_lines), lines_per_page):
+                pages.append(' '.join(all_lines[i:i + lines_per_page]))
+        return pages
+
+    def _on_amber_dialogue_done(self):
+        if not self.cutscene:
+            return
+        c   = self.cutscene
+        npc = c['npc']
+        # Walk 6 tiles left, then teleport to guard tile
+        c['walk_target'] = (npc.tile_x - 6, npc.tile_y)
+        c['phase'] = 'walking_away'
+
+    def _step_npc_toward_tile(self, npc, tx, ty):
+        dx, dy = tx - npc.tile_x, ty - npc.tile_y
+        if abs(dx) >= abs(dy) and dx != 0:
+            sx, sy = (1 if dx > 0 else -1), 0
+        elif dy != 0:
+            sx, sy = 0, (1 if dy > 0 else -1)
+        else:
+            return
+        nx, ny = npc.tile_x + sx, npc.tile_y + sy
+        if (nx, ny) not in self.solid_tile_coords and (nx, ny) not in self.solid_tiles:
+            self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+            npc.tile_x, npc.tile_y = nx, ny
+            self.solid_tile_coords.add((nx, ny))
+            npc.facing = npc._FACING[(sx, sy)]
+            npc.target_x = float(nx * config.TILE_SIZE)
+            npc.target_y = float(ny * config.TILE_SIZE)
+            npc.is_moving = True
+            npc.anim_frame = 1
+            npc.anim_timer = 0.0
+
+    def _update_cutscene_flash(self, dt):
+        f = self.cutscene_flash
+        if f['rising']:
+            f['alpha'] = min(180, f['alpha'] + 600 * dt)
+            if f['alpha'] >= 180:
+                f['rising'] = False
+        else:
+            f['alpha'] = max(0, f['alpha'] - 380 * dt)
+            if f['alpha'] <= 0:
+                f['count'] += 1
+                if f['count'] < 2:
+                    f['rising'] = True
+                else:
+                    self.cutscene_flash = None
+
+    def _add_amber_blocker_to_solid(self):
+        blocker = next((n for n in self.npcs if getattr(n, 'npc_type', '') == 'guard'), None)
+        if blocker:
+            self.solid_tile_coords.add((blocker.tile_x, blocker.tile_y))
+
+    def _add_amber_blocker(self):
+        """Re-add guard NPC when loading a save mid-intro."""
+        tx, ty = 1, 27  # must match leave_tile in _start_amber_intro_cutscene
+        guard = NPC('amber', tile_x=tx, tile_y=ty, facing='left',
+                    sight_range=5, npc_type='guard')
+        guard.state       = 'idle'
+        guard.home_tile   = (tx, ty)
+        guard.home_facing = 'left'
+        guard.block_dialog = [
+            "I need you to collect all 3 dinos before coming back to the lab!"
+        ]
+        self.npcs.append(guard)
+        self.solid_tile_coords.add((tx, ty))
+
+    def _check_amber_blocker(self):
+        if self.story_flags.get('encounters_unlocked'):
+            return
+        if not self.story_flags.get('amber_intro_done'):
+            return
+        blocker = next((n for n in self.npcs if getattr(n, 'npc_type', '') == 'guard'), None)
+        if blocker and len(self.player_dinos) >= 3:
+            self.solid_tile_coords.discard((blocker.tile_x, blocker.tile_y))
+            self.npcs.remove(blocker)
+            self.story_flags['encounters_unlocked'] = True
 
     # --- Map ---
 
@@ -1513,6 +1912,10 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
                 return
+
+            if self.state == 'title':
+                self.title_screen.handle_event(event, os.path.exists(SAVE_PATH))
+                continue
 
             # Block all input during the heal animation
             if self.heal_anim:
@@ -1714,7 +2117,12 @@ class Game:
             npc.npc_type == 'trainer' and npc.state in ('spotted', 'walking', 'done') and not npc.defeated
             for npc in self.npcs
         )
-        if event.key == pygame.K_i and not self.fading and self.entrance_fade_state is None and not trainer_approaching:
+        guard_active = any(
+            npc.npc_type == 'guard' and npc.state in ('approaching', 'returning')
+            for npc in self.npcs
+        )
+        cutscene_locking = self.cutscene and self.cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing')
+        if event.key == pygame.K_i and not self.fading and self.entrance_fade_state is None and not trainer_approaching and not guard_active and not cutscene_locking:
             self.push_state('menu')
         elif event.key == pygame.K_j:
             if self.check_type_chart_interact():
@@ -1788,7 +2196,7 @@ class Game:
         self.yes_no_callback = self.trigger_heal_sequence
 
     def interact_with_npc(self):
-        if self.fading:
+        if self.fading or self.cutscene:
             return False
         px = self.player.rect.x // config.TILE_SIZE
         py = self.player.rect.y // config.TILE_SIZE
@@ -1798,6 +2206,10 @@ class Game:
             if (npc.tile_x, npc.tile_y) not in candidates:
                 continue
             npc.face_toward_player(self.player)
+            if npc.npc_type == 'guard':
+                dialog = getattr(npc, 'block_dialog', ["..."])
+                self.message_box.queue_messages(dialog, wait_for_input=True)
+                return True
             if npc.npc_type == 'healer':
                 self.message_box.queue_messages(
                     ["Welcome to the DinoCenter!"],
@@ -1861,6 +2273,10 @@ class Game:
     # --- Update ---
 
     def update(self, dt):
+        if self.state == 'title':
+            self.title_screen.update(dt)
+            return
+
         self.play_time_seconds += dt
         self.update_day_night(dt)
         self.update_heal_anim(dt)
@@ -1923,10 +2339,16 @@ class Game:
             elif not self.fading:
                 keys = pygame.key.get_pressed()
                 self.all_sprites.update(keys, self, dt)
+                if self.cutscene:
+                    self._update_cutscene(dt)
+                if self.cutscene_flash:
+                    self._update_cutscene_flash(dt)
                 if self.forced_walk_npc:
                     self._update_forced_walk(dt)
                 self.update_camera()
                 for npc in self.npcs:
+                    if self.cutscene and npc is self.cutscene.get('npc'):
+                        continue
                     npc.update(dt, self.player, self)
             else:
                 self.fade_alpha += 10
@@ -1935,9 +2357,17 @@ class Game:
                     self.fading = False
                     self.push_state('encounter')
 
+            self.check_story_events()
+            self._check_amber_blocker()
+
     # --- Draw ---
 
     def draw(self):
+        if self.state == 'title':
+            self.title_screen.draw(self.screen, os.path.exists(SAVE_PATH))
+            pygame.display.flip()
+            return
+
         self.render_surface.fill(config.BLACK)
 
         background_state = 'encounter' if 'encounter' in self.state_stack else self.state_stack[0]
@@ -1969,6 +2399,14 @@ class Game:
                 self.screen.blit(self._dn_fade, (0, 0))
             if self.event_overlay_active:
                 self.screen.blit(self._event_overlay, (0, 0))
+            if self.sandbox:
+                tag = self.fonts['XS'].render("SANDBOX MODE", True, (255, 80, 80))
+                self.screen.blit(tag, (config.WIDTH - tag.get_width() - 6, 6))
+            if self.cutscene_flash and self.cutscene_flash['alpha'] > 0:
+                _flash = pygame.Surface((config.WIDTH, config.HEIGHT))
+                _flash.fill((255, 235, 150))
+                _flash.set_alpha(int(self.cutscene_flash['alpha']))
+                self.screen.blit(_flash, (0, 0))
 
         elif background_state == 'encounter':
             if self.is_double_battle:
@@ -2061,6 +2499,17 @@ class Game:
                                        msg_awaiting_input=msg_awaiting,
                                        player_visible=_player_vis,
                                        field_effects=self.field_effects)
+
+        if current_state == 'encounter':
+            if self.night_active and not self.dn_transitioning:
+                self.screen.blit(self._night_overlay, (0, 0))
+            if self.dn_transitioning:
+                t = self.dn_transition_timer / self.DN_TRANSITION_DURATION
+                alpha = int(255 * (1.0 - abs(t * 2 - 1.0)))
+                self._dn_fade.set_alpha(alpha)
+                self.screen.blit(self._dn_fade, (0, 0))
+            if self.event_overlay_active:
+                self.screen.blit(self._event_overlay, (0, 0))
 
         elif current_state == 'type_chart':
             img = pygame.transform.scale(self.type_chart_image, (config.WIDTH, config.HEIGHT))

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="1">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="2">
  <tileset firstgid="1" source="../TILESET/Base1.tsx"/>
  <tileset firstgid="273" source="../TILESET/building2.tsx"/>
  <tileset firstgid="873" source="../TILESET/PC_GYM2.tsx"/>
@@ -79,4 +79,12 @@
 86,86,86,86,86,86,86,86,86,86,0,0,0,0,86,86,86,86,86,86
 </data>
  </layer>
+ <objectgroup id="5" name="lab_entrance">
+  <object id="1" x="130.667" y="345.333" width="27.3333" height="10.6667">
+   <properties>
+    <property name="entrance" type="bool" value="true"/>
+    <property name="entrance_id" value="research"/>
+   </properties>
+  </object>
+ </objectgroup>
 </map>
