@@ -379,6 +379,7 @@ ENTRANCE_DATA = {
     'jet_room':   {'world': 'HOME_JET2.tmx',       'spawn': (9, 10)},
     'dinocenter':   {'world': 'DINOCENTER.tmx',       'spawn': (9, 12)},
     'research':     {'world': 'RESEARCH_LAB.tmx',    'spawn': (10, 11)},
+    'gym1':         {'world': 'GYM1.tmx',             'spawn': (9, 13)},
 
     # 'house_amber': {'world': 'HOUSE_AMBER.world',  'spawn': (3, 6)},
 }

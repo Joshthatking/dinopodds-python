@@ -94,7 +94,6 @@ class Game:
         # Items
         self.item_image = pygame.image.load(config.ITEMS["DinoPod"]['icon']).convert_alpha()
         self.items_on_map = {}
-        self._apply_ball_items(_init_ball_items)
         self.inventory = {item: 0 for item in config.ITEMS.keys()}
         self.item_icons = {}
         for key, data in config.ITEMS.items():
@@ -104,9 +103,12 @@ class Game:
                 surf = pygame.Surface((32, 32), pygame.SRCALPHA)
                 surf.fill((200, 100, 200))
                 self.item_icons[key] = surf
+        self._apply_ball_items(_init_ball_items)
         self.item_descriptions = {key: data["description"] for key, data in config.ITEMS.items()}
         self.items_screen = ItemsScreen(self.inventory, self.item_icons, self.item_descriptions, self.fonts)
         self.items_screen.reset()
+        self._dino_picker = None
+        self._dino_picker_starters = []
 
         # Shop
         self.shop_screen = ShopScreen(self.fonts)
@@ -204,7 +206,8 @@ class Game:
         self.DN_TRANSITION_DURATION = 1.0
         self._night_overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
         self._night_overlay.fill((30, 15, 60, 150))
-        # self._night_overlay.fill((1, 5, 150, 150)) #ECLIPSE?
+        self._night_overlay_battle = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
+        self._night_overlay_battle.fill((30, 15, 60, 70))
         self._dn_fade = pygame.Surface((config.WIDTH, config.HEIGHT))
         self._dn_fade.fill((0, 0, 0))
 
@@ -212,6 +215,8 @@ class Game:
         self.event_overlay_active = False   # flip True during special events
         self._event_overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
         self._event_overlay.fill((8, 0, 55, 210))   # deep blue-purple, heavier than night
+        self._event_overlay_battle = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
+        self._event_overlay_battle.fill((8, 0, 55, 100))
 #################################################
 
     # --- Entity / Collision Helpers ---
@@ -304,6 +309,7 @@ class Game:
         self.box_dinos = []
         self.coins = 1000
         self.inventory = {item: 0 for item in config.ITEMS.keys()}
+        self.items_screen.inventory = self.inventory
         self.badges_earned = []
         self.dinos_seen = set()
         self.stats_blackouts = 0
@@ -321,9 +327,10 @@ class Game:
 
     def sandbox_mode(self):
         self.story_flags = {e['id']: True for e in _story.STORY_EVENTS}
+        self.story_flags['encounters_unlocked'] = True
         self.sandbox = True
         self.player_dinos = [
-            self.create_dino('Vusion', 12),
+            self.create_dino('Vusion', 40),
             self.create_dino('Vusion', 3),
             self.create_dino('Corlave', 5),
             self.create_dino('Corlave', 16),
@@ -331,6 +338,7 @@ class Game:
         self.box_dinos = []
         self.coins = 99999
         self.inventory = {item: 99 for item in config.ITEMS.keys()}
+        self.items_screen.inventory = self.inventory
         self.badges_earned = []
         self.dinos_seen = set(DINO_DATA.keys())
         px, py = config.SPAWN_POINTS.get('home', (352, 1392))
@@ -378,6 +386,7 @@ class Game:
             return
         self.coins = data.get('coins', 0)
         self.inventory = {**{item: 0 for item in config.ITEMS.keys()}, **data.get('inventory', {})}
+        self.items_screen.inventory = self.inventory
         self.story_flags = data.get('story_flags', {})
         self.sandbox = data.get('sandbox', False)
         self.badges_earned = data.get('badges', [])
@@ -1998,6 +2007,12 @@ class Game:
                     self.pop_state()
                     self.items_screen.reset()
 
+            elif self.state == 'dino_picker':
+                if self._dino_picker:
+                    result = self._dino_picker.handle_event(event)
+                    if result is not None:
+                        self._finish_amber_lab(result)
+
             elif self.state == 'shop':
                 result = self.shop_screen.handle_event(event, self)
                 if result == 'back':
@@ -2222,6 +2237,9 @@ class Game:
                     wait_for_input=True,
                     on_complete=lambda: self.push_state('shop'))
                 return True
+            if npc.npc_type == 'story':
+                self._interact_story_npc(npc)
+                return True
             data = TRAINER_DATA.get(npc.trainer_id, {})
             if npc.defeated or npc.state == 'done':
                 npc.defeated = True
@@ -2235,6 +2253,66 @@ class Game:
             return True
         return False
 
+    def _interact_story_npc(self, npc):
+        if npc.trainer_id == 'amber':
+            if (self.current_world_file == 'RESEARCH_LAB.tmx'
+                    and self.story_flags.get('encounters_unlocked')
+                    and not self.story_flags.get('amber_lab_done')):
+                self._start_amber_lab_event()
+            elif self.story_flags.get('amber_lab_done'):
+                self.message_box.queue_messages(
+                    ["Keep up the training! The first gym awaits you!"],
+                    wait_for_input=True)
+            else:
+                self.message_box.queue_messages(
+                    ["Please collect all 3 dinos and return here!"],
+                    wait_for_input=True)
+
+    def _start_amber_lab_event(self):
+        starter_names = set(config.DINO_BALL_MAP.values())
+        starters = [d for d in self.player_dinos + self.box_dinos
+                    if d.get('name') in starter_names]
+
+        def open_picker():
+            self._dino_picker = DinoPicker(starters, self.fonts, config.WIDTH, config.HEIGHT)
+            self._dino_picker_starters = starters
+            self.push_state('dino_picker')
+
+        msgs = self._split_dialogue(
+            "Thank you for returning the dinos that we were missing. "
+            "It seemed they all got along with you very well! "
+            "For helping out during this chaotic event, I want you to keep your favorite!"
+        )
+        self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=open_picker)
+
+    def _finish_amber_lab(self, chosen_idx):
+        self.pop_state()
+        starters = self._dino_picker_starters
+        chosen = starters[chosen_idx]
+        for d in starters:
+            if d is not chosen:
+                if d in self.player_dinos:
+                    self.player_dinos.remove(d)
+                if d in self.box_dinos:
+                    self.box_dinos.remove(d)
+        if chosen not in self.player_dinos:
+            if len(self.player_dinos) < self.PARTY_LIMIT:
+                self.player_dinos.append(chosen)
+            if chosen in self.box_dinos:
+                self.box_dinos.remove(chosen)
+        self.active_dino_index = 0
+        self._dino_picker = None
+        self._dino_picker_starters = []
+        dino_name = chosen['name']
+        msgs = self._split_dialogue(
+            f"Great choice, {dino_name} will love to be by your side as your journey unfolds! "
+            "I recommend training harder and progressing through each gym if you would like to "
+            "help our mission of solving these solar flares and eclipses from disrupting our life. "
+            "The first gym is just south of us, I know you can handle it!"
+        )
+        self.story_flags['amber_lab_done'] = True
+        self.message_box.queue_messages(msgs, wait_for_input=True)
+
     def _apply_ball_items(self, ball_items):
         for pos in list(self.map_ball_items.keys()):
             self.items_on_map.pop(pos, None)
@@ -2243,7 +2321,16 @@ class Game:
         for (tx, ty), (item_name, img) in ball_items.items():
             self.items_on_map[(tx, ty)] = item_name
             self.map_ball_items[(tx, ty)] = item_name
-            self.map_ball_images[(tx, ty)] = img if img is not None else self._ballwhite_img
+            if img is not None:
+                display_img = img
+            else:
+                item_icons = getattr(self, 'item_icons', {})
+                icon = item_icons.get(item_name)
+                if icon is not None:
+                    display_img = pygame.transform.scale(icon, (config.TILE_SIZE, config.TILE_SIZE))
+                else:
+                    display_img = self._ballwhite_img
+            self.map_ball_images[(tx, ty)] = display_img
 
     def pickup_item(self):
         px = self.player.rect.x // config.TILE_SIZE
@@ -2500,16 +2587,16 @@ class Game:
                                        player_visible=_player_vis,
                                        field_effects=self.field_effects)
 
-        if current_state == 'encounter':
+        if background_state == 'encounter' and current_state == 'encounter':
             if self.night_active and not self.dn_transitioning:
-                self.screen.blit(self._night_overlay, (0, 0))
+                self.screen.blit(self._night_overlay_battle, (0, 0))
             if self.dn_transitioning:
                 t = self.dn_transition_timer / self.DN_TRANSITION_DURATION
                 alpha = int(255 * (1.0 - abs(t * 2 - 1.0)))
                 self._dn_fade.set_alpha(alpha)
                 self.screen.blit(self._dn_fade, (0, 0))
             if self.event_overlay_active:
-                self.screen.blit(self._event_overlay, (0, 0))
+                self.screen.blit(self._event_overlay_battle, (0, 0))
 
         elif current_state == 'type_chart':
             img = pygame.transform.scale(self.type_chart_image, (config.WIDTH, config.HEIGHT))
@@ -2518,8 +2605,18 @@ class Game:
         elif current_state == 'trainer_card':
             self.trainer_card_screen.draw(self.screen)
 
-        elif current_state in ('menu', 'party', 'items', 'shop', 'box'):
-            if background_state == 'world' and current_state not in ('shop', 'box'):
+        elif current_state in ('menu', 'party', 'items', 'shop', 'box', 'dino_picker'):
+            if background_state == 'encounter':
+                if self.night_active and not self.dn_transitioning:
+                    self.screen.blit(self._night_overlay_battle, (0, 0))
+                if self.dn_transitioning:
+                    t = self.dn_transition_timer / self.DN_TRANSITION_DURATION
+                    alpha = int(255 * (1.0 - abs(t * 2 - 1.0)))
+                    self._dn_fade.set_alpha(alpha)
+                    self.screen.blit(self._dn_fade, (0, 0))
+                if self.event_overlay_active:
+                    self.screen.blit(self._event_overlay_battle, (0, 0))
+            elif background_state == 'world' and current_state not in ('shop', 'box', 'dino_picker'):
                 self.draw_overlay()
             if current_state == 'menu':
                 self.menu.draw(self.screen)
@@ -2531,6 +2628,8 @@ class Game:
                 self.shop_screen.draw(self.screen, self.coins)
             elif current_state == 'box':
                 self.box_screen.draw(self.screen, self)
+            elif current_state == 'dino_picker' and self._dino_picker:
+                self._dino_picker.draw(self.screen)
 
         if self.fading or self.entrance_fade_state is not None:
             fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))

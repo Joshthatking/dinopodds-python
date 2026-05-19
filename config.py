@@ -121,6 +121,9 @@ WORLD_NPCS = {
         ('dc_lady',     9, 2, 'down', 0, 'healer'),
         ('dcmart_lady', 3, 2, 'down', 0, 'shop'),   # adjust tile position as needed
     ],
+    'RESEARCH_LAB.tmx': [
+        ('amber', 10, 3, 'down', 0, 'story'),
+    ],
 }
 
 ENCOUNTER_BASE_SIZE = 150

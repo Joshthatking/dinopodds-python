@@ -28,3 +28,4 @@ Keep consistent proportions, colors, and design from the reference. Use clean pi
 Lastly, NO BACKGROUND, keep it transparent.
 
 
+then go to libresprite - go to sprite size and edit dinos to 96x96 

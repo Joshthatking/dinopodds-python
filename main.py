@@ -112,9 +112,13 @@ if __name__ == '__main__':
 #Night mode and Eclipese mode overlay in battles - COMPLETE
 
 #5/18
-# Research Lab + Event 2 Returning dinos to professor
+#add dinopods to route 1 and 1.2 for player to catch dinos - COMPLETE
+# adjust darkness levels (-) for night and eclipse mode in battles, also fix bag - COMPLETE
+# Research Lab + Event 2 Returning dinos to professor - COMPLETE
+# GYM 1 designed and add gym event with trainers 
 #add traits one for each dino family
-# event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 
+
+# event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks
  

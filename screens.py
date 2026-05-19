@@ -767,6 +767,77 @@ class DinoPickupPopup:
         screen.blit(prompt, prompt.get_rect(centerx=cx, bottom=self.rect.bottom - 10))
 
 
+# === Dino Picker (starter choice) ===
+class DinoPicker:
+    """Shows all starter dinos at once; player picks one to keep."""
+
+    CARD_W, CARD_H = 150, 185
+
+    def __init__(self, dinos, fonts, screen_w=640, screen_h=480):
+        self.dinos = dinos
+        self.fonts = fonts
+        self.selected = 0
+        self.screen_w = screen_w
+        self.screen_h = screen_h
+        self._overlay = pygame.Surface((screen_w, screen_h), pygame.SRCALPHA)
+        self._overlay.fill((0, 0, 0, 190))
+        self._imgs = []
+        for d in dinos:
+            raw = d.get('front_image', d['image'])
+            self._imgs.append(pygame.transform.scale(raw, (90, 90)))
+
+    def handle_event(self, event):
+        """Returns chosen index when confirmed, else None."""
+        if event.type != pygame.KEYDOWN:
+            return None
+        if event.key in (pygame.K_a, pygame.K_LEFT):
+            self.selected = (self.selected - 1) % len(self.dinos)
+        elif event.key in (pygame.K_d, pygame.K_RIGHT):
+            self.selected = (self.selected + 1) % len(self.dinos)
+        elif event.key == pygame.K_j:
+            return self.selected
+        return None
+
+    def draw(self, screen):
+        screen.blit(self._overlay, (0, 0))
+
+        title = self.fonts['BATTLE'].render("Choose your partner!", True, (255, 248, 220))
+        screen.blit(title, title.get_rect(centerx=self.screen_w // 2, top=28))
+
+        n = len(self.dinos)
+        gap = 24
+        total_w = self.CARD_W * n + gap * (n - 1)
+        start_x = (self.screen_w - total_w) // 2
+        card_y = (self.screen_h - self.CARD_H) // 2 + 10
+
+        for i, (dino, img) in enumerate(zip(self.dinos, self._imgs)):
+            cx = start_x + i * (self.CARD_W + gap)
+            sel = (i == self.selected)
+            card_rect = pygame.Rect(cx, card_y, self.CARD_W, self.CARD_H)
+            bg = (255, 248, 220) if sel else (50, 45, 70)
+            pygame.draw.rect(screen, bg, card_rect, border_radius=10)
+            border = (220, 80, 60) if sel else (100, 90, 130)
+            pygame.draw.rect(screen, border, card_rect, 3 if sel else 2, border_radius=10)
+
+            img_rect = img.get_rect(centerx=cx + self.CARD_W // 2, top=card_y + 12)
+            screen.blit(img, img_rect)
+
+            name_col = (30, 20, 50) if sel else (220, 210, 240)
+            name_surf = self.fonts['BAG'].render(dino['name'], True, name_col)
+            screen.blit(name_surf, name_surf.get_rect(centerx=cx + self.CARD_W // 2, top=card_y + 110))
+
+            lvl_col = (60, 50, 80) if sel else (170, 160, 200)
+            lvl_surf = self.fonts['XS'].render(f"Lv. {dino['level']}", True, lvl_col)
+            screen.blit(lvl_surf, lvl_surf.get_rect(centerx=cx + self.CARD_W // 2, top=card_y + 132))
+
+            if sel:
+                arrow = self.fonts['XS'].render("[ J ] Choose", True, (200, 60, 40))
+                screen.blit(arrow, arrow.get_rect(centerx=cx + self.CARD_W // 2, top=card_y + 156))
+
+        hint = self.fonts['XS'].render("A / D  to navigate", True, (160, 150, 180))
+        screen.blit(hint, hint.get_rect(centerx=self.screen_w // 2, bottom=self.screen_h - 18))
+
+
 # === Party Screen ===
 class BoxScreen:
     """PC Box — dual-panel: box grid (left) and party list (right)."""
