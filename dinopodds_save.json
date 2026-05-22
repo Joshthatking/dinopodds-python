@@ -1,5 +1,5 @@
 {
-  "coins": 0,
+  "coins": 1750,
   "inventory": {
     "DinoPod": 0,
     "DinoCapsule": 0,
@@ -7,21 +7,78 @@
     "Repel": 0
   },
   "world": "LOST_REGION.world",
-  "player_x": -662,
-  "player_y": 1248,
-  "party": [],
+  "player_x": 512,
+  "player_y": 224,
+  "party": [
+    {
+      "name": "Prowscar",
+      "level": 6,
+      "nature": "Power",
+      "type": [
+        "dark"
+      ],
+      "hp": 13,
+      "max_hp": 13,
+      "attack": 9,
+      "defense": 6,
+      "speed": 8,
+      "base_attack": 9,
+      "base_defense": 6,
+      "base_speed": 8,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Dark Energy",
+          "type": "dark",
+          "damage": 30,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Arise",
+          "type": "ancient",
+          "damage": 0,
+          "accuracy": 100,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "attack",
+            "stages": 1,
+            "target": "self",
+            "chance": 100
+          }
+        }
+      ],
+      "moves": [
+        "Dark Energy",
+        "Arise"
+      ],
+      "xp": 42.81000000000003,
+      "xp_to_next": 68.76999999999995,
+      "displayed_xp": 0,
+      "caught_ball": "ballwhite",
+      "last_move_used": "Dark Energy"
+    }
+  ],
   "box": [],
   "story_flags": {
-    "game_intro_done": true,
-    "amber_intro_done": true
+    "amber_intro_done": true,
+    "encounters_unlocked": true,
+    "amber_lab_done": true
   },
   "sandbox": false,
   "badges": [],
-  "play_time": 47.63299999999917,
-  "dinos_seen": [],
+  "play_time": 261.74399999995603,
+  "dinos_seen": [
+    "Creuw"
+  ],
   "stats": {
     "blackouts": 0,
-    "dinos_fainted": 0,
-    "enemies_defeated": 0
+    "dinos_fainted": 1,
+    "enemies_defeated": 4
   }
 }

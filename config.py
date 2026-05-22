@@ -93,6 +93,8 @@ NPC_SHEETS = {
     'basic_trainer':      os.path.join('assets', 'NPC', 'BasicTrainer.png'),
     'basic_trainer2':     os.path.join('assets', 'NPC', 'BasicTrainer2.png'),
     'basic_trainer_girl': os.path.join('assets', 'NPC', 'BasicGirlTrainer.png'),
+    'blk_b':              os.path.join('assets', 'NPC', 'BLK_B.png'),
+    'skyy':               os.path.join('assets', 'NPC', 'Skyy.png'),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.

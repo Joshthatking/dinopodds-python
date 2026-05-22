@@ -115,6 +115,21 @@ if __name__ == '__main__':
 #add dinopods to route 1 and 1.2 for player to catch dinos - COMPLETE
 # adjust darkness levels (-) for night and eclipse mode in battles, also fix bag - COMPLETE
 # Research Lab + Event 2 Returning dinos to professor - COMPLETE
+
+#5/20
+# Move Menu for  more than 4 moves in party - COMPLETE
+# Dinodex to menu - COMPLETE
+
+#5/21
+#Added Space background for event 0 introduction to story - COMPLETE
+#Added gym block guy till after speaking with Skyy in Route 1.4 - COMPLETE
+#Skyy in Route 1.4 big story dialogue and back to Daytime! - COMPLETE
+
+#5/22
+# Add Double battle against grunts when walking to route1.4, over hear them speaking
+# Rival comes to join the fight with you using, your starts weakness
+# After the fight, that was weird... heals you, and then fair battle against rival
+# Then proceed with skyy dialogue and then gym1
 # GYM 1 designed and add gym event with trainers 
 #add traits one for each dino family
 

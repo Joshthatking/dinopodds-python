@@ -37,7 +37,7 @@ TRAINER_DATA = {
     'basic_trainer2': {
         'name': 'Luke',
         'partner': 'basic_trainer',
-        'dinos': {0: ('Floravel', 6)},
+        'dinos': {0: ('Floravel', 5)},
         'dialog': {'default': ["We fight as one!"]},
         'directions': ['down'],
         'defeated': False,
@@ -76,7 +76,7 @@ TRAINER_DATA = {
 
     'shinji': {
         'name': 'Shinji',
-        'dinos': {0: ('Prowscar', 6), 1: ('Vusion', 6)},
+        'dinos': {0: ('Prowscar', 4), 1: ('Corlave', 6)},
         'dialog': {
             'default':  ["Been waiting all day", "Let's Battle!"],
             'defeated': ["Good job, almost at the city!"]
@@ -91,6 +91,16 @@ TRAINER_DATA = {
 }
 
 
+
+DINODEX_DATA = {
+    'Vusion':    {'number': 1,  'desc': "A relentless dark-type predator that hunts by sensing heat. Its flickering energy aura can destabilize opponents before they even strike."},
+    'Corlave':   {'number': 2,  'desc': "A small aquatic dino that dwells in shallow coastal waters. Its compact shell deflects glancing blows, making it tougher than it looks."},
+    'Anemamace': {'number': 3,  'desc': "Corlave's evolved form. Longer and more powerful, it wields spiked appendages that can pierce rock. Feared by deep-sea hunters."},
+    'Creuw':     {'number': 4,  'desc': "A lightweight flier with hollow bones built for bursts of speed. Often spotted riding thermals high above open plains."},
+    'Luna':      {'number': 5,  'desc': "Creuw's evolved form. Fused flying and dark energy grant it near-invisibility at night. Rarely seen twice by the same trainer."},
+    'Prowscar':  {'number': 6,  'desc': "A scrappy dark-type that roams dense undergrowth. Its jaw muscles generate enormous bite force despite its small frame."},
+    'Floravel':  {'number': 7,  'desc': "A plant-armored earth-type that draws nutrients from the soil mid-battle. Its vines can reconfigure into defensive shields in an instant."},
+}
 
 DINO_DATA = {
     'Vusion': {

@@ -85,6 +85,8 @@ class Game:
         self.menu = Menu(self)
         self.party_screen = PartyScreen(self)
         self.party_screen.reset()
+        self.move_info_screen = None
+        self.dinodex_screen = DinodexScreen(self)
         self.trainer_card_screen = TrainerCardScreen(self)
         self.box_tile_coords = set()
         self.box_screen = BoxScreen(self)
@@ -128,6 +130,7 @@ class Game:
         self.yes_no_callback = None
         self.cutscene = None
         self.cutscene_flash = None
+        self.intro_sequence = None
         self.ball_icons = {}
         for name, path in config.BALL_ICONS.items():
             try:
@@ -140,6 +143,8 @@ class Game:
         # NPCs — populated per-world via WORLD_NPCS config
         self.npcs = []
         self._spawn_world_npcs('LOST_REGION.world')
+        self._maybe_add_gym_blocker()
+        self._maybe_add_skyy()
 
         # Hit flash state
         self.hit_flash = None   # None | {'target':'player'|'enemy','timer':0,'duration':1.5,'interval':0.08}
@@ -322,8 +327,8 @@ class Game:
         self._spawn_world_npcs('HOME_JET2.tmx')
         # Adjust tile coords to match your Tiled spawn point in HOME_JET2.tmx
         self._place_player(7, 5)
-        self.state_stack = ['world']
-        self._run_story_event('game_intro')
+        self.intro_sequence = IntroSequence(self)
+        self.state_stack = ['intro']
 
     def sandbox_mode(self):
         self.story_flags = {e['id']: True for e in _story.STORY_EVENTS}
@@ -406,6 +411,8 @@ class Game:
         self.player.target_x = px
         self.player.target_y = py
         self.state_stack = ['world']
+        self._maybe_add_gym_blocker()
+        self._maybe_add_skyy()
 
     def _dino_to_dict(self, dino):
         return {k: v for k, v in dino.items() if k not in ('image', 'front_image', 'frames')}
@@ -491,9 +498,10 @@ class Game:
         defense = Base_Stats(base_stats["defense"], level)
         speed   = Base_Stats(base_stats["speed"], level)
 
-        learned_moves = [move for lvl, move in DINO_DATA[name]['moves'].items() if lvl <= level]
+        learned_moves = [m for _, m in sorted(DINO_DATA[name]['moves'].items()) if _ <= level]
+        active_moves  = learned_moves[-4:]  # most recently learned 4 as defaults
         moveset = []
-        for move_name in learned_moves:
+        for move_name in active_moves:
             m = MOVE_DATA.get(move_name, {})
             moveset.append({
                 "name": move_name,
@@ -586,6 +594,23 @@ class Game:
                 self.apply_nature_boost(dino)
                 dino['hp'] = dino['hp'] + (dino['max_hp'] - prev_max_hp)
                 msgs.append(f"{dino['name']} grew to Lv {dino['level']}!")
+
+                # Check for newly learned moves at this level
+                for learn_lvl, move_name in DINO_DATA[dino['name']]['moves'].items():
+                    if learn_lvl == dino['level'] and move_name not in dino.get('moves', []):
+                        dino.setdefault('moves', []).append(move_name)
+                        if len(dino.get('moveset', [])) < 4:
+                            m = MOVE_DATA.get(move_name, {})
+                            dino.setdefault('moveset', []).append({
+                                "name":     move_name,
+                                "type":     m.get("type", "normal"),
+                                "damage":   m.get("damage", 0),
+                                "accuracy": m.get("accuracy", 100),
+                                "ability":  m.get("ability", None),
+                            })
+                            msgs.append(f"{dino['name']} learned {move_name}!")
+                        else:
+                            msgs.append(f"{dino['name']} can learn {move_name}! Manage moves in the party screen.")
         return msgs
 
     # --- Battle helpers: effective stats / move abilities / field effects ---
@@ -788,13 +813,22 @@ class Game:
         dino['hp'] = max(1, int(dino['max_hp'] * hp_ratio))
 
         old_moves = dino.get('moves', [])[:]
-        for move in [m for lvl, m in new_data['moves'].items() if lvl <= level]:
+        new_learned = []
+        for move in [m for _, m in sorted(new_data['moves'].items()) if _ <= level]:
             if move not in old_moves:
                 old_moves.append(move)
+                new_learned.append(move)
         dino['moves'] = old_moves
 
+        # Preserve existing active moveset; rebuild dicts in case stats changed,
+        # then fill empty slots (< 4) with newly learned moves.
+        active_names = [m['name'] for m in dino.get('moveset', []) if m['name'] in old_moves]
+        for mv in new_learned:
+            if len(active_names) < 4 and mv not in active_names:
+                active_names.append(mv)
+        active_names = active_names[:4]
         dino['moveset'] = []
-        for move_name in dino['moves']:
+        for move_name in active_names:
             m = MOVE_DATA.get(move_name, {})
             dino['moveset'].append({
                 "name": move_name,
@@ -1601,6 +1635,8 @@ class Game:
         self.npcs = prev['npcs']
         for npc in self.npcs:
             self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
+        self._maybe_add_gym_blocker()
+        self._maybe_add_skyy()
         # Place player one tile behind where they entered, facing back out
         reverse = {'up': 'down', 'down': 'up', 'left': 'right', 'right': 'left'}
         step = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}
@@ -1646,6 +1682,8 @@ class Game:
             self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
         # ── Adjust to match home exit tile in LOST_REGION.world ──
         self._place_player(11, 44)
+        self._maybe_add_gym_blocker()
+        self._maybe_add_skyy()
         if not self.story_flags.get('amber_intro_done'):
             self._start_amber_intro_cutscene()
 
@@ -1742,6 +1780,55 @@ class Game:
                 self.event_overlay_active = True
                 self.cutscene = None
 
+        elif c['phase'] == 'skyy_walking':
+            if self.message_box.visible:
+                return
+            wx, wy = c['walk_target']
+            if npc.tile_x == wx and npc.tile_y == wy:
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0}
+                c['phase'] = 'skyy_flash'
+            else:
+                # Force-step ignoring solid tiles so cutscene always completes
+                dx, dy = wx - npc.tile_x, wy - npc.tile_y
+                if abs(dx) >= abs(dy) and dx != 0:
+                    sx, sy = (1 if dx > 0 else -1), 0
+                elif dy != 0:
+                    sx, sy = 0, (1 if dy > 0 else -1)
+                else:
+                    sx, sy = 0, 0
+                if sx != 0 or sy != 0:
+                    nx, ny = npc.tile_x + sx, npc.tile_y + sy
+                    self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                    npc.tile_x, npc.tile_y = nx, ny
+                    self.solid_tile_coords.add((nx, ny))
+                    npc.facing = npc._FACING[(sx, sy)]
+                    npc.target_x = float(nx * config.TILE_SIZE)
+                    npc.target_y = float(ny * config.TILE_SIZE)
+                    npc.is_moving = True
+                    npc.anim_frame = 1
+                    npc.anim_timer = 0.0
+
+        elif c['phase'] == 'skyy_flash':
+            if not self.cutscene_flash:
+                # Remove Skyy
+                if npc in self.npcs:
+                    self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                    self.npcs.remove(npc)
+                # Remove gym guard
+                gym_guard = next((n for n in self.npcs if getattr(n, 'npc_type', '') == 'gym_guard'), None)
+                if gym_guard:
+                    self.solid_tile_coords.discard((gym_guard.tile_x, gym_guard.tile_y))
+                    self.npcs.remove(gym_guard)
+                # End eclipse, return to day
+                self.story_flags['gym1_accessible'] = True
+                self.event_overlay_active = False
+                self.is_night = False
+                self.day_night_timer = 0.0
+                self.dn_transitioning = False
+                self.dn_transition_timer = 0.0
+                self.cutscene = None
+
     def _split_dialogue(self, *texts, lines_per_page=2):
         """Break one or more long strings into dialogue-box-sized message chunks."""
         font = self.message_box.font
@@ -1814,6 +1901,47 @@ class Game:
             "I need you to collect all 3 dinos before coming back to the lab!"
         ]
         self.npcs.append(guard)
+        self.solid_tile_coords.add((tx, ty))
+
+    def _maybe_add_gym_blocker(self):
+        if not self.story_flags.get('encounters_unlocked'):
+            return
+        if self.story_flags.get('gym1_accessible'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        already = any(getattr(n, 'npc_type', '') == 'gym_guard' for n in self.npcs)
+        if already:
+            return
+        tx, ty = 31, 13  # 1 tile below the GYM1 entrance (world tile 31,12)
+        blocker = NPC('blk_b', tile_x=tx, tile_y=ty, facing='down',
+                      sight_range=0, npc_type='gym_guard')
+        blocker.state       = 'idle'
+        blocker.home_tile   = (tx, ty)
+        blocker.home_facing = 'down'
+        blocker.block_dialog = self._split_dialogue(
+            "Gym Leader Skyy is out investigating a ruin on Route 1."
+            "He believes it has clues to why the solar flares and eclipses"
+            " keep happening."
+        )
+        self.npcs.append(blocker)
+        self.solid_tile_coords.add((tx, ty))
+
+    def _maybe_add_skyy(self):
+        if not self.story_flags.get('amber_lab_done'):
+            return
+        if self.story_flags.get('gym1_accessible'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        already = any(getattr(n, 'trainer_id', '') == 'skyy' for n in self.npcs)
+        if already:
+            return
+        tx, ty = 2, -22  # center of ROUTE_1.4, shifted 3 left and 1 up
+        skyy = NPC('skyy', tile_x=tx, tile_y=ty, facing='down',
+                   sight_range=0, npc_type='story')
+        skyy.state = 'idle'
+        self.npcs.append(skyy)
         self.solid_tile_coords.add((tx, ty))
 
     def _check_amber_blocker(self):
@@ -1926,6 +2054,11 @@ class Game:
                 self.title_screen.handle_event(event, os.path.exists(SAVE_PATH))
                 continue
 
+            if self.state == 'intro':
+                if self.intro_sequence:
+                    self.intro_sequence.handle_event(event)
+                continue
+
             # Block all input during the heal animation
             if self.heal_anim:
                 return
@@ -1974,6 +2107,18 @@ class Game:
             elif self.state == 'menu':
                 self.menu.handle_event(event)
                 if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_i):
+                    self.pop_state()
+
+            elif self.state == 'move_info':
+                if self.move_info_screen:
+                    result = self.move_info_screen.handle_event(event, self)
+                    if result == 'back':
+                        self.pop_state()
+                        self.move_info_screen = None
+
+            elif self.state == 'dinodex':
+                result = self.dinodex_screen.handle_event(event, self)
+                if result == 'back':
                     self.pop_state()
 
             elif self.state == 'party':
@@ -2136,7 +2281,7 @@ class Game:
             npc.npc_type == 'guard' and npc.state in ('approaching', 'returning')
             for npc in self.npcs
         )
-        cutscene_locking = self.cutscene and self.cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing')
+        cutscene_locking = self.cutscene and self.cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing', 'skyy_walking', 'skyy_flash')
         if event.key == pygame.K_i and not self.fading and self.entrance_fade_state is None and not trainer_approaching and not guard_active and not cutscene_locking:
             self.push_state('menu')
         elif event.key == pygame.K_j:
@@ -2221,7 +2366,7 @@ class Game:
             if (npc.tile_x, npc.tile_y) not in candidates:
                 continue
             npc.face_toward_player(self.player)
-            if npc.npc_type == 'guard':
+            if npc.npc_type in ('guard', 'gym_guard'):
                 dialog = getattr(npc, 'block_dialog', ["..."])
                 self.message_box.queue_messages(dialog, wait_for_input=True)
                 return True
@@ -2267,6 +2412,39 @@ class Game:
                 self.message_box.queue_messages(
                     ["Please collect all 3 dinos and return here!"],
                     wait_for_input=True)
+        elif npc.trainer_id == 'skyy':
+            if not self.story_flags.get('gym1_accessible'):
+                self._start_skyy_dialogue(npc)
+
+    def _start_skyy_dialogue(self, npc):
+        npc.face_toward_player(self.player)
+        dx = self.player.rect.x // config.TILE_SIZE - npc.tile_x
+        dy = self.player.rect.y // config.TILE_SIZE - npc.tile_y
+        if abs(dx) >= abs(dy):
+            self.player.facing = self.player.direction = 'left' if dx > 0 else 'right'
+        else:
+            self.player.facing = self.player.direction = 'up' if dy > 0 else 'down'
+        self.player.image = self.player.animations[self.player.facing][0]
+        msgs = self._split_dialogue(
+            "These spacial events are not of natural occurrence",
+            "Just years ago our region was normal and thriving",
+            "With the discovery of 100% lossless solar energy we were thriving as a society",
+            "But recently things have changed, what we relied on for power has been taken from us",
+            "Constant power outages from solar flares and eclipses blocking the sun...",
+            "Anyway... My name is Skyy, I hope to see you at my gym",
+            "I've been needing something to distract me",
+            "So thank you for reminding me",
+            "See you in Sierra Town!",
+
+
+        )
+        self.cutscene = {'phase': 'skyy_walking', 'npc': npc, 'walk_target': (npc.tile_x, npc.tile_y + 7)}
+        self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self._on_skyy_dialogue_done)
+
+    def _on_skyy_dialogue_done(self):
+        if self.cutscene and self.cutscene.get('phase') == 'skyy_walking':
+            npc = self.cutscene['npc']
+            npc.facing = 'down'
 
     def _start_amber_lab_event(self):
         starter_names = set(config.DINO_BALL_MAP.values())
@@ -2364,6 +2542,17 @@ class Game:
             self.title_screen.update(dt)
             return
 
+        if self.state == 'intro':
+            if self.intro_sequence:
+                self.intro_sequence.update(dt)
+                if self.intro_sequence.done:
+                    self.intro_sequence = None
+                    self.state_stack = ['world']
+                    self.message_box.queue_messages(
+                        ["...beep...beep...beep..."], wait_for_input=True
+                    )
+            return
+
         self.play_time_seconds += dt
         self.update_day_night(dt)
         self.update_heal_anim(dt)
@@ -2446,12 +2635,20 @@ class Game:
 
             self.check_story_events()
             self._check_amber_blocker()
+            self._maybe_add_gym_blocker()
+            self._maybe_add_skyy()
 
     # --- Draw ---
 
     def draw(self):
         if self.state == 'title':
             self.title_screen.draw(self.screen, os.path.exists(SAVE_PATH))
+            pygame.display.flip()
+            return
+
+        if self.state == 'intro':
+            if self.intro_sequence:
+                self.intro_sequence.draw(self.screen)
             pygame.display.flip()
             return
 
@@ -2604,6 +2801,13 @@ class Game:
 
         elif current_state == 'trainer_card':
             self.trainer_card_screen.draw(self.screen)
+
+        elif current_state == 'move_info':
+            if self.move_info_screen:
+                self.move_info_screen.draw(self.screen)
+
+        elif current_state == 'dinodex':
+            self.dinodex_screen.draw(self.screen)
 
         elif current_state in ('menu', 'party', 'items', 'shop', 'box', 'dino_picker'):
             if background_state == 'encounter':

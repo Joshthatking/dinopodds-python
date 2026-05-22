@@ -39,7 +39,7 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, keys, game, dt):
         cutscene = getattr(game, 'cutscene', None)
-        if cutscene and cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing'):
+        if cutscene and cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing', 'skyy_walking', 'skyy_flash'):
             return
         if any(getattr(n, 'npc_type', '') == 'guard' and n.state in ('approaching', 'returning')
                for n in getattr(game, 'npcs', [])):

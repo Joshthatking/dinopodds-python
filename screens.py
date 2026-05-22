@@ -623,7 +623,7 @@ class EncounterUI:
             surface.blit(d_surf, (defend_rect.centerx - d_surf.get_width() // 2,
                                   defend_rect.centery - d_surf.get_height() // 2))
         else:
-            moves = player_dino['moves']
+            moves = [m['name'] for m in player_dino['moveset']]
             qw = actions_rect.width // 2
             qh = actions_rect.height // 2
             for i in range(4):
@@ -671,7 +671,7 @@ class EncounterUI:
                 else:
                     return self.actions[self.selected_option]
         else:
-            move_count = len(player_dino['moves'])
+            move_count = len(player_dino['moveset'])
             if event.key == pygame.K_w:
                 self.move_selected = (self.move_selected - 2) % 4
                 while self.move_selected >= move_count:
@@ -690,7 +690,7 @@ class EncounterUI:
                     self.move_selected = (self.move_selected - 1) % 4
             elif event.key == pygame.K_j:
                 if self.move_selected < move_count:
-                    return f"UseMove:{player_dino['moves'][self.move_selected]}"
+                    return f"UseMove:{player_dino['moveset'][self.move_selected]['name']}"
             elif event.key == pygame.K_SPACE:
                 self.in_fight_menu = False
 
@@ -1156,6 +1156,10 @@ class PartyScreen:
                 game.message_box.queue_messages(
                     [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
                 return None
+            if chosen and self.selected_index == game.active_dino_index:
+                game.message_box.queue_messages(
+                    [f"{chosen['name']} is already out!"], wait_for_input=True)
+                return None
             if chosen:
                 out = game.player_dinos[game.active_dino_index]
                 out['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
@@ -1175,6 +1179,10 @@ class PartyScreen:
                     [f"{active['name']} can't switch out!"], wait_for_input=True)
                 return None
             chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
+            if chosen and self.selected_index == game.active_dino_index:
+                game.message_box.queue_messages(
+                    [f"{chosen['name']} is already out!"], wait_for_input=True)
+                return None
             if chosen and chosen.get('hp', 0) <= 0:
                 game.message_box.queue_messages(
                     [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
@@ -1222,6 +1230,14 @@ class PartyScreen:
                         game.fonts, config.WIDTH, config.HEIGHT)
                     game.yes_no_callback = _do_send
                 return None
+
+        # ── Move info ──────────────────────────────────────────────
+        if event.key == pygame.K_i:
+            if 0 <= self.selected_index < list_length:
+                dino = party[self.selected_index]
+                game.move_info_screen = MoveInfoScreen(game, dino)
+                game.push_state('move_info')
+            return None
 
         # ── Back ───────────────────────────────────────────────────
         if event.key == pygame.K_SPACE:
@@ -1374,6 +1390,306 @@ class PartyScreen:
             screen.blit(self.smaller_font.render(move['name'], True, (255, 255, 255)), (move_rect.x + 8, move_rect.y))
             screen.blit(self.smaller_font.render(f"{move['damage']}/{move['accuracy']}", True, (255, 255, 255)),
                         (move_rect.x + 125, move_rect.y))
+
+        if not self.game.awaiting_switch:
+            hint = self.smaller_font.render("I for moves", True, (160, 200, 255))
+            screen.blit(hint, (config.WIDTH - hint.get_width() - 10, config.HEIGHT - hint.get_height() - 6))
+
+
+# === Move Info Screen ===
+
+def generate_move_desc(move_name):
+    md = MOVE_DATA.get(move_name)
+    if not md:
+        return "Unknown move."
+    parts = []
+    damage = md.get('damage', 0)
+    target = md.get('target', 'opponent')
+    ability = md.get('ability')
+    if damage > 0:
+        t = "the user" if target == 'self' else "the opponent"
+        parts.append(f"Deals {damage} base damage to {t}.")
+    if md.get('pierces_defend', False):
+        parts.append("Ignores defensive stance.")
+    if ability:
+        kind = ability.get('kind')
+        if kind == 'stat_boost':
+            stat = ability['stat'].capitalize()
+            stages = ability['stages']
+            ab_t = "the user" if ability.get('target') == 'self' else "the opponent"
+            direction = "Raises" if stages > 0 else "Lowers"
+            amt = abs(stages)
+            stage_str = f"{amt} stage{'s' if amt > 1 else ''}"
+            chance = ability.get('chance', 100)
+            effect = f"{direction} {ab_t}'s {stat} by {stage_str}."
+            if chance < 100:
+                effect = f"{chance}% chance to {effect[0].lower()}{effect[1:]}"
+            parts.append(effect)
+        elif kind == 'heal':
+            parts.append(f"Restores {ability.get('percent', 0)}% of max HP.")
+        elif kind == 'recoil':
+            parts.append(f"User takes {ability.get('percent', 0)}% recoil damage.")
+        elif kind == 'lock':
+            turns = ability.get('turns', 2)
+            parts.append(f"Traps the opponent for {turns} turns.")
+        elif kind == 'field':
+            eff = ability.get('effect', '')
+            if eff == 'type_power':
+                btype = ability.get('boost_type', '').capitalize()
+                mult = ability.get('multiplier', 1.5)
+                dur = ability.get('duration', 4)
+                parts.append(f"Boosts {btype} moves by {int((mult - 1) * 100)}% for {dur} turns.")
+            elif eff == 'speed_swap':
+                parts.append(f"Swaps both sides' speed for {ability.get('duration', 5)} turns.")
+        elif kind == 'dot':
+            parts.append(f"Deals {ability.get('damage_percent', 0)}% damage per turn for {ability.get('turns', 2)} turns.")
+    if not parts:
+        parts.append("No additional effects.")
+    return " ".join(parts)
+
+
+class MoveInfoScreen:
+    ACTIVE_X      = 0
+    ACTIVE_W      = 310
+    KNOWN_X       = 320
+    KNOWN_W       = 310
+    PANEL_Y       = 40
+    PANEL_H       = 270
+    ROW_H         = 52
+    DESC_Y        = 330
+    DESC_H        = 150
+
+    def __init__(self, game, dino):
+        self.game         = game
+        self.dino         = dino
+        self.font         = game.fonts['BATTLE2']
+        self.small_font   = pygame.font.SysFont('Arial', 19)
+        self.tiny_font    = pygame.font.SysFont('Arial', 16)
+        self.panel        = 'active'   # 'active' or 'known'
+        self.active_cur   = 0
+        self.known_cur    = 0
+        self.known_scroll = 0          # first visible index in known panel
+        self.pending      = None       # {'panel': str, 'index': int}
+
+    def _known_moves(self):
+        active_names = {m['name'] for m in self.dino.get('moveset', [])}
+        return [n for n in self.dino.get('moves', []) if n not in active_names]
+
+    def _current_move_name(self):
+        if self.panel == 'active':
+            ms = self.dino.get('moveset', [])
+            if ms and 0 <= self.active_cur < len(ms):
+                return ms[self.active_cur]['name']
+        else:
+            km = self._known_moves()
+            if km and 0 <= self.known_cur < len(km):
+                return km[self.known_cur]
+        return None
+
+    def _do_swap(self, active_idx, known_name):
+        ms = self.dino.get('moveset', [])
+        m = MOVE_DATA.get(known_name, {})
+        new_entry = {
+            "name":     known_name,
+            "type":     m.get("type", "normal"),
+            "damage":   m.get("damage", 0),
+            "accuracy": m.get("accuracy", 100),
+            "ability":  m.get("ability", None),
+        }
+        if 0 <= active_idx < len(ms):
+            ms[active_idx] = new_entry
+
+    def handle_event(self, event, game):
+        if event.type != pygame.KEYDOWN:
+            return None
+
+        ms = self.dino.get('moveset', [])
+        km = self._known_moves()
+        active_len = len(ms)
+        known_len  = len(km)
+
+        visible_rows = (self.DESC_Y - (self.PANEL_Y + 26)) // (self.ROW_H + 4)
+
+        if event.key in (pygame.K_w, pygame.K_UP):
+            if self.panel == 'active' and active_len:
+                self.active_cur = (self.active_cur - 1) % active_len
+            elif self.panel == 'known' and known_len:
+                self.known_cur = (self.known_cur - 1) % known_len
+                if self.known_cur < self.known_scroll:
+                    self.known_scroll = self.known_cur
+                elif self.known_cur == known_len - 1:
+                    self.known_scroll = max(0, known_len - visible_rows)
+
+        elif event.key in (pygame.K_s, pygame.K_DOWN):
+            if self.panel == 'active' and active_len:
+                self.active_cur = (self.active_cur + 1) % active_len
+            elif self.panel == 'known' and known_len:
+                self.known_cur = (self.known_cur + 1) % known_len
+                if self.known_cur >= self.known_scroll + visible_rows:
+                    self.known_scroll = self.known_cur - visible_rows + 1
+                elif self.known_cur == 0:
+                    self.known_scroll = 0
+
+        elif event.key in (pygame.K_a, pygame.K_LEFT):
+            self.panel = 'active'
+
+        elif event.key in (pygame.K_d, pygame.K_RIGHT):
+            if known_len:
+                self.panel = 'known'
+
+        elif event.key == pygame.K_j:
+            if self.pending is None:
+                if self.panel == 'active' and active_len:
+                    self.pending = {'panel': 'active', 'index': self.active_cur}
+                elif self.panel == 'known' and known_len:
+                    self.pending = {'panel': 'known', 'index': self.known_cur}
+            else:
+                p = self.pending
+                if self.panel == 'active' and p['panel'] == 'known':
+                    self._do_swap(self.active_cur, km[p['index']])
+                    self.pending = None
+                elif self.panel == 'known' and p['panel'] == 'active' and known_len:
+                    self._do_swap(p['index'], km[self.known_cur])
+                    self.pending = None
+                elif self.panel == p['panel']:
+                    # Re-select in same panel
+                    if self.panel == 'active':
+                        self.pending = {'panel': 'active', 'index': self.active_cur}
+                    else:
+                        self.pending = {'panel': 'known', 'index': self.known_cur}
+
+        elif event.key in (pygame.K_SPACE, pygame.K_i, pygame.K_ESCAPE):
+            self.pending = None
+            return 'back'
+
+        return None
+
+    @staticmethod
+    def _type_rgb(move_type):
+        raw = TYPE_DATA.get(move_type, {}).get('color', '#505050')
+        if isinstance(raw, str):
+            raw = raw.lstrip('#')
+            return tuple(int(raw[i:i+2], 16) for i in (0, 2, 4))
+        return raw
+
+    def _draw_move_row(self, surface, x, y, w, h, name, move_type, is_cursor, is_pending):
+        type_col = self._type_rgb(move_type)
+        dim = tuple(max(0, c - 60) for c in type_col)
+        bg  = (220, 180, 30) if is_pending else ((0, 130, 220) if is_cursor else dim)
+        pygame.draw.rect(surface, bg, (x, y, w, h), border_radius=4)
+        pygame.draw.rect(surface, (180, 180, 180), (x, y, w, h), 1, border_radius=4)
+
+        name_surf = self.small_font.render(name, True, (255, 255, 255))
+        surface.blit(name_surf, (x + 8, y + h // 2 - name_surf.get_height() // 2))
+
+        type_surf = self.tiny_font.render(move_type.upper(), True, type_col)
+        surface.blit(type_surf, (x + w - type_surf.get_width() - 8, y + h // 2 - type_surf.get_height() // 2))
+
+    def draw(self, surface):
+        surface.fill((25, 25, 35))
+
+        ms   = self.dino.get('moveset', [])
+        km   = self._known_moves()
+        name = self.dino.get('name', '?')
+        lvl  = self.dino.get('level', 1)
+
+        # Header
+        pygame.draw.rect(surface, (40, 40, 55), (0, 0, config.WIDTH, self.PANEL_Y - 2))
+        hdr = self.font.render(f"{name}  Lv.{lvl}", True, (255, 255, 255))
+        surface.blit(hdr, (10, 8))
+        hint = self.tiny_font.render("W/S=move  A/D=panel  J=select  SPACE=back", True, (160, 160, 160))
+        surface.blit(hint, (config.WIDTH - hint.get_width() - 8, 12))
+
+        # Panel headers
+        a_col = (0, 160, 255) if self.panel == 'active' else (120, 120, 130)
+        k_col = (0, 200, 120) if self.panel == 'known' else (120, 120, 130)
+        surface.blit(self.small_font.render("ACTIVE MOVES", True, a_col), (self.ACTIVE_X + 8, self.PANEL_Y + 2))
+        surface.blit(self.small_font.render("KNOWN MOVES", True, k_col), (self.KNOWN_X + 8, self.PANEL_Y + 2))
+
+        # Divider
+        pygame.draw.line(surface, (80, 80, 100), (315, self.PANEL_Y), (315, self.DESC_Y), 2)
+
+        # Active moves
+        for i, mv in enumerate(ms[:4]):
+            rx = self.ACTIVE_X + 8
+            ry = self.PANEL_Y + 26 + i * (self.ROW_H + 4)
+            is_cur     = (self.panel == 'active' and i == self.active_cur)
+            is_pending = (self.pending is not None and self.pending['panel'] == 'active' and self.pending['index'] == i)
+            self._draw_move_row(surface, rx, ry, self.ACTIVE_W - 16, self.ROW_H,
+                                mv['name'], mv.get('type', 'normal'), is_cur, is_pending)
+        # Empty slots
+        for i in range(len(ms), 4):
+            ry = self.PANEL_Y + 26 + i * (self.ROW_H + 4)
+            pygame.draw.rect(surface, (45, 45, 55),
+                             (self.ACTIVE_X + 8, ry, self.ACTIVE_W - 16, self.ROW_H), border_radius=4)
+            pygame.draw.rect(surface, (70, 70, 80),
+                             (self.ACTIVE_X + 8, ry, self.ACTIVE_W - 16, self.ROW_H), 1, border_radius=4)
+            surface.blit(self.tiny_font.render("— empty —", True, (80, 80, 90)),
+                         (self.ACTIVE_X + 16, ry + self.ROW_H // 2 - 8))
+
+        # Known moves
+        if not km:
+            surface.blit(self.small_font.render("All moves active!", True, (100, 180, 100)),
+                         (self.KNOWN_X + 8, self.PANEL_Y + 26))
+        else:
+            visible_rows = (self.DESC_Y - (self.PANEL_Y + 26)) // (self.ROW_H + 4)
+            scroll = max(0, min(self.known_scroll, max(0, len(km) - visible_rows)))
+            slot = 0
+            for i in range(scroll, len(km)):
+                kname = km[i]
+                rx = self.KNOWN_X + 8
+                ry = self.PANEL_Y + 26 + slot * (self.ROW_H + 4)
+                if ry + self.ROW_H > self.DESC_Y - 4:
+                    break
+                mtype      = MOVE_DATA.get(kname, {}).get('type', 'normal')
+                is_cur     = (self.panel == 'known' and i == self.known_cur)
+                is_pending = (self.pending is not None and self.pending['panel'] == 'known' and self.pending['index'] == i)
+                self._draw_move_row(surface, rx, ry, self.KNOWN_W - 16, self.ROW_H,
+                                    kname, mtype, is_cur, is_pending)
+                slot += 1
+            # Scroll indicators
+            if scroll > 0:
+                surface.blit(self.tiny_font.render("▲ more", True, (160, 160, 160)),
+                             (self.KNOWN_X + 8, self.PANEL_Y + 22))
+            if scroll + visible_rows < len(km):
+                surface.blit(self.tiny_font.render("▼ more", True, (160, 160, 160)),
+                             (self.KNOWN_X + 8, self.DESC_Y - 18))
+
+        # Description box
+        pygame.draw.rect(surface, (35, 35, 50), (0, self.DESC_Y, config.WIDTH, self.DESC_H))
+        pygame.draw.line(surface, (80, 80, 100), (0, self.DESC_Y), (config.WIDTH, self.DESC_Y), 2)
+
+        cur_name = self._current_move_name()
+        if cur_name:
+            md = MOVE_DATA.get(cur_name, {})
+            dmg = md.get('damage', 0)
+            acc = md.get('accuracy', 100)
+            mtype = md.get('type', '?')
+            type_col = self._type_rgb(mtype)
+
+            # Move name bar
+            pygame.draw.rect(surface, tuple(max(0, c - 40) for c in type_col),
+                             (0, self.DESC_Y, config.WIDTH, 28))
+            title_surf = self.small_font.render(
+                f"{cur_name}   {mtype.upper()}   {dmg} dmg / {acc}% acc",
+                True, (255, 255, 255))
+            surface.blit(title_surf, (10, self.DESC_Y + 4))
+
+            # Description text (word-wrapped)
+            desc = generate_move_desc(cur_name)
+            desc_lines = wrap_text(desc, self.small_font, config.WIDTH - 20)
+            for j, line in enumerate(desc_lines):
+                surface.blit(self.small_font.render(line, True, (210, 210, 220)),
+                             (10, self.DESC_Y + 34 + j * 22))
+
+            # Pending swap hint
+            if self.pending is not None:
+                hint_txt = "J = confirm swap  |  navigate to other panel first"
+                hint_s = self.tiny_font.render(hint_txt, True, (220, 180, 30))
+                surface.blit(hint_s, (10, self.DESC_Y + self.DESC_H - 22))
+        else:
+            surface.blit(self.small_font.render("No move selected.", True, (120, 120, 130)),
+                         (10, self.DESC_Y + 10))
 
 
 # === Items Screen ===
@@ -1765,7 +2081,7 @@ class MessageBox:
                 chars_left = 0
         line_h = self.font.get_height() + 4
         pad = 15
-        box_h = max(80, len(full_lines) * line_h + pad * 2)
+        box_h = 2 * line_h + pad * 2  # fixed 2-line height
         box_rect = pygame.Rect(50, surface.get_height() - box_h - 20, self.width - 100, box_h)
         pygame.draw.rect(surface, (255, 255, 255), box_rect)
         pygame.draw.rect(surface, (0, 0, 0), box_rect, 3)
@@ -1833,6 +2149,127 @@ class TrainerCardScreen:
 
         self._blit_text(screen, self.font_xs, "SPACE / J to close",
                         (180, 170, 150), 20, config.HEIGHT - 16)
+
+
+# === Intro Cutscene ===
+class IntroSequence:
+    """New-game opening: black → space background → prophecy text box → dramatic fade out."""
+
+    PROPHECY = [
+        "Time is running out...",
+        "The days of darkness are ahead...",
+        "I know you can feel it, I know you can.",
+        "You can save everyone, I believe in you",
+    ]
+
+    BOX_W, BOX_H = 300, 350
+    PAD_TOP   = 16
+    PAD_SIDE  = 10
+    HINT_H    = 28
+    LINE_GAP  = 3
+    CHUNK_GAP = 10
+
+    def __init__(self, game):
+        self.game = game
+        self.fonts = game.fonts
+        raw = pygame.image.load('assets/SCREENS/space.png').convert()
+        self.space_img = pygame.transform.scale(raw, (config.WIDTH, config.HEIGHT))
+        # phases: 'fade_in' → 'show_text' → 'fade_out' → 'hold_black'
+        self.phase = 'fade_in'
+        self.fade_alpha = 255
+        self.checkpoint = 0
+        self._hold_timer = 0.0
+        self.done = False
+
+    def update(self, dt):
+        if self.phase == 'fade_in':
+            self.fade_alpha = max(0, self.fade_alpha - int(255 * dt * 0.8))
+            if self.fade_alpha == 0:
+                self.phase = 'show_text'
+        elif self.phase == 'fade_out':
+            self.fade_alpha = min(255, self.fade_alpha + int(255 * dt * 0.28))
+            if self.fade_alpha >= 255:
+                self.fade_alpha = 255
+                self.phase = 'hold_black'
+        elif self.phase == 'hold_black':
+            self._hold_timer += dt
+            if self._hold_timer >= 1.8:
+                self.done = True
+
+    def handle_event(self, event):
+        if event.type != pygame.KEYDOWN:
+            return
+        if event.key not in (pygame.K_j, pygame.K_RETURN, pygame.K_SPACE):
+            return
+        if self.phase == 'show_text':
+            if self.checkpoint < len(self.PROPHECY) - 1:
+                self.checkpoint += 1
+            else:
+                self.phase = 'fade_out'
+                self.fade_alpha = 0
+
+    def _build_lines(self):
+        """Return list of (text|None) where None is an inter-chunk gap."""
+        font = self.fonts['BATTLE']
+        max_w = self.BOX_W - self.PAD_SIDE * 2
+        result = []
+        for i in range(self.checkpoint + 1):
+            for line in wrap_text(self.PROPHECY[i], font, max_w):
+                result.append(line)
+            result.append(None)  # gap after each chunk
+        return result
+
+    def draw(self, screen):
+        W, H = screen.get_width(), screen.get_height()
+        screen.blit(self.space_img, (0, 0))
+
+        if self.phase in ('show_text', 'fade_out'):
+            bx = W // 2 - self.BOX_W // 2
+            by = H // 2 - self.BOX_H // 2
+
+            bsurf = pygame.Surface((self.BOX_W, self.BOX_H), pygame.SRCALPHA)
+            bsurf.fill((0, 0, 0, 215))
+            screen.blit(bsurf, (bx, by))
+            pygame.draw.rect(screen, (90, 70, 135), pygame.Rect(bx, by, self.BOX_W, self.BOX_H), 2)
+
+            font = self.fonts['BATTLE']
+            line_h = font.get_height() + self.LINE_GAP
+            content_h = self.BOX_H - self.PAD_TOP - self.HINT_H
+
+            # Measure total height of all revealed lines
+            lines = self._build_lines()
+            total_h = sum(self.CHUNK_GAP if ln is None else line_h for ln in lines)
+
+            # Scroll so newest text is always visible at the bottom
+            scroll = max(0, total_h - content_h)
+
+            clip_rect = pygame.Rect(bx, by + self.PAD_TOP, self.BOX_W, content_h)
+            screen.set_clip(clip_rect)
+
+            y = by + self.PAD_TOP - scroll
+            for ln in lines:
+                if ln is None:
+                    y += self.CHUNK_GAP
+                else:
+                    surf = font.render(ln, True, (210, 195, 255))
+                    screen.blit(surf, (bx + self.PAD_SIDE, y))
+                    y += line_h
+
+            screen.set_clip(None)
+
+            hint_font = self.fonts['XS']
+            if self.checkpoint < len(self.PROPHECY) - 1:
+                hint = hint_font.render("[ J ] ...", True, (100, 90, 145))
+            else:
+                hint = hint_font.render("[ J ] continue", True, (100, 90, 145))
+            screen.blit(hint, (bx + self.BOX_W // 2 - hint.get_width() // 2,
+                               by + self.BOX_H - self.HINT_H + 6))
+
+        if self.fade_alpha > 0:
+            fade = pygame.Surface((W, H))
+            fade.fill((0, 0, 0))
+            fade.set_alpha(self.fade_alpha)
+            screen.blit(fade, (0, 0))
 
 
 # === Main Menu ===
@@ -1924,13 +2361,182 @@ class TitleScreen:
             screen.blit(fade, (0, 0))
 
 
+class DinodexScreen:
+    LIST_W   = 195
+    IMG_SIZE = 160
+    HEADER_H = 38
+
+    def __init__(self, game):
+        self.game         = game
+        self.font         = game.fonts['BATTLE2']
+        self.title_font   = pygame.font.SysFont('Arial', 26, bold=True)
+        self.name_font    = pygame.font.SysFont('Arial', 22, bold=True)
+        self.small_font   = pygame.font.SysFont('Arial', 18)
+        self.tiny_font    = pygame.font.SysFont('Arial', 15)
+
+        # Build sorted entry list from DINODEX_DATA
+        self.entries = sorted(DINODEX_DATA.items(), key=lambda kv: kv[1]['number'])
+        self.selected = 0
+        self.scroll   = 0
+
+        try:
+            raw = pygame.image.load(os.path.join('assets', 'Items', 'dinopod.png')).convert_alpha()
+            self.pod_icon = pygame.transform.scale(raw, (18, 18))
+        except Exception:
+            self.pod_icon = None
+
+    def _visible_rows(self):
+        row_h = 36
+        return (config.HEIGHT - self.HEADER_H) // row_h
+
+    def handle_event(self, event, game):
+        if event.type != pygame.KEYDOWN:
+            return None
+        if event.key in (pygame.K_w, pygame.K_UP):
+            self.selected = (self.selected - 1) % len(self.entries)
+            vis = self._visible_rows()
+            if self.selected < self.scroll:
+                self.scroll = self.selected
+            elif self.selected == len(self.entries) - 1:
+                self.scroll = max(0, len(self.entries) - vis)
+        elif event.key in (pygame.K_s, pygame.K_DOWN):
+            self.selected = (self.selected + 1) % len(self.entries)
+            vis = self._visible_rows()
+            if self.selected >= self.scroll + vis:
+                self.scroll = self.selected - vis + 1
+            elif self.selected == 0:
+                self.scroll = 0
+        elif event.key in (pygame.K_SPACE, pygame.K_ESCAPE):
+            return 'back'
+        return None
+
+    def draw(self, screen):
+        screen.fill((18, 18, 28))
+
+        # Header bar
+        pygame.draw.rect(screen, (30, 30, 50), (0, 0, config.WIDTH, self.HEADER_H))
+        pygame.draw.line(screen, (80, 80, 120), (0, self.HEADER_H), (config.WIDTH, self.HEADER_H), 2)
+        screen.blit(self.title_font.render("DINODEX", True, (120, 220, 255)),
+                    (10, self.HEADER_H // 2 - 13))
+        hint = self.tiny_font.render("W/S = scroll   SPACE = back", True, (120, 120, 140))
+        screen.blit(hint, (config.WIDTH - hint.get_width() - 10, self.HEADER_H // 2 - hint.get_height() // 2))
+
+        # Divider between list and detail
+        pygame.draw.line(screen, (60, 60, 90), (self.LIST_W, self.HEADER_H), (self.LIST_W, config.HEIGHT), 2)
+
+        # Left list
+        caught_names = {d['name'] for d in self.game.player_dinos + self.game.box_dinos}
+        row_h   = 36
+        vis     = self._visible_rows()
+        scroll  = max(0, min(self.scroll, max(0, len(self.entries) - vis)))
+        for slot, idx in enumerate(range(scroll, min(scroll + vis, len(self.entries)))):
+            name, data = self.entries[idx]
+            y = self.HEADER_H + slot * row_h
+            is_sel = (idx == self.selected)
+
+            bg = (50, 80, 140) if is_sel else ((30, 30, 48) if slot % 2 == 0 else (24, 24, 40))
+            pygame.draw.rect(screen, bg, (0, y, self.LIST_W, row_h))
+
+            num_str = f"#{data['number']:03d}"
+            num_surf = self.tiny_font.render(num_str, True, (160, 200, 255) if is_sel else (100, 120, 160))
+            screen.blit(num_surf, (8, y + row_h // 2 - num_surf.get_height() // 2))
+
+            name_surf = self.small_font.render(name, True, (255, 255, 255) if is_sel else (200, 200, 210))
+            name_x = 52
+            screen.blit(name_surf, (name_x, y + row_h // 2 - name_surf.get_height() // 2))
+
+            if name in caught_names and self.pod_icon:
+                icon_x = name_x + name_surf.get_width() + 5
+                screen.blit(self.pod_icon, (icon_x, y + row_h // 2 - 9))
+
+        # Scroll indicators for list
+        if scroll > 0:
+            screen.blit(self.tiny_font.render("▲", True, (160, 160, 180)), (self.LIST_W // 2 - 6, self.HEADER_H + 2))
+        if scroll + vis < len(self.entries):
+            screen.blit(self.tiny_font.render("▼", True, (160, 160, 180)),
+                        (self.LIST_W // 2 - 6, config.HEIGHT - 18))
+
+        # Right detail panel
+        if not self.entries:
+            return
+        sel_name, sel_data = self.entries[self.selected]
+        dino_data = DINO_DATA.get(sel_name, {})
+        types     = dino_data.get('stats', {}).get('type', [])
+        desc      = sel_data.get('desc', '')
+        number    = sel_data.get('number', 0)
+
+        panel_x = self.LIST_W + 10
+        panel_w = config.WIDTH - self.LIST_W - 10
+
+        # Dino name + number
+        num_surf  = self.name_font.render(f"#{number:03d}", True, (120, 180, 255))
+        name_surf = self.name_font.render(sel_name, True, (255, 255, 255))
+        screen.blit(num_surf, (panel_x, self.HEADER_H + 8))
+        screen.blit(name_surf, (panel_x + num_surf.get_width() + 12, self.HEADER_H + 8))
+
+        # Type badges
+        badge_x = panel_x
+        badge_y = self.HEADER_H + 38
+        for t in types:
+            raw = TYPE_DATA.get(t, {}).get('color', '#505050')
+            if isinstance(raw, str):
+                raw = raw.lstrip('#')
+                tc = tuple(int(raw[i:i+2], 16) for i in (0, 2, 4))
+            else:
+                tc = raw
+            badge_surf = self.tiny_font.render(t.upper(), True, (255, 255, 255))
+            bw = badge_surf.get_width() + 14
+            pygame.draw.rect(screen, tc, (badge_x, badge_y, bw, 20), border_radius=4)
+            screen.blit(badge_surf, (badge_x + 7, badge_y + 2))
+            badge_x += bw + 6
+
+        # Dino image
+        img = self.game.player_dino_front_images.get(sel_name)
+        img_y = self.HEADER_H + 68
+        if img:
+            scaled = pygame.transform.scale(img, (self.IMG_SIZE, self.IMG_SIZE))
+            img_x  = config.WIDTH - self.IMG_SIZE - 10
+            screen.blit(scaled, (img_x, img_y))
+
+        # Description (word-wrapped)
+        desc_x = panel_x
+        desc_y = img_y
+        desc_max_w = (config.WIDTH - self.IMG_SIZE - 30) - panel_x
+        lines = wrap_text(desc, self.small_font, desc_max_w)
+        for i, line in enumerate(lines):
+            screen.blit(self.small_font.render(line, True, (200, 210, 220)),
+                        (desc_x, desc_y + i * 24))
+
+        # Base stats bar section
+        stats_y = img_y + self.IMG_SIZE + 12
+        stats   = dino_data.get('stats', {})
+        stat_keys = [('health', 'HP'), ('attack', 'ATK'), ('defense', 'DEF'), ('speed', 'SPD')]
+        bst = sum(stats.get(k, 0) for k, _ in stat_keys)
+        bst_surf = self.small_font.render(f"Base Stat Total:  {bst}", True, (200, 220, 255))
+        screen.blit(bst_surf, (panel_x, stats_y))
+        stats_y += bst_surf.get_height() + 6
+        bar_x  = panel_x
+        bar_w  = panel_w - 20
+        for stat_key, label in stat_keys:
+            val = stats.get(stat_key, 0)
+            pygame.draw.rect(screen, (35, 35, 55), (bar_x, stats_y, bar_w, 18), border_radius=3)
+            fill_w = min(bar_w, int(bar_w * val / 200))
+            bar_color = (80, 200, 80) if val >= 100 else (220, 180, 0) if val >= 60 else (200, 80, 80)
+            pygame.draw.rect(screen, bar_color, (bar_x, stats_y, fill_w, 18), border_radius=3)
+            lbl = self.tiny_font.render(f"{label}  {val}", True, (230, 230, 230))
+            screen.blit(lbl, (bar_x + 6, stats_y + 1))
+            stats_y += 24
+            if stats_y > config.HEIGHT - 10:
+                break
+
+
 class Menu:
     def __init__(self, game):
         self.game = game
         self.font = pygame.font.SysFont("arial", 24)
         self.small_font = pygame.font.SysFont("arial", 16)
         self.selected_index = 0
-        self.options = ["Party", "Items", "Trainer Card", "Save Game", "Options", "Exit to Menu"]
+        self.options = ["Dinodex", "Party", "Items", "Trainer Card", "Save Game", "Options", "Exit to Menu"]
         self.width = 220
         self.margin = 15
         self.line_height = 40
@@ -1940,15 +2546,13 @@ class Menu:
         x = W - self.width - 20
 
         # ── Options panel ──────────────────────────────────────────────
-        header_h  = 46
+        header_h  = 0
         panel_h   = header_h + len(self.options) * self.line_height + 10
         panel_rect = pygame.Rect(x, 50, self.width, panel_h)
         pygame.draw.rect(screen, (255, 255, 240), panel_rect)
         pygame.draw.rect(screen, (0, 0, 0), panel_rect, 3)
-        screen.blit(self.font.render("Menu", True, (0, 0, 0)),
-                    (panel_rect.x + self.margin, panel_rect.y + 8))
         for i, option in enumerate(self.options):
-            y = panel_rect.y + header_h + i * self.line_height
+            y = panel_rect.y + header_h + 10 + i * self.line_height
             if i == self.selected_index:
                 pygame.draw.rect(screen, (200, 200, 255),
                                  (panel_rect.x + 5, y - 4, panel_rect.width - 10, 28),
@@ -1965,7 +2569,11 @@ class Menu:
             self.selected_index = (self.selected_index + 1) % len(self.options)
         elif event.key == pygame.K_j:
             selected = self.options[self.selected_index]
-            if selected == "Party":
+            if selected == "Dinodex":
+                self.game.dinodex_screen.selected = 0
+                self.game.dinodex_screen.scroll   = 0
+                self.game.push_state('dinodex')
+            elif selected == "Party":
                 self.game.push_state('party')
             elif selected == "Items":
                 self.game.push_state('items')
