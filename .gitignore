@@ -10,6 +10,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+dinopodds_save.json
 
 # OS-specific junk
 .DS_Store

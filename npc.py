@@ -224,7 +224,13 @@ class NPC:
             return
 
         if self.state == 'idle':
-            if not player.moving and self.can_see_player(player):
+            px, py = self._player_tile(player)
+            if getattr(self, 'use_proximity', False):
+                dist = abs(px - self.tile_x) + abs(py - self.tile_y)
+                in_range = not player.moving and dist <= self.sight_range
+            else:
+                in_range = not player.moving and self.can_see_player(player)
+            if in_range:
                 # For double-battle pairs, also alert the partner immediately
                 data       = TRAINER_DATA.get(self.trainer_id, {})
                 partner_id = data.get('partner')

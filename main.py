@@ -125,13 +125,27 @@ if __name__ == '__main__':
 #Added gym block guy till after speaking with Skyy in Route 1.4 - COMPLETE
 #Skyy in Route 1.4 big story dialogue and back to Daytime! - COMPLETE
 
-#5/22
+
+#5/23 
+#Double battle visual glitch fixed - COMPLETE
+# Bullicorn added - COMPLETE
+# Gray rival battle after speaking with skyy event - COMPLETE
+
+
+#5/24
+# Gym 1 battle sequence and Badge - COMPLETE
+# FIX: saving saves dinos but offsets position and resets battles
+
+
+
+
 # Add Double battle against grunts when walking to route1.4, over hear them speaking
 # Rival comes to join the fight with you using, your starts weakness
 # After the fight, that was weird... heals you, and then fair battle against rival
 # Then proceed with skyy dialogue and then gym1
 # GYM 1 designed and add gym event with trainers 
 #add traits one for each dino family
+
 
 
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings

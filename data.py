@@ -88,6 +88,74 @@ TRAINER_DATA = {
         'reward_coins': 250,
         'rank': 'lowest',
     },
+    'gray': {
+        'name': 'Gray',
+        'dinos': {0: ('Prowscar', 7), 1: ('Vusion', 9)},
+        'dialog': {
+            'default':  [
+                "It's been awhile Jet, I am ready to start this journey and get stronger,",
+                "therefore lets have a battle and test out strength"
+            ],
+            'defeated': [
+                "I like a challenge, next time I'll be more prepared.",
+                "Keep at it, and I will too.."
+            ]
+        },
+        'directions': ['up'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 300,
+        'rank': 'rival',
+    },
+    'skyy': {
+        'name': 'Skyy',
+        'dinos': {0: ('Floravel', 14), 1: ('Corlave', 15), 2: ('Bullicorn', 16)},
+        'dialog': {
+            'default':  [
+                "Welcome to Sierra Gym. I am Skyy.",
+                "My dinos are built to endure — I hope you're ready for a real fight!"
+            ],
+            'defeated': [
+                "Well done... you've earned the Sierra Badge.",
+                "The road ahead will challenge you even more. Good luck."
+            ]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 500,
+        'rank': 'medium',
+    },
+    'gym_trainer_a': {
+        'name': 'Kyle',
+        'dinos': {0: ('Creuw', 10), 1: ('Prowscar', 11)},
+        'dialog': {
+            'default':  ["You won't reach Skyy without going through me!", "Let's go!"],
+            'defeated': ["Strong... keep pushing."]
+        },
+        'directions': ['down'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 200,
+        'rank': 'lowest',
+    },
+    'gym_trainer_b': {
+        'name': 'Mia',
+        'dinos': {0: ('Bullicorn', 9), 1: ('Floravel', 10)},
+        'dialog': {
+            'default':  ["Skyy trained us well. Don't underestimate the gym!", "Battle!"],
+            'defeated': ["You're tougher than I expected!"]
+        },
+        'directions': ['left'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 180,
+        'rank': 'lowest',
+    },
 }
 
 
@@ -100,6 +168,7 @@ DINODEX_DATA = {
     'Luna':      {'number': 5,  'desc': "Creuw's evolved form. Fused flying and dark energy grant it near-invisibility at night. Rarely seen twice by the same trainer."},
     'Prowscar':  {'number': 6,  'desc': "A scrappy dark-type that roams dense undergrowth. Its jaw muscles generate enormous bite force despite its small frame."},
     'Floravel':  {'number': 7,  'desc': "A plant-armored earth-type that draws nutrients from the soil mid-battle. Its vines can reconfigure into defensive shields in an instant."},
+    'Bullicorn': {'number': 8,  'desc': "A bullish yet gentle creature with a unique horn on its head, loved by many in the farm areas."},
 }
 
 DINO_DATA = {
@@ -130,6 +199,10 @@ DINO_DATA = {
     'Floravel': {
         'stats': {'type': ['earth'], 'health': 50, 'attack': 50, 'defense': 70, 'speed': 40},
         'moves': {0: 'Vine Snare', 1: 'Arise', 8: 'Boulder Smash', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
+        'evolve': None},
+    'Bullicorn': {
+        'stats': {'type': ['spike'], 'health': 105, 'attack': 75, 'defense': 95, 'speed': 65},
+        'moves': {0: 'Horn Tackle', 14: 'Boulder Smash', 1: 'Arise', 10: 'Sand Kick', 19: 'Double Jab'},
         'evolve': None},
 
 }
@@ -285,6 +358,7 @@ MOVE_DATA = {
     #SPIKE MOVES
     'Lock Jaw': {'target': 'opponent', 'damage': 30, 'accuracy': 90, 'type': 'spike',
                  'ability': {'kind': 'lock', 'turns': 2, 'chance': 100}},
+    'Horn Tackle': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'spike'},
     'Double Jab': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'spike'},
     'Ripping Impact': {'target': 'opponent', 'damage': 50, 'accuracy': 90, 'ability': None, 'type': 'spike', 'pierces_defend': True},
     'Power Fang': {'target': 'opponent', 'damage': 50, 'accuracy': 100, 'ability': None, 'type': 'spike'},
@@ -300,6 +374,8 @@ MOVE_DATA = {
     'Boulder Smash': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'rock'},
     'Crusher': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'rock'},
 
+    'Sand Kick':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'rock',
+                    'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
     'Iron Core':   {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 2, 'target': 'self', 'chance': 100}},             
     'Momentum':   {'target': 'opponent', 'damage': 45, 'accuracy': 90, 'type': 'rock',
@@ -316,7 +392,7 @@ MOVE_DATA = {
                      'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
     'Quantum Flux':  {'target': 'opponent', 'damage': 70, 'accuracy': 85,  'type': 'lightning',
                      'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
-    'Stun':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'lightning',
+    'Shock':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'lightning',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
 
     #DARK MOVES
@@ -404,11 +480,11 @@ ENCOUNTER_ZONES = {
 
     "route1_grass": {
         "dinos": ["Anemamace", "Corlave"],
-        "level_range": (3,7)
+        "level_range": (3,4)
     },
     "route1+_grass": {
-        "dinos": ["Creuw"],
-        "level_range": (8, 9)
+        "dinos": ["Creuw", "Bullicorn"],
+        "level_range": (3, 6)
     },
 
     "town1_grass": {

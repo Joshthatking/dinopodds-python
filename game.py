@@ -49,7 +49,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -149,6 +149,8 @@ class Game:
         # Hit flash state
         self.hit_flash = None   # None | {'target':'player'|'enemy','timer':0,'duration':1.5,'interval':0.08}
         self._post_xp_callback = None
+        self._post_trainer_battle_cb = None
+        self.badge_earned_screen = None
 
         # Battle state
         self.awaiting_switch = False
@@ -283,6 +285,24 @@ class Game:
         self.defend_uses_remaining = 3
         self.enemy_defend_uses_remaining = 3
         self.entrance_fade_state = None
+        self._post_trainer_battle_cb = None
+
+        # Reset Gray for rechallenge if player blacked out before winning
+        for npc in self.npcs:
+            if (getattr(npc, 'trainer_id', '') == 'gray'
+                    and not npc.defeated
+                    and npc.state == 'done'):
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                hx, hy = getattr(npc, 'home_tile', (7, 5))
+                npc.tile_x, npc.tile_y = hx, hy
+                npc.pos_x = float(hx * config.TILE_SIZE)
+                npc.pos_y = float(hy * config.TILE_SIZE)
+                npc.target_x, npc.target_y = npc.pos_x, npc.pos_y
+                npc.rect.topleft = (int(npc.pos_x), int(npc.pos_y))
+                npc.facing = getattr(npc, 'home_facing', 'up')
+                npc.is_moving = False
+                npc.state = 'idle'
+                self.solid_tile_coords.add((hx, hy))
 
         # Unwind interior world stack back to the overworld
         while self.world_stack:
@@ -726,7 +746,7 @@ class Game:
             return False
         if self.enemy_defend_uses_remaining <= 0:
             return False
-        if rank == 'medium':
+        if rank in ('medium', 'rival'):
             return random.random() < 0.15
         if rank == 'high':
             return random.random() < 0.25
@@ -747,8 +767,8 @@ class Game:
         if rank == 'lowest':
             return random.choice(moveset)
         player_defending = defender.get('defending', False)
-        boost_chance  = 0.20 if rank == 'medium' else 0.50
-        pierce_chance = 0.15 if rank == 'medium' else 0.25
+        boost_chance  = 0.20 if rank in ('medium', 'rival') else 0.50
+        pierce_chance = 0.15 if rank in ('medium', 'rival') else 0.25
         if player_defending:
             if random.random() < boost_chance:
                 stat_moves = [m for m in moveset
@@ -768,7 +788,7 @@ class Game:
             score = eff * stab * move.get('damage', 0)
             scored.append((score, move))
         scored.sort(key=lambda x: x[0], reverse=True)
-        if rank == 'medium':
+        if rank in ('medium', 'rival'):
             if random.random() < 0.70 and scored:
                 return scored[0][1]
             return random.choice(moveset)
@@ -905,12 +925,21 @@ class Game:
         self.is_trainer_battle = True
         self.current_trainer_npc = npc
 
+        if npc.trainer_id == 'gray':
+            self._post_trainer_battle_cb = lambda: self._on_gray_battle_won(npc)
+        elif npc.trainer_id == 'skyy' and self.current_world_file == 'GYM1.tmx':
+            self._post_trainer_battle_cb = self._on_skyy_gym_won
+
         data = TRAINER_DATA.get(npc.trainer_id, {})
         dinos = data.get('dinos', {})
         sorted_keys = sorted(dinos.keys())
-        dino_name, dino_level = dinos[sorted_keys[0]]
-
-        self.trainer_dino_queue = [(dinos[k][0], dinos[k][1]) for k in sorted_keys[1:]]
+        override = getattr(npc, 'override_first_dino', None)
+        if override:
+            dino_name, dino_level = override
+            self.trainer_dino_queue = [(dinos[k][0], dinos[k][1]) for k in sorted_keys[1:]]
+        else:
+            dino_name, dino_level = dinos[sorted_keys[0]]
+            self.trainer_dino_queue = [(dinos[k][0], dinos[k][1]) for k in sorted_keys[1:]]
         self.trainer_dinos_total = len(sorted_keys)
         self.trainer_dinos_defeated = 0
 
@@ -1607,6 +1636,7 @@ class Game:
             self.last_dinocenter_tile  = (tile_x + dx, tile_y + dy)
         self._load_world_data(dest['world'])
         self._spawn_world_npcs(dest['world'])
+        self._maybe_add_gym1_skyy()
         tx, ty = dest['spawn']
         self._place_player(tx, ty)
 
@@ -1637,6 +1667,7 @@ class Game:
             self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
         self._maybe_add_gym_blocker()
         self._maybe_add_skyy()
+        self._maybe_add_gray_rival()
         # Place player one tile behind where they entered, facing back out
         reverse = {'up': 'down', 'down': 'up', 'left': 'right', 'right': 'left'}
         step = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}
@@ -1799,6 +1830,48 @@ class Game:
                     sx, sy = 0, 0
                 if sx != 0 or sy != 0:
                     nx, ny = npc.tile_x + sx, npc.tile_y + sy
+                    # Push player out of the way if they are on Skyy's destination tile
+                    ptx = self.player.rect.x // config.TILE_SIZE
+                    pty = self.player.rect.y // config.TILE_SIZE
+                    if (ptx, pty) == (nx, ny):
+                        npx = (ptx + sx) * config.TILE_SIZE
+                        npy = (pty + sy) * config.TILE_SIZE
+                        self.player.rect.x = npx
+                        self.player.rect.y = npy
+                        self.player.pos_x = float(npx)
+                        self.player.pos_y = float(npy)
+                        self.player.target_x = float(npx)
+                        self.player.target_y = float(npy)
+                    self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                    npc.tile_x, npc.tile_y = nx, ny
+                    self.solid_tile_coords.add((nx, ny))
+                    npc.facing = npc._FACING[(sx, sy)]
+                    npc.target_x = float(nx * config.TILE_SIZE)
+                    npc.target_y = float(ny * config.TILE_SIZE)
+                    npc.is_moving = True
+                    npc.anim_frame = 1
+                    npc.anim_timer = 0.0
+
+        elif c['phase'] == 'gray_walking':
+            if self.message_box.visible:
+                return
+            wx, wy = c['walk_target']
+            if npc.tile_x == wx and npc.tile_y == wy:
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                if npc in self.npcs:
+                    self.npcs.remove(npc)
+                self.story_flags['gray_route1_done'] = True
+                self.cutscene = None
+            else:
+                dx, dy = wx - npc.tile_x, wy - npc.tile_y
+                if abs(dx) >= abs(dy) and dx != 0:
+                    sx, sy = (1 if dx > 0 else -1), 0
+                elif dy != 0:
+                    sx, sy = 0, (1 if dy > 0 else -1)
+                else:
+                    sx, sy = 0, 0
+                if sx != 0 or sy != 0:
+                    nx, ny = npc.tile_x + sx, npc.tile_y + sy
                     self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
                     npc.tile_x, npc.tile_y = nx, ny
                     self.solid_tile_coords.add((nx, ny))
@@ -1943,6 +2016,77 @@ class Game:
         skyy.state = 'idle'
         self.npcs.append(skyy)
         self.solid_tile_coords.add((tx, ty))
+
+    def _maybe_add_gray_rival(self):
+        if not self.story_flags.get('gym1_accessible'):
+            return
+        if self.story_flags.get('gray_route1_done'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        if any(getattr(n, 'trainer_id', '') == 'gray' for n in self.npcs):
+            return
+        # Determine Gray's first dino: the starter the player did NOT keep
+        starter_names = set(config.DINO_BALL_MAP.values())
+        player_starter = next(
+            (d['name'] for d in self.player_dinos + self.box_dinos
+             if d['name'] in starter_names), None
+        )
+        starter_to_gray = {
+            'Floravel': ('Prowscar', 7),  # player kept dino1 → Gray uses dino2
+            'Prowscar': ('Corlave',  7),  # player kept dino2 → Gray uses dino3
+            'Corlave':  ('Floravel', 7),  # player kept dino3 → Gray uses dino1
+        }
+        gray_first_dino = starter_to_gray.get(player_starter, ('Prowscar', 7))
+        tx, ty = -2, -11
+        gray = NPC('gray', tile_x=tx, tile_y=ty, facing='right',
+                   sight_range=5, npc_type='trainer')
+        gray.state = 'idle'
+        gray.home_tile = (tx, ty)
+        gray.home_facing = 'right'
+        gray.use_proximity = True
+        gray.override_first_dino = gray_first_dino
+        self.npcs.append(gray)
+        self.solid_tile_coords.add((tx, ty))
+
+    def _on_gray_battle_won(self, npc):
+        data = TRAINER_DATA.get('gray', {})
+        msgs = self._split_dialogue(*data.get('dialog', {}).get('defeated', [
+            "I like a challenge, next time I'll be more prepared. Keep at it, and I will too.."
+        ]))
+        def start_walk_away():
+            npc.facing = 'down'
+            self.cutscene = {
+                'phase': 'gray_walking',
+                'npc': npc,
+                'walk_target': (npc.tile_x, npc.tile_y + 6),
+            }
+        self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=start_walk_away)
+
+    def _maybe_add_gym1_skyy(self):
+        if not self.story_flags.get('gray_route1_done'):
+            return
+        if self.current_world_file != 'GYM1.tmx':
+            return
+        if any(getattr(n, 'trainer_id', '') == 'skyy' for n in self.npcs):
+            return
+        tx, ty = 9, 4  # top center, 5 tiles down from top
+        skyy = NPC('skyy', tile_x=tx, tile_y=ty, facing='down',
+                   sight_range=0, npc_type='trainer')
+        skyy.state = 'idle'
+        if self.story_flags.get('gym1_leader_defeated'):
+            skyy.defeated = True
+        self.npcs.append(skyy)
+        self.solid_tile_coords.add((tx, ty))
+
+    def _on_skyy_gym_won(self):
+        self.story_flags['gym1_leader_defeated'] = True
+        if 'sierra' not in self.badges_earned:
+            self.badges_earned.append('sierra')
+        self.badge_earned_screen = BadgeEarnedScreen(
+            self, "Sierra Badge",
+            os.path.join('assets', 'Badges', 'flying_badge.png'))
+        self.push_state('badge_earned')
 
     def _check_amber_blocker(self):
         if self.story_flags.get('encounters_unlocked'):
@@ -2167,6 +2311,10 @@ class Game:
             elif self.state == 'trainer_card':
                 self.trainer_card_screen.handle_event(event)
 
+            elif self.state == 'badge_earned':
+                if getattr(self, 'badge_earned_screen', None):
+                    self.badge_earned_screen.handle_event(event)
+
             elif self.state == 'box':
                 result = self.box_screen.handle_event(event, self)
                 if result == 'back':
@@ -2367,7 +2515,10 @@ class Game:
                 continue
             npc.face_toward_player(self.player)
             if npc.npc_type in ('guard', 'gym_guard'):
-                dialog = getattr(npc, 'block_dialog', ["..."])
+                if npc.npc_type == 'gym_guard' and not self.story_flags.get('amber_lab_done'):
+                    dialog = ["The gym leader is not here right now."]
+                else:
+                    dialog = getattr(npc, 'block_dialog', ["..."])
                 self.message_box.queue_messages(dialog, wait_for_input=True)
                 return True
             if npc.npc_type == 'healer':
@@ -2393,7 +2544,9 @@ class Game:
                 return True
             if npc.state == 'idle':
                 dialog = data.get('dialog', {}).get('default', ["..."])
-                self.message_box.queue_messages(dialog, wait_for_input=True)
+                self.message_box.queue_messages(
+                    dialog, wait_for_input=True,
+                    on_complete=lambda n=npc: self.start_trainer_battle(n))
                 return True
             return True
         return False
@@ -2542,6 +2695,11 @@ class Game:
             self.title_screen.update(dt)
             return
 
+        if self.state == 'badge_earned':
+            if getattr(self, 'badge_earned_screen', None):
+                self.badge_earned_screen.update(dt)
+            return
+
         if self.state == 'intro':
             if self.intro_sequence:
                 self.intro_sequence.update(dt)
@@ -2637,6 +2795,7 @@ class Game:
             self._check_amber_blocker()
             self._maybe_add_gym_blocker()
             self._maybe_add_skyy()
+            self._maybe_add_gray_rival()
 
     # --- Draw ---
 
@@ -2801,6 +2960,11 @@ class Game:
 
         elif current_state == 'trainer_card':
             self.trainer_card_screen.draw(self.screen)
+
+        elif current_state == 'badge_earned':
+            self.screen.fill((0, 0, 0))
+            if getattr(self, 'badge_earned_screen', None):
+                self.badge_earned_screen.draw(self.screen)
 
         elif current_state == 'move_info':
             if self.move_info_screen:
@@ -3153,7 +3317,11 @@ class Game:
         dmg = max(1, int(raw)) if power > 0 else 0
         defender['hp'] = max(0, defender['hp'] - dmg)
         if dmg > 0:
-            self.trigger_hit_flash('enemy')
+            if self.is_double_battle:
+                flash_target = 'enemy1' if defender is self.enemy_dino else 'enemy2'
+            else:
+                flash_target = 'enemy'
+            self.trigger_hit_flash(flash_target)
 
         msgs = [f"{attacker['name']} used {move_name}!"]
         if power > 0:
@@ -3170,7 +3338,11 @@ class Game:
             self.encounter_ui.in_fight_menu = False
             faint_prefix = f"{self._trainer_name}'s" if self.is_trainer_battle else "The wild"
             faint_msg = f"{faint_prefix} {defender['name']} fainted!"
-            multiplier = 0.9 if self.is_trainer_battle else 0.75
+            if self.is_trainer_battle:
+                t_data = TRAINER_DATA.get(self.current_trainer_npc.trainer_id, {}) if self.current_trainer_npc else {}
+                multiplier = 1.0 if t_data.get('rank') == 'rival' else 0.9
+            else:
+                multiplier = 0.75
             xp_gain = calculate_xp_gain(
                 player_level=attacker['level'],
                 opponent_level=defender['level'],
@@ -3214,6 +3386,10 @@ class Game:
                             self.pop_to_world()
                     if not evolved:
                         self.pop_to_world()
+                    cb = self._post_trainer_battle_cb
+                    if cb:
+                        self._post_trainer_battle_cb = None
+                        cb()
 
                 if coin_reward > 0:
                     self.coins += coin_reward

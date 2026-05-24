@@ -82,6 +82,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Prowscar2':  os.path.join(DINOS_FRONT, 'Prowscar.PNG'),
     'Floravel':   os.path.join(DINOS_FRONT, 'Floravel.PNG'),
     'Floravel2':  os.path.join(DINOS_FRONT, 'Floravel.PNG'),
+    'Bullicorn':  os.path.join(DINOS_FRONT, 'Bullicorn.png'),
+    'Bullicorn2': os.path.join(DINOS_FRONT, 'Bullicorn.png'),
 }
 
 NPC_SHEETS = {
@@ -95,13 +97,16 @@ NPC_SHEETS = {
     'basic_trainer_girl': os.path.join('assets', 'NPC', 'BasicGirlTrainer.png'),
     'blk_b':              os.path.join('assets', 'NPC', 'BLK_B.png'),
     'skyy':               os.path.join('assets', 'NPC', 'Skyy.png'),
+    'gray':               os.path.join('assets', 'NPC', 'gray.png'),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
 # If a trainer_id isn't listed here, it falls back to its own trainer_id as the key.
 NPC_SPRITE_KEY = {
-    'ethan': 'basic_trainer',
-    'shinji': 'basic_trainer2',
+    'ethan':         'basic_trainer',
+    'shinji':        'basic_trainer2',
+    'gym_trainer_a': 'blk_b',
+    'gym_trainer_b': 'blk_b',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -125,6 +130,10 @@ WORLD_NPCS = {
     ],
     'RESEARCH_LAB.tmx': [
         ('amber', 10, 3, 'down', 0, 'story'),
+    ],
+    'GYM1.tmx': [
+        ('gym_trainer_a', 6, 8,  'down', 5, 'trainer'),
+        ('gym_trainer_b', 13, 8, 'left', 5, 'trainer'),
     ],
 }
 

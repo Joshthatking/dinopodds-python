@@ -239,10 +239,6 @@ class DoubleBattleUI:
         pl1_y = text_top - pl_h - 8         # just above dialogue box
         pl2_y = pl1_y - pl_h - 6            # stacked above pl1
 
-        self._draw_slanted_panel(surface, pl_x, pl1_y, pl_w, pl_h, SLANT, slant_side='left')
-        if p2:
-            self._draw_slanted_panel(surface, pl_x, pl2_y, pl_w, pl_h, SLANT, slant_side='left')
-
         def draw_player_stat(d, pct, bx, by, bw, ko):
             if ko:
                 surface.blit(sf.render("KO", True, (160, 0, 0)), (bx + SLANT + 6, by + 14))
@@ -253,8 +249,11 @@ class DoubleBattleUI:
             surface.blit(sf.render(f"Lv{d['level']}", True, (0, 0, 0)), (bx + bw - 55, by + 6))
             self._draw_hp_bar(surface, bx + SLANT + 4, by + 28, bw - SLANT - 12, 10, pct)
 
-        draw_player_stat(p1, pp1, pl_x, pl1_y, pl_w, pp1 <= 0.01)
-        if p2:
+        if p1_visible:
+            self._draw_slanted_panel(surface, pl_x, pl1_y, pl_w, pl_h, SLANT, slant_side='left')
+            draw_player_stat(p1, pp1, pl_x, pl1_y, pl_w, pp1 <= 0.01)
+        if p2 and p2_visible:
+            self._draw_slanted_panel(surface, pl_x, pl2_y, pl_w, pl_h, SLANT, slant_side='left')
             draw_player_stat(p2, pp2, pl_x, pl2_y, pl_w, pp2 <= 0.01)
 
         # ── Player back sprites (hide if KO'd) ────────────────────
@@ -2113,10 +2112,13 @@ class TrainerCardScreen:
             raw = pygame.image.load(path)
             raw = raw.convert() if not raw.get_masks()[3] else raw.convert_alpha()
             self._bg = pygame.transform.scale(raw, (config.WIDTH, config.HEIGHT))
-            # print(f"[TrainerCard] Badge.png loaded OK ({raw.get_width()}x{raw.get_height()})")
         except Exception:
-            # print(f"[TrainerCard] Failed to load Badge.png")
             self._bg = None
+        try:
+            badge_raw = pygame.image.load(os.path.join('assets', 'Badges', 'flying_badge.png')).convert_alpha()
+            self._flying_badge = pygame.transform.scale(badge_raw, (30, 30))
+        except Exception:
+            self._flying_badge = None
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j, pygame.K_i):
@@ -2147,8 +2149,59 @@ class TrainerCardScreen:
         self._blit_text(screen, self.font_md, self._fmt_time(),                    (255,255,255), 250, 270)  # Time
         self._blit_text(screen, self.font_md, self.game.adventure_start_date.strftime("%b %d, %Y"), (255,255,255), 170, 330)  # Started
 
+        if self._flying_badge and self.game.story_flags.get('gym1_leader_defeated'):
+            screen.blit(self._flying_badge, (22, 418))
+
         self._blit_text(screen, self.font_xs, "SPACE / J to close",
                         (180, 170, 150), 20, config.HEIGHT - 16)
+
+
+# === Badge Earned Screen ===
+class BadgeEarnedScreen:
+    BADGE_SIZE   = 120
+    FADE_IN_SEC  = 0.6
+
+    def __init__(self, game, badge_name, badge_path):
+        self.game       = game
+        self.badge_name = badge_name
+        self._timer     = 0.0
+        self._font_lg   = game.fonts['DIALOGUE']
+        self._font_sm   = game.fonts['BATTLE2']
+        try:
+            raw = pygame.image.load(badge_path).convert_alpha()
+            self._img = pygame.transform.scale(raw, (self.BADGE_SIZE, self.BADGE_SIZE))
+        except Exception:
+            self._img = None
+
+    def update(self, dt):
+        self._timer += dt
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN and self._timer > self.FADE_IN_SEC:
+            self.game.pop_state()
+
+    def draw(self, screen):
+        alpha = min(255, int(255 * self._timer / self.FADE_IN_SEC))
+
+        overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, min(180, alpha)))
+        screen.blit(overlay, (0, 0))
+
+        cx = config.WIDTH  // 2
+        cy = config.HEIGHT // 2
+
+        if self._img:
+            img = self._img.copy()
+            img.set_alpha(alpha)
+            screen.blit(img, (cx - self.BADGE_SIZE // 2, cy - self.BADGE_SIZE // 2 - 30))
+
+        title_surf = self._font_lg.render(f"{self.badge_name} Earned!", True, (255, 215, 0))
+        title_surf.set_alpha(alpha)
+        screen.blit(title_surf, (cx - title_surf.get_width() // 2, cy + self.BADGE_SIZE // 2 - 10))
+
+        if self._timer > self.FADE_IN_SEC:
+            hint = self._font_sm.render("Press any key to continue", True, (200, 200, 200))
+            screen.blit(hint, (cx - hint.get_width() // 2, cy + self.BADGE_SIZE // 2 + 26))
 
 
 # === Intro Cutscene ===
