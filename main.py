@@ -135,9 +135,16 @@ if __name__ == '__main__':
 #5/24
 # Gym 1 battle sequence and Badge - COMPLETE
 # FIX: saving saves dinos but offsets position and resets battles
+# FIX: make sky force end battle dialogue after rewarding badge - COMPLETE
+# Fix text coming off dialogue box screen sometimes - COMPLETE
+
+#Fix double battles visual glitch still
+#Fix Items respawning after teleporting - COMPLETE
+#Fix order of dinos when selected in party, first alwasy goes first - COMPLETE
 
 
-
+# Need to edit gym badges, add all dinos to gym1
+# Need to add teleport for each house then gym1 fin. 
 
 # Add Double battle against grunts when walking to route1.4, over hear them speaking
 # Rival comes to join the fight with you using, your starts weakness

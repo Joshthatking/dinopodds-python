@@ -29,6 +29,7 @@ class Game:
         self.current_world_file = 'LOST_REGION.world'
         self.map_ball_images = {}
         self.map_ball_items = {}
+        self.picked_up_world_items = set()  # {(world_file, tx, ty)} — never respawn these
         self._ballwhite_img = pygame.transform.scale(
             pygame.image.load('assets/Items/ballwhite.png').convert_alpha(),
             (config.TILE_SIZE, config.TILE_SIZE))
@@ -49,7 +50,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -357,7 +358,7 @@ class Game:
         self.player_dinos = [
             self.create_dino('Vusion', 40),
             self.create_dino('Vusion', 3),
-            self.create_dino('Corlave', 5),
+            self.create_dino('Netaslam', 21),
             self.create_dino('Corlave', 16),
         ]
         self.box_dinos = []
@@ -393,6 +394,7 @@ class Game:
             'badges': self.badges_earned,
             'play_time': self.play_time_seconds,
             'dinos_seen': list(self.dinos_seen),
+            'picked_up_world_items': [list(entry) for entry in self.picked_up_world_items],
             'stats': {
                 'blackouts': self.stats_blackouts,
                 'dinos_fainted': self.stats_dinos_fainted,
@@ -417,6 +419,7 @@ class Game:
         self.badges_earned = data.get('badges', [])
         self.play_time_seconds = data.get('play_time', 0.0)
         self.dinos_seen = set(data.get('dinos_seen', []))
+        self.picked_up_world_items = {tuple(e) for e in data.get('picked_up_world_items', [])}
         s = data.get('stats', {})
         self.stats_blackouts = s.get('blackouts', 0)
         self.stats_dinos_fainted = s.get('dinos_fainted', 0)
@@ -882,6 +885,7 @@ class Game:
         self.player.target_y = self.player.rect.y
         self.player.pos_x = float(self.player.rect.x)
         self.player.pos_y = float(self.player.rect.y)
+        self.active_dino_index = 0
         self.fading = True
         self.fade_alpha = 0
 
@@ -920,6 +924,7 @@ class Game:
         self.player.target_y = self.player.rect.y
         self.player.pos_x = float(self.player.rect.x)
         self.player.pos_y = float(self.player.rect.y)
+        self.active_dino_index = 0
         self.fading = True
         self.fade_alpha = 0
         self.is_trainer_battle = True
@@ -2083,9 +2088,16 @@ class Game:
         self.story_flags['gym1_leader_defeated'] = True
         if 'sierra' not in self.badges_earned:
             self.badges_earned.append('sierra')
+
+        def _after_badge():
+            data = TRAINER_DATA.get('skyy', {})
+            dialog = data.get('dialog', {}).get('defeated', ["..."])
+            self.message_box.queue_messages(list(dialog), wait_for_input=True)
+
         self.badge_earned_screen = BadgeEarnedScreen(
             self, "Sierra Badge",
-            os.path.join('assets', 'Badges', 'flying_badge.png'))
+            os.path.join('assets', 'Badges', 'flying_badge.png'),
+            on_dismiss=_after_badge)
         self.push_state('badge_earned')
 
     def _check_amber_blocker(self):
@@ -2650,6 +2662,8 @@ class Game:
         self.map_ball_items = {}
         self.map_ball_images = {}
         for (tx, ty), (item_name, img) in ball_items.items():
+            if (self.current_world_file, tx, ty) in self.picked_up_world_items:
+                continue
             self.items_on_map[(tx, ty)] = item_name
             self.map_ball_items[(tx, ty)] = item_name
             if img is not None:
@@ -2673,6 +2687,9 @@ class Game:
         if (px, py) not in self.items_on_map:
             return
         item_name = self.items_on_map.pop((px, py))
+        self.map_ball_items.pop((px, py), None)
+        self.map_ball_images.pop((px, py), None)
+        self.picked_up_world_items.add((self.current_world_file, px, py))
         if item_name in config.DINO_BALL_MAP:
             dino_name = config.DINO_BALL_MAP[item_name]
             new_dino = self.create_dino(dino_name, config.DINO_BALL_LEVEL)

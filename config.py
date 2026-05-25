@@ -82,8 +82,12 @@ ENCOUNTER_DINOS_PATHS = {
     'Prowscar2':  os.path.join(DINOS_FRONT, 'Prowscar.PNG'),
     'Floravel':   os.path.join(DINOS_FRONT, 'Floravel.PNG'),
     'Floravel2':  os.path.join(DINOS_FRONT, 'Floravel.PNG'),
-    'Bullicorn':  os.path.join(DINOS_FRONT, 'Bullicorn.png'),
-    'Bullicorn2': os.path.join(DINOS_FRONT, 'Bullicorn.png'),
+    'Bullicorn':   os.path.join(DINOS_FRONT, 'Bullicorn.png'),
+    'Bullicorn2':  os.path.join(DINOS_FRONT, 'Bullicorn.png'),
+    'Netaslam':    os.path.join(DINOS_FRONT, 'Netaslam.png'),
+    'Netaslam2':   os.path.join(DINOS_FRONT, 'Netaslam.png'),
+    'Netyrant':    os.path.join(DINOS_FRONT, 'Netyrant.png'),
+    'Netyrant2':   os.path.join(DINOS_FRONT, 'Netyrant.png'),
 }
 
 NPC_SHEETS = {

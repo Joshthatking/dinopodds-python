@@ -249,14 +249,14 @@ class DoubleBattleUI:
             surface.blit(sf.render(f"Lv{d['level']}", True, (0, 0, 0)), (bx + bw - 55, by + 6))
             self._draw_hp_bar(surface, bx + SLANT + 4, by + 28, bw - SLANT - 12, 10, pct)
 
-        if p1_visible:
-            self._draw_slanted_panel(surface, pl_x, pl1_y, pl_w, pl_h, SLANT, slant_side='left')
-            draw_player_stat(p1, pp1, pl_x, pl1_y, pl_w, pp1 <= 0.01)
-        if p2 and p2_visible:
+        # Stat boxes always visible (matching single-battle behaviour — only the sprite blinks)
+        self._draw_slanted_panel(surface, pl_x, pl1_y, pl_w, pl_h, SLANT, slant_side='left')
+        draw_player_stat(p1, pp1, pl_x, pl1_y, pl_w, pp1 <= 0.01)
+        if p2:
             self._draw_slanted_panel(surface, pl_x, pl2_y, pl_w, pl_h, SLANT, slant_side='left')
             draw_player_stat(p2, pp2, pl_x, pl2_y, pl_w, pp2 <= 0.01)
 
-        # ── Player back sprites (hide if KO'd) ────────────────────
+        # ── Player back sprites — only the sprite blinks on hit flash ─
         if p1_visible and pp1 > 0.01:
             img = pygame.transform.scale(p1['image'], (170, 170))
             r   = img.get_rect(centerx=text_rect.x + 85, bottom=text_top)
@@ -2003,6 +2003,10 @@ class MessageBox:
         self.char_delay = 0.03  # seconds per character
 
     def _start_message(self, message):
+        lines = wrap_text(message, self.font, self.width - 120)
+        if len(lines) > 2:
+            self.messages.insert(0, ' '.join(lines[2:]))
+            message = ' '.join(lines[:2])
         self.message = message
         self.char_index = 0
         self.char_timer = 0.0
@@ -2084,7 +2088,7 @@ class MessageBox:
         box_rect = pygame.Rect(50, surface.get_height() - box_h - 20, self.width - 100, box_h)
         pygame.draw.rect(surface, (255, 255, 255), box_rect)
         pygame.draw.rect(surface, (0, 0, 0), box_rect, 3)
-        for i, line in enumerate(display_lines):
+        for i, line in enumerate(display_lines[:2]):
             surface.blit(self.font.render(line, True, (0, 0, 0)),
                          (box_rect.x + 10, box_rect.y + pad + i * line_h))
 
@@ -2161,10 +2165,11 @@ class BadgeEarnedScreen:
     BADGE_SIZE   = 120
     FADE_IN_SEC  = 0.6
 
-    def __init__(self, game, badge_name, badge_path):
+    def __init__(self, game, badge_name, badge_path, on_dismiss=None):
         self.game       = game
         self.badge_name = badge_name
         self._timer     = 0.0
+        self._on_dismiss = on_dismiss
         self._font_lg   = game.fonts['DIALOGUE']
         self._font_sm   = game.fonts['BATTLE2']
         try:
@@ -2179,6 +2184,8 @@ class BadgeEarnedScreen:
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and self._timer > self.FADE_IN_SEC:
             self.game.pop_state()
+            if self._on_dismiss:
+                self._on_dismiss()
 
     def draw(self, screen):
         alpha = min(255, int(255 * self._timer / self.FADE_IN_SEC))

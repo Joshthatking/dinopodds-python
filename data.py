@@ -110,10 +110,10 @@ TRAINER_DATA = {
     },
     'skyy': {
         'name': 'Skyy',
-        'dinos': {0: ('Floravel', 14), 1: ('Corlave', 15), 2: ('Bullicorn', 16)},
+        'dinos': {0: ('Creuw', 14), 1: ('Netaslam', 15), 2: ('Luna', 16)},
         'dialog': {
             'default':  [
-                "Welcome to Sierra Gym. I am Skyy.",
+                "Welcome to the Sierra Flying Gym. I am Gym Leader Skyy.",
                 "My dinos are built to endure — I hope you're ready for a real fight!"
             ],
             'defeated': [
@@ -125,12 +125,12 @@ TRAINER_DATA = {
         'look_around': False,
         'defeated': False,
         'biome': 'gym',
-        'reward_coins': 500,
+        'reward_coins': 1000,
         'rank': 'medium',
     },
     'gym_trainer_a': {
-        'name': 'Kyle',
-        'dinos': {0: ('Creuw', 10), 1: ('Prowscar', 11)},
+        'name': 'Mike',
+        'dinos': {0: ('Creuw', 10), 1: ('Netaslam', 11)},
         'dialog': {
             'default':  ["You won't reach Skyy without going through me!", "Let's go!"],
             'defeated': ["Strong... keep pushing."]
@@ -143,7 +143,7 @@ TRAINER_DATA = {
         'rank': 'lowest',
     },
     'gym_trainer_b': {
-        'name': 'Mia',
+        'name': 'Connor',
         'dinos': {0: ('Bullicorn', 9), 1: ('Floravel', 10)},
         'dialog': {
             'default':  ["Skyy trained us well. Don't underestimate the gym!", "Battle!"],
@@ -153,7 +153,7 @@ TRAINER_DATA = {
         'look_around': True,
         'defeated': False,
         'biome': 'gym',
-        'reward_coins': 180,
+        'reward_coins': 200,
         'rank': 'lowest',
     },
 }
@@ -169,6 +169,8 @@ DINODEX_DATA = {
     'Prowscar':  {'number': 6,  'desc': "A scrappy dark-type that roams dense undergrowth. Its jaw muscles generate enormous bite force despite its small frame."},
     'Floravel':  {'number': 7,  'desc': "A plant-armored earth-type that draws nutrients from the soil mid-battle. Its vines can reconfigure into defensive shields in an instant."},
     'Bullicorn': {'number': 8,  'desc': "A bullish yet gentle creature with a unique horn on its head, loved by many in the farm areas."},
+    'Netaslam':  {'number': 9,  'desc': "The net dino, Netaslam yields a net while jumping and flying around with its net wings to catch prey in the open grass."},
+    'Netyrant':  {'number': 10, 'desc': "Netyrant's wings have fully developed allowing it to soar the skies while hunting, becoming an apex predator."},
 }
 
 DINO_DATA = {
@@ -186,11 +188,11 @@ DINO_DATA = {
         'evolve': {17: 'Anemamace'}},
     'Creuw': {
         'stats': {'type': ['flying'], 'health': 50, 'attack': 65, 'defense': 40, 'speed':65},
-        'moves': {0: 'Air Strike', 1: 'Arise', 8: 'Force Shift', 15: 'Mach Speed', 18: 'Shadow Veil'},
-        'evolve': {15: 'Luna'}},
+        'moves': {0: 'Air Strike', 1: 'Arise', 8: 'Force Shift', 16: 'Mach Speed', 18: 'Shadow Veil'},
+        'evolve': {16: 'Luna'}},
     'Luna': {
-        'stats': {'type': ['flying', 'dark'], 'health': 100, 'attack': 145, 'defense': 70, 'speed':135},
-        'moves': {0: 'Air Strike', 1: 'Arise', 8: 'Force Shift', 15: 'Mach Speed', 18: 'Shadow Veil', 22: 'Turbo Booster', 25: 'Wind Fracture' },
+        'stats': {'type': ['flying', 'dark'], 'health': 100, 'attack': 135, 'defense': 80, 'speed':135},
+        'moves': {0: 'Air Strike', 1: 'Arise', 8: 'Force Shift', 16: 'Mach Speed', 18: 'Shadow Veil', 22: 'Turbo Booster', 25: 'Wind Fracture' },
         'evolve': None},
     'Prowscar': {
         'stats': {'type': ['dark'], 'health': 50, 'attack': 70, 'defense': 50, 'speed': 70},
@@ -201,8 +203,16 @@ DINO_DATA = {
         'moves': {0: 'Vine Snare', 1: 'Arise', 8: 'Boulder Smash', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
         'evolve': None},
     'Bullicorn': {
-        'stats': {'type': ['spike'], 'health': 105, 'attack': 75, 'defense': 95, 'speed': 65},
-        'moves': {0: 'Horn Tackle', 14: 'Boulder Smash', 1: 'Arise', 10: 'Sand Kick', 19: 'Double Jab'},
+        'stats': {'type': ['spike'], 'health': 145, 'attack': 85, 'defense': 100, 'speed': 75},
+        'moves': {0: 'Horn Tackle',  1: 'Arise', 7: 'Sand Kick', 12: 'Double Jab', 15: 'Boulder Smash',},
+        'evolve': None},
+    'Netaslam': {
+        'stats': {'type': ['flying', 'spike'], 'health': 60, 'attack': 80, 'defense': 50, 'speed': 70},
+        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Flash', 9: 'Lock Jaw', 12: 'Quick Slash', 17: 'Double Jab', 20: 'Mach Speed', 22: 'Ripping Impact'},
+        'evolve': {22: 'Netyrant'}},
+    'Netyrant': {
+        'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 145, 'defense': 70, 'speed': 125},
+        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Flash', 9: 'Lock Jaw', 12: 'Quick Slash', 17: 'Double Jab', 20: 'Mach Speed', 22: 'Ripping Impact', 26: 'Wind Fracture', 30: 'Sword Slash', 33: 'Turbo Booster', 37: 'Spike Storm', 40: 'Sky Scorch'},
         'evolve': None},
 
 }
@@ -348,7 +358,7 @@ MOVE_DATA = {
                      'ability': {'kind': 'heal', 'percent': 25, 'chance': 100}},
     #FLYING MOVES
     'Air Strike': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'flying'},
-    'Mach Speed': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'flying'},
+    'Mach Speed': {'target': 'opponent', 'damage': 50, 'accuracy': 100, 'ability': None, 'type': 'flying'},
     'Wind Fracture': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'flying'},
 
     'Turbo Booster':   {'target': 'self', 'damage': 0, 'accuracy': 95, 'type': 'flying',
@@ -356,7 +366,7 @@ MOVE_DATA = {
     'Sky Scorch':   {'target': 'opponent', 'damage': 120, 'accuracy': 90, 'type': 'flying',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'self', 'chance': 100}},
     #SPIKE MOVES
-    'Lock Jaw': {'target': 'opponent', 'damage': 30, 'accuracy': 90, 'type': 'spike',
+    'Lock Jaw': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'spike',
                  'ability': {'kind': 'lock', 'turns': 2, 'chance': 100}},
     'Horn Tackle': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'spike'},
     'Double Jab': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'spike'},
@@ -382,6 +392,9 @@ MOVE_DATA = {
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
     'Crash Impact': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'type': 'rock',
                      'ability': {'kind': 'recoil', 'percent': 15, 'chance': 100}},
+    'Sand Storm': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'ice',
+                   'ability': {'kind': 'dot', 'damage_percent': 8, 'turns': 2,
+                               'tick_msg': 'hit by waves of sand', 'chance': 100}},
 
     #LIGHTNING MOVES
     'Thunder Slap': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
@@ -392,7 +405,7 @@ MOVE_DATA = {
                      'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
     'Quantum Flux':  {'target': 'opponent', 'damage': 70, 'accuracy': 85,  'type': 'lightning',
                      'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
-    'Shock':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'lightning',
+    'Shock':   {'target': 'opponent', 'damage': 0, 'accuracy': 90, 'type': 'lightning',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
 
     #DARK MOVES
@@ -413,7 +426,7 @@ MOVE_DATA = {
     'Piercing Light': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'light', 'pierces_defend': True},
     'Spectral Overload': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'light'},
 
-    'Flash':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'light',
+    'Flash':   {'target': 'opponent', 'damage': 0, 'accuracy': 90, 'type': 'light',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
     'Refraction':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'light',
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'light', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
@@ -423,7 +436,7 @@ MOVE_DATA = {
     'Freeze Blast': {'target': 'opponent', 'damage': 70, 'accuracy': 100, 'ability': None, 'type': 'ice'},
     'Hyperfrost': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'ice', 'pierces_defend': True},
 
-    'Hail Storm': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'type': 'ice',
+    'Hail Storm': {'target': 'opponent', 'damage': 25, 'accuracy': 90, 'type': 'ice',
                    'ability': {'kind': 'dot', 'damage_percent': 8, 'turns': 2,
                                'tick_msg': 'pelted by the raging hail', 'chance': 100}},
     'Frozen Aura': {'target': 'self', 'damage': 10, 'accuracy': 100, 'type': 'ice',
@@ -437,7 +450,7 @@ MOVE_DATA = {
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
 
     #DEBUFF MOVES
-    'Venom Decay':   {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'type': 'ancient',
+    'Venom Decay':   {'target': 'opponent', 'damage': 40, 'accuracy': 95, 'type': 'ancient',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
 
 
@@ -483,7 +496,7 @@ ENCOUNTER_ZONES = {
         "level_range": (3,4)
     },
     "route1+_grass": {
-        "dinos": ["Creuw", "Bullicorn"],
+        "dinos": ["Creuw", "Bullicorn", "Netaslam"],
         "level_range": (3, 6)
     },
 
