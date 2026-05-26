@@ -147,7 +147,7 @@ if __name__ == '__main__':
 # Need to add teleport for each house then gym1 fin. 
 
 # Add Double battle against grunts when walking to route1.4, over hear them speaking
-# Rival comes to join the fight with you using, your starts weakness
+# Rival comes to join the fight with you using, your rts weakness
 # After the fight, that was weird... heals you, and then fair battle against rival
 # Then proceed with skyy dialogue and then gym1
 # GYM 1 designed and add gym event with trainers 

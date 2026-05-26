@@ -171,6 +171,9 @@ DINODEX_DATA = {
     'Bullicorn': {'number': 8,  'desc': "A bullish yet gentle creature with a unique horn on its head, loved by many in the farm areas."},
     'Netaslam':  {'number': 9,  'desc': "The net dino, Netaslam yields a net while jumping and flying around with its net wings to catch prey in the open grass."},
     'Netyrant':  {'number': 10, 'desc': "Netyrant's wings have fully developed allowing it to soar the skies while hunting, becoming an apex predator."},
+    'Sharktastrophe':  {'number': 11, 'desc': "A vicious oceanic beast, with sharp spikes protruding as its main source of weaponry."},
+    'Sortle':  {'number': 12, 'desc': "This turtle has a shell made of sand actively swirling like a tornado, similar to its counterpart Frostle."},
+
 }
 
 DINO_DATA = {
@@ -204,7 +207,7 @@ DINO_DATA = {
         'evolve': None},
     'Bullicorn': {
         'stats': {'type': ['spike'], 'health': 145, 'attack': 85, 'defense': 100, 'speed': 75},
-        'moves': {0: 'Horn Tackle',  1: 'Arise', 7: 'Sand Kick', 12: 'Double Jab', 15: 'Boulder Smash',},
+        'moves': {0: 'Horn Tackle',  1: 'Arise', 7: 'Sand Kick', 12: 'Boulder Smash', 15: 'Double Jab',},
         'evolve': None},
     'Netaslam': {
         'stats': {'type': ['flying', 'spike'], 'health': 60, 'attack': 80, 'defense': 50, 'speed': 70},
@@ -213,6 +216,14 @@ DINO_DATA = {
     'Netyrant': {
         'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 145, 'defense': 70, 'speed': 125},
         'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Flash', 9: 'Lock Jaw', 12: 'Quick Slash', 17: 'Double Jab', 20: 'Mach Speed', 22: 'Ripping Impact', 26: 'Wind Fracture', 30: 'Sword Slash', 33: 'Turbo Booster', 37: 'Spike Storm', 40: 'Sky Scorch'},
+        'evolve': None},
+    'Sortle': {
+        'stats': {'type': ['rock'], 'health': 120, 'attack': 110, 'defense': 140, 'speed': 60},
+        'moves': {0: 'Dust Beam', 1: 'Arise', 8: 'Sand Kick', 14: 'Quick Slash', 17: 'Boulder Smash', 22:'Sand Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Wind Fracture', 33: 'Crusher', 36 :'Crash Impact'},
+        'evolve': None},
+    'Sharktastrophe': {
+        'stats': {'type': ['aqua', 'spike'], 'health': 120, 'attack': 120, 'defense': 85, 'speed': 125},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21:'Haunt', 25: 'Primal Rage', 28: 'Ripping Impact', 31: 'Hurricane', 35: 'Sword Slash', 40: 'Eternal Blue'},
         'evolve': None},
 
 }
@@ -381,14 +392,15 @@ MOVE_DATA = {
 
 
     #ROCK MOVES
+    'Dust Beam': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'rock'},
     'Boulder Smash': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'rock'},
     'Crusher': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'rock'},
 
-    'Sand Kick':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'rock',
+    'Sand Kick':   {'target': 'opponent', 'damage': 0, 'accuracy': 90, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
-    'Iron Core':   {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'rock',
+    'Iron Core':   {'target': 'self', 'damage': 0, 'accuracy': 95, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 2, 'target': 'self', 'chance': 100}},             
-    'Momentum':   {'target': 'opponent', 'damage': 45, 'accuracy': 90, 'type': 'rock',
+    'Momentum':   {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
     'Crash Impact': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'type': 'rock',
                      'ability': {'kind': 'recoil', 'percent': 15, 'chance': 100}},
@@ -450,7 +462,7 @@ MOVE_DATA = {
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
 
     #DEBUFF MOVES
-    'Venom Decay':   {'target': 'opponent', 'damage': 40, 'accuracy': 95, 'type': 'ancient',
+    'Venom Decay':   {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'type': 'ancient',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
 
 
@@ -500,11 +512,29 @@ ENCOUNTER_ZONES = {
         "level_range": (3, 6)
     },
 
-    "town1_grass": {
+    "route1_special": {
         "dinos": ["Luna"],
-        "level_range": (15, 18)
+        "level_range": (16, 18)
     },
 
+    "town1_grass": {
+        "dinos": ["Sortle", "Sharktastrophe"],
+        "level_range": (6, 8)
+    },
+
+
+    
+    "route2_grass": {
+        "dinos": ["Teamtwood", "Netaslam", "Bullicorn"],
+        "level_range": (7, 11)
+
+    },
+
+    "route2_burnt_grass": {
+        "dinos": ["Sortle", "Teamtwood", "Creuw"],
+        "level_range": (8, 12)
+
+    },
 
         ######## fill more
 
@@ -528,7 +558,12 @@ ZONE_REGIONS = [
     (1+x_offset, -30+y_offset,  18+x_offset, 0+y_offset, "route1_grass"),
     (1+x_offset, -44+y_offset, 18+x_offset, -38+y_offset, "route1+_grass"),
     (1+x_offset, -35+y_offset, 13+x_offset, -31+y_offset, "route1+_grass"),
-    (16+x_offset, -37+y_offset, 18+x_offset, -37+y_offset, "town1_grass"),
+    (16+x_offset, -37+y_offset, 18+x_offset, -37+y_offset, "route1_special"),
+    #just use "z" in game to find tile in print
+    (29, -30, 33, -27, "town1_grass"),
+    (16, -42, 21, -36, "route2_grass"),
+    (32, -42, 54, -29, "route2_burnt_grass"),
+
 ]
 
 def get_zone_for_tile(tx, ty):

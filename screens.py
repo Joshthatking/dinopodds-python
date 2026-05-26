@@ -539,8 +539,8 @@ class EncounterUI:
         # Enemy info
         surface.blit(self.small_font.render(enemy_dino['name'], True, (0, 0, 0)),
                      (enemy_info_rect.x + 10, enemy_info_rect.y + 12))
-        surface.blit(self.small_font.render(f"Lv{enemy_dino['level']}", True, (0, 0, 0)),
-                     (enemy_info_rect.x + 160, enemy_info_rect.y + 12))
+        lv_surf = self.small_font.render(f"Lv{enemy_dino['level']}", True, (0, 0, 0))
+        surface.blit(lv_surf, (enemy_info_rect.x + enemy_info_rect.width - lv_surf.get_width() - 8, enemy_info_rect.y + 12))
         self.draw_hp_bar(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 40, 200, 15, ep)
         self._draw_badges(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 60,
                           enemy_dino, field_effects, show_field=True)
@@ -1240,6 +1240,10 @@ class PartyScreen:
 
         # ── Back ───────────────────────────────────────────────────
         if event.key == pygame.K_SPACE:
+            if getattr(game, "awaiting_switch", False) or getattr(game, "double_replace_slot", None) is not None:
+                game.message_box.queue_messages(
+                    ["You must choose a replacement!"], wait_for_input=True)
+                return None
             self.reset()
             if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' \
                     and game.state_stack[0] == 'world':

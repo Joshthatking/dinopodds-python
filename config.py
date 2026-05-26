@@ -86,8 +86,12 @@ ENCOUNTER_DINOS_PATHS = {
     'Bullicorn2':  os.path.join(DINOS_FRONT, 'Bullicorn.png'),
     'Netaslam':    os.path.join(DINOS_FRONT, 'Netaslam.png'),
     'Netaslam2':   os.path.join(DINOS_FRONT, 'Netaslam.png'),
-    'Netyrant':    os.path.join(DINOS_FRONT, 'Netyrant.png'),
-    'Netyrant2':   os.path.join(DINOS_FRONT, 'Netyrant.png'),
+    'Netyrant':         os.path.join(DINOS_FRONT, 'Netyrant.png'),
+    'Netyrant2':        os.path.join(DINOS_FRONT, 'Netyrant.png'),
+    'Sortle':           os.path.join(DINOS_FRONT, 'Sortle.png'),
+    'Sortle2':          os.path.join(DINOS_FRONT, 'Sortle.png'),
+    'Sharktastrophe':   os.path.join(DINOS_FRONT, 'Sharktastrophe.png'),
+    'Sharktastrophe2':  os.path.join(DINOS_FRONT, 'Sharktastrophe.png'),
 }
 
 NPC_SHEETS = {
