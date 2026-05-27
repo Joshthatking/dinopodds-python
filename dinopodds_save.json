@@ -1,31 +1,31 @@
 {
-  "coins": 2510,
+  "coins": 1600,
   "inventory": {
-    "DinoPod": 1,
+    "DinoPod": 0,
     "DinoCapsule": 0,
     "Whitepod": 0,
     "Repel": 0
   },
-  "world": "GYM1.tmx",
-  "player_x": 320,
-  "player_y": 448,
+  "world": "LOST_REGION.world",
+  "player_x": 608,
+  "player_y": -544,
   "party": [
     {
-      "name": "Luna",
-      "level": 19,
+      "name": "Netaslam",
+      "level": 7,
       "nature": "Rush",
       "type": [
         "flying",
-        "dark"
+        "spike"
       ],
-      "hp": 36,
-      "max_hp": 36,
-      "attack": 58,
-      "defense": 27,
-      "speed": 54,
-      "base_attack": 58,
-      "base_defense": 27,
-      "base_speed": 54,
+      "hp": 14,
+      "max_hp": 14,
+      "attack": 12,
+      "defense": 7,
+      "speed": 11,
+      "base_attack": 12,
+      "base_defense": 7,
+      "base_speed": 11,
       "stat_stages": {
         "attack": 0,
         "defense": 0,
@@ -33,6 +33,13 @@
       },
       "defending": false,
       "moveset": [
+        {
+          "name": "Air Strike",
+          "type": "flying",
+          "damage": 30,
+          "accuracy": 100,
+          "ability": null
+        },
         {
           "name": "Arise",
           "type": "ancient",
@@ -47,29 +54,15 @@
           }
         },
         {
-          "name": "Force Shift",
+          "name": "Fear",
           "type": "dark",
-          "damage": 40,
-          "accuracy": 100,
-          "ability": null
-        },
-        {
-          "name": "Mach Speed",
-          "type": "flying",
-          "damage": 60,
-          "accuracy": 100,
-          "ability": null
-        },
-        {
-          "name": "Shadow Veil",
-          "type": "dark",
-          "damage": 50,
-          "accuracy": 100,
+          "damage": 0,
+          "accuracy": 95,
           "ability": {
             "kind": "stat_boost",
             "stat": "defense",
-            "stages": 1,
-            "target": "self",
+            "stages": -1,
+            "target": "opponent",
             "chance": 100
           }
         }
@@ -77,30 +70,27 @@
       "moves": [
         "Air Strike",
         "Arise",
-        "Force Shift",
-        "Mach Speed",
-        "Shadow Veil"
+        "Fear"
       ],
-      "xp": 25.27000000000021,
-      "xp_to_next": 206.3100000000004,
+      "xp": 1.2300000000000466,
+      "xp_to_next": 79.35000000000002,
       "displayed_xp": 0,
-      "caught_ball": "DinoPod",
-      "last_move_used": "Force Shift"
+      "caught_ball": "DinoPod"
     },
     {
       "name": "Corlave",
-      "level": 11,
-      "nature": "Hardy",
+      "level": 7,
+      "nature": "Speedy",
       "type": [
         "aqua"
       ],
-      "hp": 22,
-      "max_hp": 22,
-      "attack": 12,
-      "defense": 11,
+      "hp": 16,
+      "max_hp": 16,
+      "attack": 9,
+      "defense": 8,
       "speed": 6,
-      "base_attack": 12,
-      "base_defense": 11,
+      "base_attack": 9,
+      "base_defense": 8,
       "base_speed": 6,
       "stat_stages": {
         "attack": 0,
@@ -134,33 +124,220 @@
         "Whirlpool",
         "Arise"
       ],
-      "xp": 38.160000000000224,
-      "xp_to_next": 121.67000000000007,
+      "xp": 25.040000000000077,
+      "xp_to_next": 79.35000000000002,
       "displayed_xp": 0,
       "caught_ball": "ballwhite"
+    },
+    {
+      "name": "Floravel",
+      "level": 7,
+      "nature": "Power",
+      "type": [
+        "earth"
+      ],
+      "hp": 14,
+      "max_hp": 14,
+      "attack": 10,
+      "defense": 11,
+      "speed": 7,
+      "base_attack": 10,
+      "base_defense": 11,
+      "base_speed": 7,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Vine Snare",
+          "type": "earth",
+          "damage": 30,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Arise",
+          "type": "ancient",
+          "damage": 0,
+          "accuracy": 100,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "attack",
+            "stages": 1,
+            "target": "self",
+            "chance": 100
+          }
+        }
+      ],
+      "moves": [
+        "Vine Snare",
+        "Arise"
+      ],
+      "xp": 27.040000000000077,
+      "xp_to_next": 79.35000000000002,
+      "displayed_xp": 0,
+      "caught_ball": "ballwhite",
+      "_prev_action_defend": false,
+      "last_move_used": "Vine Snare"
+    },
+    {
+      "name": "Prowscar",
+      "level": 7,
+      "nature": "Bulky",
+      "type": [
+        "dark"
+      ],
+      "hp": 14,
+      "max_hp": 14,
+      "attack": 11,
+      "defense": 9,
+      "speed": 11,
+      "base_attack": 11,
+      "base_defense": 9,
+      "base_speed": 11,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Bitemark",
+          "type": "dark",
+          "damage": 30,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Arise",
+          "type": "ancient",
+          "damage": 0,
+          "accuracy": 100,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "attack",
+            "stages": 1,
+            "target": "self",
+            "chance": 100
+          }
+        }
+      ],
+      "moves": [
+        "Bitemark",
+        "Arise"
+      ],
+      "xp": 69.04000000000008,
+      "xp_to_next": 79.35000000000002,
+      "displayed_xp": 0,
+      "caught_ball": "ballwhite",
+      "_prev_action_defend": false,
+      "last_move_used": "Bitemark"
+    },
+    {
+      "name": "Bullicorn",
+      "level": 6,
+      "nature": "Power",
+      "type": [
+        "spike"
+      ],
+      "hp": 17,
+      "max_hp": 17,
+      "attack": 12,
+      "defense": 12,
+      "speed": 9,
+      "base_attack": 12,
+      "base_defense": 12,
+      "base_speed": 9,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Horn Tackle",
+          "type": "spike",
+          "damage": 20,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Arise",
+          "type": "ancient",
+          "damage": 0,
+          "accuracy": 100,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "attack",
+            "stages": 1,
+            "target": "self",
+            "chance": 100
+          }
+        }
+      ],
+      "moves": [
+        "Horn Tackle",
+        "Arise"
+      ],
+      "xp": 44,
+      "xp_to_next": 68.76999999999995,
+      "displayed_xp": 0,
+      "caught_ball": "DinoPod"
     }
   ],
   "box": [],
   "story_flags": {
     "amber_intro_done": true,
-    "encounters_unlocked": true,
-    "amber_lab_done": true,
-    "gym1_accessible": true,
-    "gray_route1_done": true
+    "encounters_unlocked": true
   },
   "sandbox": false,
   "badges": [],
-  "play_time": 1224.8870000011536,
+  "play_time": 215.53699999996732,
   "dinos_seen": [
-    "Creuw",
-    "Anemamace",
-    "Corlave",
-    "Luna",
-    "Bullicorn"
+    "Netaslam",
+    "Bullicorn",
+    "Corlave"
+  ],
+  "picked_up_world_items": [
+    [
+      "LOST_REGION.world",
+      -22,
+      34
+    ],
+    [
+      "LOST_REGION.world",
+      -15,
+      20
+    ],
+    [
+      "LOST_REGION.world",
+      13,
+      3
+    ],
+    [
+      "LOST_REGION.world",
+      10,
+      22
+    ],
+    [
+      "LOST_REGION.world",
+      -22,
+      18
+    ]
+  ],
+  "defeated_trainers": [
+    "shinji",
+    "ethan",
+    "basic_trainer_girl"
   ],
   "stats": {
     "blackouts": 0,
     "dinos_fainted": 0,
-    "enemies_defeated": 14
+    "enemies_defeated": 6
   }
 }

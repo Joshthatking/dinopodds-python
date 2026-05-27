@@ -7,6 +7,44 @@
 #                 {"requires_flags": ["flag_a"], "location": "zone_name"}
 #
 # Award fields are all optional. Omit or leave empty if unused.
+#
+# ══════════════════════════════════════════════════════════════════
+# CODED STORY SEQUENCE  (flag set → what happens next)
+# ══════════════════════════════════════════════════════════════════
+#
+# 1. NEW GAME  →  game_intro_done
+#       Intro text plays immediately on new game.
+#
+# 2. LEAVE HOME (first time on overworld)  →  amber_intro_done
+#       Professor Amber walks up, gives eclipse warning dialogue,
+#       teleports to tile (7,34) as a guard blocking the grass.
+#       Eclipse overlay activates. Day/night cycle paused in eclipse.
+#
+# 3. CATCH THE 3 MISSING DINOS  →  encounters_unlocked
+#       While Amber guards the grass entrance the player must first
+#       collect dinos already visible nearby. Once the guard NPC is
+#       removed (cleared by Amber lab event) encounters are unlocked.
+#
+# 4. RETURN TO RESEARCH LAB, TALK TO AMBER  →  amber_lab_done
+#       Amber receives the dinos, rewards the player.
+#       Skyy NPC is now spawned on the overworld (Route 1).
+#
+# 5. TALK TO SKYY ON OVERWORLD  →  (no flag yet — triggers gym sequence)
+#       Skyy walks away south, gym guard is removed.
+#       Eclipse ends, day/night resets.  →  gym1_accessible
+#
+# 6. SKYY GUARD LEAVES  →  gym1_accessible
+#       Gym 1 entrance is now open.
+#       Gray (rival) spawns on Route 1 for a mandatory battle.
+#
+# 7. DEFEAT GRAY ON ROUTE 1  →  gray_route1_done
+#       Gray walks away via cutscene.
+#       Skyy now appears inside Gym 1 as the gym leader.
+#
+# 8. ENTER GYM 1, DEFEAT SKYY  →  gym1_leader_defeated
+#       Sierra Badge awarded.
+#
+# ══════════════════════════════════════════════════════════════════
 
 STORY_EVENTS = [
     {

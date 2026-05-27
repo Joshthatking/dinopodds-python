@@ -23,10 +23,32 @@ TRAINER_DATA = {
         'reward_coins': 150,
         'rank': 'medium',
     },
+    'grunt1': {
+        'name': 'Grunt',
+        'partner': 'grunt2',
+        'dinos': {0: ('Netaslam', 14)},
+        'dialog': {'default': ["You shouldn't be here!", "Double battle, now!"]},
+        'directions': ['down'],
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 300,
+        'rank': 'lowest',
+    },
+    'grunt2': {
+        'name': 'Grunt',
+        'partner': 'grunt1',
+        'dinos': {0: ('Sortle', 15)},
+        'dialog': {'default': ["Back us up!"]},
+        'directions': ['down'],
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 300,
+        'rank': 'lowest',
+    },
     'basic_trainer': {
         'name': 'Rex',
         'partner': 'basic_trainer2',
-        'dinos': {0: ('Prowscar', 5)},
+        'dinos': {0: ('Bullicorn', 4)},
         'dialog': {'default': ["Two against two!", "Double battle, go!"]},
         'directions': ['down'],
         'defeated': False,
@@ -37,7 +59,7 @@ TRAINER_DATA = {
     'basic_trainer2': {
         'name': 'Luke',
         'partner': 'basic_trainer',
-        'dinos': {0: ('Floravel', 5)},
+        'dinos': {0: ('Voltzbee', 4)},
         'dialog': {'default': ["We fight as one!"]},
         'directions': ['down'],
         'defeated': False,
@@ -47,7 +69,7 @@ TRAINER_DATA = {
     },
     'basic_trainer_girl': {
         'name': 'Lila',
-        'dinos': {0: ('Corlave', 4), 1: ('Creuw', 4)},
+        'dinos': {0: ('Bullicorn', 3), 1: ('Creuw', 3)},
         'dialog': {
             'default':  ["Hi do you want to battle with me?", "Get ready!"],
             'defeated': ["Yay thanks for the battle"]
@@ -61,7 +83,7 @@ TRAINER_DATA = {
     },
     'ethan': {
         'name': 'Ethan',
-        'dinos': {0: ('Creuw', 7)},
+        'dinos': {0: ('Netaslam', 5)},
         'dialog': {
             'default':  ["I never lose...", "Get ready!"],
             'defeated': ["Dang I gotta do better"]
@@ -76,7 +98,7 @@ TRAINER_DATA = {
 
     'shinji': {
         'name': 'Shinji',
-        'dinos': {0: ('Prowscar', 4), 1: ('Corlave', 6)},
+        'dinos': {0: ('Creuw', 4), 1: ('Bullicorn', 6)},
         'dialog': {
             'default':  ["Been waiting all day", "Let's Battle!"],
             'defeated': ["Good job, almost at the city!"]
@@ -90,7 +112,7 @@ TRAINER_DATA = {
     },
     'gray': {
         'name': 'Gray',
-        'dinos': {0: ('Prowscar', 7), 1: ('Vusion', 9)},
+        'dinos': {0: ('Prowscar', 7), 1: ('Sortle', 9)},
         'dialog': {
             'default':  [
                 "It's been awhile Jet, I am ready to start this journey and get stronger,",
@@ -110,7 +132,7 @@ TRAINER_DATA = {
     },
     'skyy': {
         'name': 'Skyy',
-        'dinos': {0: ('Creuw', 14), 1: ('Netaslam', 15), 2: ('Luna', 16)},
+        'dinos': {0: ('Creuw', 13), 1: ('Netaslam', 14), 2: ('Luna', 16)},
         'dialog': {
             'default':  [
                 "Welcome to the Sierra Flying Gym. I am Gym Leader Skyy.",
@@ -144,7 +166,7 @@ TRAINER_DATA = {
     },
     'gym_trainer_b': {
         'name': 'Connor',
-        'dinos': {0: ('Bullicorn', 9), 1: ('Floravel', 10)},
+        'dinos': {0: ('Creuw', 9), 1: ('Bullicorn', 10)},
         'dialog': {
             'default':  ["Skyy trained us well. Don't underestimate the gym!", "Battle!"],
             'defeated': ["You're tougher than I expected!"]
@@ -186,43 +208,43 @@ DINO_DATA = {
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 17: 'Wave Dash', 19: 'Double Jab', 22: 'Hurricane', 26: 'Ripping Impact'},
         'evolve': None},
     'Corlave': {
-        'stats': {'type': ['aqua'], 'health': 80, 'attack': 55, 'defense': 50, 'speed':25},
+        'stats': {'type': ['aqua'], 'health': 90, 'attack': 65, 'defense': 60, 'speed':35},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 17: 'Wave Dash', 19: 'Double Jab'},
         'evolve': {17: 'Anemamace'}},
     'Creuw': {
-        'stats': {'type': ['flying'], 'health': 50, 'attack': 65, 'defense': 40, 'speed':65},
-        'moves': {0: 'Air Strike', 1: 'Arise', 8: 'Force Shift', 16: 'Mach Speed', 18: 'Shadow Veil'},
+        'stats': {'type': ['flying'], 'health': 60, 'attack': 75, 'defense': 50, 'speed':75},
+        'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak',  16: 'Mach Speed', 18: 'Force Shift', 22: 'Shadow Veil'},
         'evolve': {16: 'Luna'}},
     'Luna': {
         'stats': {'type': ['flying', 'dark'], 'health': 100, 'attack': 135, 'defense': 80, 'speed':135},
-        'moves': {0: 'Air Strike', 1: 'Arise', 8: 'Force Shift', 16: 'Mach Speed', 18: 'Shadow Veil', 22: 'Turbo Booster', 25: 'Wind Fracture' },
+        'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak',  16: 'Mach Speed', 18: 'Force Shift', 22: 'Shadow Veil'},
         'evolve': None},
     'Prowscar': {
-        'stats': {'type': ['dark'], 'health': 50, 'attack': 70, 'defense': 50, 'speed': 70},
-        'moves': {0: 'Dark Energy', 1: 'Arise', 12: 'Lock Jaw', 14: 'Double Jab', 21: 'Shadow Veil'},
+        'stats': {'type': ['dark'], 'health': 60, 'attack': 80, 'defense': 60, 'speed': 80},
+        'moves': {0: 'Bitemark', 1: 'Arise', 8: 'Dark Energy', 12: 'Lock Jaw', 15: 'Fear', 18: 'Double Jab', 21: 'Shadow Veil', 25: 'Haunt'},
         'evolve': None},
     'Floravel': {
-        'stats': {'type': ['earth'], 'health': 50, 'attack': 50, 'defense': 70, 'speed': 40},
+        'stats': {'type': ['earth'], 'health': 55, 'attack': 65, 'defense': 80, 'speed': 50},
         'moves': {0: 'Vine Snare', 1: 'Arise', 8: 'Boulder Smash', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
         'evolve': None},
     'Bullicorn': {
-        'stats': {'type': ['spike'], 'health': 145, 'attack': 85, 'defense': 100, 'speed': 75},
-        'moves': {0: 'Horn Tackle',  1: 'Arise', 7: 'Sand Kick', 12: 'Boulder Smash', 15: 'Double Jab',},
+        'stats': {'type': ['spike'], 'health': 145, 'attack': 95, 'defense': 100, 'speed': 75},
+        'moves': {0: 'Horn Tackle',  1: 'Arise', 7: 'Sand Kick', 10: 'Static Graze', 12: 'Boulder Smash', 15: 'Double Jab'},
         'evolve': None},
     'Netaslam': {
         'stats': {'type': ['flying', 'spike'], 'health': 60, 'attack': 80, 'defense': 50, 'speed': 70},
-        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Flash', 9: 'Lock Jaw', 12: 'Quick Slash', 17: 'Double Jab', 20: 'Mach Speed', 22: 'Ripping Impact'},
+        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 21: 'Mach Speed', 25: 'Ripping Impact'},
         'evolve': {22: 'Netyrant'}},
     'Netyrant': {
         'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 145, 'defense': 70, 'speed': 125},
-        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Flash', 9: 'Lock Jaw', 12: 'Quick Slash', 17: 'Double Jab', 20: 'Mach Speed', 22: 'Ripping Impact', 26: 'Wind Fracture', 30: 'Sword Slash', 33: 'Turbo Booster', 37: 'Spike Storm', 40: 'Sky Scorch'},
+        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 20: 'Mach Speed', 22: 'Ripping Impact', 26: 'Wind Fracture', 30: 'Sword Slash', 33: 'Turbo Booster', 37: 'Spike Storm', 40: 'Sky Scorch'},
         'evolve': None},
     'Sortle': {
         'stats': {'type': ['rock'], 'health': 120, 'attack': 110, 'defense': 140, 'speed': 60},
-        'moves': {0: 'Dust Beam', 1: 'Arise', 8: 'Sand Kick', 14: 'Quick Slash', 17: 'Boulder Smash', 22:'Sand Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Wind Fracture', 33: 'Crusher', 36 :'Crash Impact'},
+        'moves': {0: 'Dust Beam', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Boulder Smash', 22:'Sand Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Wind Fracture', 33: 'Crusher', 36 :'Crash Impact'},
         'evolve': None},
     'Sharktastrophe': {
-        'stats': {'type': ['aqua', 'spike'], 'health': 120, 'attack': 120, 'defense': 85, 'speed': 125},
+        'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 120, 'defense': 115, 'speed': 125},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21:'Haunt', 25: 'Primal Rage', 28: 'Ripping Impact', 31: 'Hurricane', 35: 'Sword Slash', 40: 'Eternal Blue'},
         'evolve': None},
 
@@ -341,7 +363,7 @@ MOVE_DATA = {
     'Hurricane': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
     'Eternal Blue': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
 
-    'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'aqua',
+    'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'aqua', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
     #MAGMA MOVES
     'Fireball': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'magma'},
@@ -350,7 +372,7 @@ MOVE_DATA = {
 
     'Flame Shatter':   {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'type': 'magma',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
-    'Magma Boost':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'magma',
+    'Magma Boost':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'magma', 'priority':1,
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'magma', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
     #EARTH MOVES
    'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
@@ -368,16 +390,17 @@ MOVE_DATA = {
     'Floral Resonance': {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'earth',
                      'ability': {'kind': 'heal', 'percent': 25, 'chance': 100}},
     #FLYING MOVES
+    'Swift Sneak': {'target': 'opponent', 'damage': 40, 'accuracy': 95, 'ability': None, 'type': 'flying', 'priority': 1},
     'Air Strike': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'flying'},
-    'Mach Speed': {'target': 'opponent', 'damage': 50, 'accuracy': 100, 'ability': None, 'type': 'flying'},
+    'Mach Speed': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'flying'},
     'Wind Fracture': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'flying'},
 
-    'Turbo Booster':   {'target': 'self', 'damage': 0, 'accuracy': 95, 'type': 'flying',
+    'Turbo Booster':   {'target': 'self', 'damage': 0, 'accuracy': 95, 'type': 'flying', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
     'Sky Scorch':   {'target': 'opponent', 'damage': 120, 'accuracy': 90, 'type': 'flying',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'self', 'chance': 100}},
     #SPIKE MOVES
-    'Lock Jaw': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'spike',
+    'Lock Jaw': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'spike', 'priority':1,
                  'ability': {'kind': 'lock', 'turns': 2, 'chance': 100}},
     'Horn Tackle': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'spike'},
     'Double Jab': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'spike'},
@@ -396,9 +419,9 @@ MOVE_DATA = {
     'Boulder Smash': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'rock'},
     'Crusher': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'rock'},
 
-    'Sand Kick':   {'target': 'opponent', 'damage': 0, 'accuracy': 90, 'type': 'rock',
+    'Sand Kick':   {'target': 'opponent', 'damage': 0, 'accuracy': 95, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
-    'Iron Core':   {'target': 'self', 'damage': 0, 'accuracy': 95, 'type': 'rock',
+    'Iron Core':   {'target': 'self', 'damage': 0, 'accuracy': 90, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 2, 'target': 'self', 'chance': 100}},             
     'Momentum':   {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
@@ -409,38 +432,43 @@ MOVE_DATA = {
                                'tick_msg': 'hit by waves of sand', 'chance': 100}},
 
     #LIGHTNING MOVES
+    'Static Graze': {'target': 'opponent', 'damage': 25, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Thunder Slap': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+    'Lightning ': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Volt Storm': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
 
 
     'Conduit Surge':  {'target': 'opponent', 'damage': 50, 'accuracy': 90,  'type': 'lightning',
                      'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
-    'Quantum Flux':  {'target': 'opponent', 'damage': 70, 'accuracy': 85,  'type': 'lightning',
+    'Quantum Flux':  {'target': 'opponent', 'damage': 70, 'accuracy': 85,  'type': 'lightning', 'priority': 1,
                      'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
-    'Shock':   {'target': 'opponent', 'damage': 0, 'accuracy': 90, 'type': 'lightning',
+    'Shock':   {'target': 'opponent', 'damage': 0, 'accuracy': 95, 'type': 'lightning', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
 
     #DARK MOVES
-    'Force Shift': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None,'type': 'dark'},
-    'Dark Energy': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'dark'},
-    'Void Collapse': {'target': 'opponent', 'damage': 65, 'accuracy': 90, 'ability': None, 'type': 'dark', 'pierces_defend': True},
+    'Force Shift': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None,'type': 'dark'},
+    'Dark Energy': {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'ability': None, 'type': 'dark'},
+    'Void Collapse': {'target': 'opponent', 'damage': 75, 'accuracy': 95, 'ability': None, 'type': 'dark', 'pierces_defend': True},
+    'Bitemark': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'dark'},
 
-    'Distortion':   {'target': 'opponent', 'damage': 5, 'accuracy': 100, 'type': 'dark',
+    'Distortion':   {'target': 'opponent', 'damage': 5, 'accuracy': 100, 'type': 'dark', 'priority':1,
                      'ability': {'kind': 'field', 'effect': 'speed_swap', 'duration': 5, 'chance': 100}},
-    'Haunt':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'dark',
+    'Fear':   {'target': 'opponent', 'damage': 0, 'accuracy': 95, 'type': 'dark', 'priority':1,
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
+    'Haunt':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'dark', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'opponent', 'chance': 100}},
     'Binding Curse': {'target': 'opponent', 'damage': 25, 'accuracy': 90, 'type': 'dark',
                       'ability': {'kind': 'lock', 'turns': 2, 'chance': 100}},
-    'Shadow Veil':   {'target': 'opponent', 'damage': 50, 'accuracy': 100, 'type': 'dark',
+    'Shadow Veil':   {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'type': 'dark',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 1, 'target': 'self', 'chance': 100}},
     #LIGHT MOVES
     'Translucent Wave': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'light'},
     'Piercing Light': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'light', 'pierces_defend': True},
     'Spectral Overload': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'light'},
 
-    'Flash':   {'target': 'opponent', 'damage': 0, 'accuracy': 90, 'type': 'light',
+    'Flash':   {'target': 'opponent', 'damage': 0, 'accuracy': 95, 'type': 'light',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
-    'Refraction':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'light',
+    'Refraction':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'light', 'priority':1,
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'light', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
    'Gamma Wave':   {'target': 'opponent', 'damage': 80, 'accuracy': 90, 'type': 'light',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'opponent', 'chance': 100}},
@@ -461,13 +489,12 @@ MOVE_DATA = {
     'Arise':  {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'ancient',
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
 
-    #DEBUFF MOVES
     'Venom Decay':   {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'type': 'ancient',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
-
+    'Rushdown': {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'ability': None, 'type': 'ancient', 'priority':1},
 
     #HEALING MOVES
-    'Ancient Mend': {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'ancient',
+    'Ancient Mend': {'target': 'self', 'damage': 0, 'accuracy': 100, 'type': 'ancient', 'priority':1,
                      'ability': {'kind': 'heal', 'percent': 25, 'chance': 100}},
 
     # --- Moves with abilities ---

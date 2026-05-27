@@ -345,6 +345,8 @@ class DoubleBattleUI:
                 bc = (255, 255, 0) if i == self.move_selected else (0, 0, 0)
                 pygame.draw.rect(surface, bc, rect, 3)
                 ts = self.small_font.render(txt, True, tc)
+                if ts.get_width() > qw - 10:
+                    ts = self.smaller_font.render(txt, True, tc)
                 surface.blit(ts, (rect.centerx - ts.get_width() // 2,
                                   rect.centery - ts.get_height() // 2))
 
@@ -640,6 +642,8 @@ class EncounterUI:
                 pygame.draw.rect(surface, border_color, rect, 3)
                 text_color = (255, 255, 255) if i < len(moves) else (100, 100, 100)
                 text = self.small_font.render(move_name, True, text_color)
+                if text.get_width() > qw - 10:
+                    text = self.smaller_font.render(move_name, True, text_color)
                 surface.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
 
     def handle_input(self, event, player_dino):

@@ -106,6 +106,7 @@ NPC_SHEETS = {
     'blk_b':              os.path.join('assets', 'NPC', 'BLK_B.png'),
     'skyy':               os.path.join('assets', 'NPC', 'Skyy.png'),
     'gray':               os.path.join('assets', 'NPC', 'gray.png'),
+    'enemy_male':         os.path.join('assets', 'NPC', 'Enemy_Male.png'),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
@@ -115,6 +116,8 @@ NPC_SPRITE_KEY = {
     'shinji':        'basic_trainer2',
     'gym_trainer_a': 'blk_b',
     'gym_trainer_b': 'blk_b',
+    'grunt1':        'enemy_male',
+    'grunt2':        'enemy_male',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -130,6 +133,10 @@ WORLD_NPCS = {
         ('basic_trainer',  -2, -4, 'down', 6, 'trainer'),
         ('basic_trainer2', -1, -4, 'down', 6, 'trainer'),
         ('shinji', 13, -12, 'down', 5, 'trainer'),
+
+        # ROUTE_2 double battle pair — top-center, face south
+        ('grunt1', 32, -42, 'down', 6, 'trainer'),
+        ('grunt2', 33, -42, 'down', 6, 'trainer'),
 
     ],
     'DINOCENTER.tmx': [

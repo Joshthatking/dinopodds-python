@@ -142,6 +142,27 @@ if __name__ == '__main__':
 #Fix Items respawning after teleporting - COMPLETE
 #Fix order of dinos when selected in party, first alwasy goes first - COMPLETE
 
+#5/25
+# Fix spawns route2 - COMPLETE
+
+#5/26
+# added white box around ! in encounters - COMPLETE
+# Adjust xp scaling for party size 2x - 1.5 active, 1.33,1.25,1.1,1.0 - COMPLETE
+# When game is saved and continued from menu, current day/night/eclipse is saved - COMPLETE
+# When walking into houses or Dinocenters or gym, trainer battles should always be false - COMPLETED
+# skyy bump bug - COMPLETED
+# gray facing - COMPLETED
+# Added grunt battle to Route2 - COMPLETED
+# Adjust size of text on moves in move box - COMPLETE
+
+
+# Fix glitch if dino faints but front of party wastes turn
+# Fix visual glitch on gym trainer with wrong dino - same for rival make sure order of dinos and png is correct
+# Allow users to hit i in battle over move to see info
+# Fix glitch where moves and visual of move is saved after switching
+# Adjust xp gains again lower xp scaling with party, 1.5x active, 1.25, 1, .85. .75 also apply this logic if a dino faints
+# Add swap training for xp gains 
+
 
 # Need to edit gym badges, add all dinos to gym1
 # Need to add teleport for each house then gym1 fin. 

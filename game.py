@@ -142,6 +142,7 @@ class Game:
                 self.ball_icons[name] = surf
 
         # NPCs — populated per-world via WORLD_NPCS config
+        self.defeated_trainers = set()
         self.npcs = []
         self._spawn_world_npcs('LOST_REGION.world')
         self._maybe_add_gym_blocker()
@@ -395,6 +396,7 @@ class Game:
             'play_time': self.play_time_seconds,
             'dinos_seen': list(self.dinos_seen),
             'picked_up_world_items': [list(entry) for entry in self.picked_up_world_items],
+            'defeated_trainers': list(self.defeated_trainers),
             'stats': {
                 'blackouts': self.stats_blackouts,
                 'dinos_fainted': self.stats_dinos_fainted,
@@ -415,11 +417,23 @@ class Game:
         self.inventory = {**{item: 0 for item in config.ITEMS.keys()}, **data.get('inventory', {})}
         self.items_screen.inventory = self.inventory
         self.story_flags = data.get('story_flags', {})
+        self.day_night_timer    = 0.0
+        self.is_night           = False
+        self.dn_transitioning   = False
+        self.dn_transition_timer = 0.0
+        self.event_overlay_active = (
+            self.story_flags.get('amber_intro_done', False) and
+            not self.story_flags.get('gym1_accessible', False)
+        )
         self.sandbox = data.get('sandbox', False)
         self.badges_earned = data.get('badges', [])
         self.play_time_seconds = data.get('play_time', 0.0)
         self.dinos_seen = set(data.get('dinos_seen', []))
         self.picked_up_world_items = {tuple(e) for e in data.get('picked_up_world_items', [])}
+        self.defeated_trainers = set(data.get('defeated_trainers', []))
+        for npc in self.npcs:
+            if getattr(npc, 'trainer_id', None) in self.defeated_trainers:
+                npc.defeated = True
         s = data.get('stats', {})
         self.stats_blackouts = s.get('blackouts', 0)
         self.stats_dinos_fainted = s.get('dinos_fainted', 0)
@@ -597,9 +611,13 @@ class Game:
         if not alive:
             return msgs
         active = self.player_dinos[self.active_dino_index]
+        alive_count = len(alive)
+        _bench_mult = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}
+        active_mult = 2.0 if alive_count == 1 else 1.5
+        bench_mult  = _bench_mult.get(alive_count, 1.0)
         for dino in alive:
-            bonus = 1.3 if dino is active else 1.0
-            dino['xp'] += int(round(xp_gain * bonus))
+            mult = active_mult if dino is active else bench_mult
+            dino['xp'] += int(round(xp_gain * mult))
             while dino['xp'] >= dino['xp_to_next']:
                 base_stats = DINO_DATA[dino['name']]['stats']
                 prev_max_hp = dino['max_hp']
@@ -1215,10 +1233,12 @@ class Game:
         coin_reward = 0
         if self.current_trainer_npc:
             self.current_trainer_npc.defeated = True
+            self.defeated_trainers.add(self.current_trainer_npc.trainer_id)
             coin_reward += TRAINER_DATA.get(
                 self.current_trainer_npc.trainer_id, {}).get('reward_coins', 0)
         if self.current_trainer_npc2:
             self.current_trainer_npc2.defeated = True
+            self.defeated_trainers.add(self.current_trainer_npc2.trainer_id)
             coin_reward += TRAINER_DATA.get(
                 self.current_trainer_npc2.trainer_id, {}).get('reward_coins', 0)
 
@@ -1251,9 +1271,11 @@ class Game:
             self.coins += coin_reward
             msgs.append(f"You received {coin_reward} coins!")
         if xp_total > 0 and active:
-            msgs.append(f"{active['name']} gained {int(round(xp_total * 1.3))} XP!")
+            _db_act_m = 2.0 if len(alive) == 1 else 1.5
+            _db_ben_m = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}.get(len(alive), 1.0)
+            msgs.append(f"{active['name']} gained {int(round(xp_total * _db_act_m))} XP!")
             if len(alive) > 1:
-                msgs.append(f"Each party dino gained {xp_total} XP!")
+                msgs.append(f"Each party dino gained {int(round(xp_total * _db_ben_m))} XP!")
         msgs.extend(level_up_msgs)
         self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=pop_world)
 
@@ -1800,7 +1822,7 @@ class Game:
                 npc.facing      = 'left'
                 npc.home_tile   = (tx, ty)
                 npc.home_facing = 'left'
-                npc.sight_range = 5
+                npc.sight_range = 8
                 npc.block_dialog = [
                     "I need you to collect all 3 dinos before coming back to the lab!"
                 ]
@@ -1835,12 +1857,17 @@ class Game:
                     sx, sy = 0, 0
                 if sx != 0 or sy != 0:
                     nx, ny = npc.tile_x + sx, npc.tile_y + sy
-                    # Push player out of the way if they are on Skyy's destination tile
+                    # Bump player sideways if they are directly in Skyy's path
                     ptx = self.player.rect.x // config.TILE_SIZE
                     pty = self.player.rect.y // config.TILE_SIZE
                     if (ptx, pty) == (nx, ny):
-                        npx = (ptx + sx) * config.TILE_SIZE
-                        npy = (pty + sy) * config.TILE_SIZE
+                        perps = [(-1, 0), (1, 0)] if sx == 0 else [(0, -1), (0, 1)]
+                        bx, by = next(
+                            (p for p in perps if (ptx + p[0], pty + p[1]) not in self.solid_tile_coords),
+                            perps[0]
+                        )
+                        npx = (ptx + bx) * config.TILE_SIZE
+                        npy = (pty + by) * config.TILE_SIZE
                         self.player.rect.x = npx
                         self.player.rect.y = npy
                         self.player.pos_x = float(npx)
@@ -2376,6 +2403,7 @@ class Game:
                     if not self.message_box.visible and not self.trainer_dino_queue:
                         if self.is_trainer_battle and self.current_trainer_npc:
                             self.current_trainer_npc.defeated = True
+                            self.defeated_trainers.add(self.current_trainer_npc.trainer_id)
                         self.is_trainer_battle = False
                         self.pop_to_world()  # safety net: enemy fainted but exit was missed
                     return
@@ -2464,6 +2492,8 @@ class Game:
             trainer_id, tx, ty, facing, sight, npc_type = spec
             npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
                       facing=facing, sight_range=sight, npc_type=npc_type)
+            if trainer_id in self.defeated_trainers:
+                npc.defeated = True
             self.npcs.append(npc)
             self.solid_tile_coords.add((tx, ty))
 
@@ -3161,9 +3191,13 @@ class Game:
                     enemy_name=self.enemy_dino['name'],
                     state_multiplier=0.5,   # catching
                 )
+                _catch_bench = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}
+                _alive_ct    = len(alive)
+                _act_m       = 2.0 if _alive_ct == 1 else 1.5
+                _ben_m       = _catch_bench.get(_alive_ct, 1.0)
                 for d in alive:
-                    bonus = 1.3 if d is active else 1.0
-                    self.award_xp(d, int(round(xp_gain * bonus)))
+                    mult = _act_m if d is active else _ben_m
+                    self.award_xp(d, int(round(xp_gain * mult)))
 
             to_evolve = [(d, self.check_evolution(d)) for d in self.player_dinos if self.check_evolution(d)]
 
@@ -3176,9 +3210,11 @@ class Game:
 
             msgs = [f"You caught {self.enemy_dino['name']}!", added_msg]
             if alive and active is not None:
-                msgs.append(f"{active['name']} has gained {int(round(xp_gain * 1.3))} XP!")
+                _ct_act_m = 2.0 if len(alive) == 1 else 1.5
+                _ct_ben_m = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}.get(len(alive), 1.0)
+                msgs.append(f"{active['name']} has gained {int(round(xp_gain * _ct_act_m))} XP!")
                 if len(alive) > 1:
-                    msgs.append(f"Each party dino gained {xp_gain} XP!")
+                    msgs.append(f"Each party dino gained {int(round(xp_gain * _ct_ben_m))} XP!")
 
             def run_evolutions(i=0):
                 if i >= len(to_evolve):
@@ -3218,6 +3254,7 @@ class Game:
         attacker = self.player_dinos[self.active_dino_index]
         defender = self.enemy_dino
         attacker['defending'] = False
+        attacker['_prev_action_defend'] = False
 
         if move_index < 0 or move_index >= len(attacker['moveset']):
             return
@@ -3283,7 +3320,22 @@ class Game:
         speed_swap   = any(fx['effect'] == 'speed_swap' for fx in self.field_effects)
         p_spd        = self._get_effective_stat(attacker, 'speed')
         e_spd        = self._get_effective_stat(defender, 'speed')
-        player_first = (p_spd <= e_spd) if speed_swap else (p_spd >= e_spd)
+
+        # Priority: higher priority always goes first; ties fall back to speed
+        p_priority = MOVE_DATA.get(move_name, {}).get('priority', 0)
+        _peek_rank = 'lowest'
+        if self.is_trainer_battle and self.current_trainer_npc:
+            _peek_rank = TRAINER_DATA.get(
+                self.current_trainer_npc.trainer_id, {}).get('rank', 'lowest')
+        _peeked    = self._pick_enemy_move(defender, attacker, _peek_rank)
+        e_priority = MOVE_DATA.get((_peeked or {}).get('name', ''), {}).get('priority', 0)
+
+        if p_priority != e_priority:
+            player_first = p_priority > e_priority
+        elif speed_swap:
+            player_first = p_spd <= e_spd
+        else:
+            player_first = p_spd >= e_spd
 
         if player_first:
             if random.random() * 100 > acc:
@@ -3310,8 +3362,8 @@ class Game:
             self._enemy_turn(after=then_player)
 
     def _apply_player_attack(self, attacker, defender, move_name, power, mtype, ability=None, pierces_defend=False, after=None):
-        # Trainer dino defending check
-        if self.is_trainer_battle and defender.get('defending', False) and not pierces_defend:
+        # Trainer dino defending check — only blocks damage moves
+        if self.is_trainer_battle and defender.get('defending', False) and not pierces_defend and power > 0:
             defender['defending'] = False
             msgs = [f"{attacker['name']} used {move_name}!",
                     f"The trainer's {defender['name']} defended and took no damage!"]
@@ -3365,7 +3417,7 @@ class Game:
                 t_data = TRAINER_DATA.get(self.current_trainer_npc.trainer_id, {}) if self.current_trainer_npc else {}
                 multiplier = 1.0 if t_data.get('rank') == 'rival' else 0.9
             else:
-                multiplier = 0.75
+                multiplier = 0.8
             xp_gain = calculate_xp_gain(
                 player_level=attacker['level'],
                 opponent_level=defender['level'],
@@ -3373,9 +3425,12 @@ class Game:
                 state_multiplier=multiplier,
             )
             level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
-            xp_msgs = [f"{attacker['name']} has gained {int(round(xp_gain * 1.3))} XP!"]
-            if len(self.player_dinos) > 1:
-                xp_msgs.append(f"Each party dino gained {xp_gain} XP!")
+            _disp_alive = len([d for d in self.player_dinos if d.get('hp', 0) > 0])
+            _disp_act_m = 2.0 if _disp_alive == 1 else 1.5
+            _disp_ben_m = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}.get(_disp_alive, 1.0)
+            xp_msgs = [f"{attacker['name']} has gained {int(round(xp_gain * _disp_act_m))} XP!"]
+            if _disp_alive > 1:
+                xp_msgs.append(f"Each party dino gained {int(round(xp_gain * _disp_ben_m))} XP!")
             xp_msgs.extend(level_up_msgs)
 
             def handle_evolutions():
@@ -3392,6 +3447,7 @@ class Game:
                         return
                     if self.current_trainer_npc:
                         self.current_trainer_npc.defeated = True
+                        self.defeated_trainers.add(self.current_trainer_npc.trainer_id)
                         coin_reward = TRAINER_DATA.get(
                             self.current_trainer_npc.trainer_id, {}).get('reward_coins', 0)
                     self.is_trainer_battle = False
@@ -3464,7 +3520,7 @@ class Game:
         if self.message_box.visible or self.encounter_anim is not None:
             return
         attacker = self.player_dinos[self.active_dino_index]
-        if attacker.get('defending', False):
+        if attacker.get('_prev_action_defend', False):
             self.message_box.queue_messages(
                 [f"{attacker['name']} can't defend twice in a row!"], wait_for_input=True)
             return
@@ -3474,6 +3530,7 @@ class Game:
             return
         self.defend_uses_remaining -= 1
         attacker['defending'] = True
+        attacker['_prev_action_defend'] = True
         self.message_box.queue_messages(
             [f"{attacker['name']} braced for impact!",
              f"({self.defend_uses_remaining} Defend{'s' if self.defend_uses_remaining != 1 else ''} remaining)"],
@@ -3576,8 +3633,8 @@ class Game:
                 self.message_box.queue_messages(msgs, wait_for_input=True)
             return
 
-        # Defend check — pierces_defend moves bypass this
-        if defender.get('defending', False) and not move.get('pierces_defend', False):
+        # Defend check — only blocks damage moves; 0-power moves (self-buffs, terrain) pass through
+        if defender.get('defending', False) and not move.get('pierces_defend', False) and power > 0:
             defender['defending'] = False
             msgs = [f"{prefix}{attacker['name']} used {move['name']}!",
                     f"{defender['name']} defended and took no damage!"]

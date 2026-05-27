@@ -299,6 +299,17 @@ class NPC:
             self.facing = 'down' if dy > 0 else 'up'
 
     def _trigger_battle(self, game):
+        self.face_toward_player(game.player)
+        px = game.player.rect.x // config.TILE_SIZE
+        py = game.player.rect.y // config.TILE_SIZE
+        dx = self.tile_x - px
+        dy = self.tile_y - py
+        if abs(dx) >= abs(dy):
+            pd = 'right' if dx > 0 else 'left'
+        else:
+            pd = 'down' if dy > 0 else 'up'
+        game.player.facing = game.player.direction = pd
+        game.player.image = game.player.animations[pd][0]
         data   = TRAINER_DATA.get(self.trainer_id, {})
         dialog = data.get('dialog', {}).get('default', ["Let's battle!"])
         game.message_box.queue_messages(
@@ -312,9 +323,15 @@ class NPC:
         surface.blit(self._current_image(), (self.rect.x - camera_x, self.rect.y - camera_y))
         if self.state == 'spotted' and self.spot_timer > 0:
             if self._exclaim_font is None:
-                self._exclaim_font = pygame.font.SysFont('arial', 20, bold=True)
-            txt = self._exclaim_font.render('!', True, (220, 30, 30))
-            surface.blit(txt, (
-                self.rect.x - camera_x + self.rect.width // 2 - txt.get_width() // 2,
-                self.rect.y - camera_y - 20,
-            ))
+                self._exclaim_font = pygame.font.SysFont('arial', 28, bold=True)
+            txt = self._exclaim_font.render('!', True, (210, 30, 30))
+            pad_x, pad_y = 6, 4
+            box_w = txt.get_width() + pad_x * 2
+            box_h = txt.get_height() + pad_y * 2
+            cx = self.rect.x - camera_x + self.rect.width // 2
+            box_x = cx - box_w // 2
+            box_y = self.rect.y - camera_y - box_h - 4
+            box_rect = pygame.Rect(box_x, box_y, box_w, box_h)
+            pygame.draw.rect(surface, (245, 242, 230), box_rect, border_radius=7)
+            pygame.draw.rect(surface, (180, 170, 155), box_rect, width=1, border_radius=7)
+            surface.blit(txt, (cx - txt.get_width() // 2, box_y + pad_y))
