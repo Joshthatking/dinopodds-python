@@ -50,7 +50,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -612,7 +612,7 @@ class Game:
             return msgs
         active = self.player_dinos[self.active_dino_index]
         alive_count = len(alive)
-        _bench_mult = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}
+        _bench_mult = {2: 1.25, 3: 1.0, 4: .85, 5: .75}
         active_mult = 2.0 if alive_count == 1 else 1.5
         bench_mult  = _bench_mult.get(alive_count, 1.0)
         for dino in alive:
@@ -1717,10 +1717,17 @@ class Game:
         self.encounter_ui.xp_frozen = True
         self.encounter_text = f"{self._trainer_name} sent out {dino_name}!"
         self.encounter = Encounter(self.fonts, dino_name)
-        self.message_box.queue_messages(
-            [f"{self._trainer_name} sent out {dino_name}!", "What will you do?"],
-            wait_for_input=True
-        )
+        now = pygame.time.get_ticks()
+        frames = self.dino_frames.get(dino_name, [self.enemy_dino['image']])
+        self.encounter.current_dino_surface = frames[0]
+        self.encounter_anim = {
+            "frames": frames,
+            "frame_idx": 0,
+            "last_switch": now,
+            "interval": 250,
+            "start_time": now,
+            "duration": 800,
+        }
 
     # --- Intro Cutscene ---
 
@@ -2298,6 +2305,8 @@ class Game:
                     if result == 'back':
                         self.pop_state()
                         self.move_info_screen = None
+                        self.encounter_ui.move_selected = 0
+                        self.encounter_ui.show_move_info = False
 
             elif self.state == 'dinodex':
                 result = self.dinodex_screen.handle_event(event, self)
@@ -2314,6 +2323,8 @@ class Game:
                     else:
                         self.pop_state()
                     self.party_screen.reset()
+                    self.encounter_ui.move_selected = 0
+                    self.encounter_ui.show_move_info = False
                 elif result == 'quit':
                     self.pop_to_world()
                     self.party_screen.reset()
@@ -2904,7 +2915,7 @@ class Game:
                 _flash.set_alpha(int(self.cutscene_flash['alpha']))
                 self.screen.blit(_flash, (0, 0))
 
-        elif background_state == 'encounter':
+        elif background_state == 'encounter' and current_state != 'encounter':
             if self.is_double_battle:
                 self.encounter.draw(self.screen)
             else:

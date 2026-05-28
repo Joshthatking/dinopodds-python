@@ -76,6 +76,89 @@ class DoubleBattleEncounter:
             screen.blit(scaled, r)
 
 
+def _describe_move_effect(md):
+    lines = []
+    if md.get('priority', 0) > 0:
+        lines.append("Goes first (priority)")
+    if md.get('pierces_defend'):
+        lines.append("Pierces Defend")
+    ab = md.get('ability')
+    if ab:
+        kind = ab.get('kind')
+        target_word = "User" if ab.get('target') == 'self' else "Foe"
+        if kind == 'stat_boost':
+            stat = ab['stat'].upper()
+            stages = ab['stages']
+            sign = "+" if stages > 0 else ""
+            lines.append(f"{target_word}: {stat} {sign}{stages} stage{'s' if abs(stages) != 1 else ''}")
+        elif kind == 'recoil':
+            lines.append(f"User takes {ab['percent']}% recoil")
+        elif kind == 'lock':
+            lines.append(f"Locks foe for {ab['turns']} turns")
+        elif kind == 'dot':
+            lines.append(f"{ab['damage_percent']}% dmg/turn for {ab['turns']} turns")
+        elif kind == 'heal':
+            lines.append(f"Restores {ab['percent']}% HP")
+        elif kind == 'field':
+            eff = ab.get('effect', '')
+            if eff == 'type_power':
+                bt = ab.get('boost_type', '').capitalize()
+                lines.append(f"{bt} moves x{ab.get('multiplier', 1)} for {ab.get('duration', 0)} turns")
+            elif eff == 'speed_swap':
+                lines.append(f"Swaps speed for {ab.get('duration', 0)} turns")
+    return lines
+
+
+def _draw_move_info_panel(surface, move_name, act_rect, small_font, smaller_font):
+    md = MOVE_DATA.get(move_name, {})
+    move_type = md.get('type', 'normal')
+    damage    = md.get('damage', 0)
+    accuracy  = md.get('accuracy', 100)
+    type_color = TYPE_DATA.get(move_type, {}).get('color', (150, 150, 150))
+
+    panel_h = 130
+    panel_rect = pygame.Rect(act_rect.x, act_rect.y - panel_h, act_rect.width, panel_h)
+
+    overlay = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
+    overlay.fill((20, 20, 40, 235))
+    surface.blit(overlay, panel_rect.topleft)
+    pygame.draw.rect(surface, (200, 200, 220), panel_rect, 2)
+
+    x, y = panel_rect.x + 8, panel_rect.y + 8
+
+    # Type chip
+    chip_w = max(smaller_font.size(move_type.upper())[0] + 14, 55)
+    chip_rect = pygame.Rect(x, y + 1, chip_w, 20)
+    pygame.draw.rect(surface, type_color, chip_rect, border_radius=4)
+    t = smaller_font.render(move_type.upper(), True, (255, 255, 255))
+    surface.blit(t, (chip_rect.centerx - t.get_width() // 2, chip_rect.centery - t.get_height() // 2))
+
+    # Move name
+    name_s = small_font.render(move_name, True, (255, 255, 255))
+    surface.blit(name_s, (x + chip_w + 8, y))
+
+    # Power / Accuracy row
+    power_str = str(damage) if damage > 0 else "—"
+    surface.blit(small_font.render(f"Power: {power_str}   Acc: {accuracy}%", True, (220, 220, 180)),
+                 (x, y + 28))
+
+    # Separator
+    pygame.draw.line(surface, (90, 90, 120),
+                     (panel_rect.x + 4, y + 50), (panel_rect.right - 4, y + 50))
+
+    # Effect lines
+    effect_lines = _describe_move_effect(md)
+    if effect_lines:
+        for i, line in enumerate(effect_lines[:3]):
+            surface.blit(smaller_font.render(line, True, (160, 230, 160)), (x, y + 58 + i * 18))
+    else:
+        surface.blit(smaller_font.render("No additional effect", True, (140, 140, 160)), (x, y + 58))
+
+    # Dismiss hint
+    hint = smaller_font.render("[I] close", True, (100, 100, 140))
+    surface.blit(hint, (panel_rect.right - hint.get_width() - 6, panel_rect.bottom - hint.get_height() - 4))
+
+
 # === Double Battle UI ===
 class DoubleBattleUI:
     """HUD for 2v2 trainer battles: compact info boxes, no XP bar."""
@@ -88,6 +171,7 @@ class DoubleBattleUI:
         self.actions     = ["Fight", "Bag", "Party", "Run", "Defend"]
         self.in_fight_menu  = False
         self.move_selected  = 0
+        self.show_move_info = False
         self.level_up_popup = None
         self.xp_frozen      = True   # not used visually; kept for API compat
 
@@ -329,7 +413,7 @@ class DoubleBattleUI:
                               defend_rect.centery - ds.get_height() // 2))
         else:
             cur = active_dino or p1
-            moves = cur.get('moves', [])
+            moves = [m['name'] for m in cur.get('moveset', [])]
             qw, qh = act_rect.width // 2, act_rect.height // 2
             for i in range(4):
                 col, row = i % 2, i // 2
@@ -349,6 +433,9 @@ class DoubleBattleUI:
                     ts = self.smaller_font.render(txt, True, tc)
                 surface.blit(ts, (rect.centerx - ts.get_width() // 2,
                                   rect.centery - ts.get_height() // 2))
+            if self.show_move_info and self.move_selected < len(moves):
+                _draw_move_info_panel(surface, moves[self.move_selected], act_rect,
+                                      self.small_font, self.smaller_font)
 
     def handle_input(self, event, player_dino):
         if self.level_up_popup and self.level_up_popup.active:
@@ -375,7 +462,11 @@ class DoubleBattleUI:
                 else:
                     return self.actions[self.selected_option]
         else:
-            mc = len(player_dino['moves'])
+            if self.show_move_info:
+                if event.key in (pygame.K_i, pygame.K_SPACE):
+                    self.show_move_info = False
+                return
+            mc = len(player_dino['moveset'])
             if event.key == pygame.K_w:
                 self.move_selected = (self.move_selected - 2) % 4
                 while self.move_selected >= mc: self.move_selected = (self.move_selected - 1) % 4
@@ -390,7 +481,10 @@ class DoubleBattleUI:
                 while self.move_selected >= mc: self.move_selected = (self.move_selected - 1) % 4
             elif event.key == pygame.K_j:
                 if self.move_selected < mc:
-                    return f"UseMove:{player_dino['moves'][self.move_selected]}"
+                    return f"UseMove:{player_dino['moveset'][self.move_selected]['name']}"
+            elif event.key == pygame.K_i:
+                if self.move_selected < mc:
+                    self.show_move_info = True
             elif event.key == pygame.K_SPACE:
                 self.in_fight_menu = False
 
@@ -405,6 +499,7 @@ class EncounterUI:
         self.actions = ["Fight", "Bag", "Party", "Run", "Defend"]
         self.in_fight_menu = False
         self.move_selected = 0
+        self.show_move_info = False
         self.level_up_popup = None
         self.enemy_hp_display = None
         self.player_hp_display = None
@@ -504,7 +599,8 @@ class EncounterUI:
 
     def draw(self, surface, player_dino, enemy_dino, encounter_text, show_actions=True, trainer_total=0, trainer_defeated=0, pod_icon=None, msg_awaiting_input=False, player_visible=True, field_effects=None):
         if not show_actions:
-            self.in_fight_menu = False  # can't be in fight menu while a message is showing
+            self.in_fight_menu = False
+            self.show_move_info = False
         screen_w, screen_h = surface.get_size()
 
         text_box_rect   = pygame.Rect(9, screen_h - 120, screen_w - 325, 115)
@@ -645,6 +741,9 @@ class EncounterUI:
                 if text.get_width() > qw - 10:
                     text = self.smaller_font.render(move_name, True, text_color)
                 surface.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
+            if self.show_move_info and self.move_selected < len(moves):
+                _draw_move_info_panel(surface, moves[self.move_selected], actions_rect,
+                                      self.small_font, self.smaller_font)
 
     def handle_input(self, event, player_dino):
         if self.level_up_popup and self.level_up_popup.active:
@@ -674,6 +773,10 @@ class EncounterUI:
                 else:
                     return self.actions[self.selected_option]
         else:
+            if self.show_move_info:
+                if event.key in (pygame.K_i, pygame.K_SPACE):
+                    self.show_move_info = False
+                return
             move_count = len(player_dino['moveset'])
             if event.key == pygame.K_w:
                 self.move_selected = (self.move_selected - 2) % 4
@@ -694,6 +797,9 @@ class EncounterUI:
             elif event.key == pygame.K_j:
                 if self.move_selected < move_count:
                     return f"UseMove:{player_dino['moveset'][self.move_selected]['name']}"
+            elif event.key == pygame.K_i:
+                if self.move_selected < move_count:
+                    self.show_move_info = True
             elif event.key == pygame.K_SPACE:
                 self.in_fight_menu = False
 

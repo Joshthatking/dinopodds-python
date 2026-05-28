@@ -92,6 +92,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Sortle2':          os.path.join(DINOS_FRONT, 'Sortle.png'),
     'Sharktastrophe':   os.path.join(DINOS_FRONT, 'Sharktastrophe.png'),
     'Sharktastrophe2':  os.path.join(DINOS_FRONT, 'Sharktastrophe.png'),
+    'Magnecrab':        os.path.join(DINOS_FRONT, 'Magnecrab.png'),
+    'Magnecrab2':       os.path.join(DINOS_FRONT, 'Magnecrab.png'),
 }
 
 NPC_SHEETS = {

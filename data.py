@@ -195,6 +195,7 @@ DINODEX_DATA = {
     'Netyrant':  {'number': 10, 'desc': "Netyrant's wings have fully developed allowing it to soar the skies while hunting, becoming an apex predator."},
     'Sharktastrophe':  {'number': 11, 'desc': "A vicious oceanic beast, with sharp spikes protruding as its main source of weaponry."},
     'Sortle':  {'number': 12, 'desc': "This turtle has a shell made of sand actively swirling like a tornado, similar to its counterpart Frostle."},
+    'Magnecrab':  {'number': 13, 'desc': "An underwater abomination, this crab has magnetic trident like claws which surge with electricity all while being native to the ocean."},
 
 }
 
@@ -246,6 +247,10 @@ DINO_DATA = {
     'Sharktastrophe': {
         'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 120, 'defense': 115, 'speed': 125},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21:'Haunt', 25: 'Primal Rage', 28: 'Ripping Impact', 31: 'Hurricane', 35: 'Sword Slash', 40: 'Eternal Blue'},
+        'evolve': None},
+    'Magnecrab': {
+        'stats': {'type': ['aqua', 'lightning'], 'health': 140, 'attack': 110, 'defense': 75, 'speed': 100},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Thunder Slap', 14: 'Flash', 18: 'Double Jab', 24:'Lightning Rod', 28: 'Hurricane', 31: 'Ripping Impact', 35: 'Conduit Surge', 39: 'Quantum Flux', 44: 'Eternal Blue'},
         'evolve': None},
 
 }
@@ -363,7 +368,7 @@ MOVE_DATA = {
     'Hurricane': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
     'Eternal Blue': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
 
-    'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'aqua', 'priority':1,
+    'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 95, 'type': 'aqua', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
     #MAGMA MOVES
     'Fireball': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'magma'},
@@ -434,7 +439,9 @@ MOVE_DATA = {
     #LIGHTNING MOVES
     'Static Graze': {'target': 'opponent', 'damage': 25, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Thunder Slap': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
-    'Lightning ': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+    'Lightning Rod': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'ability': None, 'type': 'lightning',
+                        'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 50},
+},
     'Volt Storm': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
 
 

@@ -155,11 +155,11 @@ if __name__ == '__main__':
 # Added grunt battle to Route2 - COMPLETED
 # Adjust size of text on moves in move box - COMPLETE
 
-
+#5/27
 # Fix glitch if dino faints but front of party wastes turn
-# Fix visual glitch on gym trainer with wrong dino - same for rival make sure order of dinos and png is correct
-# Allow users to hit i in battle over move to see info
-# Fix glitch where moves and visual of move is saved after switching
+# Fix visual glitch on gym trainer with wrong dino - same for rival make sure order of dinos and png is correct - COMPLETE
+# Allow users to hit i in battle over move to see info - COMPLETED
+# Fix glitch where moves and visual of move is saved after switching - COMPLETE
 # Adjust xp gains again lower xp scaling with party, 1.5x active, 1.25, 1, .85. .75 also apply this logic if a dino faints
 # Add swap training for xp gains 
 
