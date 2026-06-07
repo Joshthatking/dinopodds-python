@@ -94,6 +94,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Sharktastrophe2':  os.path.join(DINOS_FRONT, 'Sharktastrophe.png'),
     'Magnecrab':        os.path.join(DINOS_FRONT, 'Magnecrab.png'),
     'Magnecrab2':       os.path.join(DINOS_FRONT, 'Magnecrab.png'),
+    'Volkit':           os.path.join(DINOS_FRONT, 'Volkit.png'),
+    'Volkit2':          os.path.join(DINOS_FRONT, 'Volkit.png'),
 }
 
 NPC_SHEETS = {
@@ -213,7 +215,7 @@ SHOP_ITEMS = [
 # Ball pickups on map — Tiled object property "item" -> dino name
 DINO_BALL_MAP = {
     'dino1': 'Floravel',
-    'dino2': 'Prowscar',
+    'dino2': 'Volkit',
     'dino3': 'Corlave',
 }
 DINO_BALL_LEVEL = 5

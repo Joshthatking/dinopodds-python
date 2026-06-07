@@ -196,6 +196,7 @@ DINODEX_DATA = {
     'Sharktastrophe':  {'number': 11, 'desc': "A vicious oceanic beast, with sharp spikes protruding as its main source of weaponry."},
     'Sortle':  {'number': 12, 'desc': "This turtle has a shell made of sand actively swirling like a tornado, similar to its counterpart Frostle."},
     'Magnecrab':  {'number': 13, 'desc': "An underwater abomination, this crab has magnetic trident like claws which surge with electricity all while being native to the ocean."},
+    'Volkit':     {'number': 14, 'desc': "A fierce cat with a molten core. Volkit is a fast and agile attacker who blazes in battle."},
 
 }
 
@@ -206,11 +207,11 @@ DINO_DATA = {
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 110, 'defense': 115, 'speed':90},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 17: 'Wave Dash', 19: 'Double Jab', 22: 'Hurricane', 26: 'Ripping Impact'},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab', 22: 'Hurricane', 26: 'Ripping Impact'},
         'evolve': None},
     'Corlave': {
-        'stats': {'type': ['aqua'], 'health': 90, 'attack': 65, 'defense': 60, 'speed':35},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 17: 'Wave Dash', 19: 'Double Jab'},
+        'stats': {'type': ['aqua'], 'health': 90, 'attack': 70, 'defense': 70, 'speed':40},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab'},
         'evolve': {17: 'Anemamace'}},
     'Creuw': {
         'stats': {'type': ['flying'], 'health': 60, 'attack': 75, 'defense': 50, 'speed':75},
@@ -225,8 +226,8 @@ DINO_DATA = {
         'moves': {0: 'Bitemark', 1: 'Arise', 8: 'Dark Energy', 12: 'Lock Jaw', 15: 'Fear', 18: 'Double Jab', 21: 'Shadow Veil', 25: 'Haunt'},
         'evolve': None},
     'Floravel': {
-        'stats': {'type': ['earth'], 'health': 55, 'attack': 65, 'defense': 80, 'speed': 50},
-        'moves': {0: 'Vine Snare', 1: 'Arise', 8: 'Boulder Smash', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
+        'stats': {'type': ['earth'], 'health': 55, 'attack': 75, 'defense': 85, 'speed': 55},
+        'moves': {0: 'Vine Snare', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
         'evolve': None},
     'Bullicorn': {
         'stats': {'type': ['spike'], 'health': 145, 'attack': 95, 'defense': 100, 'speed': 75},
@@ -251,6 +252,10 @@ DINO_DATA = {
     'Magnecrab': {
         'stats': {'type': ['aqua', 'lightning'], 'health': 140, 'attack': 110, 'defense': 75, 'speed': 100},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Thunder Slap', 14: 'Flash', 18: 'Double Jab', 24:'Lightning Rod', 28: 'Hurricane', 31: 'Ripping Impact', 35: 'Conduit Surge', 39: 'Quantum Flux', 44: 'Eternal Blue'},
+        'evolve': None},
+    'Volkit': {
+        'stats': {'type': ['magma'], 'health': 60, 'attack': 85, 'defense': 55, 'speed': 70},
+        'moves': {0: 'Fireball', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear'},
         'evolve': None},
 
 }

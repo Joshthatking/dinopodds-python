@@ -163,6 +163,8 @@ if __name__ == '__main__':
 # Adjust xp gains again lower xp scaling with party, 1.5x active, 1.25, 1, .85. .75 also apply this logic if a dino faints
 # Add swap training for xp gains 
 
+#6/7
+
 
 # Need to edit gym badges, add all dinos to gym1
 # Need to add teleport for each house then gym1 fin. 
