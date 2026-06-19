@@ -197,6 +197,7 @@ DINODEX_DATA = {
     'Sortle':  {'number': 12, 'desc': "This turtle has a shell made of sand actively swirling like a tornado, similar to its counterpart Frostle."},
     'Magnecrab':  {'number': 13, 'desc': "An underwater abomination, this crab has magnetic trident like claws which surge with electricity all while being native to the ocean."},
     'Volkit':     {'number': 14, 'desc': "A fierce cat with a molten core. Volkit is a fast and agile attacker who blazes in battle."},
+    'Drafyton':   {'number': 15, 'desc': "TBD"},
 
 }
 
@@ -256,6 +257,10 @@ DINO_DATA = {
     'Volkit': {
         'stats': {'type': ['magma'], 'health': 60, 'attack': 85, 'defense': 55, 'speed': 70},
         'moves': {0: 'Fireball', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear'},
+        'evolve': None},
+    'Drafyton': {
+        'stats': {'type': ['ancient', 'flying'], 'health': 100, 'attack': 155, 'defense': 125, 'speed': 120},
+        'moves': {0: 'Fossil Break', 1: 'Arise', 8: 'Quick Slash', 12: 'Fireball', 16: 'Rushdown', 20: 'Mach Speed', 23: 'Primal Rage', 25: 'Fear', 27: 'Ancient Mend', 29: 'Flame Shatter', 31: 'Force Shift', 33: 'Raging Pursuit', 35: 'Crusher', 38: 'Sky Scorch', 42: 'Spike Storm' },
         'evolve': None},
 
 }
@@ -494,6 +499,8 @@ MOVE_DATA = {
     'Frozen Aura': {'target': 'self', 'damage': 10, 'accuracy': 100, 'type': 'ice',
                      'ability': {'kind': 'heal', 'percent': 30, 'chance': 100}},
     #ANCIENT MOVES
+    'Fossil Break': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'ancient'},
+
     'Raging Pursuit': {'target': 'opponent', 'damage': 55, 'accuracy': 90, 'ability': None, 'type': 'ancient', 'pierces_defend': True},
 
     'Primal Rage':  {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'ancient',

@@ -96,6 +96,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Magnecrab2':       os.path.join(DINOS_FRONT, 'Magnecrab.png'),
     'Volkit':           os.path.join(DINOS_FRONT, 'Volkit.png'),
     'Volkit2':          os.path.join(DINOS_FRONT, 'Volkit.png'),
+    'Drafyton':         os.path.join(DINOS_FRONT, 'Drafyton.png'),
+    'Drafyton2':        os.path.join(DINOS_FRONT, 'Drafyton.png'),
 }
 
 NPC_SHEETS = {
