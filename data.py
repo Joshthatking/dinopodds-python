@@ -197,7 +197,9 @@ DINODEX_DATA = {
     'Sortle':  {'number': 12, 'desc': "This turtle has a shell made of sand actively swirling like a tornado, similar to its counterpart Frostle."},
     'Magnecrab':  {'number': 13, 'desc': "An underwater abomination, this crab has magnetic trident like claws which surge with electricity all while being native to the ocean."},
     'Volkit':     {'number': 14, 'desc': "A fierce cat with a molten core. Volkit is a fast and agile attacker who blazes in battle."},
-    'Drafyton':   {'number': 15, 'desc': "TBD"},
+    'Drafyton':   {'number': 15, 'desc': "A mysterious creature who once roamed and conquered both land and sky in the Lost Region, now a shell remains... This fossilized dragon keeps its hardened strength and is resilient in any battle."},
+    'Auraliz':    {'number': 16, 'desc': "A majestic aura surrounds this cold blooded lizard, it is said to freeze the water of any nearby source when it is near. "},
+    'Voltzbee':   {'number': 17, 'desc': "This electric bee helps polinate the region lightning fast, locals say the charge it produces synthesizes with the solar panels nearby."},
 
 }
 
@@ -239,7 +241,7 @@ DINO_DATA = {
         'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 21: 'Mach Speed', 25: 'Ripping Impact'},
         'evolve': {22: 'Netyrant'}},
     'Netyrant': {
-        'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 145, 'defense': 70, 'speed': 125},
+        'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 145, 'defense': 75, 'speed': 125},
         'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 20: 'Mach Speed', 22: 'Ripping Impact', 26: 'Wind Fracture', 30: 'Sword Slash', 33: 'Turbo Booster', 37: 'Spike Storm', 40: 'Sky Scorch'},
         'evolve': None},
     'Sortle': {
@@ -261,6 +263,14 @@ DINO_DATA = {
     'Drafyton': {
         'stats': {'type': ['ancient', 'flying'], 'health': 100, 'attack': 155, 'defense': 125, 'speed': 120},
         'moves': {0: 'Fossil Break', 1: 'Arise', 8: 'Quick Slash', 12: 'Fireball', 16: 'Rushdown', 20: 'Mach Speed', 23: 'Primal Rage', 25: 'Fear', 27: 'Ancient Mend', 29: 'Flame Shatter', 31: 'Force Shift', 33: 'Raging Pursuit', 35: 'Crusher', 38: 'Sky Scorch', 42: 'Spike Storm' },
+        'evolve': None},
+    'Auraliz': {
+        'stats': {'type': ['ice', 'aqua'], 'health': 92, 'attack': 118, 'defense': 117, 'speed': 123},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane', 26: 'Hyperfrost', 29: 'Deep Freeze',31: 'Fear', 34: 'Hailstorm', 37: 'Freeze Blast', 42:'Eternal Blue'},
+        'evolve': None},
+    'Voltzbee': {
+        'stats': {'type': ['lightning', 'flying'], 'health': 77, 'attack': 113, 'defense': 83, 'speed': 142},
+        'moves': {0: 'Stinger Shock', 1: 'Flash', 8: 'Air Strike', 12: 'Thunder Blitz', 18: 'Mach Speed', 22: 'Translucent Wave'},
         'evolve': None},
 
 }
@@ -447,8 +457,9 @@ MOVE_DATA = {
                                'tick_msg': 'hit by waves of sand', 'chance': 100}},
 
     #LIGHTNING MOVES
+    'Stinger Shock': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Static Graze': {'target': 'opponent', 'damage': 25, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
-    'Thunder Slap': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+    'Thunder Blitz': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Lightning Rod': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'ability': None, 'type': 'lightning',
                         'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 50},
 },
@@ -490,7 +501,8 @@ MOVE_DATA = {
    'Gamma Wave':   {'target': 'opponent', 'damage': 80, 'accuracy': 90, 'type': 'light',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'opponent', 'chance': 100}},
     #ICE MOVES
-    'Freeze Blast': {'target': 'opponent', 'damage': 70, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+    'Snowfall': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+    'Freeze Blast': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'ice'},
     'Hyperfrost': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'ice', 'pierces_defend': True},
 
     'Hail Storm': {'target': 'opponent', 'damage': 25, 'accuracy': 90, 'type': 'ice',
@@ -498,6 +510,8 @@ MOVE_DATA = {
                                'tick_msg': 'pelted by the raging hail', 'chance': 100}},
     'Frozen Aura': {'target': 'self', 'damage': 10, 'accuracy': 100, 'type': 'ice',
                      'ability': {'kind': 'heal', 'percent': 30, 'chance': 100}},
+    'Deep Freeze':   {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'type': 'ice',
+                    'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
     #ANCIENT MOVES
     'Fossil Break': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'ancient'},
 
@@ -635,10 +649,7 @@ def calculate_xp_gain(player_level, opponent_level, enemy_name=None, base_xp=7, 
         base_xp = (s['health'] + s['attack'] + s['defense'] + s['speed']) / 50
 
     ratio = opponent_level / player_level
-    if ratio < 1.0:
-        level_factor = max(0.15, ratio ** 1.4)
-    else:
-        level_factor = ratio ** 1.15
+    level_factor = max(0.3, min(1.4, ratio ** 0.7))
 
     xp = base_xp * opponent_level * level_factor * state_multiplier
 

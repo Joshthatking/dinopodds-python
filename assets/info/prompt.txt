@@ -3,7 +3,7 @@ PROMPTS TO GET GBA GRAPHICS
 -DINO PROMPTS
 
 - Encounter Perspective
-96x96 pixel art sprite in GBA-era Pokémon style (like Pokémon FireRed and LeafGreen), based on (description or image). 3/4 top-down view, strong silhouette. Limited palette (≤10 colors), clean crisp pixels (no anti-aliasing), top-left lighting, subtle shading, transparent background. Avoid gradients, realism, or modern rendering
+96x96 pixel art sprite in GBA-era Pokémon style (like Pokémon FireRed and LeafGreen), based on (description or image). 3/4 top-down view, strong silhouette. Limited palette (≤10 colors), clean crisp pixels (no anti-aliasing), top-left lighting, subtle shading, transparent background. Avoid gradients, realism, or modern rendering. NO BACKGROUND but make sure to fill in black where needed
 
 - Battle perspective
 Using the provided image as the exact reference for design, create a back-facing battle sprite in the style of Game Boy Advance Pokémon games like FireRed/LeafGreen.

@@ -166,6 +166,14 @@ if __name__ == '__main__':
 #6/19!
 # Add Drafyton to game! 
 
+#6/22
+# XP rework , more xp and less floor on lower level, higher level drop off
+
+#6/24
+# Auraliz/Voltzbee into game!
+
+#ADD a section in the dinodex of weaknesses, and resistances to each dino with colorful icons and text
+
 # Need to edit gym badges, add all dinos to gym1
 # Need to add teleport for each house then gym1 fin. 
 

@@ -50,7 +50,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]

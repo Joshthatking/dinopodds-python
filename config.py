@@ -98,6 +98,10 @@ ENCOUNTER_DINOS_PATHS = {
     'Volkit2':          os.path.join(DINOS_FRONT, 'Volkit.png'),
     'Drafyton':         os.path.join(DINOS_FRONT, 'Drafyton.png'),
     'Drafyton2':        os.path.join(DINOS_FRONT, 'Drafyton.png'),
+    'Auraliz':          os.path.join(DINOS_FRONT, 'Auraliz.png'),
+    'Auraliz2':         os.path.join(DINOS_FRONT, 'Auraliz.png'),
+    'Voltzbee':         os.path.join(DINOS_FRONT, 'Voltzbee.png'),
+    'Voltzbee2':        os.path.join(DINOS_FRONT, 'Voltzbee.png'),
 }
 
 NPC_SHEETS = {
