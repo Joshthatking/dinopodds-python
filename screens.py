@@ -2547,6 +2547,7 @@ class DinodexScreen:
         self.name_font    = pygame.font.SysFont('Arial', 22, bold=True)
         self.small_font   = pygame.font.SysFont('Arial', 18)
         self.tiny_font    = pygame.font.SysFont('Arial', 15)
+        self.micro_font   = pygame.font.SysFont('Arial', 12)
 
         # Build sorted entry list from DINODEX_DATA
         self.entries = sorted(DINODEX_DATA.items(), key=lambda kv: kv[1]['number'])
@@ -2745,21 +2746,22 @@ class DinodexScreen:
                     continue
                 lbl_surf = self.tiny_font.render(section_label, True, hdr_color)
                 screen.blit(lbl_surf, (panel_x, stats_y))
-                bx = panel_x + lbl_surf.get_width() + 8
+                bx = panel_x + lbl_surf.get_width() + 6
                 row_start_y = stats_y
                 for t, m in sorted(matchup.items()):
                     mstr = mult_fmt.get(m, f'{m}x')
                     text = f"{t.upper()} {mstr}"
-                    badge_surf = self.tiny_font.render(text, True, (255, 255, 255))
-                    bw = badge_surf.get_width() + 10
+                    text_color = (20, 20, 20) if t in ('light', 'lightning') else (255, 255, 255)
+                    badge_surf = self.micro_font.render(text, True, text_color)
+                    bw = badge_surf.get_width() + 8
                     if bx + bw > panel_x + panel_w - 20:
-                        bx = panel_x + lbl_surf.get_width() + 8
-                        stats_y += 22
+                        bx = panel_x
+                        stats_y += 19
                         row_start_y = stats_y
-                    pygame.draw.rect(screen, _tc(t), (bx, stats_y, bw, 20), border_radius=4)
-                    screen.blit(badge_surf, (bx + 5, stats_y + 2))
-                    bx += bw + 5
-                stats_y = row_start_y + 26
+                    pygame.draw.rect(screen, _tc(t), (bx, stats_y, bw, 17), border_radius=3)
+                    screen.blit(badge_surf, (bx + 4, stats_y + 2))
+                    bx += bw + 4
+                stats_y = row_start_y + 23
 
 
 class Menu:

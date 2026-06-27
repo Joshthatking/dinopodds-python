@@ -179,6 +179,12 @@ if __name__ == '__main__':
 # BUFF STARTERS
 
 #6/26
+# Fixed lightning in type val
+# Bouldava
+#  Nerf Luna - moved moves around
+
+#lower xp gain a little for on level dinos or higher, lower multiplayer slightly on rival 
+#increase attack/make defense less effective - SLIGTHLY
 
 
 # Need to edit gym badges, add all dinos to gym1
