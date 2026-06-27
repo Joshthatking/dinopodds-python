@@ -69,7 +69,7 @@ TRAINER_DATA = {
     },
     'basic_trainer_girl': {
         'name': 'Lila',
-        'dinos': {0: ('Bullicorn', 3), 1: ('Creuw', 3)},
+        'dinos': {0: ('Bullicorn', 3), 1: ('Teamtwood', 3)},
         'dialog': {
             'default':  ["Hi do you want to battle with me?", "Get ready!"],
             'defeated': ["Yay thanks for the battle"]
@@ -83,7 +83,7 @@ TRAINER_DATA = {
     },
     'ethan': {
         'name': 'Ethan',
-        'dinos': {0: ('Netaslam', 5)},
+        'dinos': {0: ('Teamtwood', 5)},
         'dialog': {
             'default':  ["I never lose...", "Get ready!"],
             'defeated': ["Dang I gotta do better"]
@@ -166,7 +166,7 @@ TRAINER_DATA = {
     },
     'gym_trainer_b': {
         'name': 'Connor',
-        'dinos': {0: ('Creuw', 9), 1: ('Bullicorn', 10)},
+        'dinos': {0: ('Creuw', 9), 1: ('Voltzbee', 10)},
         'dialog': {
             'default':  ["Skyy trained us well. Don't underestimate the gym!", "Battle!"],
             'defeated': ["You're tougher than I expected!"]
@@ -200,6 +200,8 @@ DINODEX_DATA = {
     'Drafyton':   {'number': 15, 'desc': "A mysterious creature who once roamed and conquered both land and sky in the Lost Region, now a shell remains... This fossilized dragon keeps its hardened strength and is resilient in any battle."},
     'Auraliz':    {'number': 16, 'desc': "A majestic aura surrounds this cold blooded lizard, it is said to freeze the water of any nearby source when it is near. "},
     'Voltzbee':   {'number': 17, 'desc': "This electric bee helps polinate the region lightning fast, locals say the charge it produces synthesizes with the solar panels nearby."},
+    'Teamtwood':  {'number': 18, 'desc': "A worker at heart, Teamtwood provides assitance to locals all year round with its love for the Earth."},
+    'Tygrafire':  {'number': 19, 'desc': "With heat equal to stars emitting from its giant paws, Tygrafire is sure to fire up the its opponents."},
 
 }
 
@@ -210,10 +212,10 @@ DINO_DATA = {
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 110, 'defense': 115, 'speed':90},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab', 22: 'Hurricane', 26: 'Ripping Impact'},
+        'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab', 22: 'Hurricane', 26: 'Ripping Impact'},
         'evolve': None},
     'Corlave': {
-        'stats': {'type': ['aqua'], 'health': 90, 'attack': 70, 'defense': 70, 'speed':40},
+        'stats': {'type': ['aqua'], 'health': 90, 'attack': 80, 'defense': 80, 'speed':50},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab'},
         'evolve': {17: 'Anemamace'}},
     'Creuw': {
@@ -225,12 +227,12 @@ DINO_DATA = {
         'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak',  16: 'Mach Speed', 18: 'Force Shift', 22: 'Shadow Veil'},
         'evolve': None},
     'Prowscar': {
-        'stats': {'type': ['dark'], 'health': 60, 'attack': 80, 'defense': 60, 'speed': 80},
+        'stats': {'type': ['dark'], 'health': 60, 'attack': 95, 'defense': 70, 'speed': 80},
         'moves': {0: 'Bitemark', 1: 'Arise', 8: 'Dark Energy', 12: 'Lock Jaw', 15: 'Fear', 18: 'Double Jab', 21: 'Shadow Veil', 25: 'Haunt'},
         'evolve': None},
     'Floravel': {
-        'stats': {'type': ['earth'], 'health': 55, 'attack': 75, 'defense': 85, 'speed': 55},
-        'moves': {0: 'Vine Snare', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
+        'stats': {'type': ['earth'], 'health': 60, 'attack': 85, 'defense': 95, 'speed': 60},
+        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
         'evolve': None},
     'Bullicorn': {
         'stats': {'type': ['spike'], 'health': 145, 'attack': 95, 'defense': 100, 'speed': 75},
@@ -257,9 +259,9 @@ DINO_DATA = {
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Thunder Slap', 14: 'Flash', 18: 'Double Jab', 24:'Lightning Rod', 28: 'Hurricane', 31: 'Ripping Impact', 35: 'Conduit Surge', 39: 'Quantum Flux', 44: 'Eternal Blue'},
         'evolve': None},
     'Volkit': {
-        'stats': {'type': ['magma'], 'health': 60, 'attack': 85, 'defense': 55, 'speed': 70},
-        'moves': {0: 'Fireball', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear'},
-        'evolve': None},
+        'stats': {'type': ['magma'], 'health': 62, 'attack': 95, 'defense': 68, 'speed': 75},
+        'moves': {0: 'Fireball+', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear'},
+        'evolve': {18: 'Tygrafire'}},
     'Drafyton': {
         'stats': {'type': ['ancient', 'flying'], 'health': 100, 'attack': 155, 'defense': 125, 'speed': 120},
         'moves': {0: 'Fossil Break', 1: 'Arise', 8: 'Quick Slash', 12: 'Fireball', 16: 'Rushdown', 20: 'Mach Speed', 23: 'Primal Rage', 25: 'Fear', 27: 'Ancient Mend', 29: 'Flame Shatter', 31: 'Force Shift', 33: 'Raging Pursuit', 35: 'Crusher', 38: 'Sky Scorch', 42: 'Spike Storm' },
@@ -271,6 +273,14 @@ DINO_DATA = {
     'Voltzbee': {
         'stats': {'type': ['lightning', 'flying'], 'health': 77, 'attack': 113, 'defense': 83, 'speed': 142},
         'moves': {0: 'Stinger Shock', 1: 'Flash', 8: 'Air Strike', 12: 'Thunder Blitz', 18: 'Mach Speed', 22: 'Translucent Wave'},
+        'evolve': None},
+    'Teamtwood': {
+        'stats': {'type': ['earth'], 'health': 88, 'attack': 102, 'defense': 128, 'speed': 107},
+        'moves': {0: 'Log Roll', 1: 'Sand Kick', 9: 'Synthesis', 12: 'Vine Snare', 15: 'Boulder Smash', 18: 'Floral Resonance', 22: 'Dread Thorn', 27: 'Terraform', 31: 'Double Jab', 35: 'Tree Spin'},
+        'evolve': None},
+    'Tygrafire': {
+        'stats': {'type': ['magma'], 'health': 95, 'attack': 137, 'defense': 95, 'speed': 128},
+        'moves': {0: 'Fireball', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear', 24: 'Piercing Light', 27: 'Lava Burst', 31: 'Crusher' , 35: 'Magma Boost', 39: 'Solar Flare'},
         'evolve': None},
 
 }
@@ -295,7 +305,7 @@ TYPE_DATA = {
     },
     'earth': {
         'super_eff': ['aqua', 'rock', 'lighting'],
-        'weak_eff': ['earth', 'ancient', 'flying', 'magma'],
+        'weak_eff': ['earth', 'ancient', 'flying', 'magma', 'ice'],
         'resist':['earth', 'aqua', 'lightning', 'light'],
         'weak_to': ['magma', 'ice', 'flying', 'spike'],
         'color': config.EARTH
@@ -345,7 +355,7 @@ TYPE_DATA = {
     'ice': {
         'super_eff': ['earth', 'flying', 'ancient'],
         'weak_eff': ['aqua', 'ice', 'magma'],
-        'resist': ['ice'],
+        'resist': ['ice', 'earth'],
         'weak_to': ['rock', 'magma'],
         'color': config.ICE
     },
@@ -362,7 +372,7 @@ TYPE_DATA = {
 
 
 TYPE_CHART_VAL = {
-    'aqua': {'aqua': 5, 'magma': 20, 'earth': 5, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lightning': 10, 'ice': 10, 'ancient': 5},
+    'aqua': {'aqua': 5, 'magma': 20, 'earth': 5, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lightning': 10, 'ice': 5  , 'ancient': 5},
     'magma': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 5, 'lightning': 10, 'ice': 20, 'ancient': 5},
     'earth': {'aqua': 20, 'magma': 5, 'earth': 5, 'flying': 5, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 20, 'lightning': 20, 'ice': 10,'ancient': 5},
     'flying': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 10, 'dark': 10 , 'light': 10, 'spike': 20, 'rock': 5, 'lighting': 5, 'ice': 10,'ancient': 10},
@@ -385,6 +395,8 @@ TYPE_CHART_VAL = {
 MOVE_DATA = {
     #AQUA MOVES
     'Whirlpool': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
+    'Whirlpool+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
+
     'Hurricane': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
     'Eternal Blue': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
 
@@ -392,6 +404,7 @@ MOVE_DATA = {
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
     #MAGMA MOVES
     'Fireball': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'magma'},
+    'Fireball+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'magma'},
     'Lava Burst': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'magma'},
     'Solar Flare': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'magma'},
 
@@ -400,7 +413,9 @@ MOVE_DATA = {
     'Magma Boost':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'magma', 'priority':1,
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'magma', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
     #EARTH MOVES
-   'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Log Roll': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+   'Vine Snare+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Dread Thorn': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Tree Spin': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'earth'},
 
@@ -564,11 +579,11 @@ ENCOUNTER_ZONES = {
     # },
 
     "route1_grass": {
-        "dinos": ["Anemamace", "Corlave"],
-        "level_range": (3,4)
+        "dinos": ["Bullicorn", "Voltzbee"],
+        "level_range": (2,4)
     },
     "route1+_grass": {
-        "dinos": ["Creuw", "Bullicorn", "Netaslam"],
+        "dinos": ["Creuw", "Bullicorn", "Netaslam", "Voltzbee", "Teamtwood"],
         "level_range": (3, 6)
     },
 
@@ -649,7 +664,7 @@ def calculate_xp_gain(player_level, opponent_level, enemy_name=None, base_xp=7, 
         base_xp = (s['health'] + s['attack'] + s['defense'] + s['speed']) / 50
 
     ratio = opponent_level / player_level
-    level_factor = max(0.3, min(1.4, ratio ** 0.7))
+    level_factor = max(0.3, min(1.3, ratio ** 0.5))
 
     xp = base_xp * opponent_level * level_factor * state_multiplier
 
@@ -678,7 +693,7 @@ def HP_Base(base_hp,level, p=1.4):
     return round(base_hp * (level / 50) ** p + 10)
 
 def Base_Stats(base, level):
-    return round(base * (level/50 ))
+    return round(base * (level / 50) ** 0.7)
 
 
 ################## BATTLE MATHEMATICS #################

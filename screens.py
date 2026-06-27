@@ -2563,6 +2563,23 @@ class DinodexScreen:
         row_h = 36
         return (config.HEIGHT - self.HEADER_H) // row_h
 
+    def _type_matchups(self, types):
+        """Returns (weaknesses, resistances) dicts of type -> multiplier for the given type list."""
+        result = {}
+        for atk in TYPE_DATA:
+            mult = 1.0
+            for def_type in types:
+                td = TYPE_DATA.get(def_type, {})
+                if atk in td.get('weak_to', []):
+                    mult *= 2.0
+                elif atk in td.get('resist', []):
+                    mult *= 0.5
+            if mult != 1.0:
+                result[atk] = mult
+        weak   = {t: m for t, m in result.items() if m > 1.0}
+        resist = {t: m for t, m in result.items() if m < 1.0}
+        return weak, resist
+
     def handle_event(self, event, game):
         if event.type != pygame.KEYDOWN:
             return None
@@ -2702,6 +2719,47 @@ class DinodexScreen:
             stats_y += 24
             if stats_y > config.HEIGHT - 10:
                 break
+
+        # Weaknesses / Resistances
+        weak, resist = self._type_matchups(types)
+        if (weak or resist) and stats_y + 52 <= config.HEIGHT - 4:
+            stats_y += 8
+            pygame.draw.line(screen, (60, 60, 90),
+                             (panel_x, stats_y), (panel_x + panel_w - 20, stats_y), 1)
+            stats_y += 5
+
+            mult_fmt = {4.0: '4x', 2.0: '2x', 0.5: '\xbdx', 0.25: '\xbcx'}
+
+            def _tc(t):
+                raw = TYPE_DATA.get(t, {}).get('color', '#505050')
+                if isinstance(raw, str):
+                    raw = raw.lstrip('#')
+                    return tuple(int(raw[i:i+2], 16) for i in (0, 2, 4))
+                return raw
+
+            for section_label, matchup, hdr_color in [
+                ('WEAKNESSES', weak,   (255, 110, 110)),
+                ('RESISTANCES', resist, (110, 210, 130)),
+            ]:
+                if not matchup:
+                    continue
+                lbl_surf = self.tiny_font.render(section_label, True, hdr_color)
+                screen.blit(lbl_surf, (panel_x, stats_y))
+                bx = panel_x + lbl_surf.get_width() + 8
+                row_start_y = stats_y
+                for t, m in sorted(matchup.items()):
+                    mstr = mult_fmt.get(m, f'{m}x')
+                    text = f"{t.upper()} {mstr}"
+                    badge_surf = self.tiny_font.render(text, True, (255, 255, 255))
+                    bw = badge_surf.get_width() + 10
+                    if bx + bw > panel_x + panel_w - 20:
+                        bx = panel_x + lbl_surf.get_width() + 8
+                        stats_y += 22
+                        row_start_y = stats_y
+                    pygame.draw.rect(screen, _tc(t), (bx, stats_y, bw, 20), border_radius=4)
+                    screen.blit(badge_surf, (bx + 5, stats_y + 2))
+                    bx += bw + 5
+                stats_y = row_start_y + 26
 
 
 class Menu:

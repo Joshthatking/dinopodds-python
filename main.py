@@ -172,7 +172,14 @@ if __name__ == '__main__':
 #6/24
 # Auraliz/Voltzbee into game!
 
-#ADD a section in the dinodex of weaknesses, and resistances to each dino with colorful icons and text
+#6/25
+# ADD a section in the dinodex of weaknesses, and resistances to each dino with colorful icons and text
+# Added Teamtwood and Tygrafire
+# Need to make the stats not be linear to level 50 base stats, let them be exponential and fade slower towards 50
+# BUFF STARTERS
+
+#6/26
+
 
 # Need to edit gym badges, add all dinos to gym1
 # Need to add teleport for each house then gym1 fin. 

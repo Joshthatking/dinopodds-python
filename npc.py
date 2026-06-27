@@ -83,8 +83,17 @@ class NPC:
     def _player_tile(self, player):
         return player.rect.x // config.TILE_SIZE, player.rect.y // config.TILE_SIZE
 
-    def can_see_player(self, player):
-        return self._player_tile(player) in self._sight_tiles()
+    def can_see_player(self, player, solid=None):
+        sight = self._sight_tiles()
+        player_tile = self._player_tile(player)
+        if player_tile not in sight:
+            return False
+        if solid:
+            player_idx = sight.index(player_tile)
+            for tile in sight[:player_idx]:
+                if tile in solid:
+                    return False
+        return True
 
     def _pixel_close(self, player):
         """True when NPC sprite edge is touching the player sprite edge."""
@@ -169,7 +178,7 @@ class NPC:
             # dist = abs(px - self.tile_x) + abs(py - self.tile_y)
             # if not game.message_box.visible and not player.moving and dist <= self.sight_range:
             #     self.state = 'approaching'
-            if not game.message_box.visible and not player.moving and self.can_see_player(player):
+            if not game.message_box.visible and not player.moving and self.can_see_player(player, game.solid_tile_coords | game.solid_tiles):
                 self.state = 'approaching'
 
         elif self.state == 'approaching':
@@ -229,7 +238,7 @@ class NPC:
                 dist = abs(px - self.tile_x) + abs(py - self.tile_y)
                 in_range = not player.moving and dist <= self.sight_range
             else:
-                in_range = not player.moving and self.can_see_player(player)
+                in_range = not player.moving and self.can_see_player(player, game.solid_tile_coords | game.solid_tiles)
             if in_range:
                 # For double-battle pairs, also alert the partner immediately
                 data       = TRAINER_DATA.get(self.trainer_id, {})

@@ -50,7 +50,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygrafire"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -957,13 +957,11 @@ class Game:
         dinos = data.get('dinos', {})
         sorted_keys = sorted(dinos.keys())
         override = getattr(npc, 'override_first_dino', None)
+        dino_name, dino_level = dinos[sorted_keys[0]]
+        self.trainer_dino_queue = [(dinos[k][0], dinos[k][1]) for k in sorted_keys[1:]]
         if override:
-            dino_name, dino_level = override
-            self.trainer_dino_queue = [(dinos[k][0], dinos[k][1]) for k in sorted_keys[1:]]
-        else:
-            dino_name, dino_level = dinos[sorted_keys[0]]
-            self.trainer_dino_queue = [(dinos[k][0], dinos[k][1]) for k in sorted_keys[1:]]
-        self.trainer_dinos_total = len(sorted_keys)
+            self.trainer_dino_queue.append(override)
+        self.trainer_dinos_total = len(self.trainer_dino_queue) + 1
         self.trainer_dinos_defeated = 0
 
         self.enemy_dino = self.create_dino(dino_name, dino_level)
@@ -2072,11 +2070,11 @@ class Game:
              if d['name'] in starter_names), None
         )
         starter_to_gray = {
-            'Floravel': ('Prowscar', 7),  # player kept dino1 → Gray uses dino2
-            'Prowscar': ('Corlave',  7),  # player kept dino2 → Gray uses dino3
-            'Corlave':  ('Floravel', 7),  # player kept dino3 → Gray uses dino1
+            'Volkit':  ('Corlave',  9),  # player kept magma → Gray uses aqua
+            'Corlave': ('Floravel', 9),  # player kept aqua  → Gray uses earth
+            'Floravel':('Volkit',   9),  # player kept earth → Gray uses magma
         }
-        gray_first_dino = starter_to_gray.get(player_starter, ('Prowscar', 7))
+        gray_first_dino = starter_to_gray.get(player_starter, ('Corlave', 9))
         tx, ty = -2, -11
         gray = NPC('gray', tile_x=tx, tile_y=ty, facing='right',
                    sight_range=5, npc_type='trainer')
