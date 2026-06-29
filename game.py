@@ -50,7 +50,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygrafire", "Bouldava"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygrafire", "Bouldava", "Ghoulflame"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -92,6 +92,7 @@ class Game:
         self.box_tile_coords = set()
         self.box_screen = BoxScreen(self)
         self.type_chart_tile_coords = set()
+        self.lore_tile_coords = set()
         self.type_chart_image = pygame.image.load('assets/SCREENS/TYPE_CHARv2.png').convert_alpha()
 
         # Items
@@ -612,7 +613,7 @@ class Game:
             return msgs
         active = self.player_dinos[self.active_dino_index]
         alive_count = len(alive)
-        _bench_mult = {2: 1.25, 3: 1.0, 4: .85, 5: .75}
+        _bench_mult = {2: 1.15, 3: 0.9, 4: 0.75, 5: 0.6}
         active_mult = 2.0 if alive_count == 1 else 1.5
         bench_mult  = _bench_mult.get(alive_count, 1.0)
         for dino in alive:
@@ -1568,6 +1569,7 @@ class Game:
         solid, encounter, tile_types, entrances, exits, ball_items = set(), set(), {}, {}, set(), {}
         self.box_tile_coords = set()   # reset; populated below if map has a box object
         self.type_chart_tile_coords = set()
+        self.lore_tile_coords = set()
         for layer in tmx.visible_layers:
             if isinstance(layer, pytmx.TiledTileLayer):
                 above = self._layer_num(layer) >= 4
@@ -1582,6 +1584,8 @@ class Game:
                         encounter.add(wpos)
                         if props.get('type'):
                             tile_types[wpos] = props['type']
+                    if props.get('lore1'):
+                        self.lore_tile_coords.add(wpos)
                     eid = props.get('entrance_id') or (f'{x}_{y}' if props.get('entrance') else None)
                     if eid:
                         entrances[wpos] = eid
@@ -2159,6 +2163,7 @@ class Game:
         entrances = {}  # (tx, ty) -> entrance_id string
         exits = set()   # (tx, ty) tiles that return to previous world
         ball_items = {}  # (tx, ty) -> (item_name, image)
+        self.lore_tile_coords = set()
 
         for m in world_json['maps']:
             tmx_path = os.path.normpath(os.path.join(world_dir, m['fileName']))
@@ -2191,6 +2196,8 @@ class Game:
                             entrances[wpos] = eid
                         if props.get('exit'):
                             exits.add(wpos)
+                        if props.get('lore1'):
+                            self.lore_tile_coords.add(wpos)
                 elif isinstance(layer, pytmx.TiledObjectGroup):
                     for obj in layer:
                         props = obj.properties or {}
@@ -2467,6 +2474,26 @@ class Game:
                 return True
         return False
 
+    def check_lore_interact(self):
+        if self.fading:
+            return False
+        px = self.player.rect.x // config.TILE_SIZE
+        py = self.player.rect.y // config.TILE_SIZE
+        dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[self.player.facing]
+        for d in range(1, 3):
+            if (px + dx * d, py + dy * d) in self.lore_tile_coords:
+                self.message_box.queue_messages([
+                    "A Tale of 2 Halves",
+                    "One exists to provide energy",
+                    "The other to rest",
+                    "Both in harmony bring order to all",
+                    "Though entropy takes place",
+                    "Chaos exists when balance is broken",
+                    "Only the other can balance the imbalanced",
+                ], wait_for_input=True)
+                return True
+        return False
+
     def handle_world_event(self, event):
         if event.type != pygame.KEYDOWN:
             return
@@ -2491,6 +2518,8 @@ class Game:
             if self.check_type_chart_interact():
                 pass
             elif self.check_box_interact():
+                pass
+            elif self.check_lore_interact():
                 pass
             elif not self.interact_with_npc():
                 self.pickup_item()

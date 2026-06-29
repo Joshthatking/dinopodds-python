@@ -203,6 +203,7 @@ DINODEX_DATA = {
     'Teamtwood':  {'number': 18, 'desc': "A worker at heart, Teamtwood provides assitance to locals all year round with its love for the Earth."},
     'Tygrafire':  {'number': 19, 'desc': "With heat equal to stars emitting from its giant paws, Tygrafire is sure to fire up the its opponents."},
     'Bouldava':   {'number': 20, 'desc': "The Molten Lava Rock dino, known to bathe in the magma at the base of the Megi Volcano."},
+    'Ghoulflame': {'number': 21, 'desc': "This Ghoul resides in the Episc Chateau in Elder Town, it's spirit likes to lurk around the area and play pranks. With fire and dark energy to use on foes."},
 
 }
 
@@ -237,7 +238,7 @@ DINO_DATA = {
         'evolve': None},
     'Bullicorn': {
         'stats': {'type': ['spike'], 'health': 145, 'attack': 95, 'defense': 100, 'speed': 75},
-        'moves': {0: 'Horn Tackle',  1: 'Arise', 7: 'Sand Kick', 10: 'Static Graze', 12: 'Boulder Smash', 15: 'Double Jab'},
+        'moves': {0: 'Arise', 4: 'Horn Tackle', 7: 'Sand Kick', 10: 'Static Graze', 12: 'Boulder Smash', 15: 'Double Jab'},
         'evolve': None},
     'Netaslam': {
         'stats': {'type': ['flying', 'spike'], 'health': 60, 'attack': 80, 'defense': 50, 'speed': 70},
@@ -273,19 +274,23 @@ DINO_DATA = {
         'evolve': None},
     'Voltzbee': {
         'stats': {'type': ['lightning', 'flying'], 'health': 77, 'attack': 113, 'defense': 83, 'speed': 142},
-        'moves': {0: 'Stinger Shock', 1: 'Flash', 8: 'Air Strike', 12: 'Thunder Blitz', 18: 'Mach Speed', 22: 'Piercing Light'},
+        'moves': {0: 'Flash', 4: 'Stinger Shock', 8: 'Air Strike', 12: 'Thunder Blitz', 18: 'Mach Speed', 22: 'Piercing Light'},
         'evolve': None},
     'Teamtwood': {
         'stats': {'type': ['earth'], 'health': 88, 'attack': 102, 'defense': 128, 'speed': 107},
-        'moves': {0: 'Log Roll', 1: 'Sand Kick', 9: 'Synthesis', 12: 'Vine Snare', 15: 'Boulder Smash', 18: 'Floral Resonance', 22: 'Dread Thorn', 27: 'Terraform', 31: 'Double Jab', 35: 'Tree Spin'},
+        'moves': {0: 'Sand Kick', 4: 'Log Roll', 9: 'Synthesis', 12: 'Vine Snare', 15: 'Boulder Smash', 18: 'Floral Resonance', 22: 'Dread Thorn', 27: 'Terraform', 31: 'Double Jab', 35: 'Tree Spin'},
         'evolve': None},
     'Tygrafire': {
         'stats': {'type': ['magma'], 'health': 95, 'attack': 137, 'defense': 95, 'speed': 128},
-        'moves': {0: 'Fireball', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear', 24: 'Piercing Light', 27: 'Lava Burst', 31: 'Crusher' , 35: 'Magma Boost', 39: 'Solar Flare'},
+        'moves': {0: 'Fireball+', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear', 24: 'Piercing Light', 27: 'Lava Burst', 31: 'Crusher' , 35: 'Magma Boost', 39: 'Solar Flare'},
         'evolve': None},
     'Bouldava': {
         'stats': {'type': ['rock'], 'health': 120, 'attack': 105, 'defense': 135, 'speed': 80},
         'moves': {0: "Boulder Smash", 1: 'Sand Kick', 12: 'Flame Shatter', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 39:'Crash Impact' },
+        'evolve': None},
+    'Ghoulflame': {
+        'stats': {'type': ['dark', 'magma'], 'health': 106, 'attack': 116, 'defense': 94, 'speed': 114},
+        'moves': {0: 'Fireball', 1: 'Fear', 9: 'Dark Energy', 12: 'Binding Curse', 15: 'Prism Glare', 18: 'Magma Boost', 21: 'Flame Shatter', 24: 'Distortion', 26: 'Force Shift', 28: 'Haunt', 32: 'Lava Burst', 37: 'Void Collapse'},
         'evolve': None},
 
 }
@@ -448,16 +453,14 @@ MOVE_DATA = {
     'Lock Jaw': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'spike', 'priority':1,
                  'ability': {'kind': 'lock', 'turns': 2, 'chance': 100}},
     'Horn Tackle': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'spike'},
-    'Double Jab': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'spike'},
-    'Ripping Impact': {'target': 'opponent', 'damage': 50, 'accuracy': 90, 'ability': None, 'type': 'spike', 'pierces_defend': True},
+    'Double Jab': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None, 'type': 'spike'},
+    'Ripping Impact': {'target': 'opponent', 'damage': 55, 'accuracy': 90, 'ability': None, 'type': 'spike', 'pierces_defend': True},
     'Power Fang': {'target': 'opponent', 'damage': 50, 'accuracy': 100, 'ability': None, 'type': 'spike'},
-    'Sword Slash': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'spike'},
+    'Sword Slash': {'target': 'opponent', 'damage': 70, 'accuracy': 100, 'ability': None, 'type': 'spike'},
+    'Quick Slash': {'target': 'opponent', 'damage': 40, 'accuracy': 95, 'ability': None, 'type': 'spike', 'priority': 1},
 
     'Spike Storm': {'target': 'opponent', 'damage': 110, 'accuracy': 95, 'type': 'spike',
                     'ability': {'kind': 'recoil', 'percent': 25, 'chance': 100}},
-    'Quick Slash':  {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'type': 'spike',
-                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
-
 
     #ROCK MOVES
     'Dust Beam': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'rock'},
@@ -669,7 +672,7 @@ def calculate_xp_gain(player_level, opponent_level, enemy_name=None, base_xp=7, 
         base_xp = (s['health'] + s['attack'] + s['defense'] + s['speed']) / 50
 
     ratio = opponent_level / player_level
-    level_factor = max(0.3, min(1.3, ratio ** 0.5))
+    level_factor = max(0.3, min(1.3, ratio ** 0.35))
 
     xp = base_xp * opponent_level * level_factor * state_multiplier
 
@@ -704,7 +707,7 @@ def Base_Stats(base, level):
 ################## BATTLE MATHEMATICS #################
 
 def Damage(level, attack, power, defender_defense, STAB, effectiveness, random): #randoom 217-255 , STAB (1,1.5), Type Modifier (40,20,10,5,2.5)
-    return ((((((((2*level / 7) * attack * power)/defender_defense)/50)+2)*STAB)*effectiveness/10)*random)/255
+    return ((((((((2*level / 7) * attack * power)/(defender_defense * 0.95))/50)+2)*STAB)*effectiveness/10)*random)/255
 
 # tesing = Damage(16,18,30,17,1.5,10,220)
 # print(tesing) -----> 6.34

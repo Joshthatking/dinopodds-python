@@ -183,8 +183,17 @@ if __name__ == '__main__':
 # Bouldava
 #  Nerf Luna - moved moves around
 
+#6/28
+# Added Ghoulflame
 #lower xp gain a little for on level dinos or higher, lower multiplayer slightly on rival 
-#increase attack/make defense less effective - SLIGTHLY
+#DEFENDER DEFENSE *.95 to make attacks more effective ---**** CHANGE IF NEEDED
+# Route 1.4 Lore added
+
+#6/29
+#Reduce xp share xp per size of party
+#adjust moves early game (Teamtwood/Bullicorn/Voltzbee)
+
+#downgrade Tygrafire design
 
 
 # Need to edit gym badges, add all dinos to gym1

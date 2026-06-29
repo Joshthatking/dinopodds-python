@@ -108,6 +108,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Tygrafire2':       os.path.join(DINOS_FRONT, 'Tygrafire.png'),
     'Bouldava':         os.path.join(DINOS_FRONT, 'Bouldava.png'),
     'Bouldava2':        os.path.join(DINOS_FRONT, 'Bouldava.png'),
+    'Ghoulflame':       os.path.join(DINOS_FRONT, 'Ghoulflame.png'),
+    'Ghoulflame2':      os.path.join(DINOS_FRONT, 'Ghoulflame.png'),
 }
 
 NPC_SHEETS = {
