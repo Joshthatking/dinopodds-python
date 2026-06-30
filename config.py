@@ -104,12 +104,14 @@ ENCOUNTER_DINOS_PATHS = {
     'Voltzbee2':        os.path.join(DINOS_FRONT, 'Voltzbee.png'),
     'Teamtwood':        os.path.join(DINOS_FRONT, 'Teamtwood.png'),
     'Teamtwood2':       os.path.join(DINOS_FRONT, 'Teamtwood.png'),
-    'Tygrafire':        os.path.join(DINOS_FRONT, 'Tygrafire.png'),
-    'Tygrafire2':       os.path.join(DINOS_FRONT, 'Tygrafire.png'),
+    'Tygraflare':        os.path.join(DINOS_FRONT, 'Tygraflare.png'),
+    'Tygraflare2':       os.path.join(DINOS_FRONT, 'Tygraflare.png'),
     'Bouldava':         os.path.join(DINOS_FRONT, 'Bouldava.png'),
     'Bouldava2':        os.path.join(DINOS_FRONT, 'Bouldava.png'),
     'Ghoulflame':       os.path.join(DINOS_FRONT, 'Ghoulflame.png'),
     'Ghoulflame2':      os.path.join(DINOS_FRONT, 'Ghoulflame.png'),
+    'Scarecrux':        os.path.join(DINOS_FRONT, 'scarecrux.png'),
+    'Scarecrux2':       os.path.join(DINOS_FRONT, 'scarecrux.png'),
 }
 
 NPC_SHEETS = {

@@ -192,8 +192,8 @@ if __name__ == '__main__':
 #6/29
 #Reduce xp share xp per size of party
 #adjust moves early game (Teamtwood/Bullicorn/Voltzbee)
-
-#downgrade Tygrafire design
+# TygraFlare - design and name change
+# added Scarecrux
 
 
 # Need to edit gym badges, add all dinos to gym1

@@ -83,6 +83,111 @@
             "width": 640,
             "x": 1120,
             "y": -1376
+        },
+        {
+            "fileName": "../MAPS/ROUTE2.2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1760,
+            "y": -1376
+        },
+        {
+            "fileName": "../MAPS/ROUTE2.3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1760,
+            "y": -896
+        },
+        {
+            "fileName": "../MAPS/ROUTE2.4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1120,
+            "y": -896
+        },
+        {
+            "fileName": "../MAPS/ROUTE2.5.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 2400,
+            "y": -1376
+        },
+        {
+            "fileName": "../MAPS/ROUTE2.7.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1760,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/ROUTE2.6.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 2400,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/TREE_BLOCK.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1120,
+            "y": -416
+        },
+        {
+            "fileName": "../MAPS/TREE_BLOCK2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1760,
+            "y": -416
+        },
+        {
+            "fileName": "../MAPS/TREE_BLOCK3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": 544
+        },
+        {
+            "fileName": "../MAPS/TREE_BLOCK4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1088,
+            "y": 64
+        },
+        {
+            "fileName": "../MAPS/TREE_BLOCK5.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 2400,
+            "y": -896
+        },
+        {
+            "fileName": "../MAPS/TREE_BLOCK6.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": -1376
+        },
+        {
+            "fileName": "../MAPS/TREE_BLOCK8.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/TREE_BLOCK9.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": 1024
+        },
+        {
+            "fileName": "../MAPS/ROUTE2_FILL_0.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1120,
+            "y": -1856
         }
     ],
     "onlyShowAdjacentMaps": false,
