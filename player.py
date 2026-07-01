@@ -188,7 +188,7 @@ class Player(pygame.sprite.Sprite):
             else:
                 return
 
-        if on_enc and random.random() < 0.15:
+        if on_enc and random.random() < 0.10:
             game.trigger_encounter()
 
     def check_for_entrance(self, game):

@@ -194,7 +194,14 @@ if __name__ == '__main__':
 #adjust moves early game (Teamtwood/Bullicorn/Voltzbee)
 # TygraFlare - design and name change
 # added Scarecrux
+# ROUTE 2 expansion
+# 15% -> 10% ENCOUNTER RATE
 
+#6/30
+#TOWN 2 - Elder Town 90% complete 
+#CORN MAZE - 90% Complete
+
+# make corn maze encounters 5%
 
 # Need to edit gym badges, add all dinos to gym1
 # Need to add teleport for each house then gym1 fin. 

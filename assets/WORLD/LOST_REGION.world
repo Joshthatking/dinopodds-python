@@ -151,7 +151,7 @@
             "fileName": "../MAPS/TREE_BLOCK4.tmx",
             "height": 480,
             "width": 640,
-            "x": 1088,
+            "x": 1120,
             "y": 64
         },
         {
@@ -188,6 +188,62 @@
             "width": 640,
             "x": 1120,
             "y": -1856
+        },
+        {
+            "fileName": "../MAPS/CORN_MAZE1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 3040,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/CORN_MAZE2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 3680,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/CORN_MAZE3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 4320,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/CORN_MAZE4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 3040,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/CORN_MAZE5.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 3680,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/TOWN2_1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 2400,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/TOWN2_2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1760,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/TOWN2_3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 2400,
+            "y": -2816
         }
     ],
     "onlyShowAdjacentMaps": false,
