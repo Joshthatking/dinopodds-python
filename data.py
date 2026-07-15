@@ -26,7 +26,7 @@ TRAINER_DATA = {
     'grunt1': {
         'name': 'Grunt',
         'partner': 'grunt2',
-        'dinos': {0: ('Netaslam', 14)},
+        'dinos': {0: ('Ghoulflame', 14)},
         'dialog': {'default': ["You shouldn't be here!", "Double battle, now!"]},
         'directions': ['down'],
         'defeated': False,
@@ -205,6 +205,7 @@ DINODEX_DATA = {
     'Bouldava':   {'number': 20, 'desc': "The Molten Lava Rock dino, known to bathe in the magma at the base of the Megi Volcano."},
     'Ghoulflame': {'number': 21, 'desc': "This Ghoul resides in the Episc Chateau in Elder Town, it's spirit likes to lurk around the area and play pranks. With fire and dark energy to use on foes."},
     'Scarecrux':  {'number': 22, 'desc': "At first just folk lore to the residents of Elder Town, this odd scarecrow has been scaring Creuws for years only to be put to rest by the great Luna watching over, it is said to only come alive at night..."},
+    'Palidian':   {'number': 23, 'desc': "???"},
 
 }
 
@@ -296,6 +297,10 @@ DINO_DATA = {
     'Scarecrux': {
         'stats': {'type': ['dark', 'earth'], 'health': 110, 'attack': 136, 'defense': 124, 'speed': 88},
         'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Vine Snare', 15: 'Haunt', 19: 'Distortion', 23: 'Dread Thorn', 26: 'Force Shift', 29: 'Thunder Blitz', 33: 'Tree Spin', 37: 'Void Collapse'},
+        'evolve': None},
+    'Palidian': {
+        'stats': {'type': ['light'], 'health': 85, 'attack': 100, 'defense': 85, 'speed': 95},
+        'moves': {0: 'Arise', 1: 'Flash'},
         'evolve': None},
 
 }

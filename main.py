@@ -201,6 +201,9 @@ if __name__ == '__main__':
 #TOWN 2 - Elder Town 90% complete 
 #CORN MAZE - 90% Complete
 
+#7/6
+
+
 # make corn maze encounters 5%
 
 # Need to edit gym badges, add all dinos to gym1

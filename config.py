@@ -112,6 +112,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Ghoulflame2':      os.path.join(DINOS_FRONT, 'Ghoulflame.png'),
     'Scarecrux':        os.path.join(DINOS_FRONT, 'scarecrux.png'),
     'Scarecrux2':       os.path.join(DINOS_FRONT, 'scarecrux.png'),
+    'Palidian':         os.path.join(DINOS_FRONT, 'Palidian.png'),
+    'Palidian2':        os.path.join(DINOS_FRONT, 'Palidian.png'),
 }
 
 NPC_SHEETS = {
