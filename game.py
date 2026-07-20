@@ -1,6 +1,7 @@
 import pygame
 import pytmx
 import json
+import re
 from player import Player
 from npc import NPC
 import os
@@ -50,7 +51,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -126,6 +127,10 @@ class Game:
         # Message box
         self.message_box = MessageBox(config.WIDTH, self.fonts)
 
+        # Sandbox-only coordinate teleport input (Ctrl+Z)
+        self.coord_input_active = False
+        self.coord_input_text = ''
+
         # Heal animation state
         self.heal_anim = None
         self.yes_no_prompt = None
@@ -147,6 +152,7 @@ class Game:
         self.npcs = []
         self._spawn_world_npcs('LOST_REGION.world')
         self._maybe_add_gym_blocker()
+        self._maybe_add_gym2_blocker()
         self._maybe_add_skyy()
 
         # Hit flash state
@@ -450,6 +456,7 @@ class Game:
         self.player.target_y = py
         self.state_stack = ['world']
         self._maybe_add_gym_blocker()
+        self._maybe_add_gym2_blocker()
         self._maybe_add_skyy()
 
     def _dino_to_dict(self, dino):
@@ -1230,16 +1237,19 @@ class Game:
     def _finish_double_battle(self):
         """Mark both trainers defeated, give XP, give coins, return to world."""
         coin_reward = 0
-        if self.current_trainer_npc:
-            self.current_trainer_npc.defeated = True
-            self.defeated_trainers.add(self.current_trainer_npc.trainer_id)
-            coin_reward += TRAINER_DATA.get(
-                self.current_trainer_npc.trainer_id, {}).get('reward_coins', 0)
-        if self.current_trainer_npc2:
-            self.current_trainer_npc2.defeated = True
-            self.defeated_trainers.add(self.current_trainer_npc2.trainer_id)
-            coin_reward += TRAINER_DATA.get(
-                self.current_trainer_npc2.trainer_id, {}).get('reward_coins', 0)
+        npc1 = self.current_trainer_npc
+        npc2 = self.current_trainer_npc2
+        if npc1:
+            npc1.defeated = True
+            self.defeated_trainers.add(npc1.trainer_id)
+            coin_reward += TRAINER_DATA.get(npc1.trainer_id, {}).get('reward_coins', 0)
+        if npc2:
+            npc2.defeated = True
+            self.defeated_trainers.add(npc2.trainer_id)
+            coin_reward += TRAINER_DATA.get(npc2.trainer_id, {}).get('reward_coins', 0)
+
+        grunt_pair = bool(npc1 and npc2 and
+                          {npc1.trainer_id, npc2.trainer_id} == {'grunt1', 'grunt2'})
 
         alive = [d for d in self.player_dinos if d.get('hp', 0) > 0]
         active = self.player_dinos[self.active_dino_index] if self.player_dinos else None
@@ -1264,6 +1274,8 @@ class Game:
                 evo_target = self.check_evolution(dino)
                 if evo_target:
                     self.start_evolution(dino, evo_target)
+            if grunt_pair:
+                self._start_grunts_walk_away(npc1, npc2)
 
         msgs = ["You won the double battle!"]
         if coin_reward > 0:
@@ -1695,6 +1707,7 @@ class Game:
         for npc in self.npcs:
             self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
         self._maybe_add_gym_blocker()
+        self._maybe_add_gym2_blocker()
         self._maybe_add_skyy()
         self._maybe_add_gray_rival()
         # Place player one tile behind where they entered, facing back out
@@ -1750,6 +1763,7 @@ class Game:
         # ── Adjust to match home exit tile in LOST_REGION.world ──
         self._place_player(11, 44)
         self._maybe_add_gym_blocker()
+        self._maybe_add_gym2_blocker()
         self._maybe_add_skyy()
         if not self.story_flags.get('amber_intro_done'):
             self._start_amber_intro_cutscene()
@@ -1768,8 +1782,58 @@ class Game:
         }
         self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0}
 
+    def _start_grunts_walk_away(self, npc1, npc2):
+        npc1.facing = npc2.facing = 'right'
+        self.cutscene = {
+            'phase': 'grunts_walking',
+            'npc': npc1,
+            'npc2': npc2,
+            'walk_target': (npc1.tile_x + 7, npc1.tile_y),
+            'walk_target2': (npc2.tile_x + 7, npc2.tile_y),
+        }
+
+    def _update_grunts_walking(self, dt):
+        c = self.cutscene
+        npc1, npc2 = c['npc'], c['npc2']
+        all_done = True
+        for npc, target in ((npc1, c['walk_target']), (npc2, c['walk_target2'])):
+            if npc.is_moving:
+                npc.anim_timer += dt
+                if npc.anim_timer >= npc.anim_speed:
+                    npc.anim_timer = 0.0
+                    npc.anim_frame = (npc.anim_frame + 1) % 4
+                npc._slide(dt)
+                all_done = False
+                continue
+            if (npc.tile_x, npc.tile_y) == target:
+                continue
+            all_done = False
+            nx, ny = npc.tile_x + 1, npc.tile_y
+            self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+            npc.tile_x, npc.tile_y = nx, ny
+            self.solid_tile_coords.add((nx, ny))
+            npc.facing = 'right'
+            npc.target_x = float(nx * config.TILE_SIZE)
+            npc.target_y = float(ny * config.TILE_SIZE)
+            npc.is_moving = True
+            npc.anim_frame = 1
+            npc.anim_timer = 0.0
+
+        if all_done:
+            for npc in (npc1, npc2):
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                if npc in self.npcs:
+                    self.npcs.remove(npc)
+            self.is_night = True
+            self.day_night_timer = 0.0
+            self.dn_transitioning = False
+            self.cutscene = None
+
     def _update_cutscene(self, dt):
         c = self.cutscene
+        if c['phase'] == 'grunts_walking':
+            self._update_grunts_walking(dt)
+            return
         npc = c['npc']
 
         # Always advance NPC slide first
@@ -2041,6 +2105,27 @@ class Game:
         self.npcs.append(blocker)
         self.solid_tile_coords.add((tx, ty))
 
+    def _maybe_add_gym2_blocker(self):
+        if self.story_flags.get('gym2_accessible'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        already = any(getattr(n, 'npc_type', '') == 'gym2_guard' for n in self.npcs)
+        if already:
+            return
+        tx, ty = 64, -65
+        blocker = NPC('blk_b', tile_x=tx, tile_y=ty, facing='down',
+                      sight_range=0, npc_type='gym2_guard')
+        blocker.state       = 'idle'
+        blocker.home_tile   = (tx, ty)
+        blocker.home_facing = 'down'
+        blocker.block_dialog = [
+            "The gym leader is not here right now.",
+            "Check the corn maze, he always likes to explore around there.",
+        ]
+        self.npcs.append(blocker)
+        self.solid_tile_coords.add((tx, ty))
+
     def _maybe_add_skyy(self):
         if not self.story_flags.get('amber_lab_done'):
             return
@@ -2278,6 +2363,10 @@ class Game:
                     self.dino_pickup_popup = None
                 return
 
+            if self.coord_input_active:
+                self._handle_coord_input_event(event)
+                return
+
             # Message box is processed first, but not while HP bars are animating in battle
             if self.message_box.visible:
                 hp_animating = (
@@ -2506,7 +2595,10 @@ class Game:
             for npc in self.npcs
         )
         cutscene_locking = self.cutscene and self.cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing', 'skyy_walking', 'skyy_flash')
-        if event.key == pygame.K_z:
+        if event.key == pygame.K_z and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
+            self.coord_input_active = True
+            self.coord_input_text = ''
+        elif event.key == pygame.K_z:
             tx = self.player.rect.x // config.TILE_SIZE
             ty = self.player.rect.y // config.TILE_SIZE
             in_enc = (tx, ty) in self.encounter_tile_coords
@@ -2523,6 +2615,38 @@ class Game:
                 pass
             elif not self.interact_with_npc():
                 self.pickup_item()
+
+    def _handle_coord_input_event(self, event):
+        if event.type != pygame.KEYDOWN:
+            return
+        if event.key == pygame.K_ESCAPE:
+            self.coord_input_active = False
+            self.coord_input_text = ''
+            return
+        if event.key == pygame.K_RETURN:
+            nums = re.findall(r'-?\d+', self.coord_input_text)
+            if len(nums) >= 2:
+                self._teleport_player_sandbox(int(nums[0]), int(nums[1]))
+            self.coord_input_active = False
+            self.coord_input_text = ''
+            return
+        if event.key == pygame.K_BACKSPACE:
+            self.coord_input_text = self.coord_input_text[:-1]
+            return
+        ch = event.unicode
+        if ch and ch in '0123456789-,. ' and len(self.coord_input_text) < 20:
+            self.coord_input_text += ch
+
+    def _teleport_player_sandbox(self, tx, ty):
+        ts = config.TILE_SIZE
+        px, py = tx * ts, ty * ts
+        self.player.rect.topleft = (px, py)
+        self.player.pos_x = float(px)
+        self.player.pos_y = float(py)
+        self.player.target_x = float(px)
+        self.player.target_y = float(py)
+        self.player.moving = False
+        self.update_camera()
 
     def _spawn_world_npcs(self, world_file):
         self.npcs = []
@@ -2600,7 +2724,7 @@ class Game:
             if (npc.tile_x, npc.tile_y) not in candidates:
                 continue
             npc.face_toward_player(self.player)
-            if npc.npc_type in ('guard', 'gym_guard'):
+            if npc.npc_type in ('guard', 'gym_guard', 'gym2_guard'):
                 if npc.npc_type == 'gym_guard' and not self.story_flags.get('amber_lab_done'):
                     dialog = ["The gym leader is not here right now."]
                 else:
@@ -2841,6 +2965,9 @@ class Game:
         if self.message_box.visible:
             return
 
+        if self.coord_input_active:
+            return
+
         # After any message clears in double battle, auto-arm p1 selection for the new turn
         if (self.state == 'encounter' and self.is_double_battle
                 and self.encounter_anim is None and self.double_phase is None):
@@ -2885,6 +3012,7 @@ class Game:
             self.check_story_events()
             self._check_amber_blocker()
             self._maybe_add_gym_blocker()
+            self._maybe_add_gym2_blocker()
             self._maybe_add_skyy()
             self._maybe_add_gray_rival()
 
@@ -2941,6 +3069,8 @@ class Game:
                 _flash.fill((255, 235, 150))
                 _flash.set_alpha(int(self.cutscene_flash['alpha']))
                 self.screen.blit(_flash, (0, 0))
+            if self.coord_input_active:
+                self._draw_coord_input(self.screen)
 
         elif background_state == 'encounter' and current_state != 'encounter':
             if self.is_double_battle:
@@ -3111,6 +3241,15 @@ class Game:
         overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 120))
         self.screen.blit(overlay, (0, 0))
+
+    def _draw_coord_input(self, surface):
+        box = pygame.Rect(0, 0, 480, 50)
+        box.center = (config.WIDTH // 2, 40)
+        pygame.draw.rect(surface, (255, 255, 255), box)
+        pygame.draw.rect(surface, (0, 0, 0), box, 3)
+        font = self.fonts['DIALOGUE']
+        label = font.render(f"Teleport x,y: {self.coord_input_text}", True, (0, 0, 0))
+        surface.blit(label, (box.x + 10, box.y + (box.height - label.get_height()) // 2))
 
     @property
     def night_active(self):

@@ -26,23 +26,25 @@ TRAINER_DATA = {
     'grunt1': {
         'name': 'Grunt',
         'partner': 'grunt2',
-        'dinos': {0: ('Ghoulflame', 14)},
-        'dialog': {'default': ["You shouldn't be here!", "Double battle, now!"]},
+        'dinos': {0: ('Ghoulflame', 16)},
+        'dialog': {'default': ["You shouldn't be here!"],
+                            'defeated': ["... If the boss knew you were here... stay out of our business"]},
         'directions': ['down'],
         'defeated': False,
         'biome': 'forest',
-        'reward_coins': 300,
+        'reward_coins': 400,
         'rank': 'lowest',
     },
     'grunt2': {
         'name': 'Grunt',
         'partner': 'grunt1',
         'dinos': {0: ('Sortle', 15)},
-        'dialog': {'default': ["Back us up!"]},
+        'dialog': {'default': ["You shouldn't be here!"],
+                    'defeated': ["... If the boss knew you were here... stay out of our business"]},
         'directions': ['down'],
         'defeated': False,
         'biome': 'forest',
-        'reward_coins': 300,
+        'reward_coins': 400,
         'rank': 'lowest',
     },
     'basic_trainer': {
@@ -79,6 +81,48 @@ TRAINER_DATA = {
         'defeated': False,
         'biome': 'forest',
         'reward_coins': 150,
+        'rank': 'lowest',
+    },
+    'route2_girl': {
+        'name': 'Cleo',
+        'dinos': {0: ('Teamtwood', 13), 1: ('Teamtwood',14)},
+        'dialog': {
+            'default':  ["Hey! You look like a good trainer.", "Let's battle!"],
+            'defeated': ["Wow, you're really strong!"]
+        },
+        'directions': ['down'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 300,
+        'rank': 'lowest',
+    },
+    'route2_boy': {
+        'name': 'Will',
+        'dinos': {0: ('Voltzbee', 15)},
+        'dialog': {
+            'default':  ["Hold up, you're not passing without a battle!", "Let's go!"],
+            'defeated': ["Alright, you can head on through."]
+        },
+        'directions': ['up'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 250,
+        'rank': 'lowest',
+    },
+    'dylan': {
+        'name': 'Dylan',
+        'dinos': {0: ('Sortle', 12), 1: ('Bullicorn', 14)},
+        'dialog': {
+            'default':  ["You've got some nerve coming through here.", "Let's battle!"],
+            'defeated': ["Not bad at all."]
+        },
+        'directions': ['down'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 300,
         'rank': 'lowest',
     },
     'ethan': {
@@ -205,7 +249,8 @@ DINODEX_DATA = {
     'Bouldava':   {'number': 20, 'desc': "The Molten Lava Rock dino, known to bathe in the magma at the base of the Megi Volcano."},
     'Ghoulflame': {'number': 21, 'desc': "This Ghoul resides in the Episc Chateau in Elder Town, it's spirit likes to lurk around the area and play pranks. With fire and dark energy to use on foes."},
     'Scarecrux':  {'number': 22, 'desc': "At first just folk lore to the residents of Elder Town, this odd scarecrow has been scaring Creuws for years only to be put to rest by the great Luna watching over, it is said to only come alive at night..."},
-    'Palidian':   {'number': 23, 'desc': "???"},
+    'Palidian':   {'number': 23, 'desc': "A noble knight who guards the forest, known to be a defender of sacred land and be courageous in battle."},
+    'Rockull':    {'number': 24, 'desc': "A hulking rock golem that packs its boulder-like fists with crushing force. Rockull is slow to move but nearly impossible to knock down."},
 
 }
 
@@ -215,7 +260,7 @@ DINO_DATA = {
         'moves': {0: 'Force Shift', 1: 'Flash', 9: 'Fireball', 15: 'Shadow Veil', 17: 'Conduit Surge', 19: 'Distortion', 23: 'Flame Shatter', 27: 'Binding Curse', 30: 'Void Collapse', 35: 'Haunt'},
         'evolve': None},
     'Anemamace': {
-        'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 110, 'defense': 115, 'speed':90},
+        'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 115, 'defense': 120, 'speed':80},
         'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab', 22: 'Hurricane', 26: 'Ripping Impact'},
         'evolve': None},
     'Corlave': {
@@ -268,7 +313,7 @@ DINO_DATA = {
         'evolve': {18: 'Tygraflare'}},
     'Drafyton': {
         'stats': {'type': ['ancient', 'flying'], 'health': 100, 'attack': 155, 'defense': 125, 'speed': 120},
-        'moves': {0: 'Fossil Break', 1: 'Arise', 8: 'Quick Slash', 12: 'Fireball', 16: 'Rushdown', 20: 'Mach Speed', 23: 'Primal Rage', 25: 'Fear', 27: 'Ancient Mend', 29: 'Flame Shatter', 31: 'Force Shift', 33: 'Raging Pursuit', 35: 'Crusher', 38: 'Sky Scorch', 42: 'Spike Storm' },
+        'moves': {0: 'Fossil Break', 1: 'Arise', 8: 'Quick Slash', 12: 'Fireball', 16: 'Rushdown', 20: 'Mach Speed', 23: 'Primal Rage', 25: 'Fear', 27: 'Ancient Mend', 29: 'Flame Shatter', 31: 'Force Shift', 33: 'Raging Pursuit', 35: 'Crusher', 38: 'Sky Scorch', 40: 'Dragon Zenith', 42: 'Spike Storm' },
         'evolve': None},
     'Auraliz': {
         'stats': {'type': ['ice', 'aqua'], 'health': 92, 'attack': 118, 'defense': 117, 'speed': 123},
@@ -299,8 +344,12 @@ DINO_DATA = {
         'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Vine Snare', 15: 'Haunt', 19: 'Distortion', 23: 'Dread Thorn', 26: 'Force Shift', 29: 'Thunder Blitz', 33: 'Tree Spin', 37: 'Void Collapse'},
         'evolve': None},
     'Palidian': {
-        'stats': {'type': ['light'], 'health': 85, 'attack': 100, 'defense': 85, 'speed': 95},
-        'moves': {0: 'Arise', 1: 'Flash'},
+        'stats': {'type': ['earth', 'rock'], 'health': 90, 'attack': 124, 'defense': 136, 'speed': 105},
+        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform', 31: 'Iron Core', 34: 'Raging Pursuit', 36: 'Tree Spin', 39: 'Crash Impact'},
+        'evolve': None},
+    'Rockull': {
+        'stats': {'type': ['rock'], 'health': 160, 'attack': 110, 'defense': 150, 'speed': 40},
+        'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Boulder Smash', 14: 'Momentum', 17: 'Force Shift', 20: 'Iron Core', 26: 'Crusher',30:'Prism Glare', 34: 'Crash Impact'},
         'evolve': None},
 
 }
@@ -549,6 +598,7 @@ MOVE_DATA = {
     'Fossil Break': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'ancient'},
 
     'Raging Pursuit': {'target': 'opponent', 'damage': 55, 'accuracy': 90, 'ability': None, 'type': 'ancient', 'pierces_defend': True},
+    'Dragon Zenith': {'target': 'opponent', 'damage': 100, 'accuracy': 90, 'ability': None, 'type': 'ancient', 'pierces_defend': True},
 
     'Primal Rage':  {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'ancient',
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},

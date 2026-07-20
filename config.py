@@ -114,6 +114,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Scarecrux2':       os.path.join(DINOS_FRONT, 'scarecrux.png'),
     'Palidian':         os.path.join(DINOS_FRONT, 'Palidian.png'),
     'Palidian2':        os.path.join(DINOS_FRONT, 'Palidian.png'),
+    'Rockull':          os.path.join(DINOS_FRONT, 'Rockull.png'),
+    'Rockull2':         os.path.join(DINOS_FRONT, 'Rockull.png'),
 }
 
 NPC_SHEETS = {
@@ -140,6 +142,9 @@ NPC_SPRITE_KEY = {
     'gym_trainer_b': 'blk_b',
     'grunt1':        'enemy_male',
     'grunt2':        'enemy_male',
+    'route2_girl':   'basic_trainer_girl',
+    'route2_boy':    'basic_trainer',
+    'dylan':         'basic_trainer2',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -156,9 +161,16 @@ WORLD_NPCS = {
         ('basic_trainer2', -1, -4, 'down', 6, 'trainer'),
         ('shinji', 13, -12, 'down', 5, 'trainer'),
 
-        # ROUTE_2 double battle pair — top-center, face south
-        ('grunt1', 32, -42, 'down', 6, 'trainer'),
-        ('grunt2', 33, -42, 'down', 6, 'trainer'),
+        # ROUTE_2 double battle pair — ROUTE2.4, face north
+        ('grunt1', 50, -20, 'up', 6, 'trainer'),
+        ('grunt2', 51, -20, 'up', 6, 'trainer'),
+
+        # ROUTE_2.1 single battle
+        ('route2_girl', 36, -37, 'up', 5, 'trainer'),
+
+        # ROUTE_2.2 single battle
+        ('route2_boy', 59, -29, 'up', 5, 'trainer'),
+        ('dylan', 67, -38, 'down', 5, 'trainer'),
 
     ],
     'DINOCENTER.tmx': [

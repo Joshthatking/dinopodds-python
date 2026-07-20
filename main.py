@@ -201,7 +201,13 @@ if __name__ == '__main__':
 #TOWN 2 - Elder Town 90% complete 
 #CORN MAZE - 90% Complete
 
-#7/6
+#7/20
+#Move grunt battle to route2.4 - night time transition after
+# SANDBOX mode - crtl + z = teleport coords
+# All trainers in route2
+# Block Gym 2
+# Dinopods in wild route 2
+# Rockull added
 
 
 # make corn maze encounters 5%
