@@ -266,7 +266,7 @@ DINO_DATA = {
     'Corlave': {
         'stats': {'type': ['aqua'], 'health': 90, 'attack': 80, 'defense': 80, 'speed':50},
         'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab'},
-        'evolve': {17: 'Anemamace'}},
+        'evolve': {19: 'Anemamace'}},
     'Creuw': {
         'stats': {'type': ['flying'], 'health': 60, 'attack': 75, 'defense': 50, 'speed':75},
         'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 26: 'Mach Speed', 29: 'Shadow Veil', 34: 'Wind Fracture', 38: 'Void Collapse', 43: 'Sky Scorch' },
@@ -282,7 +282,7 @@ DINO_DATA = {
     'Floravel': {
         'stats': {'type': ['earth'], 'health': 60, 'attack': 85, 'defense': 95, 'speed': 60},
         'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
-        'evolve': None},
+        'evolve': {19: 'Palidian'}},
     'Bullicorn': {
         'stats': {'type': ['spike'], 'health': 145, 'attack': 95, 'defense': 100, 'speed': 75},
         'moves': {0: 'Arise', 4: 'Horn Tackle', 7: 'Sand Kick', 10: 'Static Graze', 12: 'Boulder Smash', 15: 'Double Jab'},
@@ -310,7 +310,7 @@ DINO_DATA = {
     'Volkit': {
         'stats': {'type': ['magma'], 'health': 62, 'attack': 95, 'defense': 68, 'speed': 75},
         'moves': {0: 'Fireball+', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear'},
-        'evolve': {18: 'Tygraflare'}},
+        'evolve': {19: 'Tygraflare'}},
     'Drafyton': {
         'stats': {'type': ['ancient', 'flying'], 'health': 100, 'attack': 155, 'defense': 125, 'speed': 120},
         'moves': {0: 'Fossil Break', 1: 'Arise', 8: 'Quick Slash', 12: 'Fireball', 16: 'Rushdown', 20: 'Mach Speed', 23: 'Primal Rage', 25: 'Fear', 27: 'Ancient Mend', 29: 'Flame Shatter', 31: 'Force Shift', 33: 'Raging Pursuit', 35: 'Crusher', 38: 'Sky Scorch', 40: 'Dragon Zenith', 42: 'Spike Storm' },

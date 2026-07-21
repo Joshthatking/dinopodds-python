@@ -208,6 +208,17 @@ if __name__ == '__main__':
 # Block Gym 2
 # Dinopods in wild route 2
 # Rockull added
+# Block route 2 before gym 1 completed
+# SANDBOX MODE - ctrl + q - view quests and skip to them
+
+#7/21
+
+#FIX xp again, lower amount earned from higher level 
+#maybe adjust xp alot lower or make xp to level up alot higher and adjust all levels a bit, this will make gym 3 get final evo!
+# fix skyy not being at gym immediately after rival battle
+# make rival disappear after battle, make trainers who move go to original location after entering building
+# Adjust spawns and levels in route 2
+# add new dinos to route 2 cyflactus, 
 
 
 # make corn maze encounters 5%

@@ -223,11 +223,75 @@ class NPC:
             player.pos_y    = float(player.rect.y)
             player.moving   = True
 
+    def _update_route2_guard(self, dt, player, game):
+        """Route 2 gate guard: approaches player on sight, warns, pushes back, returns to post."""
+        if game.state != 'world':
+            return
+        if game.story_flags.get('gym1_leader_defeated'):
+            return
+
+        if self.is_moving:
+            self.anim_timer += dt
+            if self.anim_timer >= self.anim_speed:
+                self.anim_timer = 0.0
+                self.anim_frame = (self.anim_frame + 1) % 4
+            self._slide(dt)
+            return
+
+        if self.state == 'idle':
+            if not game.message_box.visible and not player.moving and self.can_see_player(player, game.solid_tile_coords | game.solid_tiles):
+                self.state = 'approaching'
+
+        elif self.state == 'approaching':
+            if game.message_box.visible:
+                return
+            if self._pixel_close(player):
+                self.state = 'talking'
+                self.face_toward_player(player)
+                self.anim_frame = 0
+                dialog = getattr(self, 'block_dialog', ["..."])
+                game.message_box.queue_messages(
+                    dialog, wait_for_input=True,
+                    on_complete=lambda: self._route2_guard_warn_done(player, game)
+                )
+            else:
+                self._start_step(player, game.solid_tile_coords, game.solid_tiles)
+
+        elif self.state == 'returning':
+            if game.message_box.visible:
+                return
+            hx, hy = self.home_tile
+            if self.tile_x == hx and self.tile_y == hy:
+                self.state  = 'idle'
+                self.facing = self.home_facing
+                self.anim_frame = 0
+            else:
+                self._step_toward_tile(hx, hy, game.solid_tile_coords, game.solid_tiles)
+
+    def _route2_guard_warn_done(self, player, game):
+        """After the warning dialogue: return to post and push the player back the way they came."""
+        self.state = 'returning'
+        dx, dy = self._DIR_VEC[self.facing]
+        px = player.rect.x // config.TILE_SIZE
+        py = player.rect.y // config.TILE_SIZE
+        ts = config.TILE_SIZE
+        nx, ny = px + dx, py + dy
+        all_solid = game.solid_tile_coords | game.solid_tiles
+        if (nx, ny) not in all_solid:
+            player.target_x = nx * ts
+            player.target_y = ny * ts
+            player.pos_x    = float(player.rect.x)
+            player.pos_y    = float(player.rect.y)
+            player.moving   = True
+
     def update(self, dt, player, game):
         if self.npc_type in ('healer', 'shop', 'story', 'gym_guard'):
             return
         if self.npc_type == 'guard':
             self._update_guard(dt, player, game)
+            return
+        if self.npc_type == 'route2_guard':
+            self._update_route2_guard(dt, player, game)
             return
         if self.defeated or game.state != 'world' or game.message_box.visible:
             return

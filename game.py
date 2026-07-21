@@ -85,6 +85,7 @@ class Game:
         # Screens
         self.title_screen = TitleScreen(self)
         self.menu = Menu(self)
+        self.quest_debug_screen = QuestDebugScreen(self)
         self.party_screen = PartyScreen(self)
         self.party_screen.reset()
         self.move_info_screen = None
@@ -153,6 +154,7 @@ class Game:
         self._spawn_world_npcs('LOST_REGION.world')
         self._maybe_add_gym_blocker()
         self._maybe_add_gym2_blocker()
+        self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
 
         # Hit flash state
@@ -296,21 +298,24 @@ class Game:
         self.entrance_fade_state = None
         self._post_trainer_battle_cb = None
 
-        # Reset Gray for rechallenge if player blacked out before winning
+        # Reset any trainer stuck mid-approach so rechallenge (and the "i" menu,
+        # which is blocked while a trainer is spotted/walking/done) works again
         for npc in self.npcs:
-            if (getattr(npc, 'trainer_id', '') == 'gray'
+            if (getattr(npc, 'npc_type', '') == 'trainer'
                     and not npc.defeated
-                    and npc.state == 'done'):
+                    and npc.state in ('spotted', 'walking', 'done')):
                 self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
-                hx, hy = getattr(npc, 'home_tile', (7, 5))
+                hx, hy = getattr(npc, 'home_tile', (npc.tile_x, npc.tile_y))
                 npc.tile_x, npc.tile_y = hx, hy
                 npc.pos_x = float(hx * config.TILE_SIZE)
                 npc.pos_y = float(hy * config.TILE_SIZE)
                 npc.target_x, npc.target_y = npc.pos_x, npc.pos_y
                 npc.rect.topleft = (int(npc.pos_x), int(npc.pos_y))
-                npc.facing = getattr(npc, 'home_facing', 'up')
+                npc.facing = getattr(npc, 'home_facing', npc.facing)
                 npc.is_moving = False
                 npc.state = 'idle'
+                npc.spot_timer = 0.0
+                npc._double_engaged = False
                 self.solid_tile_coords.add((hx, hy))
 
         # Unwind interior world stack back to the overworld
@@ -457,6 +462,7 @@ class Game:
         self.state_stack = ['world']
         self._maybe_add_gym_blocker()
         self._maybe_add_gym2_blocker()
+        self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
 
     def _dino_to_dict(self, dino):
@@ -1708,6 +1714,7 @@ class Game:
             self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
         self._maybe_add_gym_blocker()
         self._maybe_add_gym2_blocker()
+        self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
         self._maybe_add_gray_rival()
         # Place player one tile behind where they entered, facing back out
@@ -1764,6 +1771,7 @@ class Game:
         self._place_player(11, 44)
         self._maybe_add_gym_blocker()
         self._maybe_add_gym2_blocker()
+        self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
         if not self.story_flags.get('amber_intro_done'):
             self._start_amber_intro_cutscene()
@@ -2126,6 +2134,63 @@ class Game:
         self.npcs.append(blocker)
         self.solid_tile_coords.add((tx, ty))
 
+    def _maybe_add_route2_blocker(self):
+        if self.story_flags.get('gym1_leader_defeated'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        already = any(getattr(n, 'npc_type', '') == 'route2_guard' for n in self.npcs)
+        if already:
+            return
+        tx, ty = 33, -42
+        blocker = NPC('blk_b', tile_x=tx, tile_y=ty, facing='down',
+                      sight_range=6, npc_type='route2_guard')
+        blocker.state       = 'idle'
+        blocker.home_tile   = (tx, ty)
+        blocker.home_facing = 'down'
+        blocker.block_dialog = [
+            "This road isn't safe to cross yet.",
+            "Come back once you've earned the Sierra Badge at Gym 1.",
+        ]
+        self.npcs.append(blocker)
+        self.solid_tile_coords.add((tx, ty))
+
+    def _check_route2_blocker(self):
+        if not self.story_flags.get('gym1_leader_defeated'):
+            return
+        blocker = next((n for n in self.npcs if getattr(n, 'npc_type', '') == 'route2_guard'), None)
+        if blocker:
+            self.solid_tile_coords.discard((blocker.tile_x, blocker.tile_y))
+            self.npcs.remove(blocker)
+
+    def apply_quest_step(self, index):
+        """Sandbox debug: jump story_flags (and related state) to QUEST_STEPS[index].
+
+        Only touches trainer_ids/badges that QUEST_STEPS itself tracks (gray, skyy,
+        sierra badge) — anything the player defeated/earned outside the scripted
+        story (route 2 trainers, etc.) is left alone.
+        """
+        steps = _story.QUEST_STEPS
+        tracked_trainers = {t for step in steps for t in step.get('defeated_trainers', [])}
+        tracked_badges   = {b for step in steps for b in step.get('badges', [])}
+        should_defeat = set()
+        should_have_badge = set()
+        for i, step in enumerate(steps):
+            self.story_flags[step['flag']] = (i <= index)
+            if i <= index:
+                should_defeat.update(step.get('defeated_trainers', []))
+                should_have_badge.update(step.get('badges', []))
+
+        self.defeated_trainers -= (tracked_trainers - should_defeat)
+        self.defeated_trainers |= should_defeat
+        self.badges_earned = [b for b in self.badges_earned if b not in tracked_badges]
+        for b in should_have_badge:
+            if b not in self.badges_earned:
+                self.badges_earned.append(b)
+        for npc in self.npcs:
+            if getattr(npc, 'trainer_id', None) in tracked_trainers:
+                npc.defeated = npc.trainer_id in should_defeat
+
     def _maybe_add_skyy(self):
         if not self.story_flags.get('amber_lab_done'):
             return
@@ -2393,6 +2458,11 @@ class Game:
                 if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_i):
                     self.pop_state()
 
+            elif self.state == 'quest_debug':
+                result = self.quest_debug_screen.handle_event(event, self)
+                if result == 'back':
+                    self.pop_state()
+
             elif self.state == 'move_info':
                 if self.move_info_screen:
                     result = self.move_info_screen.handle_event(event, self)
@@ -2591,7 +2661,7 @@ class Game:
             for npc in self.npcs
         )
         guard_active = any(
-            npc.npc_type == 'guard' and npc.state in ('approaching', 'returning')
+            npc.npc_type in ('guard', 'route2_guard') and npc.state in ('approaching', 'returning')
             for npc in self.npcs
         )
         cutscene_locking = self.cutscene and self.cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing', 'skyy_walking', 'skyy_flash')
@@ -2606,6 +2676,10 @@ class Game:
             print(f"[DEBUG] tile=({tx}, {ty})  encounter_tile={in_enc}  zone={zone}")
         elif event.key == pygame.K_i and not self.fading and self.entrance_fade_state is None and not trainer_approaching and not guard_active and not cutscene_locking:
             self.push_state('menu')
+        elif (event.key == pygame.K_q and (event.mod & pygame.KMOD_CTRL) and self.sandbox
+                and not self.fading and self.entrance_fade_state is None and not cutscene_locking):
+            self.quest_debug_screen.reset()
+            self.push_state('quest_debug')
         elif event.key == pygame.K_j:
             if self.check_type_chart_interact():
                 pass
@@ -2654,6 +2728,8 @@ class Game:
             trainer_id, tx, ty, facing, sight, npc_type = spec
             npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
                       facing=facing, sight_range=sight, npc_type=npc_type)
+            npc.home_tile   = (tx, ty)
+            npc.home_facing = facing
             if trainer_id in self.defeated_trainers:
                 npc.defeated = True
             self.npcs.append(npc)
@@ -2724,7 +2800,7 @@ class Game:
             if (npc.tile_x, npc.tile_y) not in candidates:
                 continue
             npc.face_toward_player(self.player)
-            if npc.npc_type in ('guard', 'gym_guard', 'gym2_guard'):
+            if npc.npc_type in ('guard', 'gym_guard', 'gym2_guard', 'route2_guard'):
                 if npc.npc_type == 'gym_guard' and not self.story_flags.get('amber_lab_done'):
                     dialog = ["The gym leader is not here right now."]
                 else:
@@ -3011,8 +3087,10 @@ class Game:
 
             self.check_story_events()
             self._check_amber_blocker()
+            self._check_route2_blocker()
             self._maybe_add_gym_blocker()
             self._maybe_add_gym2_blocker()
+            self._maybe_add_route2_blocker()
             self._maybe_add_skyy()
             self._maybe_add_gray_rival()
 
@@ -3194,7 +3272,7 @@ class Game:
         elif current_state == 'dinodex':
             self.dinodex_screen.draw(self.screen)
 
-        elif current_state in ('menu', 'party', 'items', 'shop', 'box', 'dino_picker'):
+        elif current_state in ('menu', 'party', 'items', 'shop', 'box', 'dino_picker', 'quest_debug'):
             if background_state == 'encounter':
                 if self.night_active and not self.dn_transitioning:
                     self.screen.blit(self._night_overlay_battle, (0, 0))
@@ -3219,6 +3297,8 @@ class Game:
                 self.box_screen.draw(self.screen, self)
             elif current_state == 'dino_picker' and self._dino_picker:
                 self._dino_picker.draw(self.screen)
+            elif current_state == 'quest_debug':
+                self.quest_debug_screen.draw(self.screen)
 
         if self.fading or self.entrance_fade_state is not None:
             fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))

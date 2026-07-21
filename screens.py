@@ -2,6 +2,7 @@ import os
 import pygame
 import config
 from data import *
+from story import QUEST_STEPS
 
 
 def load_image(path, alpha=False):
@@ -2762,6 +2763,70 @@ class DinodexScreen:
                     screen.blit(badge_surf, (bx + 4, stats_y + 2))
                     bx += bw + 4
                 stats_y = row_start_y + 23
+
+
+class QuestDebugScreen:
+    """Sandbox-only quest-jump debug menu (Ctrl+Q)."""
+
+    def __init__(self, game):
+        self.game = game
+        self.font       = pygame.font.SysFont("arial", 18)
+        self.small_font = pygame.font.SysFont("arial", 14)
+        self.selected_index = 0
+        self.width = 460
+        self.line_height = 34
+
+    def reset(self):
+        self.selected_index = 0
+
+    def handle_event(self, event, game):
+        if event.type != pygame.KEYDOWN:
+            return None
+        n = len(QUEST_STEPS)
+        if event.key == pygame.K_w:
+            self.selected_index = (self.selected_index - 1) % n
+        elif event.key == pygame.K_s:
+            self.selected_index = (self.selected_index + 1) % n
+        elif event.key == pygame.K_j:
+            index = self.selected_index
+            step = QUEST_STEPS[index]
+            game.pop_state()
+            game.yes_no_prompt = YesNoPrompt(
+                f"Skip to \"{step['label']}\"?", game.fonts,
+                config.WIDTH, config.HEIGHT)
+            game.yes_no_callback = lambda: game.apply_quest_step(index)
+        elif event.key in (pygame.K_SPACE, pygame.K_ESCAPE):
+            return 'back'
+        return None
+
+    def draw(self, screen):
+        W, H = screen.get_width(), screen.get_height()
+        x = (W - self.width) // 2
+        panel_h = len(QUEST_STEPS) * self.line_height + 60
+        y = (H - panel_h) // 2
+        panel_rect = pygame.Rect(x, y, self.width, panel_h)
+        pygame.draw.rect(screen, (255, 255, 240), panel_rect)
+        pygame.draw.rect(screen, (0, 0, 0), panel_rect, 3)
+
+        title = self.font.render("Quest Debug (Sandbox)", True, (0, 0, 0))
+        screen.blit(title, (panel_rect.x + 15, panel_rect.y + 12))
+
+        story_flags = self.game.story_flags
+        for i, step in enumerate(QUEST_STEPS):
+            row_y = panel_rect.y + 44 + i * self.line_height
+            if i == self.selected_index:
+                pygame.draw.rect(screen, (200, 200, 255),
+                                 (panel_rect.x + 8, row_y - 3, panel_rect.width - 16, 28),
+                                 border_radius=5)
+            done = bool(story_flags.get(step['flag']))
+            mark = "[x]" if done else "[ ]"
+            color = (0, 110, 0) if done else (0, 0, 0)
+            label = f"{mark} {step['label']}"
+            screen.blit(self.small_font.render(label, True, color),
+                        (panel_rect.x + 16, row_y + 4))
+
+        hint = self.small_font.render("W/S select   J skip here   Space/Esc close", True, (90, 90, 90))
+        screen.blit(hint, (panel_rect.x + 15, panel_rect.bottom - 22))
 
 
 class Menu:

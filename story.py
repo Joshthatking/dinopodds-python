@@ -75,3 +75,52 @@ STORY_EVENTS = [
     #     "next_event": None,
     # },
 ]
+
+
+# ══════════════════════════════════════════════════════════════════
+# QUEST_STEPS — ordered milestones for the Sandbox quest-debug menu
+# (Ctrl+Q). Selecting a step sets its flag (and every earlier step's
+# flag) True and every later step's flag False, so it can jump either
+# direction. "defeated_trainers"/"badges" are applied cumulatively the
+# same way. See the CODED STORY SEQUENCE comment above for context.
+# ══════════════════════════════════════════════════════════════════
+QUEST_STEPS = [
+    {
+        "id": "game_intro_done",
+        "label": "1. New Game Intro",
+        "flag": "game_intro_done",
+    },
+    {
+        "id": "amber_intro_done",
+        "label": "2. Left Home - Amber Intro",
+        "flag": "amber_intro_done",
+    },
+    {
+        "id": "encounters_unlocked",
+        "label": "3. Collected 3 Dinos - Encounters Unlocked",
+        "flag": "encounters_unlocked",
+    },
+    {
+        "id": "amber_lab_done",
+        "label": "4. Returned Dinos to Amber",
+        "flag": "amber_lab_done",
+    },
+    {
+        "id": "gym1_accessible",
+        "label": "5. Talked to Skyy - Gym 1 Accessible",
+        "flag": "gym1_accessible",
+    },
+    {
+        "id": "gray_route1_done",
+        "label": "6. Defeated Gray (Route 1 Rival)",
+        "flag": "gray_route1_done",
+        "defeated_trainers": ["gray"],
+    },
+    {
+        "id": "gym1_leader_defeated",
+        "label": "7. Defeated Gym 1 Leader (Skyy)",
+        "flag": "gym1_leader_defeated",
+        "defeated_trainers": ["skyy"],
+        "badges": ["sierra"],
+    },
+]
