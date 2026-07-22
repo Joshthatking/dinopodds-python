@@ -202,7 +202,7 @@ if __name__ == '__main__':
 #CORN MAZE - 90% Complete
 
 #7/20
-#Move grunt battle to route2.4 - night time transition after
+#Move grunt battle to route2.4 - night time transition afterd
 # SANDBOX mode - crtl + z = teleport coords
 # All trainers in route2
 # Block Gym 2
@@ -211,7 +211,10 @@ if __name__ == '__main__':
 # Block route 2 before gym 1 completed
 # SANDBOX MODE - ctrl + q - view quests and skip to them
 
-#7/21
+#7/22
+# NEW DINOs - Cyflactus/Prickly
+# FIX route 2 blocker - make universal function
+# 
 
 #FIX xp again, lower amount earned from higher level 
 #maybe adjust xp alot lower or make xp to level up alot higher and adjust all levels a bit, this will make gym 3 get final evo!

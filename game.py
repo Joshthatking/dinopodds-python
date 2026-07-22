@@ -51,7 +51,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -1899,6 +1899,8 @@ class Game:
                 npc.is_moving  = False
                 npc.anim_frame = 0
                 npc.npc_type    = 'guard'
+                npc.guard_id    = 'amber_intro'
+                npc.unlock_flag = 'encounters_unlocked'
                 npc.state       = 'idle'
                 npc.facing      = 'left'
                 npc.home_tile   = (tx, ty)
@@ -2070,24 +2072,47 @@ class Game:
                 else:
                     self.cutscene_flash = None
 
+    def _spawn_active_guard(self, guard_id, trainer_id, tx, ty, facing, sight_range,
+                             block_dialog, unlock_flag, home_tile=None, home_facing=None):
+        """Universal 'active approach' blocker — spots the player via line of
+        sight, walks up, shows block_dialog, pushes them back a tile, then
+        returns to its post. This is the exact mechanism Professor Amber's
+        intro guard uses; reuse it for any future story gate instead of
+        writing a new NPC state machine. Removed later via _check_guard_removal.
+        """
+        guard = NPC(trainer_id, tile_x=tx, tile_y=ty, facing=facing,
+                    sight_range=sight_range, npc_type='guard')
+        guard.state       = 'idle'
+        guard.guard_id    = guard_id
+        guard.unlock_flag = unlock_flag
+        guard.home_tile   = home_tile or (tx, ty)
+        guard.home_facing = home_facing or facing
+        guard.block_dialog = block_dialog
+        self.npcs.append(guard)
+        self.solid_tile_coords.add((tx, ty))
+        return guard
+
+    def _check_guard_removal(self, guard_id):
+        """Remove an active-guard NPC (see _spawn_active_guard) once its
+        unlock_flag has been set True."""
+        guard = next((n for n in self.npcs if getattr(n, 'guard_id', '') == guard_id), None)
+        if guard and self.story_flags.get(guard.unlock_flag):
+            self.solid_tile_coords.discard((guard.tile_x, guard.tile_y))
+            self.npcs.remove(guard)
+
     def _add_amber_blocker_to_solid(self):
-        blocker = next((n for n in self.npcs if getattr(n, 'npc_type', '') == 'guard'), None)
+        blocker = next((n for n in self.npcs if getattr(n, 'guard_id', '') == 'amber_intro'), None)
         if blocker:
             self.solid_tile_coords.add((blocker.tile_x, blocker.tile_y))
 
     def _add_amber_blocker(self):
         """Re-add guard NPC when loading a save mid-intro."""
         tx, ty = 1, 27  # must match leave_tile in _start_amber_intro_cutscene
-        guard = NPC('amber', tile_x=tx, tile_y=ty, facing='left',
-                    sight_range=5, npc_type='guard')
-        guard.state       = 'idle'
-        guard.home_tile   = (tx, ty)
-        guard.home_facing = 'left'
-        guard.block_dialog = [
-            "I need you to collect all 3 dinos before coming back to the lab!"
-        ]
-        self.npcs.append(guard)
-        self.solid_tile_coords.add((tx, ty))
+        self._spawn_active_guard(
+            'amber_intro', 'amber', tx, ty, facing='left', sight_range=5,
+            block_dialog=["I need you to collect all 3 dinos before coming back to the lab!"],
+            unlock_flag='encounters_unlocked',
+        )
 
     def _maybe_add_gym_blocker(self):
         if not self.story_flags.get('encounters_unlocked'):
@@ -2112,6 +2137,29 @@ class Game:
         )
         self.npcs.append(blocker)
         self.solid_tile_coords.add((tx, ty))
+
+    def _push_player_back_from(self, npc, tiles=2, vector=(-1, 1)):
+        """Shove the player back so a static blocker's dialogue doesn't
+        immediately re-trigger on the next interact press. Defaults to a
+        left+down diagonal shove; freezes player input briefly once it lands."""
+        dx, dy = vector
+        ts = config.TILE_SIZE
+        all_solid = self.solid_tile_coords | self.solid_tiles
+        px = self.player.rect.x // ts
+        py = self.player.rect.y // ts
+        nx, ny = px, py
+        for _ in range(tiles):
+            cand = (nx + dx, ny + dy)
+            if cand in all_solid:
+                break
+            nx, ny = cand
+        if (nx, ny) != (px, py):
+            self.player.target_x = nx * ts
+            self.player.target_y = ny * ts
+            self.player.pos_x    = float(self.player.rect.x)
+            self.player.pos_y    = float(self.player.rect.y)
+            self.player.moving   = True
+            self.player.forced_move = True
 
     def _maybe_add_gym2_blocker(self):
         if self.story_flags.get('gym2_accessible'):
@@ -2139,29 +2187,20 @@ class Game:
             return
         if self.current_world_file != 'LOST_REGION.world':
             return
-        already = any(getattr(n, 'npc_type', '') == 'route2_guard' for n in self.npcs)
+        already = any(getattr(n, 'guard_id', '') == 'route2' for n in self.npcs)
         if already:
             return
-        tx, ty = 33, -42
-        blocker = NPC('blk_b', tile_x=tx, tile_y=ty, facing='down',
-                      sight_range=6, npc_type='route2_guard')
-        blocker.state       = 'idle'
-        blocker.home_tile   = (tx, ty)
-        blocker.home_facing = 'down'
-        blocker.block_dialog = [
-            "This road isn't safe to cross yet.",
-            "Come back once you've earned the Sierra Badge at Gym 1.",
-        ]
-        self.npcs.append(blocker)
-        self.solid_tile_coords.add((tx, ty))
+        self._spawn_active_guard(
+            'route2', 'blk_b', 33, -42, facing='down', sight_range=6,
+            block_dialog=[
+                "This road isn't safe to cross yet.",
+                "Come back once you've earned the Sierra Badge at Gym 1.",
+            ],
+            unlock_flag='gym1_leader_defeated',
+        )
 
     def _check_route2_blocker(self):
-        if not self.story_flags.get('gym1_leader_defeated'):
-            return
-        blocker = next((n for n in self.npcs if getattr(n, 'npc_type', '') == 'route2_guard'), None)
-        if blocker:
-            self.solid_tile_coords.discard((blocker.tile_x, blocker.tile_y))
-            self.npcs.remove(blocker)
+        self._check_guard_removal('route2')
 
     def apply_quest_step(self, index):
         """Sandbox debug: jump story_flags (and related state) to QUEST_STEPS[index].
@@ -2291,11 +2330,9 @@ class Game:
             return
         if not self.story_flags.get('amber_intro_done'):
             return
-        blocker = next((n for n in self.npcs if getattr(n, 'npc_type', '') == 'guard'), None)
-        if blocker and len(self.player_dinos) >= 3:
-            self.solid_tile_coords.discard((blocker.tile_x, blocker.tile_y))
-            self.npcs.remove(blocker)
+        if len(self.player_dinos) >= 3:
             self.story_flags['encounters_unlocked'] = True
+        self._check_guard_removal('amber_intro')
 
     # --- Map ---
 
@@ -2661,7 +2698,7 @@ class Game:
             for npc in self.npcs
         )
         guard_active = any(
-            npc.npc_type in ('guard', 'route2_guard') and npc.state in ('approaching', 'returning')
+            npc.npc_type == 'guard' and npc.state in ('approaching', 'returning')
             for npc in self.npcs
         )
         cutscene_locking = self.cutscene and self.cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing', 'skyy_walking', 'skyy_flash')
@@ -2800,12 +2837,17 @@ class Game:
             if (npc.tile_x, npc.tile_y) not in candidates:
                 continue
             npc.face_toward_player(self.player)
-            if npc.npc_type in ('guard', 'gym_guard', 'gym2_guard', 'route2_guard'):
+            if npc.npc_type in ('guard', 'gym_guard', 'gym2_guard'):
                 if npc.npc_type == 'gym_guard' and not self.story_flags.get('amber_lab_done'):
                     dialog = ["The gym leader is not here right now."]
                 else:
                     dialog = getattr(npc, 'block_dialog', ["..."])
-                self.message_box.queue_messages(dialog, wait_for_input=True)
+                if npc.npc_type == 'gym2_guard':
+                    self.message_box.queue_messages(
+                        dialog, wait_for_input=True,
+                        on_complete=lambda n=npc: self._push_player_back_from(n))
+                else:
+                    self.message_box.queue_messages(dialog, wait_for_input=True)
                 return True
             if npc.npc_type == 'healer':
                 self.message_box.queue_messages(

@@ -36,6 +36,7 @@ class Player(pygame.sprite.Sprite):
         self.anim_timer = 0
         self.turn_timer = 0.0
         self.turn_delay = 0.08
+        self.forced_move = False
 
     def update(self, keys, game, dt):
         cutscene = getattr(game, 'cutscene', None)
@@ -78,6 +79,9 @@ class Player(pygame.sprite.Sprite):
                 self.moving = False
                 self.anim_index = 0
                 self.image = self.animations[self.direction][0]
+                if self.forced_move:
+                    self.forced_move = False
+                    self.turn_timer = 0.3
                 self.check_for_encounter(game)
                 self.check_for_entrance(game)
             return

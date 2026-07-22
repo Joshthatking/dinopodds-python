@@ -99,7 +99,7 @@ TRAINER_DATA = {
     },
     'route2_boy': {
         'name': 'Will',
-        'dinos': {0: ('Voltzbee', 15)},
+        'dinos': {0: ('Prickly', 15)},
         'dialog': {
             'default':  ["Hold up, you're not passing without a battle!", "Let's go!"],
             'defeated': ["Alright, you can head on through."]
@@ -251,6 +251,8 @@ DINODEX_DATA = {
     'Scarecrux':  {'number': 22, 'desc': "At first just folk lore to the residents of Elder Town, this odd scarecrow has been scaring Creuws for years only to be put to rest by the great Luna watching over, it is said to only come alive at night..."},
     'Palidian':   {'number': 23, 'desc': "A noble knight who guards the forest, known to be a defender of sacred land and be courageous in battle."},
     'Rockull':    {'number': 24, 'desc': "A hulking rock golem that packs its boulder-like fists with crushing force. Rockull is slow to move but nearly impossible to knock down."},
+    'Prickly':    {'number': 25, 'desc': "A cheerful cactus dino covered in spines that are sharper than they look. Prickly thrives in dry, sun-baked soil."},
+    'Cyflactus':  {'number': 26, 'desc': "Prickly's evolved form, a result of extensive solar panels surrounding the Region. This mutation allows spines to ignite with volcanic heat once it matures, turning every touch into a scorching strike."},
 
 }
 
@@ -272,7 +274,7 @@ DINO_DATA = {
         'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 26: 'Mach Speed', 29: 'Shadow Veil', 34: 'Wind Fracture', 38: 'Void Collapse', 43: 'Sky Scorch' },
         'evolve': {16: 'Luna'}},
     'Luna': {
-        'stats': {'type': ['flying', 'dark'], 'health': 100, 'attack': 135, 'defense': 80, 'speed':135},
+        'stats': {'type': ['flying', 'dark'], 'health': 100, 'attack': 125, 'defense': 80, 'speed':135},
         'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 26: 'Mach Speed', 29: 'Shadow Veil', 34: 'Wind Fracture', 38: 'Void Collapse', 43: 'Sky Scorch' },
         'evolve': None},
     'Prowscar': {
@@ -348,8 +350,16 @@ DINO_DATA = {
         'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform', 31: 'Iron Core', 34: 'Raging Pursuit', 36: 'Tree Spin', 39: 'Crash Impact'},
         'evolve': None},
     'Rockull': {
-        'stats': {'type': ['rock'], 'health': 160, 'attack': 110, 'defense': 150, 'speed': 40},
+        'stats': {'type': ['rock'], 'health': 160, 'attack': 100, 'defense': 150, 'speed': 50},
         'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Boulder Smash', 14: 'Momentum', 17: 'Force Shift', 20: 'Iron Core', 26: 'Crusher',30:'Prism Glare', 34: 'Crash Impact'},
+        'evolve': None},
+    'Prickly': {
+        'stats': {'type': ['earth','spike'], 'health': 71, 'attack': 90, 'defense': 79, 'speed': 60},
+        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17:'Synthesis', 25: 'Floral Resonance'},
+        'evolve': {21: 'Cyflactus'}},
+    'Cyflactus': {
+        'stats': {'type': ['earth', 'magma'], 'health': 115, 'attack': 131, 'defense': 119, 'speed': 85},
+        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17: 'Synthesis', 21: 'Flame Shatter', 26: 'Dread Thorn', 30: 'Floral Resonance', 34: 'Tree Spin', 37: 'Spike Storm', 40: 'Solar Flare'},
         'evolve': None},
 
 }
@@ -669,13 +679,19 @@ ENCOUNTER_ZONES = {
     
     "route2_grass": {
         "dinos": ["Teamtwood", "Netaslam", "Bullicorn"],
-        "level_range": (7, 11)
+        "level_range": (6, 9)
 
     },
 
     "route2_burnt_grass": {
-        "dinos": ["Sortle", "Teamtwood", "Creuw"],
-        "level_range": (8, 12)
+        "dinos": ["Sortle", "Teamtwood", "Creuw", "Prickly"],
+        "level_range": (7, 11)
+
+    },
+
+        "route2_belowcorn": {
+        "dinos": ["Sortle", "Prickly"],
+        "level_range": (9, 12)
 
     },
 
@@ -704,8 +720,9 @@ ZONE_REGIONS = [
     (16+x_offset, -37+y_offset, 18+x_offset, -37+y_offset, "route1_special"),
     #just use "z" in game to find tile in print
     (29, -30, 33, -27, "town1_grass"),
-    (16, -42, 21, -36, "route2_grass"),
-    (32, -42, 54, -29, "route2_burnt_grass"),
+    (16, -42, 37, -33, "route2_grass"),
+    (38, -56, 78, -17, "route2_burnt_grass"),
+    (86,-36,93,-30, 'route2_belowcorn'),
 
 ]
 
