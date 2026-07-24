@@ -18,6 +18,14 @@ def _load_sheet(trainer_id):
     ts   = config.TILE_SIZE
     if path and os.path.exists(path):
         sheet  = pygame.image.load(path).convert_alpha()
+        sw, sh = sheet.get_size()
+        if sw < 32 * 4 or sh < 32 * 4:
+            # Too small to be a real 4x4 walk-cycle sheet — treat it as a
+            # single static image (e.g. a one-off story prop) and reuse it
+            # for every direction/frame instead of cropping a 32x32 corner.
+            frame = sheet if ts == 32 else pygame.transform.scale(
+                sheet, (round(sw * ts / 32), round(sh * ts / 32)))
+            return {d: [frame] * 4 for d in _ALL_DIRS}
         frames = {}
         for row, direction in _ROW_DIR.items():
             frames[direction] = []
@@ -48,6 +56,7 @@ class NPC:
         self.defeated    = TRAINER_DATA.get(trainer_id, {}).get('defeated', False)
 
         self.spot_timer = 0.0
+        self._last_lateral_offset = 0  # guard-only: last known off-axis side the player approached from
 
         # Smooth movement — mirrors player.py exactly
         ts           = config.TILE_SIZE
@@ -94,6 +103,16 @@ class NPC:
                 if tile in solid:
                     return False
         return True
+
+    def _lateral_offset(self, player):
+        """Player's tile offset along the axis perpendicular to self.facing.
+        Sign tells us which side of the sight line the player is (or was
+        last) standing on."""
+        dx, dy = self._DIR_VEC[self.facing]
+        px, py = self._player_tile(player)
+        if dx != 0:
+            return py - self.tile_y
+        return px - self.tile_x
 
     def _pixel_close(self, player):
         """True when NPC sprite edge is touching the player sprite edge."""
@@ -166,6 +185,13 @@ class NPC:
         if game.story_flags.get(getattr(self, 'unlock_flag', 'encounters_unlocked')):
             return
 
+        # Track which side of the sight line the player is approaching from,
+        # while they're still off-axis (this collapses to 0 the instant
+        # can_see_player lines them up, so it must be captured every frame).
+        offset = self._lateral_offset(player)
+        if offset != 0:
+            self._last_lateral_offset = offset
+
         # Always resolve active slide first
         if self.is_moving:
             self.anim_timer += dt
@@ -212,15 +238,39 @@ class NPC:
                 self._step_toward_tile(hx, hy, game.solid_tile_coords, game.solid_tiles)
 
     def _guard_warn_done(self, player, game):
-        """After guard warning dialogue: return to post and push player out of range."""
+        """After guard warning dialogue: return to post and push the player
+        out of sight. Pushes straight back along the guard's own facing axis
+        first; if that leaves the player still inside the sight tiles (the
+        guard faces the same axis the player is retreating along), shoves
+        sideways instead so the warning can't re-trigger in a loop."""
         self.state = 'returning'
-        # Push player one tile down so she doesn't re-trigger immediately
-        px = player.rect.x // config.TILE_SIZE
-        py = player.rect.y // config.TILE_SIZE
-        ts   = config.TILE_SIZE
-        nx, ny = px, py + 1
+        ts = config.TILE_SIZE
         all_solid = game.solid_tile_coords | game.solid_tiles
-        if (nx, ny) not in all_solid:
+        px = player.rect.x // ts
+        py = player.rect.y // ts
+
+        dx, dy = self._DIR_VEC[self.facing]
+        nx, ny = px, py
+        cand = (px + dx, py + dy)
+        if cand not in all_solid:
+            nx, ny = cand
+
+        if (nx, ny) in self._sight_tiles():
+            sx, sy = (0, 1) if dx != 0 else (1, 0)
+            # Prefer the side the player actually approached from, so the
+            # sideways shove can't drop them onto a flanking path around
+            # the guard that they hadn't earned yet.
+            if self._last_lateral_offset < 0:
+                order = ((-sx, -sy), (sx, sy))
+            else:
+                order = ((sx, sy), (-sx, -sy))
+            for ox, oy in order:
+                cand = (nx + ox, ny + oy)
+                if cand not in all_solid:
+                    nx, ny = cand
+                    break
+
+        if (nx, ny) != (px, py):
             player.target_x = nx * ts
             player.target_y = ny * ts
             player.pos_x    = float(player.rect.x)
@@ -333,7 +383,15 @@ class NPC:
     # ── draw ──────────────────────────────────────────────────────────────────
 
     def draw(self, surface, camera_x, camera_y):
-        surface.blit(self._current_image(), (self.rect.x - camera_x, self.rect.y - camera_y))
+        img = self._current_image()
+        iw, ih = img.get_size()
+        ts = config.TILE_SIZE
+        # Larger-than-tile sprites (e.g. a bigger story prop) grow upward and
+        # stay centered on their own tile instead of bleeding into the tile
+        # to the right/below like a plain top-left blit would.
+        draw_x = self.rect.x - camera_x - (iw - ts) // 2
+        draw_y = self.rect.y - camera_y - (ih - ts)
+        surface.blit(img, (draw_x, draw_y))
         if self.state == 'spotted' and self.spot_timer > 0:
             if self._exclaim_font is None:
                 self._exclaim_font = pygame.font.SysFont('arial', 28, bold=True)

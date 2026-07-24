@@ -120,6 +120,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Prickly2':         os.path.join(DINOS_FRONT, 'Prickly.png'),
     'Cyflactus':        os.path.join(DINOS_FRONT, 'Cyflactus.png'),
     'Cyflactus2':       os.path.join(DINOS_FRONT, 'Cyflactus.png'),
+    'Gourdecrux':       os.path.join(DINOS_FRONT, 'Gourdecrux.png'),
+    'Gourdecrux2':      os.path.join(DINOS_FRONT, 'Gourdecrux.png'),
 }
 
 NPC_SHEETS = {
@@ -135,6 +137,7 @@ NPC_SHEETS = {
     'skyy':               os.path.join('assets', 'NPC', 'Skyy.png'),
     'gray':               os.path.join('assets', 'NPC', 'gray.png'),
     'enemy_male':         os.path.join('assets', 'NPC', 'Enemy_Male.png'),
+    'scarecrux':          os.path.join('assets', 'NPC', 'scarecrux_overworld.png'),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
@@ -175,6 +178,9 @@ WORLD_NPCS = {
         # ROUTE_2.2 single battle
         ('route2_boy', 59, -29, 'up', 5, 'trainer'),
         ('dylan', 67, -38, 'down', 5, 'trainer'),
+
+        # CORN_MAZE3 lore prop
+        ('scarecrux', 145, -53, 'down', 0, 'story'),
 
     ],
     'DINOCENTER.tmx': [

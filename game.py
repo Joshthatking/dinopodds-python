@@ -51,7 +51,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -546,7 +546,7 @@ class Game:
         base_stats = DINO_DATA[name]['stats']
         max_hp  = HP_Base(base_stats["health"], level)
         attack  = Base_Stats(base_stats["attack"], level)
-        defense = Base_Stats(base_stats["defense"], level, p=0.95)
+        defense = Base_Stats(base_stats["defense"], level, p=0.9)
         speed   = Base_Stats(base_stats["speed"], level)
 
         learned_moves = [m for _, m in sorted(DINO_DATA[name]['moves'].items()) if _ <= level]
@@ -602,7 +602,7 @@ class Game:
             dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
             dino['max_hp']  = HP_Base(base_stats["health"], dino['level'])
             dino['attack']  = Base_Stats(base_stats["attack"], dino['level'])
-            dino['defense'] = Base_Stats(base_stats["defense"], dino['level'], p=0.95)
+            dino['defense'] = Base_Stats(base_stats["defense"], dino['level'], p=0.9)
             dino['speed']   = Base_Stats(base_stats["speed"], dino['level'])
             dino['base_attack']  = dino['attack']
             dino['base_defense'] = dino['defense']
@@ -640,7 +640,7 @@ class Game:
                 dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
                 dino['max_hp']  = HP_Base(base_stats['health'], dino['level'])
                 dino['attack']  = Base_Stats(base_stats['attack'], dino['level'])
-                dino['defense'] = Base_Stats(base_stats['defense'], dino['level'], p=0.95)
+                dino['defense'] = Base_Stats(base_stats['defense'], dino['level'], p=0.9)
                 dino['speed']   = Base_Stats(base_stats['speed'], dino['level'])
                 dino['base_attack']  = dino['attack']
                 dino['base_defense'] = dino['defense']
@@ -858,7 +858,7 @@ class Game:
 
         dino['max_hp']  = HP_Base(base_stats['health'], level)
         dino['attack']  = Base_Stats(base_stats['attack'], level)
-        dino['defense'] = Base_Stats(base_stats['defense'], level, p=0.95)
+        dino['defense'] = Base_Stats(base_stats['defense'], level, p=0.9)
         dino['speed']   = Base_Stats(base_stats['speed'], level)
         dino['base_attack']  = dino['attack']
         dino['base_defense'] = dino['defense']
@@ -911,7 +911,7 @@ class Game:
             return zone
         return self.tile_types.get((player_x, player_y))
 
-    def trigger_encounter(self):
+    def trigger_encounter(self, forced_dino=None, forced_level=None):
         self.player.moving = False
         self.player.target_x = self.player.rect.x
         self.player.target_y = self.player.rect.y
@@ -921,14 +921,17 @@ class Game:
         self.fading = True
         self.fade_alpha = 0
 
-        tile_x = self.player.rect.x // config.TILE_SIZE
-        tile_y = self.player.rect.y // config.TILE_SIZE
-        zone = self.get_player_zone(tile_x, tile_y)
-        # print(f"[ENCOUNTER] tile=({tile_x},{tile_y}) zone={zone}")
+        if forced_dino:
+            dino_key, level = forced_dino, forced_level
+        else:
+            tile_x = self.player.rect.x // config.TILE_SIZE
+            tile_y = self.player.rect.y // config.TILE_SIZE
+            zone = self.get_player_zone(tile_x, tile_y)
+            # print(f"[ENCOUNTER] tile=({tile_x},{tile_y}) zone={zone}")
 
-        zone_data = ENCOUNTER_ZONES[zone]
-        dino_key = random.choice(zone_data["dinos"])
-        level = random.randint(*zone_data["level_range"])
+            zone_data = ENCOUNTER_ZONES[zone]
+            dino_key = random.choice(zone_data["dinos"])
+            level = random.randint(*zone_data["level_range"])
 
         self.enemy_dino = self.create_dino(dino_key, level)
         self.field_effects = []
@@ -2763,6 +2766,8 @@ class Game:
         self.npcs = []
         for spec in config.WORLD_NPCS.get(world_file, []):
             trainer_id, tx, ty, facing, sight, npc_type = spec
+            if trainer_id == 'scarecrux' and self.story_flags.get('scarecrux_awakened'):
+                continue
             npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
                       facing=facing, sight_range=sight, npc_type=npc_type)
             npc.home_tile   = (tx, ty)
@@ -2896,6 +2901,25 @@ class Game:
         elif npc.trainer_id == 'skyy':
             if not self.story_flags.get('gym1_accessible'):
                 self._start_skyy_dialogue(npc)
+        elif npc.trainer_id == 'scarecrux':
+            if self.night_active:
+                self.message_box.queue_messages(
+                    ["The scarecrow has awoken in the night..."],
+                    wait_for_input=True,
+                    on_complete=lambda: self._start_scarecrux_battle(npc))
+            else:
+                self.message_box.queue_messages(
+                    ["The scarecrow's purpose is to ward off luna's in the area",
+                     "... Somethings feels a bit off"],
+                    wait_for_input=True)
+
+    def _start_scarecrux_battle(self, npc):
+        """One-time night event: the scarecrow leaves for good once it wakes up."""
+        self.story_flags['scarecrux_awakened'] = True
+        self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+        if npc in self.npcs:
+            self.npcs.remove(npc)
+        self.trigger_encounter(forced_dino='Scarecrux', forced_level=15)
 
     def _start_skyy_dialogue(self, npc):
         npc.face_toward_player(self.player)

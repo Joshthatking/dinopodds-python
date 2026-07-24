@@ -1,8 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="1">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="2">
  <tileset firstgid="1" source="../TILESET/Fall1.tsx"/>
  <tileset firstgid="321" source="../TILESET/PC_GYM2.tsx"/>
  <tileset firstgid="1857" source="../TILESET/building2.tsx"/>
+ <objectgroup id="5" name="DC">
+  <properties>
+   <property name="entrance_id" value="dinocenter_town2"/>
+  </properties>
+  <object id="1" x="134.5" y="231.5" width="20" height="17.5">
+   <properties>
+    <property name="entrance_id" value="dinocenter_town2"/>
+   </properties>
+  </object>
+ </objectgroup>
  <layer id="1" name="Tile Layer 1" width="20" height="15">
   <data encoding="csv">
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,

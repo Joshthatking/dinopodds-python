@@ -219,6 +219,10 @@ if __name__ == '__main__':
 # TYPE CHART CHANGES
 # Defense slower than rest of stats on level up
 # Attack stat is more impactful
+# Finally fixed blocking logic
+# Curfue, log, cafe sprites --. chibi scarecrux
+# Adding overworld scarecrux event before gym2 
+# Gourdecrux fusion --> later game
 
 #FIX xp again, lower amount earned from higher level 
 #maybe adjust xp alot lower or make xp to level up alot higher and adjust all levels a bit, this will make gym 3 get final evo!

@@ -229,7 +229,7 @@ TRAINER_DATA = {
 DINODEX_DATA = {
     'Vusion':    {'number': 1,  'desc': "A relentless dark-type predator that hunts by sensing heat. Its flickering energy aura can destabilize opponents before they even strike."},
     'Corlave':   {'number': 2,  'desc': "A small aquatic dino that dwells in shallow coastal waters. Its compact shell deflects glancing blows, making it tougher than it looks."},
-    'Anemamace': {'number': 3,  'desc': "Corlave's evolved form. Longer and more powerful, it wields spiked appendages that can pierce rock. Feared by deep-sea hunters."},
+    'Anemamace': {'number': 3,  'desc': "The oceans sturdiest protector. It wields spiked appendages that can pierce rock. Feared by the celestials that once attacked both land,sky and sea."},
     'Creuw':     {'number': 4,  'desc': "A lightweight flier with hollow bones built for bursts of speed. Often spotted riding thermals high above open plains."},
     'Luna':      {'number': 5,  'desc': "Creuw's evolved form. Fused flying and dark energy grant it near-invisibility at night. Rarely seen twice by the same trainer."},
     'Prowscar':  {'number': 6,  'desc': "A scrappy dark-type that roams dense undergrowth. Its jaw muscles generate enormous bite force despite its small frame."},
@@ -241,18 +241,19 @@ DINODEX_DATA = {
     'Sortle':  {'number': 12, 'desc': "This turtle has a shell made of sand actively swirling like a tornado, similar to its counterpart Frostle."},
     'Magnecrab':  {'number': 13, 'desc': "An underwater abomination, this crab has magnetic trident like claws which surge with electricity all while being native to the ocean."},
     'Volkit':     {'number': 14, 'desc': "A fierce cat with a molten core. Volkit is a fast and agile attacker who blazes in battle."},
-    'Drafyton':   {'number': 15, 'desc': "A mysterious creature who once roamed and conquered both land and sky in the Lost Region, now a shell remains... This fossilized dragon keeps its hardened strength and is resilient in any battle."},
+    'Drafyton':   {'number': 15, 'desc': "A mysterious creature who once roamed and conquered both land and sky in the Lost Region, now a shell remains... This fossilized dragon was the ulitmate protector of the Lost Region when it was being attacked by the spacial creatures eons ago, Drafyton with its help from other brave lines of dinos in the region were able to save the day from celestial conquest."},
     'Auraliz':    {'number': 16, 'desc': "A majestic aura surrounds this cold blooded lizard, it is said to freeze the water of any nearby source when it is near. "},
     'Voltzbee':   {'number': 17, 'desc': "This electric bee helps polinate the region lightning fast, locals say the charge it produces synthesizes with the solar panels nearby."},
     'Teamtwood':  {'number': 18, 'desc': "A worker at heart, Teamtwood provides assitance to locals all year round with its love for the Earth."},
-    'Tygraflare':  {'number': 19, 'desc': "With heat equal to stars emitting from its giant paws, Tygraflare is sure to fire up the its opponents."},
+    'Tygraflare':  {'number': 19, 'desc': "With heat equal to stars emitting from its giant paws, Tygraflare is sure to fire up the its opponents. Known to be fast in battle and apply pressure immediately to surprise the foe."},
     'Bouldava':   {'number': 20, 'desc': "The Molten Lava Rock dino, known to bathe in the magma at the base of the Megi Volcano."},
     'Ghoulflame': {'number': 21, 'desc': "This Ghoul resides in the Episc Chateau in Elder Town, it's spirit likes to lurk around the area and play pranks. With fire and dark energy to use on foes."},
     'Scarecrux':  {'number': 22, 'desc': "At first just folk lore to the residents of Elder Town, this odd scarecrow has been scaring Creuws for years only to be put to rest by the great Luna watching over, it is said to only come alive at night..."},
-    'Palidian':   {'number': 23, 'desc': "A noble knight who guards the forest, known to be a defender of sacred land and be courageous in battle."},
+    'Palidian':   {'number': 23, 'desc': "A noble knight who guards the forest, known to be a defender of sacred land and be courageous in battle. A true guardian of the Lost Region, fabled in the towns mythology as a subservant palidan only to the ancients or the region."},
     'Rockull':    {'number': 24, 'desc': "A hulking rock golem that packs its boulder-like fists with crushing force. Rockull is slow to move but nearly impossible to knock down."},
     'Prickly':    {'number': 25, 'desc': "A cheerful cactus dino covered in spines that are sharper than they look. Prickly thrives in dry, sun-baked soil."},
-    'Cyflactus':  {'number': 26, 'desc': "Prickly's evolved form, a result of extensive solar panels surrounding the Region. This mutation allows spines to ignite with volcanic heat once it matures, turning every touch into a scorching strike."},
+    'Cyflactus':  {'number': 26, 'desc': "Prickly's evolved form, a result of extensive solar panels surrounding the Region. This mutation turned its prickly spikes into scorching spikes made of flames. Scientist in the area have begun to study and work with Cyflactus to learn how it evolved and to assist it with biotechnology where it can precisely pinpoint high risk spots from solar heat exposure with its monocular smart glass."},
+    'Gourdecrux': {'number': 27, 'desc': "A fiery transformation of Scarecrux, its head consumed by a burning jack-o'-lantern. Legend says only a trainer who has proven themselves at the Region's gyms can awaken this form."},
 
 }
 
@@ -344,6 +345,10 @@ DINO_DATA = {
     'Scarecrux': {
         'stats': {'type': ['dark', 'earth'], 'health': 110, 'attack': 136, 'defense': 124, 'speed': 88},
         'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Vine Snare', 15: 'Haunt', 19: 'Distortion', 23: 'Dread Thorn', 26: 'Force Shift', 29: 'Thunder Blitz', 33: 'Tree Spin', 37: 'Void Collapse'},
+        'evolve': None},
+    'Gourdecrux': {
+        'stats': {'type': ['dark', 'magma'], 'health': 105, 'attack': 142, 'defense': 98, 'speed': 112},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Fireball', 15: 'Haunt', 19: 'Distortion', 23: 'Lava Burst', 26: 'Force Shift', 29: 'Thunder Blitz', 33: 'Solar Flare', 37: 'Void Collapse'},
         'evolve': None},
     'Palidian': {
         'stats': {'type': ['earth', 'rock'], 'health': 90, 'attack': 124, 'defense': 136, 'speed': 105},
@@ -640,6 +645,7 @@ ENTRANCE_DATA = {
     'home':       {'world': 'HOME_JET.tmx',        'spawn': (9, 11)},
     'jet_room':   {'world': 'HOME_JET2.tmx',       'spawn': (9, 10)},
     'dinocenter':   {'world': 'DINOCENTER.tmx',       'spawn': (9, 12)},
+    'dinocenter_town2': {'world': 'DINOCENTER.tmx',   'spawn': (9, 12)},
     'research':     {'world': 'RESEARCH_LAB.tmx',    'spawn': (10, 11)},
     'gym1':         {'world': 'GYM1.tmx',             'spawn': (9, 13)},
 
@@ -775,7 +781,7 @@ NATURE_BOOSTS = {
 def HP_Base(base_hp,level, p=1.4):
     return round(base_hp * (level / 50) ** p + 10)
 
-def Base_Stats(base, level, p=0.7):
+def Base_Stats(base, level, p=0.75):
     return round(base * (level / 50) ** p)
 
 
