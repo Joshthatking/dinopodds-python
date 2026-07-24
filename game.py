@@ -546,7 +546,7 @@ class Game:
         base_stats = DINO_DATA[name]['stats']
         max_hp  = HP_Base(base_stats["health"], level)
         attack  = Base_Stats(base_stats["attack"], level)
-        defense = Base_Stats(base_stats["defense"], level)
+        defense = Base_Stats(base_stats["defense"], level, p=0.95)
         speed   = Base_Stats(base_stats["speed"], level)
 
         learned_moves = [m for _, m in sorted(DINO_DATA[name]['moves'].items()) if _ <= level]
@@ -602,7 +602,7 @@ class Game:
             dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
             dino['max_hp']  = HP_Base(base_stats["health"], dino['level'])
             dino['attack']  = Base_Stats(base_stats["attack"], dino['level'])
-            dino['defense'] = Base_Stats(base_stats["defense"], dino['level'])
+            dino['defense'] = Base_Stats(base_stats["defense"], dino['level'], p=0.95)
             dino['speed']   = Base_Stats(base_stats["speed"], dino['level'])
             dino['base_attack']  = dino['attack']
             dino['base_defense'] = dino['defense']
@@ -640,7 +640,7 @@ class Game:
                 dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
                 dino['max_hp']  = HP_Base(base_stats['health'], dino['level'])
                 dino['attack']  = Base_Stats(base_stats['attack'], dino['level'])
-                dino['defense'] = Base_Stats(base_stats['defense'], dino['level'])
+                dino['defense'] = Base_Stats(base_stats['defense'], dino['level'], p=0.95)
                 dino['speed']   = Base_Stats(base_stats['speed'], dino['level'])
                 dino['base_attack']  = dino['attack']
                 dino['base_defense'] = dino['defense']
@@ -858,7 +858,7 @@ class Game:
 
         dino['max_hp']  = HP_Base(base_stats['health'], level)
         dino['attack']  = Base_Stats(base_stats['attack'], level)
-        dino['defense'] = Base_Stats(base_stats['defense'], level)
+        dino['defense'] = Base_Stats(base_stats['defense'], level, p=0.95)
         dino['speed']   = Base_Stats(base_stats['speed'], level)
         dino['base_attack']  = dino['attack']
         dino['base_defense'] = dino['defense']

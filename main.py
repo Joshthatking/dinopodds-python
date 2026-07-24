@@ -214,7 +214,11 @@ if __name__ == '__main__':
 #7/22
 # NEW DINOs - Cyflactus/Prickly
 # FIX route 2 blocker - make universal function
-# 
+
+#7/23
+# TYPE CHART CHANGES
+# Defense slower than rest of stats on level up
+# Attack stat is more impactful
 
 #FIX xp again, lower amount earned from higher level 
 #maybe adjust xp alot lower or make xp to level up alot higher and adjust all levels a bit, this will make gym 3 get final evo!
