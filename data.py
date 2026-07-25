@@ -1,5 +1,4 @@
 import config
-import math
 import random
 
 STAT_STAGE_MULT = {
@@ -8,6 +7,13 @@ STAT_STAGE_MULT = {
      1: 1.25,  2: 1.50,  3: 2.0,
      4: 2.5,   5: 3.0,   6: 3.5,
 }
+
+# XP split between the active dino and its bench, by number of dinos alive.
+# Single source of truth — used for both the XP actually granted and the
+# on-screen "gained X XP" messages, so the two can't drift apart again.
+ACTIVE_XP_MULT_SOLO  = 2.0   # active dino's multiplier when it's the only one alive
+ACTIVE_XP_MULT_PARTY = 1.5   # active dino's multiplier when others are alive too
+BENCH_XP_MULT = {2: 1.2, 3: 1.0, 4: 0.8, 5: 0.6}
 
 TRAINER_DATA = {
     'amber': {
@@ -117,6 +123,20 @@ TRAINER_DATA = {
         'dialog': {
             'default':  ["You've got some nerve coming through here.", "Let's battle!"],
             'defeated': ["Not bad at all."]
+        },
+        'directions': ['down'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 300,
+        'rank': 'lowest',
+    },
+    'rocko': {
+        'name': 'Rocko',
+        'dinos': {0: ('Sortle', 11), 1: ('Voltzbee', 12)},
+        'dialog': {
+            'default':  ["Hah, new guy on Route 2!", "Let's see what you've got!"],
+            'defeated': ["Guess I've still got some toughening up to do."]
         },
         'directions': ['down'],
         'look_around': True,
@@ -654,6 +674,40 @@ ENTRANCE_DATA = {
 
 ################## ENCOUNTER ZONES ####################
 # encounter_data.py or near your config
+#
+# 'dinos' accepts either the plain old format:
+#     "dinos": ["Bullicorn", "Voltzbee"]              # equal odds, available any time
+# or a weighted/conditional format, per entry:
+#     "dinos": [
+#         {"name": "Prickly",  "weight": 0.7, "time": "night"},
+#         {"name": "Prowscar", "weight": 0.2, "time": "night"},
+#         {"name": "Vusion",   "weight": 0.1},          # "time" omitted -> any time
+#     ]
+# 'weight' defaults to 1 (equal odds) and doesn't need to sum to any total —
+# it's just relative. 'time' is "day", "night", or omitted for always-available.
+# The two formats can mix within the same list.
+def pick_zone_dino(zone_data, is_night):
+    """Weighted-random pick from a zone's 'dinos' list, honoring each entry's
+    optional 'time' gate. Returns None if nothing qualifies right now (e.g.
+    a night-only zone during the day) — callers should treat that as "no
+    encounter this time", not an error."""
+    names, weights = [], []
+    for entry in zone_data['dinos']:
+        if isinstance(entry, str):
+            name, weight, time = entry, 1, None
+        else:
+            name, weight, time = entry['name'], entry.get('weight', 1), entry.get('time')
+        if time == 'night' and not is_night:
+            continue
+        if time == 'day' and is_night:
+            continue
+        names.append(name)
+        weights.append(weight)
+    if not names:
+        return None
+    return random.choices(names, weights=weights, k=1)[0]
+
+
 ENCOUNTER_ZONES = {
     # "grass": {
     #     "dinos": ["Anemamace", "Corlave"],
@@ -675,15 +729,15 @@ ENCOUNTER_ZONES = {
     },
 
     "town1_grass": {
-        "dinos": ["Sortle", "Sharktastrophe"],
+        "dinos": ["Sortle", "Teamtwood"],
         "level_range": (6, 8)
     },
 
 
     
     "route2_grass": {
-        "dinos": ["Teamtwood", "Netaslam", "Bullicorn"],
-        "level_range": (6, 9)
+        "dinos": ["Teamtwood", "Netaslam", "Bullicorn", "Sortle"],
+        "level_range": (6, 8)
 
     },
 
@@ -696,6 +750,19 @@ ENCOUNTER_ZONES = {
         "route2_belowcorn": {
         "dinos": ["Sortle", "Prickly"],
         "level_range": (9, 12)
+
+    },
+
+        "corn_maze": {
+        "encounter_rate": 0.05,
+        "dinos": [
+            {"name": "Prickly",  "weight": 0.7, "time": "night"},
+            {"name": "Prickly",  "weight": 0.4, "time": "day"},
+            {"name": "Prowscar", "weight": 0.2, "time": "night"},
+            {"name": "Creuw", "weight": 0.6, "time": "day"},
+            {"name": "Vusion",   "weight": 0.1, "time": "night"},
+        ],
+        "level_range": (11, 13)
 
     },
 
@@ -727,6 +794,8 @@ ZONE_REGIONS = [
     (16, -42, 37, -33, "route2_grass"),
     (38, -56, 78, -17, "route2_burnt_grass"),
     (86,-36,93,-30, 'route2_belowcorn'),
+    (86,-73,150,-46, 'corn_maze'),
+
 
 ]
 
@@ -741,10 +810,10 @@ def get_zone_for_tile(tx, ty):
 
 
 def LevelXP(level):
-    return (level*2.3)**2
+    return (level*1.7)**2.4
 
 def XPtoLevel(XP):
-    return int(math.sqrt(XP)/2.3)
+    return int((XP ** (1/2.4)) / 1.7)
 
 
 def calculate_xp_gain(player_level, opponent_level, enemy_name=None, base_xp=7, state_multiplier=1.0):
@@ -760,9 +829,18 @@ def calculate_xp_gain(player_level, opponent_level, enemy_name=None, base_xp=7, 
     return max(5, int(xp))
 
 ### 0.5  catching
-### 0.75 wild encounters
+### 0.8  wild encounters
 ### 0.9  trainer battles
-### 1.0  rivals, gyms, elite 4, bosses
+### 1.0  rivals, gym leaders, elite 4, bosses
+
+def is_boss_tier_trainer(trainer_data):
+    """Rivals and gym leaders share the top (1.0) XP multiplier tier —
+    everyone else (including the rank-and-file trainers guarding a gym)
+    battles at 0.9. A gym leader is any 'gym' biome trainer that isn't
+    ranked 'lowest' (the gym's regular trainers)."""
+    if trainer_data.get('rank') == 'rival':
+        return True
+    return trainer_data.get('biome') == 'gym' and trainer_data.get('rank') != 'lowest'
 
 ##################### NATURES ##################
 

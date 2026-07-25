@@ -626,9 +626,8 @@ class Game:
             return msgs
         active = self.player_dinos[self.active_dino_index]
         alive_count = len(alive)
-        _bench_mult = {2: 1.15, 3: 0.9, 4: 0.75, 5: 0.6}
-        active_mult = 2.0 if alive_count == 1 else 1.5
-        bench_mult  = _bench_mult.get(alive_count, 1.0)
+        active_mult = ACTIVE_XP_MULT_SOLO if alive_count == 1 else ACTIVE_XP_MULT_PARTY
+        bench_mult  = BENCH_XP_MULT.get(alive_count, 1.0)
         for dino in alive:
             mult = active_mult if dino is active else bench_mult
             dino['xp'] += int(round(xp_gain * mult))
@@ -912,15 +911,6 @@ class Game:
         return self.tile_types.get((player_x, player_y))
 
     def trigger_encounter(self, forced_dino=None, forced_level=None):
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
-        self.player.pos_x = float(self.player.rect.x)
-        self.player.pos_y = float(self.player.rect.y)
-        self.active_dino_index = 0
-        self.fading = True
-        self.fade_alpha = 0
-
         if forced_dino:
             dino_key, level = forced_dino, forced_level
         else:
@@ -930,8 +920,19 @@ class Game:
             # print(f"[ENCOUNTER] tile=({tile_x},{tile_y}) zone={zone}")
 
             zone_data = ENCOUNTER_ZONES[zone]
-            dino_key = random.choice(zone_data["dinos"])
+            dino_key = pick_zone_dino(zone_data, self.night_active)
+            if dino_key is None:
+                return  # nothing available right now (e.g. a night-only zone by day)
             level = random.randint(*zone_data["level_range"])
+
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        self.player.pos_x = float(self.player.rect.x)
+        self.player.pos_y = float(self.player.rect.y)
+        self.active_dino_index = 0
+        self.fading = True
+        self.fade_alpha = 0
 
         self.enemy_dino = self.create_dino(dino_key, level)
         self.field_effects = []
@@ -1265,9 +1266,11 @@ class Game:
         xp_total = 0
         if alive and active:
             ref_level = active['level']
-            xp_total += calculate_xp_gain(ref_level, self.enemy_dino['level'], enemy_name=self.enemy_dino['name'], state_multiplier=0.9)
+            mult1 = 1.0 if npc1 and is_boss_tier_trainer(TRAINER_DATA.get(npc1.trainer_id, {})) else 0.9
+            xp_total += calculate_xp_gain(ref_level, self.enemy_dino['level'], enemy_name=self.enemy_dino['name'], state_multiplier=mult1)
             if self.enemy_dino2:
-                xp_total += calculate_xp_gain(ref_level, self.enemy_dino2['level'], enemy_name=self.enemy_dino2['name'], state_multiplier=0.9)
+                mult2 = 1.0 if npc2 and is_boss_tier_trainer(TRAINER_DATA.get(npc2.trainer_id, {})) else 0.9
+                xp_total += calculate_xp_gain(ref_level, self.enemy_dino2['level'], enemy_name=self.enemy_dino2['name'], state_multiplier=mult2)
 
         level_up_msgs = self._grant_party_xp_and_level_ups(xp_total) if xp_total > 0 else []
 
@@ -1291,8 +1294,8 @@ class Game:
             self.coins += coin_reward
             msgs.append(f"You received {coin_reward} coins!")
         if xp_total > 0 and active:
-            _db_act_m = 2.0 if len(alive) == 1 else 1.5
-            _db_ben_m = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}.get(len(alive), 1.0)
+            _db_act_m = ACTIVE_XP_MULT_SOLO if len(alive) == 1 else ACTIVE_XP_MULT_PARTY
+            _db_ben_m = BENCH_XP_MULT.get(len(alive), 1.0)
             msgs.append(f"{active['name']} gained {int(round(xp_total * _db_act_m))} XP!")
             if len(alive) > 1:
                 msgs.append(f"Each party dino gained {int(round(xp_total * _db_ben_m))} XP!")
@@ -2720,6 +2723,9 @@ class Game:
                 and not self.fading and self.entrance_fade_state is None and not cutscene_locking):
             self.quest_debug_screen.reset()
             self.push_state('quest_debug')
+        elif event.key == pygame.K_n and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
+            self.force_night = not self.night_active
+            print(f"[DEBUG] force_night -> {self.force_night}")
         elif event.key == pygame.K_j:
             if self.check_type_chart_interact():
                 pass
@@ -3514,10 +3520,9 @@ class Game:
                     enemy_name=self.enemy_dino['name'],
                     state_multiplier=0.5,   # catching
                 )
-                _catch_bench = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}
                 _alive_ct    = len(alive)
-                _act_m       = 2.0 if _alive_ct == 1 else 1.5
-                _ben_m       = _catch_bench.get(_alive_ct, 1.0)
+                _act_m       = ACTIVE_XP_MULT_SOLO if _alive_ct == 1 else ACTIVE_XP_MULT_PARTY
+                _ben_m       = BENCH_XP_MULT.get(_alive_ct, 1.0)
                 for d in alive:
                     mult = _act_m if d is active else _ben_m
                     self.award_xp(d, int(round(xp_gain * mult)))
@@ -3533,8 +3538,8 @@ class Game:
 
             msgs = [f"You caught {self.enemy_dino['name']}!", added_msg]
             if alive and active is not None:
-                _ct_act_m = 2.0 if len(alive) == 1 else 1.5
-                _ct_ben_m = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}.get(len(alive), 1.0)
+                _ct_act_m = ACTIVE_XP_MULT_SOLO if len(alive) == 1 else ACTIVE_XP_MULT_PARTY
+                _ct_ben_m = BENCH_XP_MULT.get(len(alive), 1.0)
                 msgs.append(f"{active['name']} has gained {int(round(xp_gain * _ct_act_m))} XP!")
                 if len(alive) > 1:
                     msgs.append(f"Each party dino gained {int(round(xp_gain * _ct_ben_m))} XP!")
@@ -3738,7 +3743,7 @@ class Game:
             faint_msg = f"{faint_prefix} {defender['name']} fainted!"
             if self.is_trainer_battle:
                 t_data = TRAINER_DATA.get(self.current_trainer_npc.trainer_id, {}) if self.current_trainer_npc else {}
-                multiplier = 1.0 if t_data.get('rank') == 'rival' else 0.9
+                multiplier = 1.0 if is_boss_tier_trainer(t_data) else 0.9
             else:
                 multiplier = 0.8
             xp_gain = calculate_xp_gain(
@@ -3749,8 +3754,8 @@ class Game:
             )
             level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
             _disp_alive = len([d for d in self.player_dinos if d.get('hp', 0) > 0])
-            _disp_act_m = 2.0 if _disp_alive == 1 else 1.5
-            _disp_ben_m = {2: 1.33, 3: 1.25, 4: 1.1, 5: 1.0}.get(_disp_alive, 1.0)
+            _disp_act_m = ACTIVE_XP_MULT_SOLO if _disp_alive == 1 else ACTIVE_XP_MULT_PARTY
+            _disp_ben_m = BENCH_XP_MULT.get(_disp_alive, 1.0)
             xp_msgs = [f"{attacker['name']} has gained {int(round(xp_gain * _disp_act_m))} XP!"]
             if _disp_alive > 1:
                 xp_msgs.append(f"Each party dino gained {int(round(xp_gain * _disp_ben_m))} XP!")

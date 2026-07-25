@@ -138,6 +138,7 @@ NPC_SHEETS = {
     'gray':               os.path.join('assets', 'NPC', 'gray.png'),
     'enemy_male':         os.path.join('assets', 'NPC', 'Enemy_Male.png'),
     'scarecrux':          os.path.join('assets', 'NPC', 'scarecrux_overworld.png'),
+    'rocko':              os.path.join('assets', 'NPC', 'Beard.png'),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
@@ -174,6 +175,7 @@ WORLD_NPCS = {
 
         # ROUTE_2.1 single battle
         ('route2_girl', 36, -37, 'up', 5, 'trainer'),
+        ('rocko', 16, -35, 'right', 5, 'trainer'),
 
         # ROUTE_2.2 single battle
         ('route2_boy', 59, -29, 'up', 5, 'trainer'),

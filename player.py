@@ -192,8 +192,10 @@ class Player(pygame.sprite.Sprite):
             else:
                 return
 
-        if on_enc and random.random() < 0.10:
-            game.trigger_encounter()
+        if on_enc:
+            rate = ENCOUNTER_ZONES.get(zone, {}).get('encounter_rate', 0.10)
+            if random.random() < rate:
+                game.trigger_encounter()
 
     def check_for_entrance(self, game):
         if game.state_stack[-1] != 'world':

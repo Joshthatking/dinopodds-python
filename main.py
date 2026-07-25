@@ -224,6 +224,13 @@ if __name__ == '__main__':
 # Adding overworld scarecrux event before gym2 
 # Gourdecrux fusion --> later game
 
+#7/24
+#New battle route 2 before gym 1
+# Crtl + n for night mode in sandbox mode
+# Xp scaling to be slower at higher levels (xp to level up change not earned)
+# Corn maze spawns, specific day and night and encounter rates
+
+
 #FIX xp again, lower amount earned from higher level 
 #maybe adjust xp alot lower or make xp to level up alot higher and adjust all levels a bit, this will make gym 3 get final evo!
 # fix skyy not being at gym immediately after rival battle
