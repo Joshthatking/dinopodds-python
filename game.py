@@ -2,6 +2,7 @@ import pygame
 import pytmx
 import json
 import re
+import math
 from player import Player
 from npc import NPC
 import os
@@ -12,6 +13,15 @@ import random
 import story as _story
 
 SAVE_PATH = 'dinopodds_save.json'
+
+# CORN_MAZE5's 3x3 tomb monument (world tile coords) — the interactable
+# lore object housing the Scarecrux <-> Gourdecrux night transformation.
+GOURDECRUX_TOMB_TILES = {
+    (124, -68), (125, -68), (126, -68),
+    (124, -67), (125, -67), (126, -67),
+    (124, -66), (125, -66), (126, -66),
+}
+GOURDECRUX_TOMB_CENTER = (125, -67)
 
 
 class Game:
@@ -138,6 +148,7 @@ class Game:
         self.yes_no_callback = None
         self.cutscene = None
         self.cutscene_flash = None
+        self.orb_fx = None
         self.intro_sequence = None
         self.ball_icons = {}
         for name, path in config.BALL_ICONS.items():
@@ -1843,10 +1854,292 @@ class Game:
             self.dn_transitioning = False
             self.cutscene = None
 
+    # ── Gym 2 corn maze reveal ──────────────────────────────────────────
+    GOURDECRUX_SCARECROW_TILE = (145, -53)  # matches WORLD_NPCS 'scarecrux' spawn
+    CREUW_DANCE_TILES = [(144, -53), (146, -53), (145, -54)]
+
+    def _check_gym2_corn_maze_reveal(self):
+        if self.story_flags.get('gym2_corn_maze_reveal_done') or self.cutscene:
+            return
+        if not self.story_flags.get('gym1_leader_defeated'):
+            return
+        if self.fading or self.message_box.visible:
+            return
+        tx = self.player.rect.x // config.TILE_SIZE
+        ty = self.player.rect.y // config.TILE_SIZE
+        if self.get_player_zone(tx, ty) != 'corn_maze':
+            return
+        if tx < 136:
+            return
+        self._start_gym2_corn_maze_cutscene()
+
+    def _start_gym2_corn_maze_cutscene(self):
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        self.cutscene = {'phase': 'gym2_pre_walk_wait'}
+        self.message_box.queue_messages(
+            ["Jet come check this out"],
+            wait_for_input=True,
+            on_complete=self._gym2_start_forced_walk
+        )
+
+    def _gym2_start_forced_walk(self):
+        if not self.cutscene:
+            return
+        self.cutscene['phase'] = 'gym2_walk_to_scene'
+        self.cutscene['walk_target'] = (142, -52)
+
+    def _update_gym2_walk_to_scene(self, dt):
+        p  = self.player
+        ts = config.TILE_SIZE
+        if p.moving:
+            step = p.move_speed * dt
+            if p.pos_x < p.target_x:   p.pos_x = min(p.pos_x + step, p.target_x)
+            elif p.pos_x > p.target_x: p.pos_x = max(p.pos_x - step, p.target_x)
+            if p.pos_y < p.target_y:   p.pos_y = min(p.pos_y + step, p.target_y)
+            elif p.pos_y > p.target_y: p.pos_y = max(p.pos_y - step, p.target_y)
+            p.rect.x = round(p.pos_x)
+            p.rect.y = round(p.pos_y)
+            p.anim_timer += dt
+            if p.anim_timer >= 0.08:
+                p.anim_timer = 0.0
+                p.anim_index = (p.anim_index + 1) % 4
+                p.image = p.animations[p.direction][p.anim_index]
+            if p.rect.x == p.target_x and p.rect.y == p.target_y:
+                p.moving = False
+                p.anim_index = 0
+                p.image = p.animations[p.direction][0]
+            return
+
+        tx, ty = self.cutscene['walk_target']
+        px, py = p.rect.x // ts, p.rect.y // ts
+        if (px, py) == (tx, ty):
+            self._gym2_spawn_log_and_curfeu()
+            return
+        dx, dy = tx - px, ty - py
+        if abs(dx) >= abs(dy) and dx != 0:
+            sx, sy = (1 if dx > 0 else -1), 0
+        elif dy != 0:
+            sx, sy = 0, (1 if dy > 0 else -1)
+        else:
+            return
+        d = {(1, 0): 'right', (-1, 0): 'left', (0, 1): 'down', (0, -1): 'up'}[(sx, sy)]
+        p.facing = p.direction = d
+        p.target_x = float((px + sx) * ts)
+        p.target_y = float((py + sy) * ts)
+        p.pos_x = float(p.rect.x)
+        p.pos_y = float(p.rect.y)
+        p.moving = True
+
+    def _gym2_spawn_log_and_curfeu(self):
+        log    = NPC('log',    tile_x=142, tile_y=-53, facing='down', sight_range=0, npc_type='story')
+        curfeu = NPC('curfeu', tile_x=145, tile_y=-52, facing='left', sight_range=0, npc_type='story')
+        self.npcs.append(log)
+        self.npcs.append(curfeu)
+        self.solid_tile_coords.add((log.tile_x, log.tile_y))
+        self.solid_tile_coords.add((curfeu.tile_x, curfeu.tile_y))
+        c = self.cutscene
+        c['log'] = log
+        c['curfeu'] = curfeu
+        c['phase'] = 'gym2_dialogue_wait'
+        self.message_box.queue_messages(
+            self._split_dialogue(
+                "Look at how the Creuws dance around the scarecrow, folklore says in the past"
+                " a ghostly scarecrow would haunt the corn fields and scare all the Creuws"
+                " away, until a brave Luna took the liberty to fly above ensuring the"
+                " scarecrow would hide away in slumber for eternity."
+            ),
+            wait_for_input=True,
+            on_complete=self._gym2_curfeu_dialogue
+        )
+
+    def _gym2_curfeu_dialogue(self):
+        if not self.cutscene:
+            return
+        self.message_box.queue_messages(
+            self._split_dialogue(
+                "They said the one of the scarecrows had a transformation and became a"
+                " protector of my families mansion beyond the corn field for years. It was a"
+                " fearful yet innocent spirit devoted to protecting the gates of our land."
+                " Its tomb is just north of here."
+            ),
+            wait_for_input=True,
+            on_complete=self._gym2_start_creuw_dance
+        )
+
+    def _gym2_start_creuw_dance(self):
+        if not self.cutscene:
+            return
+        img = pygame.transform.scale(self.player_dino_front_images['Creuw'], (26, 26))
+        creuws = [{'tile': t, 'img': img} for t in self.CREUW_DANCE_TILES]
+        c = self.cutscene
+        c['creuws'] = creuws
+        c['dance_elapsed'] = 0.0
+        c['phase'] = 'gym2_creuw_jumping'
+
+    CREUW_JUMP_DURATION = 1.2   # ~2 hops
+    CREUW_JUMP_HEIGHT   = 10
+
+    def _update_gym2_creuw_jumping(self, dt):
+        c = self.cutscene
+        c['dance_elapsed'] += dt
+        if c['dance_elapsed'] >= self.CREUW_JUMP_DURATION:
+            self._gym2_start_scarecrux_glow()
+
+    SCARECRUX_GLOW_DURATION = 1.0
+
+    def _gym2_start_scarecrux_glow(self):
+        c = self.cutscene
+        c['glow_elapsed'] = 0.0
+        c['phase'] = 'gym2_scarecrux_glow'
+
+    def _update_gym2_scarecrux_glow(self, dt):
+        c = self.cutscene
+        c['glow_elapsed'] += dt
+        if c['glow_elapsed'] >= self.SCARECRUX_GLOW_DURATION:
+            self._gym2_start_creuws_run_off()
+
+    CREUW_RUNOFF_DURATION = 0.8
+
+    def _gym2_start_creuws_run_off(self):
+        c = self.cutscene
+        ts = config.TILE_SIZE
+        cx, cy = self.GOURDECRUX_SCARECROW_TILE
+        for creuw in c['creuws']:
+            tx, ty = creuw['tile']
+            dx, dy = tx - cx, ty - cy
+            dist = max(1, abs(dx) + abs(dy))
+            creuw['start'] = (tx * ts, ty * ts)
+            creuw['end']   = (tx * ts + (dx // dist) * ts * 5, ty * ts + (dy // dist) * ts * 5)
+        c['runoff_elapsed'] = 0.0
+        c['phase'] = 'gym2_creuws_running_off'
+
+    def _update_gym2_creuws_running_off(self, dt):
+        c = self.cutscene
+        c['runoff_elapsed'] += dt
+        if c['runoff_elapsed'] >= self.CREUW_RUNOFF_DURATION:
+            c['creuws'] = []
+            self._gym2_vigilant_dialogue()
+
+    def _gym2_vigilant_dialogue(self):
+        if not self.cutscene:
+            return
+        self.cutscene['phase'] = 'gym2_dialogue_wait'
+        self.message_box.queue_messages(
+            self._split_dialogue(
+                "Some of that energy is still around it seems, I would be vigilant around"
+                " here at night ok Jet? I hope to see you at my gym soon, would love a good"
+                " challenge"
+            ),
+            wait_for_input=True,
+            on_complete=self._gym2_start_walk_away
+        )
+
+    def _gym2_start_walk_away(self):
+        if not self.cutscene:
+            return
+        c = self.cutscene
+        log, curfeu = c['log'], c['curfeu']
+        log.facing = curfeu.facing = 'left'
+        c['walk_target']  = (log.tile_x - 8, log.tile_y)
+        c['walk_target2'] = (curfeu.tile_x - 8, curfeu.tile_y)
+        c['phase'] = 'gym2_walking_away'
+
+    def _update_gym2_walking_away(self, dt):
+        c = self.cutscene
+        log, curfeu = c['log'], c['curfeu']
+        all_done = True
+        for npc, target in ((log, c['walk_target']), (curfeu, c['walk_target2'])):
+            if npc.is_moving:
+                npc.anim_timer += dt
+                if npc.anim_timer >= npc.anim_speed:
+                    npc.anim_timer = 0.0
+                    npc.anim_frame = (npc.anim_frame + 1) % 4
+                npc._slide(dt)
+                all_done = False
+                continue
+            if (npc.tile_x, npc.tile_y) == target:
+                continue
+            all_done = False
+            nx, ny = npc.tile_x - 1, npc.tile_y
+            self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+            npc.tile_x, npc.tile_y = nx, ny
+            self.solid_tile_coords.add((nx, ny))
+            npc.facing = 'left'
+            npc.target_x = float(nx * config.TILE_SIZE)
+            npc.target_y = float(ny * config.TILE_SIZE)
+            npc.is_moving = True
+            npc.anim_frame = 1
+            npc.anim_timer = 0.0
+
+        if all_done:
+            for npc in (log, curfeu):
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                if npc in self.npcs:
+                    self.npcs.remove(npc)
+            self.story_flags['gym2_corn_maze_reveal_done'] = True
+            self.cutscene = None
+
+    def _draw_gym2_cutscene_fx(self, surface):
+        c = self.cutscene
+        if not c:
+            return
+        ts = config.TILE_SIZE
+        phase = c.get('phase')
+
+        if phase == 'gym2_creuw_jumping':
+            t = c['dance_elapsed']
+            for creuw in c.get('creuws', []):
+                tx, ty = creuw['tile']
+                cx = tx * ts + ts // 2 - self.camera_x
+                cy = ty * ts + ts // 2 - self.camera_y
+                bounce = abs(math.sin(t * (2 * math.pi / (self.CREUW_JUMP_DURATION / 2)))) * self.CREUW_JUMP_HEIGHT
+                img = creuw['img']
+                surface.blit(img, (cx - img.get_width() // 2, cy - img.get_height() // 2 - bounce))
+
+        elif phase == 'gym2_scarecrux_glow':
+            gx, gy = self.GOURDECRUX_SCARECROW_TILE
+            progress = c['glow_elapsed'] / self.SCARECRUX_GLOW_DURATION
+            alpha = int(220 * math.sin(min(1.0, progress) * math.pi))
+            if alpha > 0:
+                radius = 20 + int(10 * math.sin(min(1.0, progress) * math.pi))
+                glow = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow, (255, 248, 200, alpha), (radius, radius), radius)
+                cx = gx * ts + ts // 2 - self.camera_x
+                cy = gy * ts + ts // 2 - self.camera_y
+                surface.blit(glow, (cx - radius, cy - radius))
+
+        elif phase == 'gym2_creuws_running_off':
+            t = min(1.0, c['runoff_elapsed'] / self.CREUW_RUNOFF_DURATION)
+            for creuw in c.get('creuws', []):
+                sx, sy = creuw['start']
+                ex, ey = creuw['end']
+                x = sx + (ex - sx) * t
+                y = sy + (ey - sy) * t
+                img = creuw['img']
+                surface.blit(img, (int(x - self.camera_x) - img.get_width() // 2,
+                                    int(y - self.camera_y) - img.get_height() // 2))
+
     def _update_cutscene(self, dt):
         c = self.cutscene
         if c['phase'] == 'grunts_walking':
             self._update_grunts_walking(dt)
+            return
+        if c['phase'] == 'gym2_walk_to_scene':
+            self._update_gym2_walk_to_scene(dt)
+            return
+        if c['phase'] == 'gym2_creuw_jumping':
+            self._update_gym2_creuw_jumping(dt)
+            return
+        if c['phase'] == 'gym2_scarecrux_glow':
+            self._update_gym2_scarecrux_glow(dt)
+            return
+        if c['phase'] == 'gym2_creuws_running_off':
+            self._update_gym2_creuws_running_off(dt)
+            return
+        if c['phase'] == 'gym2_walking_away':
+            self._update_gym2_walking_away(dt)
             return
         npc = c['npc']
 
@@ -2683,7 +2976,11 @@ class Game:
         py = self.player.rect.y // config.TILE_SIZE
         dx, dy = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}[self.player.facing]
         for d in range(1, 3):
-            if (px + dx * d, py + dy * d) in self.lore_tile_coords:
+            tile = (px + dx * d, py + dy * d)
+            if tile in GOURDECRUX_TOMB_TILES:
+                self._interact_gourdecrux_tomb()
+                return True
+            if tile in self.lore_tile_coords:
                 self.message_box.queue_messages([
                     "A Tale of 2 Halves",
                     "One exists to provide energy",
@@ -2695,6 +2992,129 @@ class Game:
                 ], wait_for_input=True)
                 return True
         return False
+
+    def _interact_gourdecrux_tomb(self):
+        self.message_box.queue_messages(
+            ["The tomb of Gourdecrux, gatekeeper of the Mansion"],
+            wait_for_input=True,
+            on_complete=self._maybe_start_gourdecrux_transform)
+
+    def _maybe_start_gourdecrux_transform(self):
+        if not self.night_active:
+            return
+        target = next((d for d in self.player_dinos if d['name'] in ('Scarecrux', 'Gourdecrux')), None)
+        if not target:
+            return
+        tx, ty = GOURDECRUX_TOMB_CENTER
+        self._start_orb_fx(tx, ty, on_complete=lambda: self._finish_gourdecrux_transform(target))
+
+    def _finish_gourdecrux_transform(self, dino):
+        old_name = dino['name']
+        new_name = 'Gourdecrux' if old_name == 'Scarecrux' else 'Scarecrux'
+        self._apply_form_swap(dino, new_name)
+        self.message_box.queue_messages(
+            [f"... Your {old_name} has morphed into {new_name}"],
+            wait_for_input=True)
+
+    def _apply_form_swap(self, dino, new_name):
+        """Fully re-derive type/stats/moves for a new species — unlike
+        do_evolution (which preserves old moves alongside new ones, correct
+        for a one-way evolution), a reversible form-switch should look like
+        a fresh create_dino() for the new species at the same level/HP state,
+        so nothing lingers from the old form after switching back and forth."""
+        level = dino['level']
+        hp_ratio = dino['hp'] / dino['max_hp'] if dino.get('max_hp', 0) > 0 else 1.0
+
+        new_data = DINO_DATA[new_name]
+        base_stats = new_data['stats']
+
+        dino['name']  = new_name
+        dino['type']  = base_stats['type']
+        dino['stats'] = base_stats
+        dino['image']       = self.player_dino_images[new_name]
+        dino['front_image'] = self.player_dino_front_images[new_name]
+        if new_name in self.dino_frames:
+            dino['frames'] = self.dino_frames[new_name]
+
+        dino['max_hp']  = HP_Base(base_stats['health'], level)
+        dino['attack']  = Base_Stats(base_stats['attack'], level)
+        dino['defense'] = Base_Stats(base_stats['defense'], level, p=0.9)
+        dino['speed']   = Base_Stats(base_stats['speed'], level)
+        dino['base_attack']  = dino['attack']
+        dino['base_defense'] = dino['defense']
+        dino['base_speed']   = dino['speed']
+        dino['stat_stages']  = {"attack": 0, "defense": 0, "speed": 0}
+        self.apply_nature_boost(dino)
+        dino['hp'] = max(1, int(dino['max_hp'] * hp_ratio))
+
+        learned_moves = [m for _, m in sorted(new_data['moves'].items()) if _ <= level]
+        dino['moves']   = learned_moves
+        dino['moveset'] = []
+        for move_name in learned_moves[-4:]:
+            m = MOVE_DATA.get(move_name, {})
+            dino['moveset'].append({
+                "name": move_name,
+                "type": m.get("type", "normal"),
+                "damage": m.get("damage", 0),
+                "accuracy": m.get("accuracy", 100),
+                "ability": m.get("ability", None),
+            })
+
+    # ── Gourdecrux tomb orb effect ───────────────────────────────────────
+    ORB_FX_DURATION = 4.0
+
+    def _start_orb_fx(self, world_tile_x, world_tile_y, on_complete):
+        ts = config.TILE_SIZE
+        cx = world_tile_x * ts + ts // 2
+        cy = world_tile_y * ts + ts // 2
+        orbs = []
+        colors = [(15, 10, 20), (58, 22, 92), (35, 12, 55)]
+        for _ in range(14):
+            orbs.append({
+                'angle':     random.uniform(0, 360),
+                'radius':    random.uniform(16, 48),
+                'ang_speed': random.uniform(90, 170) * random.choice((-1, 1)),
+                'size':      random.randint(3, 7),
+                'color':     random.choice(colors),
+                'rise_speed': random.uniform(14, 30),
+                'y_bob':     random.uniform(0, 6.28),
+            })
+        self.orb_fx = {
+            'cx': cx, 'cy': cy,
+            'elapsed': 0.0,
+            'orbs': orbs,
+            'on_complete': on_complete,
+        }
+
+    def _update_orb_fx(self, dt):
+        fx = self.orb_fx
+        fx['elapsed'] += dt
+        for o in fx['orbs']:
+            o['angle'] += o['ang_speed'] * dt
+        if fx['elapsed'] >= self.ORB_FX_DURATION:
+            cb = fx['on_complete']
+            self.orb_fx = None
+            if cb:
+                cb()
+
+    def _draw_orb_fx(self, surface):
+        fx = self.orb_fx
+        if not fx:
+            return
+        t = fx['elapsed']
+        progress = min(1.0, t / self.ORB_FX_DURATION)
+        for o in fx['orbs']:
+            rad = math.radians(o['angle'])
+            r = o['radius'] * (1.0 - 0.3 * progress)
+            x = fx['cx'] + r * math.cos(rad)
+            y = fx['cy'] + r * math.sin(rad) * 0.55 - t * o['rise_speed']
+            alpha = max(0, int(230 * (1.0 - progress)))
+            if alpha <= 0:
+                continue
+            size = o['size']
+            dot = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(dot, (*o['color'], alpha), (size, size), size)
+            surface.blit(dot, (int(x - self.camera_x) - size, int(y - self.camera_y) - size))
 
     def handle_world_event(self, event):
         if event.type != pygame.KEYDOWN:
@@ -2726,7 +3146,7 @@ class Game:
         elif event.key == pygame.K_n and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
             self.force_night = not self.night_active
             print(f"[DEBUG] force_night -> {self.force_night}")
-        elif event.key == pygame.K_j:
+        elif event.key == pygame.K_j and not self.orb_fx:
             if self.check_type_chart_interact():
                 pass
             elif self.check_box_interact():
@@ -3136,6 +3556,8 @@ class Game:
                 if self.fade_alpha <= 0:
                     self.fade_alpha = 0
                     self.entrance_fade_state = None
+            elif self.orb_fx:
+                self._update_orb_fx(dt)
             elif not self.fading:
                 keys = pygame.key.get_pressed()
                 self.all_sprites.update(keys, self, dt)
@@ -3165,6 +3587,7 @@ class Game:
             self._maybe_add_route2_blocker()
             self._maybe_add_skyy()
             self._maybe_add_gray_rival()
+            self._check_gym2_corn_maze_reveal()
 
     # --- Draw ---
 
@@ -3197,6 +3620,10 @@ class Game:
                 self.render_surface.blit(sprite.image,
                                          (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
             self.draw_map_above(self.render_surface)
+            if self.orb_fx:
+                self._draw_orb_fx(self.render_surface)
+            if self.cutscene:
+                self._draw_gym2_cutscene_fx(self.render_surface)
             if self.heal_anim:
                 self._draw_heal_anim(self.render_surface)
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))

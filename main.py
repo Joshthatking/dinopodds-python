@@ -230,6 +230,14 @@ if __name__ == '__main__':
 # Xp scaling to be slower at higher levels (xp to level up change not earned)
 # Corn maze spawns, specific day and night and encounter rates
 
+#7/25
+# Scarecrux into Gourdecrux Transformation at night at 2nd obelisk in corn maze
+# Corn Field Scarecrux cutscene - slow down forced walk, make sure creuws and log and curfeu already spawned in
+# make the creuws go north into the corn and be layed behind the corn and disappear
+# in dialogue give the name like [log] at start of each box
+# when curfeu speaks have him walk up to player and turn towards him to speak
+
+
 
 #FIX xp again, lower amount earned from higher level 
 #maybe adjust xp alot lower or make xp to level up alot higher and adjust all levels a bit, this will make gym 3 get final evo!

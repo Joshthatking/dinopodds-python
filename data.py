@@ -242,6 +242,23 @@ TRAINER_DATA = {
         'reward_coins': 200,
         'rank': 'lowest',
     },
+    # TODO: placeholder team/dialog — Gym 2's real roster and post-battle
+    # lines haven't been designed yet. 'name'/'biome'/'rank' are real
+    # (used by the corn maze reveal cutscene and boss-tier XP check).
+    'log': {
+        'name': 'Log',
+        'dinos': {0: ('Creuw', 20)},
+        'dialog': {
+            'default':  ["Ready for a challenge, Jet?", "Let's battle!"],
+            'defeated': ["Well fought!"]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 1000,
+        'rank': 'medium',
+    },
 }
 
 
@@ -756,9 +773,9 @@ ENCOUNTER_ZONES = {
         "corn_maze": {
         "encounter_rate": 0.05,
         "dinos": [
-            {"name": "Prickly",  "weight": 0.7, "time": "night"},
+            {"name": "Prickly",  "weight": 0.4, "time": "night"},
             {"name": "Prickly",  "weight": 0.4, "time": "day"},
-            {"name": "Prowscar", "weight": 0.2, "time": "night"},
+            {"name": "Prowscar", "weight": 0.4, "time": "night"},
             {"name": "Creuw", "weight": 0.6, "time": "day"},
             {"name": "Vusion",   "weight": 0.1, "time": "night"},
         ],

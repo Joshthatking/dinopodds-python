@@ -139,6 +139,8 @@ NPC_SHEETS = {
     'enemy_male':         os.path.join('assets', 'NPC', 'Enemy_Male.png'),
     'scarecrux':          os.path.join('assets', 'NPC', 'scarecrux_overworld.png'),
     'rocko':              os.path.join('assets', 'NPC', 'Beard.png'),
+    'log':                os.path.join('assets', 'NPC', 'Log.png'),
+    'curfeu':             os.path.join('assets', 'NPC', 'Curfeu.png'),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
