@@ -149,6 +149,10 @@ class Game:
         self.cutscene = None
         self.cutscene_flash = None
         self.orb_fx = None
+        self.abby_follower = None
+        self.abby_dinos = []
+        self.is_vanessa_battle = False
+        self.vanessa_dino_queue = []
         self.intro_sequence = None
         self.ball_icons = {}
         for name, path in config.BALL_ICONS.items():
@@ -1049,7 +1053,7 @@ class Game:
             self.forced_walk_npc  = None
             self.forced_walk_npc2 = None
             data   = TRAINER_DATA.get(npc.trainer_id, {})
-            dialog = data.get('dialog', {}).get('default', ["Double battle!"])
+            dialog = self._tag_dialogue(data.get('name', 'Trainer'), data.get('dialog', {}).get('default', ["Double battle!"]))
             self.message_box.queue_messages(
                 dialog, wait_for_input=True,
                 on_complete=lambda: self.start_double_trainer_battle(npc, npc2)
@@ -1200,10 +1204,31 @@ class Game:
         else:
             self.message_box.queue_messages(msgs, wait_for_input=True)
 
+    def _abby_is_ally(self):
+        """True when Abby is fighting alongside the player in this double
+        battle, once she's joined post-escort — the grunt pair, or the
+        Vanessa boss fight."""
+        if not (self.abby_follower and self.abby_dinos):
+            return False
+        if self.is_vanessa_battle:
+            return True
+        return bool(
+            self.current_trainer_npc and self.current_trainer_npc2
+            and {self.current_trainer_npc.trainer_id, self.current_trainer_npc2.trainer_id} == {'grunt1', 'grunt2'}
+        )
+
+    def _double_battle_p2(self):
+        """The player's double-battle ally slot: Abby's own first dino once
+        she's fighting alongside the player against the grunts, otherwise
+        the player's own second party member as before."""
+        if self._abby_is_ally():
+            return self.abby_dinos[0]
+        return self.player_dinos[1] if len(self.player_dinos) > 1 else None
+
     def _double_continue_turn(self):
         """Chain p2 auto → e1 auto → e2 auto → turn end after player's p1 action."""
         p1 = self.player_dinos[0] if self.player_dinos else None
-        p2 = self.player_dinos[1] if len(self.player_dinos) > 1 else None
+        p2 = self._double_battle_p2()
         e1 = self.enemy_dino
         e2 = self.enemy_dino2
 
@@ -1311,6 +1336,8 @@ class Game:
             if len(alive) > 1:
                 msgs.append(f"Each party dino gained {int(round(xp_total * _db_ben_m))} XP!")
         msgs.extend(level_up_msgs)
+        if grunt_pair:
+            msgs.extend(self._tag_dialogue('Grunt', ["Always interrupting our plans.. just wait you'll see whats coming soon"]))
         self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=pop_world)
 
     # ── Double battle input-phase methods ─────────────────────────
@@ -1331,7 +1358,7 @@ class Game:
             return
 
         p1 = self.player_dinos[0] if self.player_dinos else None
-        p2 = self.player_dinos[1] if len(self.player_dinos) > 1 else None
+        p2 = self._double_battle_p2()
         e1 = self.enemy_dino
         e2 = self.enemy_dino2
 
@@ -1419,7 +1446,7 @@ class Game:
             self.push_state('party')
 
     def _double_advance_to_p2(self):
-        p2 = self.player_dinos[1] if len(self.player_dinos) > 1 else None
+        p2 = self._double_battle_p2()
         ui = self.encounter_ui
         ui.in_fight_menu   = False
         ui.in_target_menu  = False
@@ -1427,6 +1454,23 @@ class Game:
         ui.move_selected   = 0
         if not p2 or p2.get('hp', 0) <= 0:
             self.double_p2_queued = None
+            self._execute_double_turn()
+            return
+        if self._abby_is_ally():
+            # A seasoned trainer in her own right — Abby picks her own move
+            # and target instead of waiting on the player.
+            e1 = self.enemy_dino
+            e2 = self.enemy_dino2
+            alive_targets = [is_e2 for is_e2, alive in (
+                (False, bool(e1 and e1.get('hp', 0) > 0)),
+                (True,  bool(e2 and e2.get('hp', 0) > 0)),
+            ) if alive]
+            moveset = p2.get('moveset', [])
+            if alive_targets and moveset:
+                move_name = random.choice(moveset)['name']
+                self.double_p2_queued = {'move_name': move_name, 'target_is_e2': random.choice(alive_targets)}
+            else:
+                self.double_p2_queued = None
             self._execute_double_turn()
             return
         self.double_phase    = 'p2'
@@ -1454,7 +1498,7 @@ class Game:
     def _execute_double_turn(self):
         self.double_phase = None
         p1 = self.player_dinos[0] if self.player_dinos else None
-        p2 = self.player_dinos[1] if len(self.player_dinos) > 1 else None
+        p2 = self._double_battle_p2()
         e1 = self.enemy_dino
         e2 = self.enemy_dino2
         p1q = self.double_p1_queued
@@ -1518,25 +1562,71 @@ class Game:
 
     def _double_turn_end(self):
         p1 = self.player_dinos[0] if self.player_dinos else None
-        p2 = self.player_dinos[1] if len(self.player_dinos) > 1 else None
+        p2 = self._double_battle_p2()
         e1 = self.enemy_dino
         e2 = self.enemy_dino2
 
+        # Rotating boss battle (Vanessa): refill any fainted enemy slot from
+        # her remaining roster before deciding the fight is actually over.
+        if self.is_vanessa_battle and self.vanessa_dino_queue:
+            refill_msgs = []
+            if e1 and e1.get('hp', 0) <= 0:
+                name, level = self.vanessa_dino_queue.pop(0)
+                self.enemy_dino = e1 = self.create_dino(name, level)
+                self.encounter.set_dino(1, name)
+                refill_msgs.append(f"{self._trainer_name} sent out {name}!")
+            if e2 and e2.get('hp', 0) <= 0 and self.vanessa_dino_queue:
+                name, level = self.vanessa_dino_queue.pop(0)
+                self.enemy_dino2 = e2 = self.create_dino(name, level)
+                self.encounter.set_dino(2, name)
+                refill_msgs.append(f"{self._trainer_name} sent out {name}!")
+            if refill_msgs:
+                self.message_box.queue_messages(
+                    refill_msgs, wait_for_input=True,
+                    on_complete=self._double_turn_end_after_abby_swap)
+                return
+
         if (not e1 or e1.get('hp', 0) <= 0) and (not e2 or e2.get('hp', 0) <= 0):
-            self._finish_double_battle()
+            if self.is_vanessa_battle:
+                self._finish_vanessa_battle(won=True)
+            else:
+                self._finish_double_battle()
             return
 
         if all(d.get('hp', 0) <= 0 for d in self.player_dinos):
-            self.message_box.queue_messages(
-                ["You blacked out!", "Be careful next time..."],
-                wait_for_input=True, on_complete=self.trigger_blackout)
+            if self.is_vanessa_battle:
+                self._finish_vanessa_battle(won=False)
+            else:
+                self.message_box.queue_messages(
+                    ["You blacked out!", "Be careful next time..."],
+                    wait_for_input=True, on_complete=self.trigger_blackout)
             return
 
-        # Build replacement queue for fainted active slots
+        # Abby swaps in her own bench dino automatically — it's her roster
+        # to manage, not the player's, so no "choose a replacement" prompt.
+        if self._abby_is_ally() and p2 and p2.get('hp', 0) <= 0:
+            if len(self.abby_dinos) > 1 and self.abby_dinos[1].get('hp', 0) > 0:
+                fainted_name = self.abby_dinos[0]['name']
+                self.abby_dinos[0], self.abby_dinos[1] = self.abby_dinos[1], self.abby_dinos[0]
+                new_name = self.abby_dinos[0]['name']
+                self.message_box.queue_messages(
+                    [f"{fainted_name} fainted!", f"Abby sent out {new_name}!"],
+                    wait_for_input=True,
+                    on_complete=self._double_turn_end_after_abby_swap)
+                return
+
+        self._double_turn_end_after_abby_swap()
+
+    def _double_turn_end_after_abby_swap(self):
+        p1 = self.player_dinos[0] if self.player_dinos else None
+        p2 = self._double_battle_p2()
+
+        # Build replacement queue for fainted active slots (player's own
+        # roster only — Abby's fainted dino, if any, was just handled above).
         fainted_slots = []
         if p1 and p1.get('hp', 0) <= 0:
             fainted_slots.append(0)
-        if p2 and p2.get('hp', 0) <= 0:
+        if not self._abby_is_ally() and p2 and p2.get('hp', 0) <= 0:
             fainted_slots.append(1)
 
         if fainted_slots:
@@ -1845,14 +1935,14 @@ class Game:
             npc.anim_timer = 0.0
 
         if all_done:
+            is_grunt_pair = {npc1.trainer_id, npc2.trainer_id} == {'grunt1', 'grunt2'}
             for npc in (npc1, npc2):
                 self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
                 if npc in self.npcs:
                     self.npcs.remove(npc)
-            self.is_night = True
-            self.day_night_timer = 0.0
-            self.dn_transitioning = False
             self.cutscene = None
+            if is_grunt_pair and not self.story_flags.get('vanessa_shadow_event_done'):
+                self._start_vanessa_heal_sequence()
 
     # ── Gym 2 corn maze reveal ──────────────────────────────────────────
     GOURDECRUX_SCARECROW_TILE = (145, -53)  # matches WORLD_NPCS 'scarecrux' spawn
@@ -1875,11 +1965,24 @@ class Game:
 
     def _start_gym2_corn_maze_cutscene(self):
         self.player.moving = False
+        self.player.current_move_speed = self.player.move_speed  # force normal (non-sprint) pace
         self.player.target_x = self.player.rect.x
         self.player.target_y = self.player.rect.y
-        self.cutscene = {'phase': 'gym2_pre_walk_wait'}
+
+        # Spawn everyone up front so the whole scene is already there to see
+        # while the player walks up to it, instead of popping in mid-dialogue.
+        log    = NPC('log',    tile_x=142, tile_y=-53, facing='down', sight_range=0, npc_type='story')
+        curfeu = NPC('curfeu', tile_x=145, tile_y=-52, facing='left', sight_range=0, npc_type='story')
+        self.npcs.append(log)
+        self.npcs.append(curfeu)
+        self.solid_tile_coords.add((log.tile_x, log.tile_y))
+        self.solid_tile_coords.add((curfeu.tile_x, curfeu.tile_y))
+        creuw_img = pygame.transform.scale(self.player_dino_front_images['Creuw'], (26, 26))
+        creuws = [{'tile': t, 'img': creuw_img} for t in self.CREUW_DANCE_TILES]
+
+        self.cutscene = {'phase': 'gym2_pre_walk_wait', 'log': log, 'curfeu': curfeu, 'creuws': creuws}
         self.message_box.queue_messages(
-            ["Jet come check this out"],
+            self._tag_dialogue('Log', ["Jet come check this out"]),
             wait_for_input=True,
             on_complete=self._gym2_start_forced_walk
         )
@@ -1915,7 +2018,7 @@ class Game:
         tx, ty = self.cutscene['walk_target']
         px, py = p.rect.x // ts, p.rect.y // ts
         if (px, py) == (tx, ty):
-            self._gym2_spawn_log_and_curfeu()
+            self._gym2_log_dialogue()
             return
         dx, dy = tx - px, ty - py
         if abs(dx) >= abs(dy) and dx != 0:
@@ -1932,38 +2035,57 @@ class Game:
         p.pos_y = float(p.rect.y)
         p.moving = True
 
-    def _gym2_spawn_log_and_curfeu(self):
-        log    = NPC('log',    tile_x=142, tile_y=-53, facing='down', sight_range=0, npc_type='story')
-        curfeu = NPC('curfeu', tile_x=145, tile_y=-52, facing='left', sight_range=0, npc_type='story')
-        self.npcs.append(log)
-        self.npcs.append(curfeu)
-        self.solid_tile_coords.add((log.tile_x, log.tile_y))
-        self.solid_tile_coords.add((curfeu.tile_x, curfeu.tile_y))
-        c = self.cutscene
-        c['log'] = log
-        c['curfeu'] = curfeu
-        c['phase'] = 'gym2_dialogue_wait'
+    def _gym2_log_dialogue(self):
+        self.cutscene['phase'] = 'gym2_dialogue_wait'
         self.message_box.queue_messages(
-            self._split_dialogue(
+            self._tag_dialogue('Log', self._split_dialogue(
                 "Look at how the Creuws dance around the scarecrow, folklore says in the past"
                 " a ghostly scarecrow would haunt the corn fields and scare all the Creuws"
                 " away, until a brave Luna took the liberty to fly above ensuring the"
                 " scarecrow would hide away in slumber for eternity."
-            ),
+            )),
             wait_for_input=True,
-            on_complete=self._gym2_curfeu_dialogue
+            on_complete=self._gym2_start_curfeu_approach
         )
+
+    def _gym2_start_curfeu_approach(self):
+        if not self.cutscene:
+            return
+        c = self.cutscene
+        p = self.player
+        px, py = p.rect.x // config.TILE_SIZE, p.rect.y // config.TILE_SIZE
+        c['walk_target'] = (px, py + 1)
+        c['phase'] = 'gym2_curfeu_approaching'
+
+    def _update_gym2_curfeu_approaching(self, dt):
+        c = self.cutscene
+        curfeu = c['curfeu']
+        if curfeu.is_moving:
+            curfeu.anim_timer += dt
+            if curfeu.anim_timer >= curfeu.anim_speed:
+                curfeu.anim_timer = 0.0
+                curfeu.anim_frame = (curfeu.anim_frame + 1) % 4
+            curfeu._slide(dt)
+            return
+        tx, ty = c['walk_target']
+        if (curfeu.tile_x, curfeu.tile_y) == (tx, ty):
+            curfeu.facing = 'up'
+            self._face_player('down')
+            c['phase'] = 'gym2_dialogue_wait'
+            self._gym2_curfeu_dialogue()
+            return
+        self._step_npc_toward_tile(curfeu, tx, ty)
 
     def _gym2_curfeu_dialogue(self):
         if not self.cutscene:
             return
         self.message_box.queue_messages(
-            self._split_dialogue(
+            self._tag_dialogue('Curfeu', self._split_dialogue(
                 "They said the one of the scarecrows had a transformation and became a"
                 " protector of my families mansion beyond the corn field for years. It was a"
                 " fearful yet innocent spirit devoted to protecting the gates of our land."
                 " Its tomb is just north of here."
-            ),
+            )),
             wait_for_input=True,
             on_complete=self._gym2_start_creuw_dance
         )
@@ -1971,12 +2093,8 @@ class Game:
     def _gym2_start_creuw_dance(self):
         if not self.cutscene:
             return
-        img = pygame.transform.scale(self.player_dino_front_images['Creuw'], (26, 26))
-        creuws = [{'tile': t, 'img': img} for t in self.CREUW_DANCE_TILES]
-        c = self.cutscene
-        c['creuws'] = creuws
-        c['dance_elapsed'] = 0.0
-        c['phase'] = 'gym2_creuw_jumping'
+        self.cutscene['dance_elapsed'] = 0.0
+        self.cutscene['phase'] = 'gym2_creuw_jumping'
 
     CREUW_JUMP_DURATION = 1.2   # ~2 hops
     CREUW_JUMP_HEIGHT   = 10
@@ -2002,16 +2120,16 @@ class Game:
 
     CREUW_RUNOFF_DURATION = 0.8
 
+    CREUW_RUNOFF_TILES = 7  # north, deeper into the corn field
+
     def _gym2_start_creuws_run_off(self):
         c = self.cutscene
         ts = config.TILE_SIZE
-        cx, cy = self.GOURDECRUX_SCARECROW_TILE
+        self._face_player('right')
         for creuw in c['creuws']:
             tx, ty = creuw['tile']
-            dx, dy = tx - cx, ty - cy
-            dist = max(1, abs(dx) + abs(dy))
             creuw['start'] = (tx * ts, ty * ts)
-            creuw['end']   = (tx * ts + (dx // dist) * ts * 5, ty * ts + (dy // dist) * ts * 5)
+            creuw['end']   = (tx * ts, (ty - self.CREUW_RUNOFF_TILES) * ts)
         c['runoff_elapsed'] = 0.0
         c['phase'] = 'gym2_creuws_running_off'
 
@@ -2025,16 +2143,19 @@ class Game:
     def _gym2_vigilant_dialogue(self):
         if not self.cutscene:
             return
+        self._face_player('up')
         self.cutscene['phase'] = 'gym2_dialogue_wait'
         self.message_box.queue_messages(
-            self._split_dialogue(
+            self._tag_dialogue('Log', self._split_dialogue(
                 "Some of that energy is still around it seems, I would be vigilant around"
                 " here at night ok Jet? I hope to see you at my gym soon, would love a good"
                 " challenge"
-            ),
+            )),
             wait_for_input=True,
             on_complete=self._gym2_start_walk_away
         )
+
+    LOG_CURFEU_WALK_AWAY_TILES = 14
 
     def _gym2_start_walk_away(self):
         if not self.cutscene:
@@ -2042,8 +2163,9 @@ class Game:
         c = self.cutscene
         log, curfeu = c['log'], c['curfeu']
         log.facing = curfeu.facing = 'left'
-        c['walk_target']  = (log.tile_x - 8, log.tile_y)
-        c['walk_target2'] = (curfeu.tile_x - 8, curfeu.tile_y)
+        d = self.LOG_CURFEU_WALK_AWAY_TILES
+        c['walk_target']  = (log.tile_x - d, log.tile_y)
+        c['walk_target2'] = (curfeu.tile_x - d, curfeu.tile_y)
         c['phase'] = 'gym2_walking_away'
 
     def _update_gym2_walking_away(self, dt):
@@ -2081,6 +2203,528 @@ class Game:
             self.story_flags['gym2_corn_maze_reveal_done'] = True
             self.cutscene = None
 
+    # ── Route 2.6 Abby escort ────────────────────────────────────────────
+    # NOTE: the force-step movement (like Skyy's cutscene) guarantees this
+    # always completes regardless of scenery, since a solid-respecting walk
+    # can dead-end with no path-around and soft-lock the cutscene.
+    ABBY_ESCORT_TRIGGER_X = 88
+    ABBY_SPAWN_TILE = (81, -53)
+    ABBY_ESCORT_WAYPOINTS = [(83, -53), (83, -32), (71, -32), (71, -25), (65, -25)]
+    ROUTE26_BOUNDARY_Y = -28
+
+    def _check_route26_abby_reveal(self):
+        if self.story_flags.get('route26_abby_started') or self.cutscene:
+            return
+        if not self.story_flags.get('gym2_corn_maze_reveal_done'):
+            return
+        if self.fading or self.message_box.visible:
+            return
+        tx = self.player.rect.x // config.TILE_SIZE
+        ty = self.player.rect.y // config.TILE_SIZE
+        if not (75 <= tx < 95 and -58 <= ty < -43):  # ROUTE2.6.tmx bounds
+            return
+        if tx != self.ABBY_ESCORT_TRIGGER_X:
+            return
+        self.story_flags['route26_abby_started'] = True
+        self._start_route26_abby_cutscene()
+
+    def _start_route26_abby_cutscene(self):
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        sx, sy = self.ABBY_SPAWN_TILE
+        abby = NPC('abby', tile_x=sx, tile_y=sy, facing='down', sight_range=0, npc_type='story')
+        self.npcs.append(abby)
+        self.solid_tile_coords.add((sx, sy))
+        self.cutscene = {'phase': 'abby_approaching', 'npc': abby}
+
+    def _update_abby_approaching(self, dt):
+        c = self.cutscene
+        abby = c['npc']
+        if abby.is_moving:
+            abby.anim_timer += dt
+            if abby.anim_timer >= abby.anim_speed:
+                abby.anim_timer = 0.0
+                abby.anim_frame = (abby.anim_frame + 1) % 4
+            abby._slide(dt)
+            return
+        if abby._pixel_close(self.player):
+            abby.anim_frame = 0
+            abby.face_toward_player(self.player)
+            dx = abby.tile_x - self.player.rect.x // config.TILE_SIZE
+            dy = abby.tile_y - self.player.rect.y // config.TILE_SIZE
+            if abs(dx) >= abs(dy):
+                self._face_player('right' if dx > 0 else 'left')
+            else:
+                self._face_player('down' if dy > 0 else 'up')
+            c['phase'] = 'abby_dialogue_wait'
+            self.message_box.queue_messages(
+                self._tag_dialogue('Abby', [
+                    "Long time no see Jet!",
+                    "So the professor has you on a journey too?",
+                    "That is great! I have my own mission, can you help me?",
+                    "Professor Amber said some suspicious activity is occuring by the solar panels powering Sierra Town",
+                    "She wants us to go stop the intruders from damaing the power lines",
+                    "Follow me!",
+                ]),
+                wait_for_input=True,
+                on_complete=self._start_route26_guided_walk
+            )
+        else:
+            # Force-step ignoring solids (same reasoning as Skyy's cutscene
+            # and the guided walk below): route2.6 has scattered tree/rock
+            # obstacles, and a solid-respecting approach can dead-end with
+            # no path-around, soft-locking the cutscene.
+            px = self.player.rect.x // config.TILE_SIZE
+            py = self.player.rect.y // config.TILE_SIZE
+            dx, dy = px - abby.tile_x, py - abby.tile_y
+            if abs(dx) >= abs(dy) and dx != 0:
+                sx, sy = (1 if dx > 0 else -1), 0
+            elif dy != 0:
+                sx, sy = 0, (1 if dy > 0 else -1)
+            else:
+                sx, sy = 0, 0
+            if sx or sy:
+                nx, ny = abby.tile_x + sx, abby.tile_y + sy
+                self.solid_tile_coords.discard((abby.tile_x, abby.tile_y))
+                abby.tile_x, abby.tile_y = nx, ny
+                self.solid_tile_coords.add((nx, ny))
+                abby.facing = abby._FACING[(sx, sy)]
+                abby.target_x = float(nx * config.TILE_SIZE)
+                abby.target_y = float(ny * config.TILE_SIZE)
+                abby.is_moving = True
+                abby.anim_frame = 1
+                abby.anim_timer = 0.0
+
+    def _start_route26_guided_walk(self):
+        if not self.cutscene:
+            return
+        c = self.cutscene
+        c['waypoints'] = list(self.ABBY_ESCORT_WAYPOINTS)
+        c['phase'] = 'route26_guided_walk'
+        # Turn to face the walking direction as its own beat, distinct from
+        # the "facing the player" pose she was just in for the dialogue.
+        abby = c['npc']
+        tx, ty = c['waypoints'][0]
+        dx, dy = tx - abby.tile_x, ty - abby.tile_y
+        if dx or dy:
+            if abs(dx) >= abs(dy) and dx != 0:
+                abby.facing = 'right' if dx > 0 else 'left'
+            elif dy != 0:
+                abby.facing = 'down' if dy > 0 else 'up'
+
+    def _update_route26_guided_walk(self, dt):
+        c = self.cutscene
+        abby = c['npc']
+        p = self.player
+        ts = config.TILE_SIZE
+
+        moving = False
+        if abby.is_moving:
+            abby.anim_timer += dt
+            if abby.anim_timer >= abby.anim_speed:
+                abby.anim_timer = 0.0
+                abby.anim_frame = (abby.anim_frame + 1) % 4
+            abby._slide(dt)
+            moving = True
+        if p.moving:
+            step = p.move_speed * dt
+            if p.pos_x < p.target_x:   p.pos_x = min(p.pos_x + step, p.target_x)
+            elif p.pos_x > p.target_x: p.pos_x = max(p.pos_x - step, p.target_x)
+            if p.pos_y < p.target_y:   p.pos_y = min(p.pos_y + step, p.target_y)
+            elif p.pos_y > p.target_y: p.pos_y = max(p.pos_y - step, p.target_y)
+            p.rect.x = round(p.pos_x)
+            p.rect.y = round(p.pos_y)
+            p.anim_timer += dt
+            if p.anim_timer >= 0.08:
+                p.anim_timer = 0.0
+                p.anim_index = (p.anim_index + 1) % 4
+                p.image = p.animations[p.direction][p.anim_index]
+            if p.rect.x == p.target_x and p.rect.y == p.target_y:
+                p.moving = False
+                p.anim_index = 0
+                p.image = p.animations[p.direction][0]
+            moving = True
+        if moving:
+            return
+
+        if not c['waypoints']:
+            self._finish_route26_guided_walk()
+            return
+        tx, ty = c['waypoints'][0]
+        if (abby.tile_x, abby.tile_y) == (tx, ty):
+            c['waypoints'].pop(0)
+            return
+
+        dx, dy = tx - abby.tile_x, ty - abby.tile_y
+        if abs(dx) >= abs(dy) and dx != 0:
+            sx, sy = (1 if dx > 0 else -1), 0
+        elif dy != 0:
+            sx, sy = 0, (1 if dy > 0 else -1)
+        else:
+            return
+        prev_tile = (abby.tile_x, abby.tile_y)
+        nx, ny = abby.tile_x + sx, abby.tile_y + sy
+        d = {(1, 0): 'right', (-1, 0): 'left', (0, 1): 'down', (0, -1): 'up'}[(sx, sy)]
+
+        # Force-step ignoring solids, like Skyy's cutscene, so a long
+        # multi-map guided walk can't get stuck on scenery.
+        self.solid_tile_coords.discard((abby.tile_x, abby.tile_y))
+        abby.tile_x, abby.tile_y = nx, ny
+        self.solid_tile_coords.add((nx, ny))
+        abby.facing = d
+        abby.target_x = float(nx * ts)
+        abby.target_y = float(ny * ts)
+        abby.is_moving = True
+        abby.anim_frame = 1
+        abby.anim_timer = 0.0
+
+        # Player follows directly behind, into the tile Abby just left.
+        p.facing = p.direction = d
+        p.target_x = float(prev_tile[0] * ts)
+        p.target_y = float(prev_tile[1] * ts)
+        p.pos_x = float(p.rect.x)
+        p.pos_y = float(p.rect.y)
+        p.moving = True
+
+    def _finish_route26_guided_walk(self):
+        c = self.cutscene
+        abby = c['npc']
+        abby.facing = 'down'
+        c['phase'] = 'gym2_dialogue_wait'  # reuse the generic no-op dialogue-wait phase
+        self.message_box.queue_messages(
+            self._tag_dialogue('Abby', ["ok now its your turn, lets go investigate the solar panels"]),
+            wait_for_input=True,
+            on_complete=self._end_route26_abby_cutscene
+        )
+
+    # The starter neither the player nor Gray ended up with — same
+    # counter-type mapping as _maybe_add_gray_rival, applied once more.
+    ABBY_STARTER_MAP = {
+        'Volkit':   'Floravel',
+        'Corlave':  'Volkit',
+        'Floravel': 'Corlave',
+    }
+
+    def _end_route26_abby_cutscene(self):
+        self.abby_follower = self.cutscene['npc']
+        self.story_flags['route26_abby_escort_done'] = True
+        self.cutscene = None
+
+        starter_names = set(config.DINO_BALL_MAP.values())
+        player_starter = next(
+            (d['name'] for d in self.player_dinos + self.box_dinos
+             if d['name'] in starter_names), None
+        )
+        abby_starter = self.ABBY_STARTER_MAP.get(player_starter, 'Corlave')
+        self.abby_dinos = [
+            self.create_dino(abby_starter, 15),
+            self.create_dino('Auraliz', 15),
+        ]
+
+    def _update_abby_follow(self, dt):
+        abby = self.abby_follower
+        if not abby or self.cutscene:
+            return
+        ts = config.TILE_SIZE
+        if abby.is_moving:
+            abby.anim_timer += dt
+            if abby.anim_timer >= abby.anim_speed:
+                abby.anim_timer = 0.0
+                abby.anim_frame = (abby.anim_frame + 1) % 4
+            abby._slide(dt)
+            return
+        p = self.player
+        px, py = p.rect.x // ts, p.rect.y // ts
+        behind = {'up': (0, 1), 'down': (0, -1), 'left': (1, 0), 'right': (-1, 0)}[p.facing]
+        tx, ty = px + behind[0], py + behind[1]
+        if (abby.tile_x, abby.tile_y) == (tx, ty):
+            return
+        if abs(abby.tile_x - px) + abs(abby.tile_y - py) <= 1:
+            return
+        self._step_npc_toward_tile(abby, tx, ty)
+
+    def _check_route26_boundary(self):
+        if not self.story_flags.get('route26_abby_escort_done'):
+            return
+        if self.cutscene or self.fading or self.message_box.visible:
+            return
+        p = self.player
+        ty = p.rect.y // config.TILE_SIZE
+        if ty >= self.ROUTE26_BOUNDARY_Y:
+            return
+        ny = ty + 1
+        p.rect.y = ny * config.TILE_SIZE
+        p.pos_y = float(p.rect.y)
+        p.target_y = p.pos_y
+        p.target_x = float(p.rect.x)
+        p.moving = False
+        self.message_box.queue_messages(
+            self._tag_dialogue('Abby', ["We cant leave now, we have a mission to complete!"]),
+            wait_for_input=True)
+
+    # ── Vanessa, Shadow Team Leader ──────────────────────────────────────
+    def _start_vanessa_heal_sequence(self):
+        self.cutscene = {'phase': 'vanessa_pre_wait'}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Abby', ["Let me heal your dinos"]),
+            wait_for_input=True,
+            on_complete=self._start_vanessa_heal_flash
+        )
+
+    def _start_vanessa_heal_flash(self):
+        for dino in self.player_dinos:
+            dino['hp'] = dino['max_hp']
+        self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0, 'color': (255, 255, 255)}
+        self.cutscene = {'phase': 'vanessa_heal_flash'}
+
+    def _start_vanessa_approach(self):
+        vanessa = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'vanessa'), None)
+        if not vanessa:
+            self.cutscene = None
+            return
+        self.cutscene = {'phase': 'vanessa_approaching', 'npc': vanessa}
+
+    def _update_vanessa_approaching(self, dt):
+        c = self.cutscene
+        vanessa = c['npc']
+        if vanessa.is_moving:
+            vanessa.anim_timer += dt
+            if vanessa.anim_timer >= vanessa.anim_speed:
+                vanessa.anim_timer = 0.0
+                vanessa.anim_frame = (vanessa.anim_frame + 1) % 4
+            vanessa._slide(dt)
+            return
+        if vanessa._pixel_close(self.player):
+            vanessa.anim_frame = 0
+            vanessa.face_toward_player(self.player)
+            dx = vanessa.tile_x - self.player.rect.x // config.TILE_SIZE
+            dy = vanessa.tile_y - self.player.rect.y // config.TILE_SIZE
+            if abs(dx) >= abs(dy):
+                self._face_player('right' if dx > 0 else 'left')
+            else:
+                self._face_player('down' if dy > 0 else 'up')
+            c['phase'] = 'vanessa_dialogue_wait'
+            self.message_box.queue_messages(
+                self._tag_dialogue('Vanessa', [
+                    "You fools, in time you will understand the harm you are causing",
+                    "These solar panels giving power to our region are the true danger",
+                    "Just look at the trees surrounding them...",
+                    "and what happened to prickly's evolution, its so sad to see",
+                    "But oh well, we won't need to be on the ground disrupting the power for long",
+                    "Ill go easy on you this first time",
+                ]),
+                wait_for_input=True,
+                on_complete=self._start_vanessa_battle
+            )
+        else:
+            # Force-step ignoring solids (same reasoning as Abby's approach)
+            # so she's guaranteed to reach the player regardless of scenery.
+            px = self.player.rect.x // config.TILE_SIZE
+            py = self.player.rect.y // config.TILE_SIZE
+            dx, dy = px - vanessa.tile_x, py - vanessa.tile_y
+            if abs(dx) >= abs(dy) and dx != 0:
+                sx, sy = (1 if dx > 0 else -1), 0
+            elif dy != 0:
+                sx, sy = 0, (1 if dy > 0 else -1)
+            else:
+                sx, sy = 0, 0
+            if sx or sy:
+                nx, ny = vanessa.tile_x + sx, vanessa.tile_y + sy
+                self.solid_tile_coords.discard((vanessa.tile_x, vanessa.tile_y))
+                vanessa.tile_x, vanessa.tile_y = nx, ny
+                self.solid_tile_coords.add((nx, ny))
+                vanessa.facing = vanessa._FACING[(sx, sy)]
+                vanessa.target_x = float(nx * config.TILE_SIZE)
+                vanessa.target_y = float(ny * config.TILE_SIZE)
+                vanessa.is_moving = True
+                vanessa.anim_frame = 1
+                vanessa.anim_timer = 0.0
+
+    def _start_vanessa_battle(self):
+        vanessa = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'vanessa'), None)
+        if not vanessa:
+            self.cutscene = None
+            return
+        self.cutscene = None
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        self.player.pos_x = float(self.player.rect.x)
+        self.player.pos_y = float(self.player.rect.y)
+        self.active_dino_index = 0
+        self.fading = True
+        self.fade_alpha = 0
+        self.is_trainer_battle = True
+        self.is_double_battle  = True
+        self.is_vanessa_battle = True
+        self.current_trainer_npc  = vanessa
+        self.current_trainer_npc2 = vanessa
+
+        dinos = TRAINER_DATA.get('vanessa', {}).get('dinos', {})
+        keys = sorted(dinos.keys())
+        n1, l1 = dinos[keys[0]]
+        n2, l2 = dinos[keys[1]]
+        self.vanessa_dino_queue = [dinos[k] for k in keys[2:]]
+
+        self.enemy_dino  = self.create_dino(n1, l1)
+        self.enemy_dino2 = self.create_dino(n2, l2)
+
+        self.trainer_dino_queue     = []
+        self.trainer_dinos_total    = len(dinos)
+        self.trainer_dinos_defeated = 0
+        self.field_effects               = []
+        self.defend_uses_remaining       = 3
+        self.enemy_defend_uses_remaining = 3
+
+        self.encounter_ui   = DoubleBattleUI(self.fonts)
+        self.encounter_text = f"Vanessa sent out {n1} and {n2}!"
+        self.encounter      = DoubleBattleEncounter(self.fonts, n1, n2)
+
+        now    = pygame.time.get_ticks()
+        frames = self.dino_frames.get(n1, [self.enemy_dino['image']])
+        self.encounter_anim = {
+            "frames": frames, "frame_idx": 0,
+            "last_switch": now, "interval": 250,
+            "start_time": now, "duration": 1000,
+        }
+
+    def _finish_vanessa_battle(self, won):
+        """Clean up and return to the overworld first, then have Vanessa
+        deliver her win/lose line standing on the map (not the battle
+        screen) before she walks off."""
+        vanessa = self.current_trainer_npc
+        self.is_trainer_battle  = False
+        self.is_double_battle   = False
+        self.is_vanessa_battle  = False
+        self.enemy_dino2        = None
+        self.vanessa_dino_queue = []
+        for d in self.player_dinos:
+            d['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
+            d['defending']   = False
+        self.pop_to_world()
+
+        if won:
+            msg = self._tag_dialogue('Vanessa', ["Next time I won't be as easy on you..."])
+        else:
+            msg = self._tag_dialogue('Vanessa', ["What a shame, I expected more from yall"])
+        self.message_box.queue_messages(
+            msg, wait_for_input=True,
+            on_complete=lambda: self._start_vanessa_walk_away(vanessa))
+
+    def _start_vanessa_walk_away(self, vanessa):
+        # Instant snap, not the async-slide _push_player_back_from — since
+        # self.cutscene gets set right after, player.update() would freeze
+        # before an async slide ever got a chance to finish.
+        ts = config.TILE_SIZE
+        px = self.player.rect.x // ts
+        py = self.player.rect.y // ts
+        all_solid = self.solid_tile_coords | self.solid_tiles
+        npx, npy = px, py + 1
+        if (npx, npy) not in all_solid:
+            self.player.rect.y   = npy * ts
+            self.player.pos_y    = float(self.player.rect.y)
+            self.player.target_y = self.player.pos_y
+            self.player.target_x = float(self.player.rect.x)
+            self.player.moving   = False
+        vanessa.facing = 'right'
+        self.cutscene = {
+            'phase': 'vanessa_walking_away',
+            'npc': vanessa,
+            'walk_target': (vanessa.tile_x + 8, vanessa.tile_y),
+        }
+
+    def _update_vanessa_walking_away(self, dt):
+        c = self.cutscene
+        npc = c['npc']
+        if npc.is_moving:
+            npc.anim_timer += dt
+            if npc.anim_timer >= npc.anim_speed:
+                npc.anim_timer = 0.0
+                npc.anim_frame = (npc.anim_frame + 1) % 4
+            npc._slide(dt)
+            return
+        tx, ty = c['walk_target']
+        if (npc.tile_x, npc.tile_y) == (tx, ty):
+            self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+            if npc in self.npcs:
+                self.npcs.remove(npc)
+            self.cutscene = None
+            self._start_post_vanessa_abby_sequence()
+            return
+        nx, ny = npc.tile_x + 1, npc.tile_y
+        self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+        npc.tile_x, npc.tile_y = nx, ny
+        self.solid_tile_coords.add((nx, ny))
+        npc.facing = 'right'
+        npc.target_x = float(nx * config.TILE_SIZE)
+        npc.target_y = float(ny * config.TILE_SIZE)
+        npc.is_moving = True
+        npc.anim_frame = 1
+        npc.anim_timer = 0.0
+
+    def _start_post_vanessa_abby_sequence(self):
+        for dino in self.player_dinos:
+            dino['hp'] = dino['max_hp']
+        self.cutscene = {'phase': 'vanessa_pre_wait'}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Abby', [
+                "Im sure we will see more of them soon",
+                "I am going to go report back to Professor",
+                "Be safe out here I think its getting dark out",
+            ]),
+            wait_for_input=True,
+            on_complete=self._start_abby_departure_walk
+        )
+
+    def _start_abby_departure_walk(self):
+        abby = self.abby_follower
+        if not abby:
+            self._finish_vanessa_event()
+            return
+        self.abby_follower = None
+        abby.facing = 'right'
+        self.cutscene = {
+            'phase': 'abby_departing',
+            'npc': abby,
+            'walk_target': (abby.tile_x + 8, abby.tile_y),
+        }
+
+    def _update_abby_departing(self, dt):
+        c = self.cutscene
+        npc = c['npc']
+        if npc.is_moving:
+            npc.anim_timer += dt
+            if npc.anim_timer >= npc.anim_speed:
+                npc.anim_timer = 0.0
+                npc.anim_frame = (npc.anim_frame + 1) % 4
+            npc._slide(dt)
+            return
+        tx, ty = c['walk_target']
+        if (npc.tile_x, npc.tile_y) == (tx, ty):
+            self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+            if npc in self.npcs:
+                self.npcs.remove(npc)
+            self.cutscene = None
+            self._finish_vanessa_event()
+            return
+        nx, ny = npc.tile_x + 1, npc.tile_y
+        self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+        npc.tile_x, npc.tile_y = nx, ny
+        self.solid_tile_coords.add((nx, ny))
+        npc.facing = 'right'
+        npc.target_x = float(nx * config.TILE_SIZE)
+        npc.target_y = float(ny * config.TILE_SIZE)
+        npc.is_moving = True
+        npc.anim_frame = 1
+        npc.anim_timer = 0.0
+
+    def _finish_vanessa_event(self):
+        self.is_night = True
+        self.day_night_timer = 0.0
+        self.dn_transitioning = False
+        self.story_flags['vanessa_shadow_event_done'] = True
+
     def _draw_gym2_cutscene_fx(self, surface):
         c = self.cutscene
         if not c:
@@ -2088,17 +2732,31 @@ class Game:
         ts = config.TILE_SIZE
         phase = c.get('phase')
 
-        if phase == 'gym2_creuw_jumping':
-            t = c['dance_elapsed']
+        if phase == 'gym2_creuws_running_off':
+            t = min(1.0, c['runoff_elapsed'] / self.CREUW_RUNOFF_DURATION)
+            for creuw in c.get('creuws', []):
+                sx, sy = creuw['start']
+                ex, ey = creuw['end']
+                x = sx + (ex - sx) * t
+                y = sy + (ey - sy) * t
+                img = creuw['img']
+                surface.blit(img, (int(x - self.camera_x) - img.get_width() // 2,
+                                    int(y - self.camera_y) - img.get_height() // 2))
+        else:
+            # Creuws stand idle around the scarecrow from the moment the
+            # scene loads, and only actually bounce during the dance phase.
+            bounce_t = c.get('dance_elapsed') if phase == 'gym2_creuw_jumping' else None
             for creuw in c.get('creuws', []):
                 tx, ty = creuw['tile']
                 cx = tx * ts + ts // 2 - self.camera_x
                 cy = ty * ts + ts // 2 - self.camera_y
-                bounce = abs(math.sin(t * (2 * math.pi / (self.CREUW_JUMP_DURATION / 2)))) * self.CREUW_JUMP_HEIGHT
+                bounce = 0
+                if bounce_t is not None:
+                    bounce = abs(math.sin(bounce_t * (2 * math.pi / (self.CREUW_JUMP_DURATION / 2)))) * self.CREUW_JUMP_HEIGHT
                 img = creuw['img']
                 surface.blit(img, (cx - img.get_width() // 2, cy - img.get_height() // 2 - bounce))
 
-        elif phase == 'gym2_scarecrux_glow':
+        if phase == 'gym2_scarecrux_glow':
             gx, gy = self.GOURDECRUX_SCARECROW_TILE
             progress = c['glow_elapsed'] / self.SCARECRUX_GLOW_DURATION
             alpha = int(220 * math.sin(min(1.0, progress) * math.pi))
@@ -2110,17 +2768,6 @@ class Game:
                 cy = gy * ts + ts // 2 - self.camera_y
                 surface.blit(glow, (cx - radius, cy - radius))
 
-        elif phase == 'gym2_creuws_running_off':
-            t = min(1.0, c['runoff_elapsed'] / self.CREUW_RUNOFF_DURATION)
-            for creuw in c.get('creuws', []):
-                sx, sy = creuw['start']
-                ex, ey = creuw['end']
-                x = sx + (ex - sx) * t
-                y = sy + (ey - sy) * t
-                img = creuw['img']
-                surface.blit(img, (int(x - self.camera_x) - img.get_width() // 2,
-                                    int(y - self.camera_y) - img.get_height() // 2))
-
     def _update_cutscene(self, dt):
         c = self.cutscene
         if c['phase'] == 'grunts_walking':
@@ -2128,6 +2775,9 @@ class Game:
             return
         if c['phase'] == 'gym2_walk_to_scene':
             self._update_gym2_walk_to_scene(dt)
+            return
+        if c['phase'] == 'gym2_curfeu_approaching':
+            self._update_gym2_curfeu_approaching(dt)
             return
         if c['phase'] == 'gym2_creuw_jumping':
             self._update_gym2_creuw_jumping(dt)
@@ -2140,6 +2790,25 @@ class Game:
             return
         if c['phase'] == 'gym2_walking_away':
             self._update_gym2_walking_away(dt)
+            return
+        if c['phase'] == 'abby_approaching':
+            self._update_abby_approaching(dt)
+            return
+        if c['phase'] == 'route26_guided_walk':
+            self._update_route26_guided_walk(dt)
+            return
+        if c['phase'] == 'vanessa_heal_flash':
+            if not self.cutscene_flash:
+                self._start_vanessa_approach()
+            return
+        if c['phase'] == 'vanessa_approaching':
+            self._update_vanessa_approaching(dt)
+            return
+        if c['phase'] == 'vanessa_walking_away':
+            self._update_vanessa_walking_away(dt)
+            return
+        if c['phase'] == 'abby_departing':
+            self._update_abby_departing(dt)
             return
         npc = c['npc']
 
@@ -2171,13 +2840,13 @@ class Game:
                 self.player.image = self.player.animations[d][0]
                 c['phase'] = 'dialogue'
                 self.message_box.queue_messages(
-                    self._split_dialogue(
+                    self._tag_dialogue('Amber', self._split_dialogue(
                         "The solar flares are becoming more aggressive as time goes on,"
                         " our field agents are rushing back to the lab before all power"
                         " goes out and before the eclipse sets in.",
                         "I need you to go find the 3 dinos left behind and bring them"
                         " back to my Research Lab in Sierra Town! Be careful out there",
-                    ),
+                    )),
                     wait_for_input=True, on_complete=self._on_amber_dialogue_done
                 )
             else:
@@ -2206,7 +2875,7 @@ class Game:
                 npc.home_facing = 'left'
                 npc.sight_range = 8
                 npc.block_dialog = [
-                    "I need you to collect all 3 dinos before coming back to the lab!"
+                    "[Amber] I need you to collect all 3 dinos before coming back to the lab!"
                 ]
                 self.solid_tile_coords.add((tx, ty))
                 self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0}
@@ -2327,6 +2996,16 @@ class Game:
                 pages.append(' '.join(all_lines[i:i + lines_per_page]))
         return pages
 
+    def _tag_dialogue(self, name, lines):
+        """Prefix every dialogue line/page with its speaker's name, e.g.
+        '[Log] Jet come check this out'. Apply this last, after any
+        _split_dialogue() pagination, so the tag repeats on every page."""
+        return [f"[{name}] {line}" for line in lines]
+
+    def _face_player(self, direction):
+        self.player.facing = self.player.direction = direction
+        self.player.image = self.player.animations[direction][0]
+
     def _on_amber_dialogue_done(self):
         if not self.cutscene:
             return
@@ -2409,7 +3088,7 @@ class Game:
         tx, ty = 1, 27  # must match leave_tile in _start_amber_intro_cutscene
         self._spawn_active_guard(
             'amber_intro', 'amber', tx, ty, facing='left', sight_range=5,
-            block_dialog=["I need you to collect all 3 dinos before coming back to the lab!"],
+            block_dialog=["[Amber] I need you to collect all 3 dinos before coming back to the lab!"],
             unlock_flag='encounters_unlocked',
         )
 
@@ -2580,9 +3259,9 @@ class Game:
 
     def _on_gray_battle_won(self, npc):
         data = TRAINER_DATA.get('gray', {})
-        msgs = self._split_dialogue(*data.get('dialog', {}).get('defeated', [
+        msgs = self._tag_dialogue(data.get('name', 'Gray'), self._split_dialogue(*data.get('dialog', {}).get('defeated', [
             "I like a challenge, next time I'll be more prepared. Keep at it, and I will too.."
-        ]))
+        ])))
         def start_walk_away():
             npc.facing = 'down'
             self.cutscene = {
@@ -2615,8 +3294,8 @@ class Game:
 
         def _after_badge():
             data = TRAINER_DATA.get('skyy', {})
-            dialog = data.get('dialog', {}).get('defeated', ["..."])
-            self.message_box.queue_messages(list(dialog), wait_for_input=True)
+            dialog = self._tag_dialogue(data.get('name', 'Skyy'), data.get('dialog', {}).get('defeated', ["..."]))
+            self.message_box.queue_messages(dialog, wait_for_input=True)
 
         self.badge_earned_screen = BadgeEarnedScreen(
             self, "Sierra Badge",
@@ -3127,7 +3806,7 @@ class Game:
             npc.npc_type == 'guard' and npc.state in ('approaching', 'returning')
             for npc in self.npcs
         )
-        cutscene_locking = self.cutscene and self.cutscene.get('phase') in ('intro_flash', 'approaching', 'dialogue', 'walking_away', 'flashing', 'skyy_walking', 'skyy_flash')
+        cutscene_locking = bool(self.cutscene)
         if event.key == pygame.K_z and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
             self.coord_input_active = True
             self.coord_input_text = ''
@@ -3296,13 +3975,14 @@ class Game:
                 self._interact_story_npc(npc)
                 return True
             data = TRAINER_DATA.get(npc.trainer_id, {})
+            name = data.get('name', 'Trainer')
             if npc.defeated or npc.state == 'done':
                 npc.defeated = True
-                dialog = data.get('dialog', {}).get('defeated', ["..."])
+                dialog = self._tag_dialogue(name, data.get('dialog', {}).get('defeated', ["..."]))
                 self.message_box.queue_messages(dialog, wait_for_input=True)
                 return True
             if npc.state == 'idle':
-                dialog = data.get('dialog', {}).get('default', ["..."])
+                dialog = self._tag_dialogue(name, data.get('dialog', {}).get('default', ["..."]))
                 self.message_box.queue_messages(
                     dialog, wait_for_input=True,
                     on_complete=lambda n=npc: self.start_trainer_battle(n))
@@ -3318,11 +3998,11 @@ class Game:
                 self._start_amber_lab_event()
             elif self.story_flags.get('amber_lab_done'):
                 self.message_box.queue_messages(
-                    ["Keep up the training! The first gym awaits you!"],
+                    self._tag_dialogue('Amber', ["Keep up the training! The first gym awaits you!"]),
                     wait_for_input=True)
             else:
                 self.message_box.queue_messages(
-                    ["Please collect all 3 dinos and return here!"],
+                    self._tag_dialogue('Amber', ["Please collect all 3 dinos and return here!"]),
                     wait_for_input=True)
         elif npc.trainer_id == 'skyy':
             if not self.story_flags.get('gym1_accessible'):
@@ -3356,7 +4036,7 @@ class Game:
         else:
             self.player.facing = self.player.direction = 'up' if dy > 0 else 'down'
         self.player.image = self.player.animations[self.player.facing][0]
-        msgs = self._split_dialogue(
+        msgs = self._tag_dialogue('Skyy', self._split_dialogue(
             "These spacial events are not of natural occurrence",
             "Just years ago our region was normal and thriving",
             "With the discovery of 100% lossless solar energy we were thriving as a society",
@@ -3368,7 +4048,7 @@ class Game:
             "See you in Sierra Town!",
 
 
-        )
+        ))
         self.cutscene = {'phase': 'skyy_walking', 'npc': npc, 'walk_target': (npc.tile_x, npc.tile_y + 7)}
         self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self._on_skyy_dialogue_done)
 
@@ -3509,7 +4189,7 @@ class Game:
         if 'encounter' in self.state_stack and hasattr(self, 'encounter_ui'):
             active = self.player_dinos[self.active_dino_index]
             if self.is_double_battle:
-                p2 = self.player_dinos[1] if len(self.player_dinos) > 1 else active
+                p2 = self._double_battle_p2() or active
                 self.encounter_ui.update(dt, active, p2,
                                          self.enemy_dino,
                                          self.enemy_dino2 or self.enemy_dino)
@@ -3588,6 +4268,9 @@ class Game:
             self._maybe_add_skyy()
             self._maybe_add_gray_rival()
             self._check_gym2_corn_maze_reveal()
+            self._check_route26_abby_reveal()
+            self._update_abby_follow(dt)
+            self._check_route26_boundary()
 
     # --- Draw ---
 
@@ -3643,7 +4326,7 @@ class Game:
                 self.screen.blit(tag, (config.WIDTH - tag.get_width() - 6, 6))
             if self.cutscene_flash and self.cutscene_flash['alpha'] > 0:
                 _flash = pygame.Surface((config.WIDTH, config.HEIGHT))
-                _flash.fill((255, 235, 150))
+                _flash.fill(self.cutscene_flash.get('color', (255, 235, 150)))
                 _flash.set_alpha(int(self.cutscene_flash['alpha']))
                 self.screen.blit(_flash, (0, 0))
             if self.coord_input_active:
@@ -3691,7 +4374,7 @@ class Game:
                                         e2_visible=_enemy2_vis and (self.enemy_dino2.get('hp', 0) > 0 if self.enemy_dino2 else False))
 
                 p1 = self.player_dinos[0] if self.player_dinos else None
-                p2 = self.player_dinos[1] if len(self.player_dinos) > 1 else None
+                p2 = self._double_battle_p2()
                 e1 = self.enemy_dino
                 e2 = self.enemy_dino2 or self.enemy_dino
                 active_dino = p2 if self.double_phase == 'p2' else p1

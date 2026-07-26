@@ -232,22 +232,18 @@ if __name__ == '__main__':
 
 #7/25
 # Scarecrux into Gourdecrux Transformation at night at 2nd obelisk in corn maze
-# Corn Field Scarecrux cutscene - slow down forced walk, make sure creuws and log and curfeu already spawned in
-# make the creuws go north into the corn and be layed behind the corn and disappear
-# in dialogue give the name like [log] at start of each box
-# when curfeu speaks have him walk up to player and turn towards him to speak
+# Corn Field Scarecrux cutscene 
+# Abby event after corn field - guides down to the solar panels
+# Grunt and Leader vanessa double battles - lore expanded
+
+#switch night time force to be on when vanessa leaves
 
 
 
-#FIX xp again, lower amount earned from higher level 
-#maybe adjust xp alot lower or make xp to level up alot higher and adjust all levels a bit, this will make gym 3 get final evo!
+
 # fix skyy not being at gym immediately after rival battle
 # make rival disappear after battle, make trainers who move go to original location after entering building
-# Adjust spawns and levels in route 2
-# add new dinos to route 2 cyflactus, 
 
-
-# make corn maze encounters 5%
 
 # Need to edit gym badges, add all dinos to gym1
 # Need to add teleport for each house then gym1 fin. 

@@ -44,6 +44,22 @@
 # 8. ENTER GYM 1, DEFEAT SKYY  →  gym1_leader_defeated
 #       Sierra Badge awarded.
 #
+# 9. REACH TILE X=88 IN ROUTE2.6 (CORN MAZE)  →  gym2_corn_maze_reveal_done
+#       Log and Curfeu cutscene: folklore about the scarecrow/Luna, the
+#       Creuws dance and flee, the scarecrow briefly glows. Log and Curfeu
+#       walk off afterward.
+#
+# 10. REACH TILE X=88 IN ROUTE2.6  →  route26_abby_escort_done
+#       Abby approaches, explains the solar panel mission, guides the
+#       player from ROUTE2.6 through 2.5/2.2/2.3 to (66,-25), then joins
+#       as a following ally.
+#
+# 11. DEFEAT THE GRUNT DOUBLE BATTLE  →  vanessa_shadow_event_done
+#       Abby heals the party, Vanessa (Shadow Team Leader) confronts the
+#       player, a rotating 4-dino double battle follows (Abby fights
+#       alongside the player). Win or lose, Vanessa taunts and leaves;
+#       Abby heals again, says her goodbyes, and departs. Night falls.
+#
 # ══════════════════════════════════════════════════════════════════
 
 STORY_EVENTS = [
@@ -122,5 +138,21 @@ QUEST_STEPS = [
         "flag": "gym1_leader_defeated",
         "defeated_trainers": ["skyy"],
         "badges": ["sierra"],
+    },
+    {
+        "id": "gym2_corn_maze_reveal_done",
+        "label": "8. Corn Maze Reveal (Log & Curfeu)",
+        "flag": "gym2_corn_maze_reveal_done",
+    },
+    {
+        "id": "route26_abby_escort_done",
+        "label": "9. Abby Joins - Route 2.6 Escort",
+        "flag": "route26_abby_escort_done",
+    },
+    {
+        "id": "vanessa_shadow_event_done",
+        "label": "10. Solar Panel Investigation - Defeated Vanessa",
+        "flag": "vanessa_shadow_event_done",
+        "defeated_trainers": ["grunt1", "grunt2", "vanessa"],
     },
 ]

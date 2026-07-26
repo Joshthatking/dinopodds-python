@@ -63,6 +63,18 @@ class DoubleBattleEncounter:
         self.frame2 = (load_image(config.ENCOUNTER_DINOS_PATHS[dino2_key], alpha=True)
                        if dino2_key in config.ENCOUNTER_DINOS_PATHS else None)
 
+    def set_dino(self, slot, dino_key):
+        """Swap one side's portrait after a mid-battle replacement (e.g. a
+        rotating boss sending out its next dino) — frame1/frame2 are only
+        loaded once at construction otherwise, so the old sprite would
+        stick around even after enemy_dino/enemy_dino2 changed."""
+        frame = (load_image(config.ENCOUNTER_DINOS_PATHS[dino_key], alpha=True)
+                  if dino_key in config.ENCOUNTER_DINOS_PATHS else None)
+        if slot == 1:
+            self.frame1 = frame
+        else:
+            self.frame2 = frame
+
     def draw(self, screen, e1_visible=True, e2_visible=True):
         screen.blit(self.bg, (0, 0))
         size = 120

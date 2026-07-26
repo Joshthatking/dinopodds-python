@@ -259,6 +259,20 @@ TRAINER_DATA = {
         'reward_coins': 1000,
         'rank': 'medium',
     },
+    'vanessa': {
+        'name': 'Vanessa',
+        'dinos': {0: ('Prowscar', 16), 1: ('Netaslam', 16), 2: ('Ghoulflame', 16), 3: ('Scarecrux', 17)},
+        'dialog': {
+            'default':  ["You fools, in time you will understand the harm you are causing"],
+            'defeated': ["Next time I won't be as easy on you..."]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 1200,
+        'rank': 'boss',
+    },
 }
 
 
@@ -851,11 +865,11 @@ def calculate_xp_gain(player_level, opponent_level, enemy_name=None, base_xp=7, 
 ### 1.0  rivals, gym leaders, elite 4, bosses
 
 def is_boss_tier_trainer(trainer_data):
-    """Rivals and gym leaders share the top (1.0) XP multiplier tier —
-    everyone else (including the rank-and-file trainers guarding a gym)
-    battles at 0.9. A gym leader is any 'gym' biome trainer that isn't
-    ranked 'lowest' (the gym's regular trainers)."""
-    if trainer_data.get('rank') == 'rival':
+    """Rivals, gym leaders, and story bosses share the top (1.0) XP
+    multiplier tier — everyone else (including the rank-and-file trainers
+    guarding a gym) battles at 0.9. A gym leader is any 'gym' biome trainer
+    that isn't ranked 'lowest' (the gym's regular trainers)."""
+    if trainer_data.get('rank') in ('rival', 'boss'):
         return True
     return trainer_data.get('biome') == 'gym' and trainer_data.get('rank') != 'lowest'
 

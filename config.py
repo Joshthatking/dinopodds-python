@@ -141,6 +141,8 @@ NPC_SHEETS = {
     'rocko':              os.path.join('assets', 'NPC', 'Beard.png'),
     'log':                os.path.join('assets', 'NPC', 'Log.png'),
     'curfeu':             os.path.join('assets', 'NPC', 'Curfeu.png'),
+    'abby':               os.path.join('assets', 'NPC', 'Abby.png'),
+    'vanessa':            os.path.join('assets', 'NPC', 'Enemy_Girl.png'),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
@@ -185,6 +187,10 @@ WORLD_NPCS = {
 
         # CORN_MAZE3 lore prop
         ('scarecrux', 145, -53, 'down', 0, 'story'),
+
+        # Shadow Team Leader Vanessa — present from the start, dormant
+        # until the post-grunt-battle story event activates her.
+        ('vanessa', 47, -22, 'down', 0, 'story'),
 
     ],
     'DINOCENTER.tmx': [
