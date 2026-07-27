@@ -235,10 +235,10 @@ if __name__ == '__main__':
 # Corn Field Scarecrux cutscene 
 # Abby event after corn field - guides down to the solar panels
 # Grunt and Leader vanessa double battles - lore expanded
+#switch night time force to be on when abby leaves
 
-#switch night time force to be on when vanessa leaves
-
-
+#7/26
+#Added one  more trainer battle in end of route 2
 
 
 # fix skyy not being at gym immediately after rival battle
@@ -246,17 +246,7 @@ if __name__ == '__main__':
 
 
 # Need to edit gym badges, add all dinos to gym1
-# Need to add teleport for each house then gym1 fin. 
-
-# Add Double battle against grunts when walking to route1.4, over hear them speaking
-# Rival comes to join the fight with you using, your rts weakness
-# After the fight, that was weird... heals you, and then fair battle against rival
-# Then proceed with skyy dialogue and then gym1
-# GYM 1 designed and add gym event with trainers 
-#add traits one for each dino family
-
-
-
+# Need to add teleport for each house then gym1 fin. #add traits one for each dino family
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks
  

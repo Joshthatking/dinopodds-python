@@ -2447,6 +2447,11 @@ class Game:
     def _check_route26_boundary(self):
         if not self.story_flags.get('route26_abby_escort_done'):
             return
+        # Deactivated once the investigation is over — whether reached
+        # normally or jumped to via the sandbox quest-skip menu, both set
+        # the same flag.
+        if self.story_flags.get('vanessa_shadow_event_done'):
+            return
         if self.cutscene or self.fading or self.message_box.visible:
             return
         p = self.player
@@ -3140,7 +3145,7 @@ class Game:
             self.player.forced_move = True
 
     def _maybe_add_gym2_blocker(self):
-        if self.story_flags.get('gym2_accessible'):
+        if self.story_flags.get('vanessa_shadow_event_done'):
             return
         if self.current_world_file != 'LOST_REGION.world':
             return
@@ -3179,6 +3184,14 @@ class Game:
 
     def _check_route2_blocker(self):
         self._check_guard_removal('route2')
+
+    def _check_gym2_blocker_removal(self):
+        if not self.story_flags.get('vanessa_shadow_event_done'):
+            return
+        blocker = next((n for n in self.npcs if getattr(n, 'npc_type', '') == 'gym2_guard'), None)
+        if blocker:
+            self.solid_tile_coords.discard((blocker.tile_x, blocker.tile_y))
+            self.npcs.remove(blocker)
 
     def apply_quest_step(self, index):
         """Sandbox debug: jump story_flags (and related state) to QUEST_STEPS[index].
@@ -4264,6 +4277,7 @@ class Game:
             self._check_route2_blocker()
             self._maybe_add_gym_blocker()
             self._maybe_add_gym2_blocker()
+            self._check_gym2_blocker_removal()
             self._maybe_add_route2_blocker()
             self._maybe_add_skyy()
             self._maybe_add_gray_rival()

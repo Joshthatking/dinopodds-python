@@ -261,7 +261,7 @@ TRAINER_DATA = {
     },
     'vanessa': {
         'name': 'Vanessa',
-        'dinos': {0: ('Prowscar', 16), 1: ('Netaslam', 16), 2: ('Ghoulflame', 16), 3: ('Scarecrux', 17)},
+        'dinos': {0: ('Prowscar', 16), 1: ('Netaslam', 16), 2: ('Ghoulflame', 16), 3: ('Gourdecrux', 17)},
         'dialog': {
             'default':  ["You fools, in time you will understand the harm you are causing"],
             'defeated': ["Next time I won't be as easy on you..."]
@@ -272,6 +272,20 @@ TRAINER_DATA = {
         'biome': 'forest',
         'reward_coins': 1200,
         'rank': 'boss',
+    },
+    'john': {
+        'name': 'John',
+        'dinos': {0: ('Bullicorn', 16), 1: ('Bullicorn', 16), 2: ('Bullicorn', 17)},
+        'dialog': {
+            'default':  ["These horns aren't just for show, kid.", "Let's battle!"],
+            'defeated': ["Ha! You handled my herd well."]
+        },
+        'directions': ['up'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 450,
+        'rank': 'lowest',
     },
 }
 
@@ -304,7 +318,7 @@ DINODEX_DATA = {
     'Rockull':    {'number': 24, 'desc': "A hulking rock golem that packs its boulder-like fists with crushing force. Rockull is slow to move but nearly impossible to knock down."},
     'Prickly':    {'number': 25, 'desc': "A cheerful cactus dino covered in spines that are sharper than they look. Prickly thrives in dry, sun-baked soil."},
     'Cyflactus':  {'number': 26, 'desc': "Prickly's evolved form, a result of extensive solar panels surrounding the Region. This mutation turned its prickly spikes into scorching spikes made of flames. Scientist in the area have begun to study and work with Cyflactus to learn how it evolved and to assist it with biotechnology where it can precisely pinpoint high risk spots from solar heat exposure with its monocular smart glass."},
-    'Gourdecrux': {'number': 27, 'desc': "A fiery transformation of Scarecrux, its head consumed by a burning jack-o'-lantern. Legend says only a trainer who has proven themselves at the Region's gyms can awaken this form."},
+    'Gourdecrux': {'number': 27, 'desc': "A fiery transformation of Scarecrux, its head consumed by a burning jack-o'-lantern. Legend says only a trainer who has proven themselves at the Region's gyms can awaken this form from a base Scarecrux. Once known as the gatekeeper of the Elder Town Mansion."},
 
 }
 

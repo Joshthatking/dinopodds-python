@@ -157,6 +157,7 @@ NPC_SPRITE_KEY = {
     'route2_girl':   'basic_trainer_girl',
     'route2_boy':    'basic_trainer',
     'dylan':         'basic_trainer2',
+    'john':          'rocko',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -184,6 +185,9 @@ WORLD_NPCS = {
         # ROUTE_2.2 single battle
         ('route2_boy', 59, -29, 'up', 5, 'trainer'),
         ('dylan', 67, -38, 'down', 5, 'trainer'),
+
+        # ROUTE2.7 single battle
+        ('john', 68, -47, 'up', 5, 'trainer'),
 
         # CORN_MAZE3 lore prop
         ('scarecrux', 145, -53, 'down', 0, 'story'),
