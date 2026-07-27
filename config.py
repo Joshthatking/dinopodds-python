@@ -47,6 +47,7 @@ FONT_DEFS = {
     "BATTLE2":  (FONT_PATH_R, FONT_SMALL),
     "XS":       (FONT_PATH_B, FONT_XS),
     "DIALOGUE": (FONT_PATH_B, FONT_LARGE),
+    "DIALOGUE_BOX": (FONT_PATH_B, 22),  # overworld dialogue box — a bit smaller than FONT_LARGE
 }
 
 # Asset paths
@@ -160,6 +161,20 @@ NPC_SPRITE_KEY = {
     'john':          'rocko',
 }
 
+# Dialogue-box speaker portraits: the display name used in a dialogue tag
+# (e.g. "[Log] ...", from _tag_dialogue()/_split_dialogue()'s `name`) ->
+# an NPC_SHEETS key to crop a small portrait from. Only named story cast
+# members need an entry here; anyone not listed just shows no portrait.
+DIALOGUE_PORTRAITS = {
+    'Log':     'log',
+    'Curfeu':  'curfeu',
+    'Abby':    'abby',
+    'Skyy':    'skyy',
+    'Vanessa': 'vanessa',
+    'Amber':   'amber',
+    'Gray':    'gray',
+}
+
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
 
 # Per-world NPC definitions: (trainer_id, tile_x, tile_y, facing, sight_range, npc_type)
@@ -175,6 +190,7 @@ WORLD_NPCS = {
         ('shinji', 13, -12, 'down', 5, 'trainer'),
 
         # ROUTE_2 double battle pair — ROUTE2.4, face north
+        # Only spawns after the corn maze reveal (see game.py _spawn_world_npcs)
         ('grunt1', 50, -20, 'up', 6, 'trainer'),
         ('grunt2', 51, -20, 'up', 6, 'trainer'),
 
@@ -192,8 +208,9 @@ WORLD_NPCS = {
         # CORN_MAZE3 lore prop
         ('scarecrux', 145, -53, 'down', 0, 'story'),
 
-        # Shadow Team Leader Vanessa — present from the start, dormant
-        # until the post-grunt-battle story event activates her.
+        # Shadow Team Leader Vanessa — only spawns once the corn maze
+        # reveal is done (see game.py _spawn_world_npcs); dormant (sight
+        # range 0) until the post-grunt-battle story event activates her.
         ('vanessa', 47, -22, 'down', 0, 'story'),
 
     ],

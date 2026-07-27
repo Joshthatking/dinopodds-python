@@ -27,7 +27,7 @@ This document exists so Claude understands the full project context at the start
 | `main.py` | Entry point — initializes and runs the Game |
 | `game.py` | Main game engine (~1450 lines): state machine, encounters, battles, XP, evolution, camera |
 | `player.py` | Player sprite: movement, animation, collision, encounter triggering |
-| `screens.py` | All UI screens (~1460 lines): EncounterUI, PartyScreen, ItemsScreen, Menu, MessageBox, LevelUpUI |
+| `screens.py` | All UI screens (~1460 lines): EncounterUI, PartyScreen, ItemsScreen, Menu, DialogueBox, LevelUpUI |
 | `config.py` | Global config: colors, screen size, fonts, tile paths, dino stat tables, spawn points, item defs |
 | `data.py` | Game data: dino species, move data, type chart, XP formulas, trainer data |
 

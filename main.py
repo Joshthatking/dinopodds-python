@@ -240,7 +240,14 @@ if __name__ == '__main__':
 #7/26
 #Added one  more trainer battle in end of route 2
 
+#7/27
+#FIX night mode after solar panel quest -- COMPLETE (already forced in _finish_vanessa_event)
+# Force the grunts to only appear after corn maze quest -- COMPLETE
+# FIX dialogue, make all dialogue smaller font and scrollable so it is cohesive
+# add to bottom left of text above the name of speaker in dialogue small front image of the speaker  
 
+
+# add battle transition animation and ball catching and move animations
 # fix skyy not being at gym immediately after rival battle
 # make rival disappear after battle, make trainers who move go to original location after entering building
 

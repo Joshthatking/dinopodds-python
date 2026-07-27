@@ -136,7 +136,7 @@ class Game:
         self.map_entities = []
 
         # Message box
-        self.message_box = MessageBox(config.WIDTH, self.fonts)
+        self.message_box = DialogueBox(config.WIDTH, self.fonts)
 
         # Sandbox-only coordinate teleport input (Ctrl+Z)
         self.coord_input_active = False
@@ -1824,6 +1824,7 @@ class Game:
         self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
         self._maybe_add_gray_rival()
+        self._maybe_add_grunts_vanessa()
         # Place player one tile behind where they entered, facing back out
         reverse = {'up': 'down', 'down': 'up', 'left': 'right', 'right': 'left'}
         step = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}
@@ -2038,12 +2039,13 @@ class Game:
     def _gym2_log_dialogue(self):
         self.cutscene['phase'] = 'gym2_dialogue_wait'
         self.message_box.queue_messages(
-            self._tag_dialogue('Log', self._split_dialogue(
-                "Look at how the Creuws dance around the scarecrow, folklore says in the past"
-                " a ghostly scarecrow would haunt the corn fields and scare all the Creuws"
-                " away, until a brave Luna took the liberty to fly above ensuring the"
-                " scarecrow would hide away in slumber for eternity."
-            )),
+            self._split_dialogue(
+                "Look at how the Creuws dance around the scarecrow."
+                "Folklore says in the past a ghostly scarecrow would haunt the corn fields and scare all the Creuws away,"
+                "until a brave Luna took the liberty to fly above ensuring the scarecrow would hide away in slumber for eternity."
+                ,
+                name='Log'
+            ),
             wait_for_input=True,
             on_complete=self._gym2_start_curfeu_approach
         )
@@ -2080,12 +2082,12 @@ class Game:
         if not self.cutscene:
             return
         self.message_box.queue_messages(
-            self._tag_dialogue('Curfeu', self._split_dialogue(
-                "They said the one of the scarecrows had a transformation and became a"
-                " protector of my families mansion beyond the corn field for years. It was a"
-                " fearful yet innocent spirit devoted to protecting the gates of our land."
-                " Its tomb is just north of here."
-            )),
+            self._split_dialogue(
+                "Legend says one of the scarecrows had a transformation and became a protector of my families mansion beyond the corn field for years."
+                "It was a daunting yet innocent spirit devoted to protecting the gates of our land."
+                " Its tomb is just north of here.",
+                name='Curfeu'
+            ),
             wait_for_input=True,
             on_complete=self._gym2_start_creuw_dance
         )
@@ -2146,11 +2148,12 @@ class Game:
         self._face_player('up')
         self.cutscene['phase'] = 'gym2_dialogue_wait'
         self.message_box.queue_messages(
-            self._tag_dialogue('Log', self._split_dialogue(
+            self._split_dialogue(
                 "Some of that energy is still around it seems, I would be vigilant around"
                 " here at night ok Jet? I hope to see you at my gym soon, would love a good"
-                " challenge"
-            )),
+                " challenge",
+                name='Log'
+            ),
             wait_for_input=True,
             on_complete=self._gym2_start_walk_away
         )
@@ -2263,8 +2266,8 @@ class Game:
                     "Long time no see Jet!",
                     "So the professor has you on a journey too?",
                     "That is great! I have my own mission, can you help me?",
-                    "Professor Amber said some suspicious activity is occuring by the solar panels powering Sierra Town",
-                    "She wants us to go stop the intruders from damaing the power lines",
+                    "Professor Amber said some suspicious activity is occurring by the solar panels powering Sierra Town",
+                    "She wants us to go stop the intruders from damaging the solar panels!",
                     "Follow me!",
                 ]),
                 wait_for_input=True,
@@ -2393,7 +2396,7 @@ class Game:
         abby.facing = 'down'
         c['phase'] = 'gym2_dialogue_wait'  # reuse the generic no-op dialogue-wait phase
         self.message_box.queue_messages(
-            self._tag_dialogue('Abby', ["ok now its your turn, lets go investigate the solar panels"]),
+            self._tag_dialogue('Abby', ["ok now it is your turn, lets go investigate the solar panels"]),
             wait_for_input=True,
             on_complete=self._end_route26_abby_cutscene
         )
@@ -2465,7 +2468,7 @@ class Game:
         p.target_x = float(p.rect.x)
         p.moving = False
         self.message_box.queue_messages(
-            self._tag_dialogue('Abby', ["We cant leave now, we have a mission to complete!"]),
+            self._tag_dialogue('Abby', ["We can't leave now, we have a mission to complete!"]),
             wait_for_input=True)
 
     # ── Vanessa, Shadow Team Leader ──────────────────────────────────────
@@ -2612,7 +2615,7 @@ class Game:
         if won:
             msg = self._tag_dialogue('Vanessa', ["Next time I won't be as easy on you..."])
         else:
-            msg = self._tag_dialogue('Vanessa', ["What a shame, I expected more from yall"])
+            msg = self._tag_dialogue('Vanessa', ["What a shame, I expected more from you two"])
         self.message_box.queue_messages(
             msg, wait_for_input=True,
             on_complete=lambda: self._start_vanessa_walk_away(vanessa))
@@ -2845,13 +2848,14 @@ class Game:
                 self.player.image = self.player.animations[d][0]
                 c['phase'] = 'dialogue'
                 self.message_box.queue_messages(
-                    self._tag_dialogue('Amber', self._split_dialogue(
+                    self._split_dialogue(
                         "The solar flares are becoming more aggressive as time goes on,"
                         " our field agents are rushing back to the lab before all power"
                         " goes out and before the eclipse sets in.",
                         "I need you to go find the 3 dinos left behind and bring them"
                         " back to my Research Lab in Sierra Town! Be careful out there",
-                    )),
+                        name='Amber'
+                    ),
                     wait_for_input=True, on_complete=self._on_amber_dialogue_done
                 )
             else:
@@ -2990,21 +2994,40 @@ class Game:
                 self.dn_transition_timer = 0.0
                 self.cutscene = None
 
-    def _split_dialogue(self, *texts, lines_per_page=2):
-        """Break one or more long strings into dialogue-box-sized message chunks."""
-        font = self.message_box.font
-        avail_w = self.message_box.width - 120
-        pages = []
+    # Splits after a comma or period (that's followed by whitespace), so a
+    # clause boundary always lands on a natural pause in speech rather
+    # than mid-word-flow. Used by _split_dialogue() below.
+    _CLAUSE_SPLIT_RE = re.compile(r'(?<=[.,])\s+')
+
+    def _split_dialogue(self, *texts, name=None):
+        """Break one or more dialogue strings into one queued box per
+        clause, splitting only at commas and periods.
+
+        Each clause becomes its own entry for queue_messages() — its own
+        box. A clause that's too long to fit the box's two lines isn't
+        cut into a fresh box mid-sentence; DialogueBox wraps and
+        paginates it internally and scrolls to finish it, since scrolling
+        (not a new box) is how a single clause continues. A new box only
+        ever starts at the next clause boundary (the next comma/period).
+
+        Pass `name` to prefix every clause with a speaker tag (e.g.
+        "[Log] ..."). Because DialogueBox does its own wrapping on
+        whatever string it's given, the tag is simply part of that
+        string — there's no separate pre-wrap pass here to fall out of
+        sync with it (that mismatch was the old source of stray
+        one-word pages)."""
+        tag = f"[{name}] " if name else ""
+        clauses = []
         for text in texts:
-            all_lines = wrap_text(text, font, avail_w)
-            for i in range(0, len(all_lines), lines_per_page):
-                pages.append(' '.join(all_lines[i:i + lines_per_page]))
-        return pages
+            clauses.extend(c.strip() for c in self._CLAUSE_SPLIT_RE.split(text) if c.strip())
+        return [tag + c for c in clauses] if tag else clauses
 
     def _tag_dialogue(self, name, lines):
-        """Prefix every dialogue line/page with its speaker's name, e.g.
-        '[Log] Jet come check this out'. Apply this last, after any
-        _split_dialogue() pagination, so the tag repeats on every page."""
+        """Prefix short, already-fits-in-one-page dialogue lines with a
+        speaker tag, e.g. '[Log] Jet come check this out'. Do NOT use
+        this on _split_dialogue() output — pass name=... to
+        _split_dialogue() instead so the tag width is accounted for
+        before wrapping (see its docstring)."""
         return [f"[{name}] {line}" for line in lines]
 
     def _face_player(self, direction):
@@ -3272,9 +3295,9 @@ class Game:
 
     def _on_gray_battle_won(self, npc):
         data = TRAINER_DATA.get('gray', {})
-        msgs = self._tag_dialogue(data.get('name', 'Gray'), self._split_dialogue(*data.get('dialog', {}).get('defeated', [
+        msgs = self._split_dialogue(*data.get('dialog', {}).get('defeated', [
             "I like a challenge, next time I'll be more prepared. Keep at it, and I will too.."
-        ])))
+        ]), name=data.get('name', 'Gray'))
         def start_walk_away():
             npc.facing = 'down'
             self.cutscene = {
@@ -3283,6 +3306,29 @@ class Game:
                 'walk_target': (npc.tile_x, npc.tile_y + 6),
             }
         self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=start_walk_away)
+
+    def _maybe_add_grunts_vanessa(self):
+        if not self.story_flags.get('gym2_corn_maze_reveal_done'):
+            return
+        if self.story_flags.get('vanessa_shadow_event_done'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        if self.cutscene or self.is_vanessa_battle:
+            return
+        present = {getattr(n, 'trainer_id', '') for n in self.npcs}
+        for spec in config.WORLD_NPCS.get(self.current_world_file, []):
+            trainer_id, tx, ty, facing, sight, npc_type = spec
+            if trainer_id not in ('grunt1', 'grunt2', 'vanessa'):
+                continue
+            if trainer_id in present or trainer_id in self.defeated_trainers:
+                continue
+            npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
+                      facing=facing, sight_range=sight, npc_type=npc_type)
+            npc.home_tile   = (tx, ty)
+            npc.home_facing = facing
+            self.npcs.append(npc)
+            self.solid_tile_coords.add((tx, ty))
 
     def _maybe_add_gym1_skyy(self):
         if not self.story_flags.get('gray_route1_done'):
@@ -3886,6 +3932,8 @@ class Game:
             trainer_id, tx, ty, facing, sight, npc_type = spec
             if trainer_id == 'scarecrux' and self.story_flags.get('scarecrux_awakened'):
                 continue
+            if trainer_id in ('grunt1', 'grunt2', 'vanessa') and not self.story_flags.get('gym2_corn_maze_reveal_done'):
+                continue
             npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
                       facing=facing, sight_range=sight, npc_type=npc_type)
             npc.home_tile   = (tx, ty)
@@ -4049,7 +4097,7 @@ class Game:
         else:
             self.player.facing = self.player.direction = 'up' if dy > 0 else 'down'
         self.player.image = self.player.animations[self.player.facing][0]
-        msgs = self._tag_dialogue('Skyy', self._split_dialogue(
+        msgs = self._split_dialogue(
             "These spacial events are not of natural occurrence",
             "Just years ago our region was normal and thriving",
             "With the discovery of 100% lossless solar energy we were thriving as a society",
@@ -4059,9 +4107,8 @@ class Game:
             "I've been needing something to distract me",
             "So thank you for reminding me",
             "See you in Sierra Town!",
-
-
-        ))
+            name='Skyy'
+        )
         self.cutscene = {'phase': 'skyy_walking', 'npc': npc, 'walk_target': (npc.tile_x, npc.tile_y + 7)}
         self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self._on_skyy_dialogue_done)
 
@@ -4281,6 +4328,7 @@ class Game:
             self._maybe_add_route2_blocker()
             self._maybe_add_skyy()
             self._maybe_add_gray_rival()
+            self._maybe_add_grunts_vanessa()
             self._check_gym2_corn_maze_reveal()
             self._check_route26_abby_reveal()
             self._update_abby_follow(dt)

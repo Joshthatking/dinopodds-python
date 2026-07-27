@@ -1,4 +1,5 @@
 import os
+import re
 import pygame
 import config
 from data import *
@@ -8,6 +9,21 @@ from story import QUEST_STEPS
 def load_image(path, alpha=False):
     image = pygame.image.load(path)
     return image.convert_alpha() if alpha else image.convert()
+
+
+def load_portrait(sprite_key, size):
+    """Crop the down-facing idle frame (the top-left 32x32 cell) out of an
+    NPC's 4x4 walk-cycle sheet and scale it to `size`, for use as a small
+    dialogue-box speaker portrait. Returns None if there's no usable sheet."""
+    path = config.NPC_SHEETS.get(sprite_key)
+    if not path or not os.path.exists(path):
+        return None
+    sheet = pygame.image.load(path).convert_alpha()
+    if sheet.get_width() < 32 or sheet.get_height() < 32:
+        return None
+    cell = pygame.Surface((32, 32), pygame.SRCALPHA)
+    cell.blit(sheet, (0, 0), (0, 0, 32, 32))
+    return pygame.transform.scale(cell, (size, size))
 
 
 def wrap_text(text, font, max_width):
@@ -2114,37 +2130,125 @@ class YesNoPrompt:
 
 
 # === Message Box ===
-class MessageBox:
+class DialogueBox:
+    """A reusable, self-contained two-line dialogue box.
+
+    Give it text and it handles the rest: word-wrapping to the box
+    width, a typewriter-style character reveal, pausing with a
+    blinking "▼" once both lines are full and typed, and a smooth
+    scroll-up transition into the next two lines when the player
+    advances. Long text is paginated into fixed 2-line chunks up
+    front, so a page is never repeated and a sentence always keeps
+    flowing in order.
+
+    Usage:
+        box = DialogueBox(config.WIDTH, fonts)
+        box.queue_messages(["Line one...", "Line two..."], on_complete=...)
+        # each frame:
+        box.update(dt)
+        box.handle_event(event)   # advances on SPACE / J
+        box.draw(screen)
+
+    Internal model
+    ---------------
+    - `self.messages`   : queued raw strings not yet being shown.
+    - `self._pages`      : the CURRENT string's word-wrapped lines,
+                           chopped into fixed-size (LINES_PER_PAGE) pages.
+    - `self._page_index` : which page of `_pages` is on screen.
+    - `self.message`     : the on-screen page's text (joined lines) —
+                           this is what the typewriter reveals.
+    - `self.char_index`  : how many characters of `self.message` are
+                           currently revealed.
+    - `self._scrolling`  : True while animating the transition between
+                           two pages (see _begin_scroll/_finish_scroll).
+    """
+
+    LINES_PER_PAGE  = 2      # visible lines in the box at once
+    CHAR_DELAY      = 0.03   # seconds per revealed character
+    SCROLL_DURATION = 0.18   # seconds for the page-advance scroll animation
+    PAD             = 15     # inner padding, px
+    PORTRAIT_SIZE   = 40     # speaker portrait, px
+
+    # Matches a leading "[Name] " speaker tag, as produced by
+    # Game._tag_dialogue()/_split_dialogue(name=...).
+    _SPEAKER_TAG_RE = re.compile(r'^\[([^\]]+)\]')
+
     def __init__(self, width, fonts):
-        self.width = width
-        self.height = 100
-        self.font = fonts['DIALOGUE']
-        self.message = ""
+        self.width  = width
+        self.font   = fonts['DIALOGUE_BOX']
         self.visible = False
-        self.timer = 0
         self.wait_for_input = False
         self.on_complete = None
-        self.messages = []
-        self.char_index = 0
-        self.char_timer = 0.0
-        self.char_delay = 0.03  # seconds per character
 
-    def _start_message(self, message):
-        lines = wrap_text(message, self.font, self.width - 120)
-        if len(lines) > 2:
-            self.messages.insert(0, ' '.join(lines[2:]))
-            message = ' '.join(lines[:2])
-        self.message = message
+        self.messages = []          # queued raw strings still to show
+        self._pages = [[]]          # current message, wrapped into 2-line pages
+        self._page_index = 0
+
+        self.message = ""            # text of the page currently on screen
+        self.char_index = 0          # characters of `message` revealed so far
+        self.char_timer = 0.0
+
+        self.timer = 0                # auto-dismiss countdown, only for show()
+        self._duration_ms = 0
+
+        # Scroll-transition state — see _begin_scroll()/_draw_scrolling()
+        self._scrolling = False
+        self._scroll_t = 0.0
+        self._outgoing_lines = []
+        self._next_page_index = 0
+
+        # Speaker portrait — set once per _start_message() call from that
+        # message's leading "[Name] " tag (if any) and held for the whole
+        # box, including any pages it later scrolls through. See
+        # _get_portrait()/_draw_portrait().
+        self.speaker_name = None
+        self._portrait_cache = {}
+
+    # ── Feeding text in ──────────────────────────────────────────────
+    def _wrap_pages(self, text):
+        """Word-wrap `text` to the box width, then chop it into fixed
+        LINES_PER_PAGE-line pages. Pages never overlap, so no line is
+        ever shown twice; only the final page may be shorter."""
+        full_lines = wrap_text(text, self.font, self.width - 120)
+        step = self.LINES_PER_PAGE
+        return [full_lines[i:i + step] for i in range(0, len(full_lines), step)] or [[]]
+
+    def _load_page(self, index):
+        """Put page `index` on screen and restart its typewriter reveal."""
+        self._page_index = index
+        self.message = ' '.join(self._pages[index])
         self.char_index = 0
         self.char_timer = 0.0
+
+    def _start_message(self, text):
+        match = self._SPEAKER_TAG_RE.match(text)
+        self.speaker_name = match.group(1) if match else None
+        self._pages = self._wrap_pages(text)
+        self._load_page(0)
+
+    def _get_portrait(self, name):
+        """Look up (and cache) the small portrait for speaker `name`.
+        Returns None if `name` has no entry in config.DIALOGUE_PORTRAITS
+        or no usable sprite sheet — callers just skip drawing then."""
+        if name not in self._portrait_cache:
+            sprite_key = config.DIALOGUE_PORTRAITS.get(name)
+            self._portrait_cache[name] = (
+                load_portrait(sprite_key, self.PORTRAIT_SIZE) if sprite_key else None
+            )
+        return self._portrait_cache[name]
 
     def show(self, message, duration=2, wait_for_input=False):
+        """Show one message, auto-dismissing after `duration` seconds
+        unless wait_for_input is set."""
         self._start_message(message)
         self.visible = True
         self.wait_for_input = wait_for_input
-        self.timer = duration * 1000 if duration > 0 else 0
+        self._duration_ms = duration * 1000 if duration > 0 else 0
+        self.timer = self._duration_ms
 
     def queue_messages(self, messages, wait_for_input=True, on_complete=None):
+        """Show a list of messages back-to-back; `on_complete` fires once
+        the last one is dismissed."""
         self.messages = list(messages)
         self.visible = True
         self.wait_for_input = wait_for_input
@@ -2152,12 +2256,13 @@ class MessageBox:
         self._start_message(self.messages.pop(0))
         self.timer = 0
 
-    def handle_event(self, event):
-        if not (self.visible and self.wait_for_input and
-                event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j)):
-            return
-        if self.char_index < len(self.message):
-            self.char_index = len(self.message)
+    # ── Advancing ────────────────────────────────────────────────────
+    def _advance(self):
+        """The current page is fully typed and the player wants to
+        continue: scroll to this message's next page, or pop the next
+        queued message, or close the box."""
+        if self._page_index + 1 < len(self._pages):
+            self._begin_scroll(self._page_index + 1)
         elif self.messages:
             self._start_message(self.messages.pop(0))
         else:
@@ -2165,40 +2270,78 @@ class MessageBox:
             if self.on_complete:
                 self.on_complete()
 
+    def _begin_scroll(self, next_index):
+        """Kick off the scroll-up animation from the current page to
+        `next_index`. The outgoing lines are captured now (fully typed)
+        and slide up out of the box; the incoming page stays blank
+        until _finish_scroll() lands it, so its text isn't spoiled
+        before its own typewriter reveal starts."""
+        self._outgoing_lines = list(self._pages[self._page_index])
+        self._next_page_index = next_index
+        self._scrolling = True
+        self._scroll_t = 0.0
+
+    def _finish_scroll(self):
+        self._scrolling = False
+        self._load_page(self._next_page_index)
+
+    def handle_event(self, event):
+        if not (self.visible and self.wait_for_input and
+                event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j)):
+            return
+        if self._scrolling:
+            self._finish_scroll()                        # key press skips straight to the new page
+        elif self.char_index < len(self.message):
+            self.char_index = len(self.message)           # key press reveals the rest of this page instantly
+        else:
+            self._advance()
+
     def hide(self):
         self.visible = False
-        self.message = ""
         self.wait_for_input = False
         self.messages = []
+        self.message = ""
         self.char_index = 0
         self.char_timer = 0.0
+        self._pages = [[]]
+        self._page_index = 0
+        self._scrolling = False
+        self.speaker_name = None
 
+    # ── Per-frame update ─────────────────────────────────────────────
     def update(self, dt):
         if not self.visible:
             return
+        if self._scrolling:
+            self._scroll_t += dt
+            if self._scroll_t >= self.SCROLL_DURATION:
+                self._finish_scroll()
+            return
         if self.char_index < len(self.message):
             self.char_timer += dt
-            steps = int(self.char_timer / self.char_delay)
+            steps = int(self.char_timer / self.CHAR_DELAY)
             if steps:
                 self.char_index = min(self.char_index + steps, len(self.message))
-                self.char_timer -= steps * self.char_delay
+                self.char_timer -= steps * self.CHAR_DELAY
         elif self.timer > 0 and not self.wait_for_input:
             self.timer -= dt
             if self.timer <= 0:
-                if self.messages:
-                    self._start_message(self.messages.pop(0))
-                else:
-                    self.hide()
-                    if self.on_complete:
-                        self.on_complete()
+                self._advance()
+                if self.visible:
+                    self.timer = self._duration_ms
 
-    def draw(self, surface):
-        if not self.visible:
-            return
-        available_w = self.width - 120
-        full_lines = wrap_text(self.message, self.font, available_w)
-        # Reveal only up to char_index characters, preserving line structure
-        chars_left = self.char_index
+    # ── Drawing ──────────────────────────────────────────────────────
+    def _box_geometry(self, surface):
+        line_h = self.font.get_height() + 4
+        box_h = self.LINES_PER_PAGE * line_h + self.PAD * 2
+        box_rect = pygame.Rect(50, surface.get_height() - box_h - 20, self.width - 100, box_h)
+        return box_rect, line_h
+
+    def _typed_lines(self, message, char_index):
+        """Re-wrap `message` (<= LINES_PER_PAGE lines) and reveal only
+        the first `char_index` characters, line by line."""
+        full_lines = wrap_text(message, self.font, self.width - 120)
+        chars_left = char_index
         display_lines = []
         for line in full_lines:
             if chars_left <= 0:
@@ -2209,23 +2352,68 @@ class MessageBox:
             else:
                 display_lines.append(line[:chars_left])
                 chars_left = 0
-        line_h = self.font.get_height() + 4
-        pad = 15
-        box_h = 2 * line_h + pad * 2  # fixed 2-line height
-        box_rect = pygame.Rect(50, surface.get_height() - box_h - 20, self.width - 100, box_h)
+        return display_lines
+
+    def draw(self, surface):
+        if not self.visible:
+            return
+        box_rect, line_h = self._box_geometry(surface)
         pygame.draw.rect(surface, (255, 255, 255), box_rect)
         pygame.draw.rect(surface, (0, 0, 0), box_rect, 3)
-        for i, line in enumerate(display_lines[:2]):
-            surface.blit(self.font.render(line, True, (0, 0, 0)),
-                         (box_rect.x + 10, box_rect.y + pad + i * line_h))
 
-        if self.wait_for_input and self.char_index >= len(self.message):
-            if pygame.time.get_ticks() // 400 % 2:
-                cx = box_rect.right - 18
-                cy = box_rect.bottom - 10
-                pygame.draw.polygon(surface, (0, 0, 0), [
-                    (cx - 8, cy - 7), (cx + 8, cy - 7), (cx, cy + 3)
-                ])
+        # Clip to the box interior so scrolling text is hidden as it
+        # slides past the top/bottom edge instead of drawing outside it.
+        prev_clip = surface.get_clip()
+        surface.set_clip(box_rect)
+        if self._scrolling:
+            self._draw_scrolling(surface, box_rect, line_h)
+        else:
+            self._draw_static(surface, box_rect, line_h)
+        surface.set_clip(prev_clip)
+
+        if self.speaker_name:
+            self._draw_portrait(surface, box_rect)
+
+        if self.wait_for_input and not self._scrolling and self.char_index >= len(self.message):
+            self._draw_arrow(surface, box_rect)
+
+    def _draw_portrait(self, surface, box_rect):
+        """Draw a small portrait just above the box's top-left corner —
+        right above where the "[Name]" tag reads — so it's obvious at a
+        glance who's talking, even once the tag has scrolled off after
+        the first page."""
+        portrait = self._get_portrait(self.speaker_name)
+        if not portrait:
+            return
+        size = self.PORTRAIT_SIZE
+        frame_rect = pygame.Rect(box_rect.x, box_rect.y - size - 6, size, size)
+        pygame.draw.rect(surface, (255, 255, 255), frame_rect)
+        surface.blit(portrait, frame_rect.topleft)
+        pygame.draw.rect(surface, (0, 0, 0), frame_rect, 2)
+
+    def _draw_static(self, surface, box_rect, line_h):
+        for i, line in enumerate(self._typed_lines(self.message, self.char_index)):
+            surface.blit(self.font.render(line, True, (0, 0, 0)),
+                         (box_rect.x + 10, box_rect.y + self.PAD + i * line_h))
+
+    def _draw_scrolling(self, surface, box_rect, line_h):
+        """Slide the outgoing (fully-typed) lines upward and out of the
+        box over SCROLL_DURATION. The incoming page is left blank here —
+        it starts revealing itself only once _finish_scroll() lands it
+        and the normal typewriter takes over."""
+        progress = min(1.0, self._scroll_t / self.SCROLL_DURATION)
+        offset = -progress * self.LINES_PER_PAGE * line_h
+        for i, line in enumerate(self._outgoing_lines):
+            y = box_rect.y + self.PAD + i * line_h + offset
+            surface.blit(self.font.render(line, True, (0, 0, 0)), (box_rect.x + 10, y))
+
+    def _draw_arrow(self, surface, box_rect):
+        if pygame.time.get_ticks() // 400 % 2:
+            cx = box_rect.right - 18
+            cy = box_rect.bottom - 10
+            pygame.draw.polygon(surface, (0, 0, 0), [
+                (cx - 8, cy - 7), (cx + 8, cy - 7), (cx, cy + 3)
+            ])
 
 
 # === Trainer Card Screen ===
