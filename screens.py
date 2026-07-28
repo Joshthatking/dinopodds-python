@@ -2129,6 +2129,63 @@ class YesNoPrompt:
                          (yn_rect.x + 26, y))
 
 
+# === Route/Town Banner ===
+class RouteBanner:
+    """Top-left banner that slides down to announce the current route/town
+    name, holds for a few seconds, then slides back up.
+
+    Triggered by Game.check_zone_banner() whenever the player's movement
+    crosses one of the strips in data.ZONE_BANNER_TRANSITIONS. Calling
+    show() while already showing just restarts the sequence with the new
+    name — no queueing, since only the latest crossing matters.
+    """
+
+    WIDTH           = 220
+    HEIGHT          = 50
+    SLIDE_DURATION  = 0.4   # seconds to slide fully in/out
+    HOLD_DURATION   = 4.0   # seconds fully visible before sliding back up
+
+    def __init__(self, fonts):
+        self.font = fonts['DIALOGUE_BOX']
+        self.text = ""
+        self.phase = None   # None | 'in' | 'hold' | 'out'
+        self.timer = 0.0
+
+    def show(self, text):
+        self.text = text
+        self.phase = 'in'
+        self.timer = 0.0
+
+    def update(self, dt):
+        if self.phase is None:
+            return
+        self.timer += dt
+        if self.phase == 'in' and self.timer >= self.SLIDE_DURATION:
+            self.phase, self.timer = 'hold', 0.0
+        elif self.phase == 'hold' and self.timer >= self.HOLD_DURATION:
+            self.phase, self.timer = 'out', 0.0
+        elif self.phase == 'out' and self.timer >= self.SLIDE_DURATION:
+            self.phase, self.timer = None, 0.0
+
+    def draw(self, surface):
+        if self.phase is None:
+            return
+        if self.phase == 'in':
+            progress = self.timer / self.SLIDE_DURATION
+        elif self.phase == 'hold':
+            progress = 1.0
+        else:  # 'out'
+            progress = 1.0 - self.timer / self.SLIDE_DURATION
+        progress = max(0.0, min(1.0, progress))
+
+        y = -self.HEIGHT + int(self.HEIGHT * progress)
+        box = pygame.Rect(0, y, self.WIDTH, self.HEIGHT)
+        pygame.draw.rect(surface, (255, 255, 255), box)
+        pygame.draw.rect(surface, (0, 0, 0), box, 3)
+        label = self.font.render(self.text, True, (0, 0, 0))
+        surface.blit(label, (box.x + 14, box.y + (box.height - label.get_height()) // 2))
+
+
 # === Message Box ===
 class DialogueBox:
     """A reusable, self-contained two-line dialogue box.
@@ -2438,6 +2495,11 @@ class TrainerCardScreen:
             self._flying_badge = pygame.transform.scale(badge_raw, (30, 30))
         except Exception:
             self._flying_badge = None
+        try:
+            earth_raw = pygame.image.load(os.path.join('assets', 'Badges', 'earth_badge.png')).convert_alpha()
+            self._earth_badge = pygame.transform.scale(earth_raw, (30, 30))
+        except Exception:
+            self._earth_badge = None
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j, pygame.K_i):
@@ -2470,6 +2532,8 @@ class TrainerCardScreen:
 
         if self._flying_badge and self.game.story_flags.get('gym1_leader_defeated'):
             screen.blit(self._flying_badge, (22, 418))
+        if self._earth_badge and self.game.story_flags.get('gym2_leader_defeated'):
+            screen.blit(self._earth_badge, (62, 418))  # adjust x,y to the card's 2nd badge slot
 
         self._blit_text(screen, self.font_xs, "SPACE / J to close",
                         (180, 170, 150), 20, config.HEIGHT - 16)

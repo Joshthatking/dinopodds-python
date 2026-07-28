@@ -137,6 +137,7 @@ class Game:
 
         # Message box
         self.message_box = DialogueBox(config.WIDTH, self.fonts)
+        self.route_banner = RouteBanner(self.fonts)
 
         # Sandbox-only coordinate teleport input (Ctrl+Z)
         self.coord_input_active = False
@@ -925,6 +926,15 @@ class Game:
             return zone
         return self.tile_types.get((player_x, player_y))
 
+    def check_zone_banner(self, tile_x, tile_y, direction):
+        """Called after the player finishes a tile-step (see
+        Player.check_for_zone_banner()). Shows the route/town banner if
+        the tile just arrived at is one of ZONE_BANNER_TRANSITIONS's
+        strips and `direction` is one of that strip's mapped directions."""
+        entry = ZONE_BANNER_LOOKUP.get((tile_x, tile_y))
+        if entry and direction in entry:
+            self.route_banner.show(entry[direction])
+
     def trigger_encounter(self, forced_dino=None, forced_level=None):
         if forced_dino:
             dino_key, level = forced_dino, forced_level
@@ -985,6 +995,8 @@ class Game:
             self._post_trainer_battle_cb = lambda: self._on_gray_battle_won(npc)
         elif npc.trainer_id == 'skyy' and self.current_world_file == 'GYM1.tmx':
             self._post_trainer_battle_cb = self._on_skyy_gym_won
+        elif npc.trainer_id == 'log' and self.current_world_file == 'GYM2.tmx':
+            self._post_trainer_battle_cb = self._on_log_gym_won
 
         data = TRAINER_DATA.get(npc.trainer_id, {})
         dinos = data.get('dinos', {})
@@ -3360,6 +3372,21 @@ class Game:
             self, "Sierra Badge",
             os.path.join('assets', 'Badges', 'flying_badge.png'),
             on_dismiss=_after_badge)
+
+    def _on_log_gym_won(self):
+        self.story_flags['gym2_leader_defeated'] = True
+        if 'earth' not in self.badges_earned:
+            self.badges_earned.append('earth')
+
+        def _after_badge():
+            data = TRAINER_DATA.get('log', {})
+            dialog = self._tag_dialogue(data.get('name', 'Log'), data.get('dialog', {}).get('defeated', ["..."]))
+            self.message_box.queue_messages(dialog, wait_for_input=True)
+
+        self.badge_earned_screen = BadgeEarnedScreen(
+            self, "Earth Badge",
+            os.path.join('assets', 'Badges', 'earth_badge.png'),
+            on_dismiss=_after_badge)
         self.push_state('badge_earned')
 
     def _check_amber_blocker(self):
@@ -4239,6 +4266,7 @@ class Game:
         self.update_heal_anim(dt)
         self.update_hit_flash(dt)
         self.message_box.update(dt)
+        self.route_banner.update(dt)
 
         if getattr(self, '_post_xp_callback', None):
             if not (hasattr(self, 'encounter_ui') and self.encounter_ui.is_xp_animating()):
@@ -4386,6 +4414,7 @@ class Game:
             if self.sandbox:
                 tag = self.fonts['XS'].render("SANDBOX MODE", True, (255, 80, 80))
                 self.screen.blit(tag, (config.WIDTH - tag.get_width() - 6, 6))
+            self.route_banner.draw(self.screen)
             if self.cutscene_flash and self.cutscene_flash['alpha'] > 0:
                 _flash = pygame.Surface((config.WIDTH, config.HEIGHT))
                 _flash.fill(self.cutscene_flash.get('color', (255, 235, 150)))

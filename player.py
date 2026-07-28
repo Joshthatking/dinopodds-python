@@ -83,6 +83,7 @@ class Player(pygame.sprite.Sprite):
                     self.turn_timer = 0.3
                 self.check_for_encounter(game)
                 self.check_for_entrance(game)
+                self.check_for_zone_banner(game)
             return
 
         if self.turn_timer > 0:
@@ -206,3 +207,10 @@ class Player(pygame.sprite.Sprite):
             game.trigger_entrance(game.entrance_tile_coords[(tile_x, tile_y)], tile_x, tile_y)
         elif (tile_x, tile_y) in game.exit_tile_coords:
             game.trigger_exit()
+
+    def check_for_zone_banner(self, game):
+        if game.state_stack[-1] != 'world':
+            return
+        tile_x = self.rect.x // config.TILE_SIZE
+        tile_y = self.rect.y // config.TILE_SIZE
+        game.check_zone_banner(tile_x, tile_y, self.direction)

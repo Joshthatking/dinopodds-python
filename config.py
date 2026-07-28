@@ -153,6 +153,10 @@ NPC_SPRITE_KEY = {
     'shinji':        'basic_trainer2',
     'gym_trainer_a': 'blk_b',
     'gym_trainer_b': 'blk_b',
+    'gym2_trainer_a': 'blk_b',
+    'gym2_trainer_b': 'blk_b',
+    'gym2_trainer_c': 'blk_b',
+    'gym2_trainer_d': 'blk_b',
     'grunt1':        'enemy_male',
     'grunt2':        'enemy_male',
     'route2_girl':   'basic_trainer_girl',
@@ -224,6 +228,13 @@ WORLD_NPCS = {
     'GYM1.tmx': [
         ('gym_trainer_a', 6, 8,  'down', 5, 'trainer'),
         ('gym_trainer_b', 13, 8, 'left', 5, 'trainer'),
+    ],
+    'GYM2.tmx': [
+        ('log', 10, 2, 'down', 0, 'trainer'),
+        ('gym2_trainer_a', 1, 6,   'right', 5, 'trainer'),
+        ('gym2_trainer_b', 1, 3,   'right', 5, 'trainer'),
+        ('gym2_trainer_c', 18, 11, 'left',  5, 'trainer'),
+        ('gym2_trainer_d', 15, 4,  'up',    5, 'trainer'),
     ],
 }
 

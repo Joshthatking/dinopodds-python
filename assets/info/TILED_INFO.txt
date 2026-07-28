@@ -28,3 +28,26 @@ entrance_id = home (for example)
 
 
 SAVE and Replace files .tmx, and .tsx when changes are made
+
+
+################# QUICK TELEPORT ################
+Town 1 (Sierra Town) DC - 19,-21
+Town 2 (Elder Town) DC - 79, -80
+
+CORN MAZE ENTRANCE - 88, -53
+
+
+
+
+
+#### CROSSING TOWNS/ROUTES ####
+trigger on crossing:
+2,32 -> 6,32 going up for Route 1 / going down for Silverleaf Town
+
+15,-12 -> 15,-11 going right for Sierra Town / going left for Route 1
+
+29,-27 -> 33, -27 going up for Route 2 / going down for Sierra Town
+
+89,-54 -> 89,-51 going right for Corn Maze / going left for Route 2
+
+83,-59 -> 85,-59 going up for Elder Town/ going down for Route 2

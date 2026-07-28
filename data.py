@@ -242,22 +242,83 @@ TRAINER_DATA = {
         'reward_coins': 200,
         'rank': 'lowest',
     },
-    # TODO: placeholder team/dialog — Gym 2's real roster and post-battle
-    # lines haven't been designed yet. 'name'/'biome'/'rank' are real
-    # (used by the corn maze reveal cutscene and boss-tier XP check).
     'log': {
         'name': 'Log',
-        'dinos': {0: ('Creuw', 20)},
+        'dinos': {0: ('Prickly', 17), 1: ('Scarecrux', 18), 2: ('Cyflactus', 21)},
         'dialog': {
-            'default':  ["Ready for a challenge, Jet?", "Let's battle!"],
-            'defeated': ["Well fought!"]
+            'default':  [
+                "Jet! Good to see you made it to the Earth Gym.",
+                "I've been itching for that good challenge I mentioned back at the corn maze.",
+                "Let's see if you can handle the toughness of the earth itself!"
+            ],
+            'defeated': [
+                "Ha! I knew you had it in you.",
+                "You've earned the Earth Badge, fair and square.",
+                "Keep pushing forward, Jet — there's more waiting for you out there."
+            ]
         },
         'directions': ['down'],
         'look_around': False,
         'defeated': False,
         'biome': 'gym',
-        'reward_coins': 1000,
+        'reward_coins': 1200,
         'rank': 'medium',
+    },
+    'gym2_trainer_a': {
+        'name': 'Rocco',
+        'dinos': {0: ('Teamtwood', 16), 1: ('Prickly', 16)},
+        'dialog': {
+            'default':  ["You won't get past me without a fight!", "Let's see what you've got!"],
+            'defeated': ["Guess I need to toughen up more."]
+        },
+        'directions': ['right'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 350,
+        'rank': 'lowest',
+    },
+    'gym2_trainer_b': {
+        'name': 'Sage',
+        'dinos': {0: ('Floravel', 18)},
+        'dialog': {
+            'default':  ["This gym tests more than just strength.", "Let's battle!"],
+            'defeated': ["Well fought, trainer."]
+        },
+        'directions': ['right'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 350,
+        'rank': 'lowest',
+    },
+    'gym2_trainer_c': {
+        'name': 'Clay',
+        'dinos': {0: ('Teamtwood', 18)},
+        'dialog': {
+            'default':  ["Log trained us well for moments like this.", "Get ready!"],
+            'defeated': ["Not bad at all!"]
+        },
+        'directions': ['left'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 350,
+        'rank': 'lowest',
+    },
+    'gym2_trainer_d': {
+        'name': 'Moss',
+        'dinos': {0: ('Prickly', 18)},
+        'dialog': {
+            'default':  ["The earth doesn't yield easily, and neither do I!"],
+            'defeated': ["Impressive... Log will want to hear about this."]
+        },
+        'directions': ['up'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 350,
+        'rank': 'lowest',
     },
     'vanessa': {
         'name': 'Vanessa',
@@ -713,6 +774,7 @@ ENTRANCE_DATA = {
     'dinocenter_town2': {'world': 'DINOCENTER.tmx',   'spawn': (9, 12)},
     'research':     {'world': 'RESEARCH_LAB.tmx',    'spawn': (10, 11)},
     'gym1':         {'world': 'GYM1.tmx',             'spawn': (9, 13)},
+    'gym2':         {'world': 'GYM2.tmx',             'spawn': (9, 13)},
 
     # 'house_amber': {'world': 'HOUSE_AMBER.world',  'spawn': (3, 6)},
 }
@@ -851,6 +913,30 @@ def get_zone_for_tile(tx, ty):
     return None
 
 
+################## ROUTE/TOWN BANNER TRANSITIONS ####################
+# Each entry is a short strip of world tiles (built from two endpoints
+# that share either their x or their y) plus the name to show when the
+# player steps onto any tile in that strip, keyed by the direction they
+# were moving. Stepping onto the strip while moving a direction that
+# isn't listed does nothing.
+def _tile_strip(x1, y1, x2, y2):
+    if y1 == y2:
+        return [(x, y1) for x in range(min(x1, x2), max(x1, x2) + 1)]
+    return [(x1, y) for y in range(min(y1, y2), max(y1, y2) + 1)]
+
+ZONE_BANNER_TRANSITIONS = [
+    {'tiles': _tile_strip(2, 32, 6, 32),     'up': 'Route 1',        'down': 'Silverleaf Town'},
+    {'tiles': _tile_strip(15, -12, 15, -11), 'right': 'Sierra Town', 'left': 'Route 1'},
+    {'tiles': _tile_strip(29, -27, 33, -27), 'up': 'Route 2',        'down': 'Sierra Town'},
+    {'tiles': _tile_strip(89, -54, 89, -51), 'right': 'Corn Maze',   'left': 'Route 2'},
+    {'tiles': _tile_strip(83, -59, 85, -59), 'up': 'Elder Town',     'down': 'Route 2'},
+]
+
+# (tile) -> transition dict, for O(1) lookup as the player steps tile by tile.
+ZONE_BANNER_LOOKUP = {}
+for _entry in ZONE_BANNER_TRANSITIONS:
+    for _tile in _entry['tiles']:
+        ZONE_BANNER_LOOKUP[_tile] = _entry
 
 
 

@@ -244,8 +244,9 @@ if __name__ == '__main__':
 #FIX night mode after solar panel quest -- COMPLETE (already forced in _finish_vanessa_event)
 # Force the grunts to only appear after corn maze quest -- COMPLETE
 # FIX dialogue, make all dialogue smaller font and scrollable so it is cohesive
-# add to bottom left of text above the name of speaker in dialogue small front image of the speaker  
-
+# add to bottom left of text above the name of speaker in dialogue small front image of the speaker  w
+# Wire in Gym2 in Elder town! leader and gym trainers
+# Add 5 second rectangle top left that introduces you to a new route/town
 
 # add battle transition animation and ball catching and move animations
 # fix skyy not being at gym immediately after rival battle
