@@ -380,6 +380,9 @@ DINODEX_DATA = {
     'Prickly':    {'number': 25, 'desc': "A cheerful cactus dino covered in spines that are sharper than they look. Prickly thrives in dry, sun-baked soil."},
     'Cyflactus':  {'number': 26, 'desc': "Prickly's evolved form, a result of extensive solar panels surrounding the Region. This mutation turned its prickly spikes into scorching spikes made of flames. Scientist in the area have begun to study and work with Cyflactus to learn how it evolved and to assist it with biotechnology where it can precisely pinpoint high risk spots from solar heat exposure with its monocular smart glass."},
     'Gourdecrux': {'number': 27, 'desc': "A fiery transformation of Scarecrux, its head consumed by a burning jack-o'-lantern. Legend says only a trainer who has proven themselves at the Region's gyms can awaken this form from a base Scarecrux. Once known as the gatekeeper of the Elder Town Mansion."},
+    # PLACEHOLDER — desc/type/stats/moves are stand-ins pending real design.
+    'Rhinecicle': {'number': 28, 'desc': "PLACEHOLDER DESC. A hulking, ice-plated rhino dino that charges with a frozen horn."},
+    'Celestreeyl': {'number': 29, 'desc': "PLACEHOLDER DESC. A serpentine dino said to drift down from the night sky, trailing light over open water."},
 
 }
 
@@ -491,6 +494,17 @@ DINO_DATA = {
     'Cyflactus': {
         'stats': {'type': ['earth', 'magma'], 'health': 115, 'attack': 131, 'defense': 119, 'speed': 85},
         'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17: 'Synthesis', 21: 'Flame Shatter', 26: 'Dread Thorn', 30: 'Floral Resonance', 34: 'Tree Spin', 37: 'Spike Storm', 40: 'Solar Flare'},
+        'evolve': None},
+
+    # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
+    'Rhinecicle': {
+        'stats': {'type': ['ice', 'rock'], 'health': 110, 'attack': 120, 'defense': 145, 'speed': 75},
+        'moves': {0: 'Arise', 4: 'Dust Beam', 8: 'Snowfall', 12: 'Crusher', 16: 'Double Jab', 20: 'Deep Freeze', 25: 'Ripping Impact', 30: 'Hyperfrost', 35: 'Freeze Blast', 40: 'Spike Storm'},
+        'evolve': None},
+    # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
+    'Celestreeyl': {
+        'stats': {'type': ['earth', 'light'], 'health': 109, 'attack': 139, 'defense': 119, 'speed': 129},
+        'moves': {0: 'Arise', 1: 'Vine Snare', 6: 'Prism Glare', 10: 'Dread Thorn', 15: 'Flash', 19: 'Hurricane', 24: 'Piercing Light', 28: 'Spectral Overload', 33: 'Eternal Blue', 38: 'Gamma Wave'},
         'evolve': None},
 
 }

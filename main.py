@@ -248,6 +248,15 @@ if __name__ == '__main__':
 # Wire in Gym2 in Elder town! leader and gym trainers
 # Add 5 second rectangle top left that introduces you to a new route/town
 
+#8/12
+# ROUTE 3 and LAKE MERIDIAN Added!
+
+
+# ABBY Lizard did not spawn until 3 turns later
+# GRAY picture frame did not pop up till after battle
+# NEEDS - to design route 3 -> Gym 3 Coastal Town
+# Add more solar panels south of route, lake front with some evidence of snow north of route(small section)
+# Small Cave to traverse before reaching Coastal Town
 # add battle transition animation and ball catching and move animations
 # fix skyy not being at gym immediately after rival battle
 # make rival disappear after battle, make trainers who move go to original location after entering building

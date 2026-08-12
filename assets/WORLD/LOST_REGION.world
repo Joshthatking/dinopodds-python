@@ -244,6 +244,69 @@
             "width": 640,
             "x": 2400,
             "y": -2816
+        },
+        {
+            "fileName": "../MAPS/ROUTE3_1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1120,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/ROUTE3_2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/LAKE_MERIDIAN1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": -2816
+        },
+        {
+            "fileName": "../MAPS/LAKE_MERIDIAN2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": -3296
+        },
+        {
+            "fileName": "../MAPS/LAKE_MERIDIAN3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1120,
+            "y": -2816
+        },
+        {
+            "fileName": "../MAPS/LAKE_MERIDIAN4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1120,
+            "y": -3296
+        },
+        {
+            "fileName": "../MAPS/LAKE_MERIDIAN5.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1120,
+            "y": -3776
+        },
+        {
+            "fileName": "../MAPS/LAKE_MERIDIAN6.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": -2816
+        },
+        {
+            "fileName": "../MAPS/LAKE_MERIDIAN7.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": -3296
         }
     ],
     "onlyShowAdjacentMaps": false,

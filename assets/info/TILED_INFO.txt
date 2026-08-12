@@ -31,6 +31,7 @@ SAVE and Replace files .tmx, and .tsx when changes are made
 
 
 ################# QUICK TELEPORT ################
+Starter Town (Silverleaf) - 11,44
 Town 1 (Sierra Town) DC - 19,-21
 Town 2 (Elder Town) DC - 79, -80
 
