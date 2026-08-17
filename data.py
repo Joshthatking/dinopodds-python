@@ -367,7 +367,7 @@ DINODEX_DATA = {
     'Sortle':  {'number': 12, 'desc': "This turtle has a shell made of sand actively swirling like a tornado, similar to its counterpart Frostle."},
     'Magnecrab':  {'number': 13, 'desc': "An underwater abomination, this crab has magnetic trident like claws which surge with electricity all while being native to the ocean."},
     'Volkit':     {'number': 14, 'desc': "A fierce cat with a molten core. Volkit is a fast and agile attacker who blazes in battle."},
-    'Drafyton':   {'number': 15, 'desc': "A mysterious creature who once roamed and conquered both land and sky in the Lost Region, now a shell remains... This fossilized dragon was the ulitmate protector of the Lost Region when it was being attacked by the spacial creatures eons ago, Drafyton with its help from other brave lines of dinos in the region were able to save the day from celestial conquest."},
+    'Drafyton':   {'number': 15, 'desc': "A mysterious creature who once roamed and conquered both land and sky in the Lost Region, now a shell remains... This fossilized dragon was the ulitmate protector of the Lost Region when the celesetial conquest began eons ago."},
     'Auraliz':    {'number': 16, 'desc': "A majestic aura surrounds this cold blooded lizard, it is said to freeze the water of any nearby source when it is near. "},
     'Voltzbee':   {'number': 17, 'desc': "This electric bee helps polinate the region lightning fast, locals say the charge it produces synthesizes with the solar panels nearby."},
     'Teamtwood':  {'number': 18, 'desc': "A worker at heart, Teamtwood provides assitance to locals all year round with its love for the Earth."},
@@ -378,11 +378,12 @@ DINODEX_DATA = {
     'Palidian':   {'number': 23, 'desc': "A noble knight who guards the forest, known to be a defender of sacred land and be courageous in battle. A true guardian of the Lost Region, fabled in the towns mythology as a subservant palidan only to the ancients or the region."},
     'Rockull':    {'number': 24, 'desc': "A hulking rock golem that packs its boulder-like fists with crushing force. Rockull is slow to move but nearly impossible to knock down."},
     'Prickly':    {'number': 25, 'desc': "A cheerful cactus dino covered in spines that are sharper than they look. Prickly thrives in dry, sun-baked soil."},
-    'Cyflactus':  {'number': 26, 'desc': "Prickly's evolved form, a result of extensive solar panels surrounding the Region. This mutation turned its prickly spikes into scorching spikes made of flames. Scientist in the area have begun to study and work with Cyflactus to learn how it evolved and to assist it with biotechnology where it can precisely pinpoint high risk spots from solar heat exposure with its monocular smart glass."},
-    'Gourdecrux': {'number': 27, 'desc': "A fiery transformation of Scarecrux, its head consumed by a burning jack-o'-lantern. Legend says only a trainer who has proven themselves at the Region's gyms can awaken this form from a base Scarecrux. Once known as the gatekeeper of the Elder Town Mansion."},
+    'Cyflactus':  {'number': 26, 'desc': "Prickly's evolved form, a result of extensive solar panels surrounding the Region. This mutation turned its prickly spikes into scorching spikes made of flames."},
+    'Gourdecrux': {'number': 27, 'desc': "A fiery transformation of Scarecrux, its head consumed by a burning jack-o'-lantern. Legend says only a trainer who has proven themselves at the Region's gyms can awaken this form once known as the gatekeeper of the Elder Town Mansion."},
     # PLACEHOLDER — desc/type/stats/moves are stand-ins pending real design.
-    'Rhinecicle': {'number': 28, 'desc': "PLACEHOLDER DESC. A hulking, ice-plated rhino dino that charges with a frozen horn."},
-    'Celestreeyl': {'number': 29, 'desc': "PLACEHOLDER DESC. A serpentine dino said to drift down from the night sky, trailing light over open water."},
+    'Rhinecicle': {'number': 28, 'desc': "A hulking, ice and rock plated rhino dino that charges with a frozen horn."},
+    'Celestreeyl': {'number': 29, 'desc': "One of the celestials, holder of the Celestial Solar Shard. It is a guardian of light and life and its mission is to preserve both."},
+    'Rhysnow':    {'number': 30, 'desc': "A small rhino dino covered in snow, common in the mountainous winter terrain."},
 
 }
 
@@ -464,7 +465,7 @@ DINO_DATA = {
         'moves': {0: 'Fireball+', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear', 24: 'Piercing Light', 27: 'Lava Burst', 31: 'Crusher' , 35: 'Magma Boost', 39: 'Solar Flare'},
         'evolve': None},
     'Bouldava': {
-        'stats': {'type': ['rock'], 'health': 120, 'attack': 105, 'defense': 135, 'speed': 80},
+        'stats': {'type': ['rock', 'magma'], 'health': 120, 'attack': 105, 'defense': 135, 'speed': 80},
         'moves': {0: "Boulder Smash", 1: 'Sand Kick', 12: 'Flame Shatter', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 39:'Crash Impact' },
         'evolve': None},
     'Ghoulflame': {
@@ -497,14 +498,19 @@ DINO_DATA = {
         'evolve': None},
 
     # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
+    'Rhysnow': {
+        'stats': {'type': ['ice'], 'health': 90, 'attack': 88, 'defense': 102, 'speed': 55},
+        'moves': {0: 'Arise', 4: 'Snowfall', 8: 'Boulder Smash', 15: 'Iron Core', 18: 'Crusher', 22: 'Double Jab', 25: 'Hail Storm'},
+        'evolve': {25: 'Rhinecicle'}},
+    # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
     'Rhinecicle': {
         'stats': {'type': ['ice', 'rock'], 'health': 110, 'attack': 120, 'defense': 145, 'speed': 75},
-        'moves': {0: 'Arise', 4: 'Dust Beam', 8: 'Snowfall', 12: 'Crusher', 16: 'Double Jab', 20: 'Deep Freeze', 25: 'Ripping Impact', 30: 'Hyperfrost', 35: 'Freeze Blast', 40: 'Spike Storm'},
+        'moves': {0: 'Arise', 4: 'Snowfall', 8: 'Boulder Smash', 15: 'Iron Core', 18: 'Crusher', 22: 'Double Jab', 25: 'Hail Storm', 28: 'Hyperfrost', 31: 'Momentum', 33: 'Freeze Blast', 36: 'Frozen Aura', 40: 'Crash Impact'},
         'evolve': None},
     # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
     'Celestreeyl': {
-        'stats': {'type': ['earth', 'light'], 'health': 109, 'attack': 139, 'defense': 119, 'speed': 129},
-        'moves': {0: 'Arise', 1: 'Vine Snare', 6: 'Prism Glare', 10: 'Dread Thorn', 15: 'Flash', 19: 'Hurricane', 24: 'Piercing Light', 28: 'Spectral Overload', 33: 'Eternal Blue', 38: 'Gamma Wave'},
+        'stats': {'type': ['earth', 'light'], 'health': 129, 'attack': 139, 'defense': 119, 'speed': 129},
+        'moves': {0: 'Arise', 4: 'Vine Snare', 9: 'Prism Glare', 15: 'Dread Thorn', 16: 'Terraform', 19: 'Hurricane', 24: 'Piercing Light', 26: 'Synthesis', 28: 'Refraction', 30: 'Tree Spin', 35: 'Spectral Overload', 38: 'Gamma Wave'},
         'evolve': None},
 
 }

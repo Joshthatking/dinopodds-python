@@ -123,6 +123,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Cyflactus2':       os.path.join(DINOS_FRONT, 'Cyflactus.png'),
     'Gourdecrux':       os.path.join(DINOS_FRONT, 'Gourdecrux.png'),
     'Gourdecrux2':      os.path.join(DINOS_FRONT, 'Gourdecrux.png'),
+    'Rhysnow':          os.path.join(DINOS_FRONT, 'Rhysnow.png'),
+    'Rhysnow2':         os.path.join(DINOS_FRONT, 'Rhysnow.png'),
 }
 
 NPC_SHEETS = {
