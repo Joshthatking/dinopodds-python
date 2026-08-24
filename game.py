@@ -1790,6 +1790,7 @@ class Game:
             return  # no map configured yet, fade back in silently
         self.world_stack.append({
             'file': self.current_world_file,
+            'entrance_id': entrance_id,
             'entrance_tile_x': tile_x,
             'entrance_tile_y': tile_y,
             'entrance_facing': self.player.facing,
@@ -1805,6 +1806,9 @@ class Game:
         self._maybe_add_gym1_skyy()
         tx, ty = dest['spawn']
         self._place_player(tx, ty)
+        banner_name = ENTRANCE_BANNER_NAMES.get(entrance_id)
+        if banner_name:
+            self.route_banner.show(banner_name)
 
     def trigger_exit(self):
         if self.entrance_fade_state is not None:
@@ -1842,6 +1846,9 @@ class Game:
         step = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}
         dx, dy = step[reverse[prev['entrance_facing']]]
         self._place_player(prev['entrance_tile_x'] + dx, prev['entrance_tile_y'] + dy)
+        banner_name = EXIT_BANNER_NAMES.get(prev.get('entrance_id'))
+        if banner_name:
+            self.route_banner.show(banner_name)
 
     @property
     def _trainer_name(self):

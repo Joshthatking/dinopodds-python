@@ -267,3 +267,12 @@ if __name__ == '__main__':
 # event triggers, interactions (pick up, read, surf) , teleport on entrance, map for buildings
 # battle animation for attacks
  
+ #8/23
+ # Power Plant
+ # Cobalt Cave
+ # Route 4.1
+ # Connecting entrances and exits
+ # ShadowHQ1
+ # Add map notations when crossing into cave and routes
+
+#FIX layers of blocks in cave and route 4/route3

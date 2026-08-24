@@ -307,6 +307,62 @@
             "width": 640,
             "x": -160,
             "y": -3296
+        },
+        {
+            "fileName": "../MAPS/ROUTE3_3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/LAKE_MERIDIAN8.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 480,
+            "y": -3776
+        },
+        {
+            "fileName": "../MAPS/LAKE_MERIDIAN9.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": -3776
+        },
+        {
+            "fileName": "../MAPS/POWER_PLANT1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -160,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/POWER_PLANT2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -800,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/ROUTE3_4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -800,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/ROUTE3_BLOCK1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -800,
+            "y": -2816
+        },
+        {
+            "fileName": "../MAPS/ROUTE4.1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -2688,
+            "y": -992
         }
     ],
     "onlyShowAdjacentMaps": false,

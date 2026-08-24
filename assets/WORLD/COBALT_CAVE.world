@@ -1,0 +1,62 @@
+{
+    "maps": [
+        {
+            "fileName": "../MAPS/COBALT_CAVE1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 0,
+            "y": 0
+        },
+        {
+            "fileName": "../MAPS/COBALT_CAVE2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 0,
+            "y": 480
+        },
+        {
+            "fileName": "../MAPS/COBALT_CAVE3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -640,
+            "y": 480
+        },
+        {
+            "fileName": "../MAPS/COBALT_CAVE4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -640,
+            "y": 0
+        },
+        {
+            "fileName": "../MAPS/COBALT_CAVE5.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -640,
+            "y": 960
+        },
+        {
+            "fileName": "../MAPS/COBALT_CAVE_BLOCK1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 0,
+            "y": 960
+        },
+        {
+            "fileName": "../MAPS/COBALT_CAVE6.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -1280,
+            "y": 960
+        },
+        {
+            "fileName": "../MAPS/COBALT_CAVE7.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -1280,
+            "y": 480
+        }
+    ],
+    "onlyShowAdjacentMaps": false,
+    "type": "world"
+}

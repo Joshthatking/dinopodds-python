@@ -796,6 +796,19 @@ ENTRANCE_DATA = {
     'gym1':         {'world': 'GYM1.tmx',             'spawn': (9, 13)},
     'gym2':         {'world': 'GYM2.tmx',             'spawn': (9, 13)},
 
+    # Cobalt Cave — ROUTE3_4 <-> COBALT_CAVE1 (mouth of the cave)
+    'Cobalt Cave':  {'world': 'COBALT_CAVE.world',    'spawn': (18, 6)},
+    # COBALT_CAVE6 <-> ROUTE4.1 (far side of the cave). Both ends use a
+    # dedicated entrance_id pair rather than a plain 'exit' tile because
+    # COBALT_CAVE.world is one continuous stitched world — a generic exit
+    # there just pops whatever was last pushed onto world_stack, which is
+    # only ever ROUTE3_4 (the Cobalt Cave mouth), never ROUTE4.1.
+    'route4_1':     {'world': 'LOST_REGION.world',    'spawn': (-77, -30)},
+    'cobalt_cave6': {'world': 'COBALT_CAVE.world',    'spawn': (-33, 42)},
+    # COBALT_CAVE4 <-> SHADOWHQ1
+    'shadowhq1':    {'world': 'SHADOWHQ1.tmx',        'spawn': (9, 13)},
+    'cobalt':       {'world': 'COBALT_CAVE.world',    'spawn': (-11, 5)},
+
     # 'house_amber': {'world': 'HOUSE_AMBER.world',  'spawn': (3, 6)},
 }
 
@@ -950,6 +963,9 @@ ZONE_BANNER_TRANSITIONS = [
     {'tiles': _tile_strip(29, -27, 33, -27), 'up': 'Route 2',        'down': 'Sierra Town'},
     {'tiles': _tile_strip(89, -54, 89, -51), 'right': 'Corn Maze',   'left': 'Route 2'},
     {'tiles': _tile_strip(83, -59, 85, -59), 'up': 'Elder Town',     'down': 'Route 2'},
+    {'tiles': _tile_strip(55, -68, 55, -70), 'left': 'Route 3',      'right': 'Elder Town'},
+    {'tiles': _tile_strip(21, -75, 29, -75), 'up': 'Lake Meridian',  'down': 'Route 3'},
+    {'tiles': _tile_strip(1, -58, 7, -58),   'down': 'Power Plant',  'up': 'Route 3'},
 ]
 
 # (tile) -> transition dict, for O(1) lookup as the player steps tile by tile.
@@ -957,6 +973,31 @@ ZONE_BANNER_LOOKUP = {}
 for _entry in ZONE_BANNER_TRANSITIONS:
     for _tile in _entry['tiles']:
         ZONE_BANNER_LOOKUP[_tile] = _entry
+
+# ── Cave/HQ crossings ──────────────────────────────────────────────
+# Entering/exiting a cave is a discrete entrance_id teleport (see
+# ENTRANCE_DATA), not a walk across an adjacent tile the way the overworld
+# crossings above are — so these are looked up by entrance_id instead of by
+# tile, right when the teleport fires (see Game._do_entrance_teleport /
+# _do_exit_teleport).
+ENTRANCE_BANNER_NAMES = {
+    'Cobalt Cave':  'Cobalt Cave',   # Route 3      -> Cobalt Cave (mouth)
+    'route4_1':     'Route 4',      # Cobalt Cave  -> Route 4
+    'cobalt_cave6': 'Cobalt Cave',  # Route 4      -> Cobalt Cave
+    'shadowhq1':    'Shadow HQ',    # Cobalt Cave  -> Shadow HQ
+    'cobalt':       'Cobalt Cave',  # Shadow HQ    -> Cobalt Cave
+}
+
+# entrance_id used to get IN (world_stack[-1]['entrance_id']) -> banner name
+# to show when a generic 'exit' tile pops back out. Keyed by entrance_id
+# rather than destination file, since current_world_file for anywhere in
+# the overworld is always 'LOST_REGION.world' regardless of which route/town
+# sub-map the player is standing in. Only entrances that need a crossing
+# banner on the way back out belong here — most exits (homes, gyms,
+# DinoCenter, ...) intentionally show nothing.
+EXIT_BANNER_NAMES = {
+    'Cobalt Cave': 'Route 3',  # Cobalt Cave -> Route 3 (mouth)
+}
 
 
 
