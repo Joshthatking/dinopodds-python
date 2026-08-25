@@ -361,8 +361,127 @@
             "fileName": "../MAPS/ROUTE4.1.tmx",
             "height": 480,
             "width": 640,
-            "x": -2688,
-            "y": -992
+            "x": -2080,
+            "y": -1376
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -800,
+            "y": -1376
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -800,
+            "y": -896
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -800,
+            "y": -416
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -800,
+            "y": 64
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK5.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -1440,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK6.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -1440,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK7.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -1440,
+            "y": -1376
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK8.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -2080,
+            "y": -1856
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK9.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -2080,
+            "y": -2336
+        },
+        {
+            "fileName": "../MAPS/ROUTE4_2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -2720,
+            "y": -1376
+        },
+        {
+            "fileName": "../MAPS/PALM_PORT1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -3360,
+            "y": -1376
+        },
+        {
+            "fileName": "../MAPS/PALM_PORT2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -3360,
+            "y": -896
+        },
+        {
+            "fileName": "../MAPS/PALM_PORT3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -2720,
+            "y": -896
+        },
+        {
+            "fileName": "../MAPS/PALM_PORT4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -2080,
+            "y": -896
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK10.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -1440,
+            "y": -896
+        },
+        {
+            "fileName": "../MAPS/MOUNTAINBLOCK11.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -1440,
+            "y": -416
+        },
+        {
+            "fileName": "../MAPS/PALM_PORT5.tmx",
+            "height": 480,
+            "width": 640,
+            "x": -2080,
+            "y": -416
         }
     ],
     "onlyShowAdjacentMaps": false,

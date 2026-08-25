@@ -803,7 +803,7 @@ ENTRANCE_DATA = {
     # COBALT_CAVE.world is one continuous stitched world — a generic exit
     # there just pops whatever was last pushed onto world_stack, which is
     # only ever ROUTE3_4 (the Cobalt Cave mouth), never ROUTE4.1.
-    'route4_1':     {'world': 'LOST_REGION.world',    'spawn': (-77, -30)},
+    'route4_1':     {'world': 'LOST_REGION.world',    'spawn': (-58, -42)},
     'cobalt_cave6': {'world': 'COBALT_CAVE.world',    'spawn': (-33, 42)},
     # COBALT_CAVE4 <-> SHADOWHQ1
     'shadowhq1':    {'world': 'SHADOWHQ1.tmx',        'spawn': (9, 13)},
