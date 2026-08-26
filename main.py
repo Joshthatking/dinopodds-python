@@ -275,4 +275,10 @@ if __name__ == '__main__':
  # ShadowHQ1
  # Add map notations when crossing into cave and routes
 
-#FIX layers of blocks in cave and route 4/route3
+
+#8/26
+# PALM PORT COMPLETE
+
+# NEED - fix entering cobalt cave from route 4 spawn
+# NEED - add spawns and levels for all grass, figure out water surfing
+# NEED - add events for part 3, add trainer battles in corn maze

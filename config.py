@@ -125,6 +125,12 @@ ENCOUNTER_DINOS_PATHS = {
     'Gourdecrux2':      os.path.join(DINOS_FRONT, 'Gourdecrux.png'),
     'Rhysnow':          os.path.join(DINOS_FRONT, 'Rhysnow.png'),
     'Rhysnow2':         os.path.join(DINOS_FRONT, 'Rhysnow.png'),
+    'Seasoo':           os.path.join(DINOS_FRONT, 'Seasoo.png'),
+    'Seasoo2':          os.path.join(DINOS_FRONT, 'Seasoo.png'),
+    'Chomper':          os.path.join(DINOS_FRONT, 'Chomper.png'),
+    'Chomper2':         os.path.join(DINOS_FRONT, 'Chomper.png'),
+    'Cobaltion':        os.path.join(DINOS_FRONT, 'Cobaltion.png'),
+    'Cobaltion2':       os.path.join(DINOS_FRONT, 'Cobaltion.png'),
 }
 
 NPC_SHEETS = {

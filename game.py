@@ -61,7 +61,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -4642,9 +4642,28 @@ class Game:
         except (ValueError, IndexError):
             return 0
 
+    def _visible_world_maps(self):
+        """world_maps entries whose rect overlaps a padded viewport — pad
+        the camera's visible area out to 2x its size (centered) so maps
+        don't pop in/out right at the screen edge. Large stitched worlds
+        (LOST_REGION.world is 80+ maps) would otherwise blit every tile of
+        every map every frame regardless of camera position."""
+        render_w = config.WIDTH // self.zoom
+        render_h = config.HEIGHT // self.zoom
+        pad_x, pad_y = render_w / 2, render_h / 2
+        view_left = self.camera_x - pad_x
+        view_top = self.camera_y - pad_y
+        view_right = self.camera_x + render_w + pad_x
+        view_bottom = self.camera_y + render_h + pad_y
+        return [
+            wmap for wmap in self.world_maps
+            if wmap['x'] < view_right and wmap['x'] + wmap['width'] > view_left
+            and wmap['y'] < view_bottom and wmap['y'] + wmap['height'] > view_top
+        ]
+
     def draw_map_below(self, surface):
         ts = config.TILE_SIZE
-        for wmap in self.world_maps:
+        for wmap in self._visible_world_maps():
             ox, oy = wmap['x'] - self.camera_x, wmap['y'] - self.camera_y
             for layer in wmap['tmx'].visible_layers:
                 if isinstance(layer, pytmx.TiledTileLayer) and self._layer_num(layer) < 4:
@@ -4661,7 +4680,7 @@ class Game:
 
     def draw_map_above(self, surface):
         ts = config.TILE_SIZE
-        for wmap in self.world_maps:
+        for wmap in self._visible_world_maps():
             ox, oy = wmap['x'] - self.camera_x, wmap['y'] - self.camera_y
             for layer in wmap['tmx'].visible_layers:
                 if isinstance(layer, pytmx.TiledTileLayer) and self._layer_num(layer) >= 4:

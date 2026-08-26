@@ -380,10 +380,12 @@ DINODEX_DATA = {
     'Prickly':    {'number': 25, 'desc': "A cheerful cactus dino covered in spines that are sharper than they look. Prickly thrives in dry, sun-baked soil."},
     'Cyflactus':  {'number': 26, 'desc': "Prickly's evolved form, a result of extensive solar panels surrounding the Region. This mutation turned its prickly spikes into scorching spikes made of flames."},
     'Gourdecrux': {'number': 27, 'desc': "A fiery transformation of Scarecrux, its head consumed by a burning jack-o'-lantern. Legend says only a trainer who has proven themselves at the Region's gyms can awaken this form once known as the gatekeeper of the Elder Town Mansion."},
-    # PLACEHOLDER — desc/type/stats/moves are stand-ins pending real design.
     'Rhinecicle': {'number': 28, 'desc': "A hulking, ice and rock plated rhino dino that charges with a frozen horn."},
     'Celestreeyl': {'number': 29, 'desc': "One of the celestials, holder of the Celestial Solar Shard. It is a guardian of light and life and its mission is to preserve both."},
     'Rhysnow':    {'number': 30, 'desc': "A small rhino dino covered in snow, common in the mountainous winter terrain."},
+    'Seasoo':     {'number': 31, 'desc': "A sea turtle dino with a small island of palms, sand, and coral thriving on its shell."},
+    'Chomper':    {'number': 32, 'desc': "An ancient platypus who still wanders the Lost Region, one of the original inhabitors to the land"},
+    'Cobaltion':  {'number': 33, 'desc': "A dino formed from crystallized cobalt ore, said to be found deep within Cobalt Cave where it rests in the darkness."},
 
 }
 
@@ -497,20 +499,30 @@ DINO_DATA = {
         'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17: 'Synthesis', 21: 'Flame Shatter', 26: 'Dread Thorn', 30: 'Floral Resonance', 34: 'Tree Spin', 37: 'Spike Storm', 40: 'Solar Flare'},
         'evolve': None},
 
-    # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
     'Rhysnow': {
         'stats': {'type': ['ice'], 'health': 90, 'attack': 88, 'defense': 102, 'speed': 55},
         'moves': {0: 'Arise', 4: 'Snowfall', 8: 'Boulder Smash', 15: 'Iron Core', 18: 'Crusher', 22: 'Double Jab', 25: 'Hail Storm'},
         'evolve': {25: 'Rhinecicle'}},
-    # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
     'Rhinecicle': {
         'stats': {'type': ['ice', 'rock'], 'health': 110, 'attack': 120, 'defense': 145, 'speed': 75},
         'moves': {0: 'Arise', 4: 'Snowfall', 8: 'Boulder Smash', 15: 'Iron Core', 18: 'Crusher', 22: 'Double Jab', 25: 'Hail Storm', 28: 'Hyperfrost', 31: 'Momentum', 33: 'Freeze Blast', 36: 'Frozen Aura', 40: 'Crash Impact'},
         'evolve': None},
-    # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
     'Celestreeyl': {
-        'stats': {'type': ['earth', 'light'], 'health': 129, 'attack': 139, 'defense': 119, 'speed': 129},
+        'stats': {'type': ['earth', 'light'], 'health': 109, 'attack': 139, 'defense': 109, 'speed': 129},
         'moves': {0: 'Arise', 4: 'Vine Snare', 9: 'Prism Glare', 15: 'Dread Thorn', 16: 'Terraform', 19: 'Hurricane', 24: 'Piercing Light', 26: 'Synthesis', 28: 'Refraction', 30: 'Tree Spin', 35: 'Spectral Overload', 38: 'Gamma Wave'},
+        'evolve': None},
+
+    'Seasoo': {
+        'stats': {'type': ['aqua', 'earth'], 'health': 120, 'attack': 88, 'defense': 114, 'speed': 110},
+        'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 27: 'Hurricane', 32: 'Terraform', 37: 'Tree Spin'},
+        'evolve': None},
+    'Chomper': {
+        'stats': {'type': ['ancient'], 'health': 108, 'attack': 119, 'defense': 132, 'speed': 85},
+        'moves': {0: 'Bitemark', 1: 'Arise', 6: 'Fossil Break', 10: 'Fear', 15: 'Whirlpool', 20: 'Rushdown', 25: 'Power Fang', 30: 'Dread Thorn', 33: 'Raging Pursuit',36: 'Tree Spin' ,40: 'Ancient Mend' },
+        'evolve': None},
+    'Cobaltion': {
+        'stats': {'type': ['rock', 'spike'], 'health': 140, 'attack': 130, 'defense': 140, 'speed': 80},
+        'moves': {0: 'Arise', 4: 'Dust Beam', 8: 'Static Graze', 13: 'Boulder Smash', 18: 'Double Jab', 23: 'Thunder Blitz', 26: 'Sword Slash', 29: 'Iron Core', 33: 'Crusher', 38: 'Crash Impact', 40: ' Spike Storm'},
         'evolve': None},
 
 }
@@ -804,7 +816,7 @@ ENTRANCE_DATA = {
     # there just pops whatever was last pushed onto world_stack, which is
     # only ever ROUTE3_4 (the Cobalt Cave mouth), never ROUTE4.1.
     'route4_1':     {'world': 'LOST_REGION.world',    'spawn': (-58, -42)},
-    'cobalt_cave6': {'world': 'COBALT_CAVE.world',    'spawn': (-33, 42)},
+    'cobalt_cave6': {'world': 'COBALT_CAVE.world',    'spawn': (-33, 40)},
     # COBALT_CAVE4 <-> SHADOWHQ1
     'shadowhq1':    {'world': 'SHADOWHQ1.tmx',        'spawn': (9, 13)},
     'cobalt':       {'world': 'COBALT_CAVE.world',    'spawn': (-11, 5)},
@@ -966,6 +978,7 @@ ZONE_BANNER_TRANSITIONS = [
     {'tiles': _tile_strip(55, -68, 55, -70), 'left': 'Route 3',      'right': 'Elder Town'},
     {'tiles': _tile_strip(21, -75, 29, -75), 'up': 'Lake Meridian',  'down': 'Route 3'},
     {'tiles': _tile_strip(1, -58, 7, -58),   'down': 'Power Plant',  'up': 'Route 3'},
+    {'tiles': _tile_strip(-85, -42, -85, -32), 'right': 'Route 4',   'left': 'Palm Port'},
 ]
 
 # (tile) -> transition dict, for O(1) lookup as the player steps tile by tile.
