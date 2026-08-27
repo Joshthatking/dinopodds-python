@@ -386,6 +386,7 @@ DINODEX_DATA = {
     'Seasoo':     {'number': 31, 'desc': "A sea turtle dino with a small island of palms, sand, and coral thriving on its shell."},
     'Chomper':    {'number': 32, 'desc': "An ancient platypus who still wanders the Lost Region, one of the original inhabitors to the land"},
     'Cobaltion':  {'number': 33, 'desc': "A dino formed from crystallized cobalt ore, said to be found deep within Cobalt Cave where it rests in the darkness."},
+    'Roxer':      {'number': 34, 'desc': "A sleek dino carved from stone, said to spar with boulders to keep its fists sharp."},
 
 }
 
@@ -522,8 +523,13 @@ DINO_DATA = {
         'evolve': None},
     'Cobaltion': {
         'stats': {'type': ['rock', 'spike'], 'health': 140, 'attack': 130, 'defense': 140, 'speed': 80},
-        'moves': {0: 'Arise', 4: 'Dust Beam', 8: 'Static Graze', 13: 'Boulder Smash', 18: 'Double Jab', 23: 'Thunder Blitz', 26: 'Sword Slash', 29: 'Iron Core', 33: 'Crusher', 38: 'Crash Impact', 40: ' Spike Storm'},
+        'moves': {0: 'Arise', 4: 'Dust Beam', 8: 'Static Graze', 13: 'Boulder Smash', 18: 'Double Jab', 23: 'Thunder Blitz', 26: 'Sword Slash', 29: 'Iron Core', 33: 'Crusher', 38: 'Crash Impact', 40: 'Spike Storm'},
         'evolve': None},
+
+    'Roxer': {
+        'stats': {'type': ['rock'], 'health': 100, 'attack': 90, 'defense': 90, 'speed': 90},
+        'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Boulder Smash', 12: 'Double Jab', 14: 'Momentum', 17: 'Force Shift', 20: 'Iron Core', 25: 'Crusher',30:'Prism Glare', 34: 'Sand Storm', 38: 'Crash Impact'},
+        'evolve': {25: 'Rockull'}},
 
 }
 

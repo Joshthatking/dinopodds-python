@@ -131,6 +131,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Chomper2':         os.path.join(DINOS_FRONT, 'Chomper.png'),
     'Cobaltion':        os.path.join(DINOS_FRONT, 'Cobaltion.png'),
     'Cobaltion2':       os.path.join(DINOS_FRONT, 'Cobaltion.png'),
+    'Roxer':            os.path.join(DINOS_FRONT, 'Roxer.png'),
+    'Roxer2':           os.path.join(DINOS_FRONT, 'Roxer.png'),
 }
 
 NPC_SHEETS = {

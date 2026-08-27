@@ -278,6 +278,7 @@ if __name__ == '__main__':
 
 #8/26
 # PALM PORT COMPLETE
+# MAP WAS LAGGING -> Added chunk loading
 
 # NEED - fix entering cobalt cave from route 4 spawn
 # NEED - add spawns and levels for all grass, figure out water surfing
