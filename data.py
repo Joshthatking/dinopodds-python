@@ -387,6 +387,7 @@ DINODEX_DATA = {
     'Chomper':    {'number': 32, 'desc': "An ancient platypus who still wanders the Lost Region, one of the original inhabitors to the land"},
     'Cobaltion':  {'number': 33, 'desc': "A dino formed from crystallized cobalt ore, said to be found deep within Cobalt Cave where it rests in the darkness."},
     'Roxer':      {'number': 34, 'desc': "A sleek dino carved from stone, said to spar with boulders to keep its fists sharp."},
+    'Skolt':      {'number': 35, 'desc': "A quick, dual-tailed electric dino with a bold black-and-yellow coat that crackles with static voltages, its speed and power is formidable."},
 
 }
 
@@ -441,7 +442,7 @@ DINO_DATA = {
         'evolve': None},
     'Magnecrab': {
         'stats': {'type': ['aqua', 'lightning'], 'health': 140, 'attack': 110, 'defense': 75, 'speed': 100},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Thunder Slap', 14: 'Shock', 18: 'Double Jab', 24:'Lightning Rod', 28: 'Hurricane', 31: 'Ripping Impact', 35: 'Conduit Surge', 39: 'Quantum Flux', 44: 'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Static Graze', 14: 'Shock', 18: 'Double Jab', 24:'Lightning Bolt', 28: 'Hurricane', 31: 'Ripping Impact', 35: 'Conduit Surge', 39: 'Quantum Flux', 44: 'Eternal Blue'},
         'evolve': None},
     'Volkit': {
         'stats': {'type': ['magma'], 'health': 62, 'attack': 95, 'defense': 68, 'speed': 75},
@@ -453,11 +454,11 @@ DINO_DATA = {
         'evolve': None},
     'Auraliz': {
         'stats': {'type': ['ice', 'aqua'], 'health': 92, 'attack': 118, 'defense': 117, 'speed': 123},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane', 26: 'Hyperfrost', 29: 'Deep Freeze',31: 'Fear', 34: 'Hailstorm', 37: 'Freeze Blast', 42:'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane', 26: 'Hyperfrost', 29: 'Deep Freeze',31: 'Fear', 34: 'Hail Storm', 37: 'Freeze Blast', 42:'Eternal Blue'},
         'evolve': None},
     'Voltzbee': {
         'stats': {'type': ['lightning', 'flying'], 'health': 77, 'attack': 113, 'defense': 83, 'speed': 142},
-        'moves': {0: 'Shock', 4: 'Stinger Shock', 8: 'Air Strike', 12: 'Thunder Blitz', 18: 'Mach Speed', 22: 'Piercing Light'},
+        'moves': {0: 'Shock', 4: 'Stinger Shock', 8: 'Air Strike', 12: 'Thunder Blitz', 18: 'Mach Speed', 22: 'Piercing Light', 26: 'Lightning Bolt', 30:'Quantum Flux', 35: 'Volt Storm'},
         'evolve': None},
     'Teamtwood': {
         'stats': {'type': ['earth'], 'health': 88, 'attack': 102, 'defense': 128, 'speed': 107},
@@ -530,6 +531,11 @@ DINO_DATA = {
         'stats': {'type': ['rock'], 'health': 100, 'attack': 90, 'defense': 90, 'speed': 90},
         'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Boulder Smash', 12: 'Double Jab', 14: 'Momentum', 17: 'Force Shift', 20: 'Iron Core', 25: 'Crusher',30:'Prism Glare', 34: 'Sand Storm', 38: 'Crash Impact'},
         'evolve': {25: 'Rockull'}},
+
+    'Skolt': {
+        'stats': {'type': ['lightning'], 'health': 107, 'attack': 117, 'defense': 87, 'speed': 137},
+        'moves': {0: 'Shock', 3: 'Bitemark', 7: 'Static Graze', 11: 'Fear', 15: 'Thunder Blitz', 17: 'Quick Slash', 20: 'Flame Shatter', 22: 'Lightning Bolt', 24: 'Piercing Light', 28: 'Conduit Surge', 32:'Quantum Flux', 38: 'Volt Storm'},
+        'evolve': None},
 
 }
 
@@ -719,7 +725,7 @@ MOVE_DATA = {
     'Stinger Shock': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Static Graze': {'target': 'opponent', 'damage': 25, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Thunder Blitz': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
-    'Lightning Rod': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'ability': None, 'type': 'lightning',
+    'Lightning Bolt': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'ability': None, 'type': 'lightning',
                         'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 50},
 },
     'Volt Storm': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'lightning'},

@@ -41,7 +41,7 @@ LAKE MERIDIAN - 25, -82
 
 Cobalt Cave Entrance - -21, -67
 
-Palm Port DC - -69, -15
+Town 3 (Palm Port) DC - -69, -15
 
 
 

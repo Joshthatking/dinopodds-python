@@ -283,3 +283,5 @@ if __name__ == '__main__':
 # NEED - fix entering cobalt cave from route 4 spawn
 # NEED - add spawns and levels for all grass, figure out water surfing
 # NEED - add events for part 3, add trainer battles in corn maze
+
+#9/1
