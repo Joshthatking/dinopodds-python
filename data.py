@@ -348,6 +348,63 @@ TRAINER_DATA = {
         'reward_coins': 450,
         'rank': 'lowest',
     },
+    # Corn Maze trainers
+    'cornmaze1': {
+        'name': 'Wendy',
+        'dinos': {0: ('Teamtwood', 13), 1: ('Voltzbee', 14)},
+        'dialog': {
+            'default':  ["Ugh, I've been wandering this maze for ages!", "Let's battle to pass the time!"],
+            'defeated': ["Ha, guess I needed the distraction anyway."]
+        },
+        'directions': ['right'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 320,
+        'rank': 'lowest',
+    },
+    'cornmaze2': {
+        'name': 'Milo',
+        'dinos': {0: ('Sortle', 14)},
+        'dialog': {
+            'default':  ["Bet you can't find your way through here without a fight!", "Let's go!"],
+            'defeated': ["Aw man... guess the maze wins again."]
+        },
+        'directions': ['down'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 260,
+        'rank': 'lowest',
+    },
+    'cornmaze3': {
+        'name': 'Hank',
+        'dinos': {0: ('Ghoulflame', 15), 1: ('Chomper', 13)},
+        'dialog': {
+            'default':  ["This corn maze has seen better trainers than you.", "Prove yourself!"],
+            'defeated': ["Heh, not bad, kid."]
+        },
+        'directions': ['down'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 340,
+        'rank': 'lowest',
+    },
+    'cornmaze4': {
+        'name': 'Piper',
+        'dinos': {0: ('Prickly', 12), 1: ('Chomper', 14)},
+        'dialog': {
+            'default':  ["Lost? Me too! Let's battle while we figure it out.", "Ready?"],
+            'defeated': ["Still lost, but that was fun!"]
+        },
+        'directions': ['up'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 310,
+        'rank': 'lowest',
+    },
 }
 
 
@@ -388,6 +445,7 @@ DINODEX_DATA = {
     'Cobaltion':  {'number': 33, 'desc': "A dino formed from crystallized cobalt ore, said to be found deep within Cobalt Cave where it rests in the darkness."},
     'Roxer':      {'number': 34, 'desc': "A sleek dino carved from stone, said to spar with boulders to keep its fists sharp."},
     'Skolt':      {'number': 35, 'desc': "A quick, dual-tailed electric dino with a bold black-and-yellow coat that crackles with static voltages, its speed and power is formidable."},
+    'Frostle':    {'number': 36, 'desc': "This turtle's shell is crowned with jagged ice crystals, the frozen counterpart to Sortle's swirling sand shell."},
 
 }
 
@@ -535,6 +593,13 @@ DINO_DATA = {
     'Skolt': {
         'stats': {'type': ['lightning'], 'health': 107, 'attack': 117, 'defense': 87, 'speed': 137},
         'moves': {0: 'Shock', 3: 'Bitemark', 7: 'Static Graze', 11: 'Fear', 15: 'Thunder Blitz', 17: 'Quick Slash', 20: 'Flame Shatter', 22: 'Lightning Bolt', 24: 'Piercing Light', 28: 'Conduit Surge', 32:'Quantum Flux', 38: 'Volt Storm'},
+        'evolve': None},
+
+    # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
+    # Mirrors Sortle's stat spread/level curve — its ice counterpart per the dex text.
+    'Frostle': {
+        'stats': {'type': ['ice'], 'health': 120, 'attack': 110, 'defense': 140, 'speed': 60},
+        'moves': {0: 'Snowfall', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Deep Freeze', 22: 'Hail Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Frozen Aura', 33: 'Hyperfrost', 36: 'Freeze Blast'},
         'evolve': None},
 
 }
@@ -820,13 +885,15 @@ ENTRANCE_DATA = {
     'gym1':         {'world': 'GYM1.tmx',             'spawn': (9, 13)},
     'gym2':         {'world': 'GYM2.tmx',             'spawn': (9, 13)},
 
-    # Cobalt Cave — ROUTE3_4 <-> COBALT_CAVE1 (mouth of the cave)
+    # Cobalt Cave — ROUTE3_4 <-> COBALT_CAVE1 (mouth of the cave). Both ends
+    # use a dedicated entrance_id pair rather than a plain 'exit' tile —
+    # 'exit' just pops whatever was last pushed onto world_stack, which
+    # breaks as soon as a player takes the COBALT_CAVE4 <-> SHADOWHQ1
+    # side-trip before leaving: the stack's top is no longer ROUTE3_4, so a
+    # plain exit at COBALT_CAVE1 would land them back at Shadow HQ instead.
     'Cobalt Cave':  {'world': 'COBALT_CAVE.world',    'spawn': (18, 6)},
-    # COBALT_CAVE6 <-> ROUTE4.1 (far side of the cave). Both ends use a
-    # dedicated entrance_id pair rather than a plain 'exit' tile because
-    # COBALT_CAVE.world is one continuous stitched world — a generic exit
-    # there just pops whatever was last pushed onto world_stack, which is
-    # only ever ROUTE3_4 (the Cobalt Cave mouth), never ROUTE4.1.
+    'route3_4':     {'world': 'LOST_REGION.world',    'spawn': (-23, -67)},
+    # COBALT_CAVE6 <-> ROUTE4.1 (far side of the cave). Same reasoning.
     'route4_1':     {'world': 'LOST_REGION.world',    'spawn': (-58, -42)},
     'cobalt_cave6': {'world': 'COBALT_CAVE.world',    'spawn': (-33, 40)},
     # COBALT_CAVE4 <-> SHADOWHQ1
@@ -920,15 +987,89 @@ ENCOUNTER_ZONES = {
         "corn_maze": {
         "encounter_rate": 0.05,
         "dinos": [
-            {"name": "Prickly",  "weight": 0.4, "time": "night"},
+            {"name": "Ghoulflame",  "weight": 0.4, "time": "night"},
             {"name": "Prickly",  "weight": 0.4, "time": "day"},
             {"name": "Prowscar", "weight": 0.4, "time": "night"},
             {"name": "Creuw", "weight": 0.6, "time": "day"},
-            {"name": "Vusion",   "weight": 0.1, "time": "night"},
+            {"name": "Vusion",   "weight": 0.2, "time": "night"},
         ],
-        "level_range": (11, 13)
+        "level_range": (9, 12)
 
     },
+
+
+            "route3": {
+        "encounter_rate": 0.07,
+        "dinos": [
+            {"name": "Chomper",  "weight": 0.2, "time": "night"},
+            {"name": "Chomper",  "weight": 0.2, "time": "day"},
+
+            {"name": "Bullicorn",  "weight": 0.25, "time": "day"},
+            {"name": "Bullicorn",  "weight": 0.25, "time": "night"},
+
+            {"name": "Teamtwood",  "weight": 0.25, "time": "day"},
+            {"name": "Teamtwood",  "weight": 0.25, "time": "night"},
+
+            {"name": "Netaslam",  "weight": 0.25, "time": "day"},
+            {"name": "Netaslam",  "weight": 0.25, "time": "night"},
+
+            {"name": "Drafyton",  "weight": 0.01, "time": "day"},
+            {"name": "Drafyton",  "weight": 0.01, "time": "night"},
+        ],
+        "level_range": (11, 16)
+
+    },
+
+            "lakeM_snowL": {
+        "dinos": ["Rhysnow", "Frostle", "Auraliz"],
+        "level_range": (11, 16)
+
+    },
+
+            "lakeM_snowR": {
+        "dinos": ["Rhysnow", "Frostle", "Auraliz"],
+        "level_range": (11, 16)
+
+    },
+
+            "lake1L": {
+        "dinos": ["Teamtwood", "Chomper", "Bullicorn", "Netaslam", "Sortle"],
+        "level_range": (11, 16)
+
+    },
+
+            "lake1R": {
+        "dinos": ["Teamtwood", "Chomper", "Bullicorn", "Netaslam", "Sortle"],
+        "level_range": (11, 16)
+
+    },
+
+            "powerplant_outside": {
+        "encounter_rate": 0.07,
+        "dinos": [
+            {"name": "Chomper",  "weight": 0.2, "time": "night"},
+            {"name": "Chomper",  "weight": 0.2, "time": "day"},
+
+            {"name": "Voltzbee",  "weight": 0.25, "time": "day"},
+            {"name": "Voltzbee",  "weight": 0.25, "time": "night"},
+
+            {"name": "Teamtwood",  "weight": 0.25, "time": "day"},
+            {"name": "Teamtwood",  "weight": 0.25, "time": "night"},
+
+            {"name": "Skolt",  "weight": 0.1, "time": "day"},
+            {"name": "Skolt",  "weight": 0.1, "time": "night"},
+        ],
+        "level_range": (11, 16)
+
+    },
+
+            "cave": {
+        "encounter_rate": 0.03,
+        "dinos": ["Roxer", "Sortle", "Bouldava", "Ghoulflame", "Prowscar"],
+        "level_range": (12, 16)
+
+    },
+
 
         ######## fill more
 
@@ -959,6 +1100,18 @@ ZONE_REGIONS = [
     (38, -56, 78, -17, "route2_burnt_grass"),
     (86,-36,93,-30, 'route2_belowcorn'),
     (86,-73,150,-46, 'corn_maze'),
+    (-20,-73,53,-59, 'route3'),
+    (-2,-102,8,-89, 'lakeM_snowL'),
+    (43,-115,51,-109, 'lakeM_snowR'),
+    (0,-86,11,-75, 'lake1L'),
+    (41,-102,46,-81, 'lake1R'),
+    (-13,-57,11,-48, 'powerplant_outside'),
+
+
+
+
+
+
 
 
 ]
@@ -1007,6 +1160,7 @@ for _entry in ZONE_BANNER_TRANSITIONS:
 # _do_exit_teleport).
 ENTRANCE_BANNER_NAMES = {
     'Cobalt Cave':  'Cobalt Cave',   # Route 3      -> Cobalt Cave (mouth)
+    'route3_4':     'Route 3',      # Cobalt Cave  -> Route 3 (mouth)
     'route4_1':     'Route 4',      # Cobalt Cave  -> Route 4
     'cobalt_cave6': 'Cobalt Cave',  # Route 4      -> Cobalt Cave
     'shadowhq1':    'Shadow HQ',    # Cobalt Cave  -> Shadow HQ
@@ -1019,9 +1173,11 @@ ENTRANCE_BANNER_NAMES = {
 # the overworld is always 'LOST_REGION.world' regardless of which route/town
 # sub-map the player is standing in. Only entrances that need a crossing
 # banner on the way back out belong here — most exits (homes, gyms,
-# DinoCenter, ...) intentionally show nothing.
+# DinoCenter, ...) intentionally show nothing. Currently empty: every
+# Cobalt Cave connection now uses a dedicated entrance_id pair instead of a
+# plain 'exit' tile (see ENTRANCE_DATA), so there's nothing left that needs
+# this path — kept for the next building that does want an exit-side banner.
 EXIT_BANNER_NAMES = {
-    'Cobalt Cave': 'Route 3',  # Cobalt Cave -> Route 3 (mouth)
 }
 
 

@@ -71,8 +71,22 @@ Cave/HQ crossings aren't tile crossings (they're entrance_id teleports), so
 they're wired by entrance_id instead of coordinates — see
 ENTRANCE_BANNER_NAMES / EXIT_BANNER_NAMES in data.py:
   Route 3 -> Cobalt Cave (entrance_id "Cobalt Cave")
-  Cobalt Cave -> Route 3 (exit, mouth of the cave)
+  Cobalt Cave -> Route 3 (entrance_id "route3_4")
   Cobalt Cave -> Route 4 (entrance_id "route4_1")
   Route 4 -> Cobalt Cave (entrance_id "cobalt_cave6")
   Cobalt Cave -> Shadow HQ (entrance_id "shadowhq1")
   Shadow HQ -> Cobalt Cave (entrance_id "cobalt")
+
+NOTE: every Cobalt Cave doorway uses a dedicated entrance_id pair now, never
+a plain "exit" tile. COBALT_CAVE1's mouth used to be a plain exit=true and
+it looked fine in isolation, but "exit" doesn't go to a fixed place — it
+just undoes whatever entrance_id you used most recently. Since Cobalt Cave
+has an internal branch (COBALT_CAVE4 <-> SHADOWHQ1), a player who took that
+side-trip before leaving via COBALT_CAVE1 would get popped back to Shadow HQ
+instead of Route 3. If you add more branches/rooms inside a cave later,
+give every doorway its own entrance_id pair rather than a plain exit tile,
+same as here — plain exit is only safe for a location with a single,
+non-branching in/out point (homes, gyms, DinoCenter, etc.).
+
+There is no "exit_id" property — entrance_id (string, fixed destination) and
+exit (bool, pops back to wherever you entered from) are the only two.

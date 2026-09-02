@@ -82,7 +82,7 @@
  <objectgroup id="5" name="Object Layer 1">
   <object id="1" x="578.667" y="194.667" width="24" height="29.3333">
    <properties>
-    <property name="exit" type="bool" value="true"/>
+    <property name="entrance_id" value="route3_4"/>
    </properties>
   </object>
  </objectgroup>

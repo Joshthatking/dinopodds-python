@@ -91,6 +91,16 @@
    <property name="collision" type="bool" value="true"/>
   </properties>
  </tile>
+ <tile id="411">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="413">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
  <tile id="468">
   <properties>
    <property name="collision" type="bool" value="true"/>
@@ -139,6 +149,7 @@
  <tile id="662">
   <properties>
    <property name="type" value="cave"/>
+   <property name="encounter" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="862">

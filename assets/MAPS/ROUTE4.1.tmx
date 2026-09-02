@@ -80,7 +80,7 @@
  <objectgroup id="5" name="Object Layer 1">
   <object id="1" x="226.969" y="35.357" width="26.2326" height="25.6624">
    <properties>
-    <property name="entrance_id" value="cobalt"/>
+    <property name="entrance_id" value="cobalt_cave6"/>
    </properties>
   </object>
  </objectgroup>

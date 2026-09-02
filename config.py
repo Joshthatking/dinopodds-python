@@ -135,6 +135,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Roxer2':           os.path.join(DINOS_FRONT, 'Roxer.png'),
     'Skolt':            os.path.join(DINOS_FRONT, 'Skolt.png'),
     'Skolt2':           os.path.join(DINOS_FRONT, 'Skolt.png'),
+    'Frostle':          os.path.join(DINOS_FRONT, 'Frostle.png'),
+    'Frostle2':         os.path.join(DINOS_FRONT, 'Frostle.png'),
 }
 
 NPC_SHEETS = {
@@ -175,6 +177,10 @@ NPC_SPRITE_KEY = {
     'route2_boy':    'basic_trainer',
     'dylan':         'basic_trainer2',
     'john':          'rocko',
+    'cornmaze1':     'basic_trainer_girl',
+    'cornmaze2':     'basic_trainer',
+    'cornmaze3':     'rocko',
+    'cornmaze4':     'basic_trainer_girl',
 }
 
 # Dialogue-box speaker portraits: the display name used in a dialogue tag
@@ -223,6 +229,12 @@ WORLD_NPCS = {
 
         # CORN_MAZE3 lore prop
         ('scarecrux', 145, -53, 'down', 0, 'story'),
+
+        # Corn Maze single battles
+        ('cornmaze1', 96, -56, 'right', 5, 'trainer'),
+        ('cornmaze2', 119, -57, 'down', 5, 'trainer'),
+        ('cornmaze3', 97, -71, 'down', 5, 'trainer'),
+        ('cornmaze4', 115, -48, 'up', 5, 'trainer'),
 
         # Shadow Team Leader Vanessa — only spawns once the corn maze
         # reveal is done (see game.py _spawn_world_npcs); dormant (sight
