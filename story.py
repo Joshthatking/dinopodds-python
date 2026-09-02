@@ -60,6 +60,19 @@
 #       alongside the player). Win or lose, Vanessa taunts and leaves;
 #       Abby heals again, says her goodbyes, and departs. Night falls.
 #
+# 12. ENTER GYM 2, DEFEAT LOG  →  gym2_leader_defeated
+#       Earth Badge awarded. (Gym 2's guard only clears once
+#       vanessa_shadow_event_done is set — see _maybe_add_gym2_blocker.)
+#
+# 13. BEAT GYM 2, CROSS INTO ROUTE 3 AT (33, -65)..(33, -59)  →  gray_route3_done
+#       Rival Gray's rematch. Input pauses, Gray walks in from 7 tiles to
+#       the player's left, dialogue plays, then a battle: Chomper (18),
+#       Prowscar (19), Sortle (20), leading up to the evolved form of the
+#       starter that counters the player's — same counter-type trick as
+#       Gray's first battle (see Game._maybe_add_gray_rival /
+#       _start_gray2_route3_cutscene), just level 21 and evolved this time.
+#       Win or lose, Gray walks off 7 tiles to the left.
+#
 # ══════════════════════════════════════════════════════════════════
 
 STORY_EVENTS = [
@@ -154,5 +167,18 @@ QUEST_STEPS = [
         "label": "10. Solar Panel Investigation - Defeated Vanessa",
         "flag": "vanessa_shadow_event_done",
         "defeated_trainers": ["grunt1", "grunt2", "vanessa"],
+    },
+    {
+        "id": "gym2_leader_defeated",
+        "label": "11. Defeated Gym 2 Leader (Log)",
+        "flag": "gym2_leader_defeated",
+        "defeated_trainers": ["log"],
+        "badges": ["earth"],
+    },
+    {
+        "id": "gray_route3_done",
+        "label": "12. Defeated Gray (Route 3 Rematch)",
+        "flag": "gray_route3_done",
+        "defeated_trainers": ["gray2"],
     },
 ]

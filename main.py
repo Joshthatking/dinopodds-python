@@ -285,3 +285,5 @@ if __name__ == '__main__':
 # NEED - add events for part 3, add trainer battles in corn maze
 
 #9/1
+# 4 Trainers in Corn Maze
+# Route 3 - Lake Meridian, Cave Spawns - Power Plant SPAWNS

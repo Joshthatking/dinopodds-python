@@ -181,6 +181,10 @@ NPC_SPRITE_KEY = {
     'cornmaze2':     'basic_trainer',
     'cornmaze3':     'rocko',
     'cornmaze4':     'basic_trainer_girl',
+    'gray2':         'gray',
+    'pp_grunt1':     'enemy_male',
+    'pp_grunt2':     'enemy_male',
+    'pp_grunt3':     'enemy_male',
 }
 
 # Dialogue-box speaker portraits: the display name used in a dialogue tag

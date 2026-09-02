@@ -1,0 +1,27 @@
+{
+    "maps": [
+        {
+            "fileName": "../MAPS/POWER_PLANT_IN1.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 0,
+            "y": 0
+        },
+        {
+            "fileName": "../MAPS/POWER_PLANT_IN2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 640,
+            "y": 0
+        },
+        {
+            "fileName": "../MAPS/POWER_PLANT_IN3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 640,
+            "y": -480
+        }
+    ],
+    "onlyShowAdjacentMaps": false,
+    "type": "world"
+}

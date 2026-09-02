@@ -921,9 +921,17 @@ class Game:
     # --- Encounter ---
 
     def get_player_zone(self, player_x, player_y):
-        zone = get_zone_for_tile(player_x, player_y)
-        if zone:
-            return zone
+        # ZONE_REGIONS is authored entirely in LOST_REGION.world's global
+        # tile-coordinate space (Route 1, Route 2, Corn Maze, ...). Every
+        # other world — single-map interiors especially — uses its own
+        # small, locally-originated tile coordinates that can coincidentally
+        # fall inside one of those overworld rectangles (e.g. an interior's
+        # (2,2) lands inside route1_grass's region), so only consult it
+        # while actually standing in the overworld.
+        if self.current_world_file == 'LOST_REGION.world':
+            zone = get_zone_for_tile(player_x, player_y)
+            if zone:
+                return zone
         return self.tile_types.get((player_x, player_y))
 
     def check_zone_banner(self, tile_x, tile_y, direction):
@@ -993,6 +1001,8 @@ class Game:
 
         if npc.trainer_id == 'gray':
             self._post_trainer_battle_cb = lambda: self._on_gray_battle_won(npc)
+        elif npc.trainer_id == 'gray2':
+            self._post_trainer_battle_cb = lambda: self._on_gray2_battle_won(npc)
         elif npc.trainer_id == 'skyy' and self.current_world_file == 'GYM1.tmx':
             self._post_trainer_battle_cb = self._on_skyy_gym_won
         elif npc.trainer_id == 'log' and self.current_world_file == 'GYM2.tmx':
@@ -2824,6 +2834,13 @@ class Game:
         if c['phase'] == 'route26_guided_walk':
             self._update_route26_guided_walk(dt)
             return
+        if c['phase'] == 'skyy_pp_guided_walk':
+            self._update_skyy_pp_guided_walk(dt)
+            return
+        if c['phase'] == 'skyy_pp_heal_flash':
+            if not self.cutscene_flash:
+                self._end_skyy_pp_cutscene()
+            return
         if c['phase'] == 'vanessa_heal_flash':
             if not self.cutscene_flash:
                 self._start_vanessa_approach()
@@ -2993,6 +3010,59 @@ class Game:
                     npc.anim_frame = 1
                     npc.anim_timer = 0.0
 
+        elif c['phase'] == 'gray2_approaching':
+            wx, wy = c['walk_target']
+            if npc.tile_x == wx and npc.tile_y == wy:
+                npc.anim_frame = 0
+                self.player.facing = self.player.direction = 'left'
+                self.player.image = self.player.animations['left'][0]
+                c['phase'] = 'gray2_dialogue_wait'
+                data = TRAINER_DATA.get('gray2', {})
+                self.message_box.queue_messages(
+                    self._tag_dialogue('Gray', data.get('dialog', {}).get('default', [])),
+                    wait_for_input=True,
+                    on_complete=lambda: self._start_gray2_battle(npc)
+                )
+            else:
+                self._force_step_npc_toward_tile(npc, wx, wy)
+
+        elif c['phase'] == 'gray2_dialogue_wait':
+            pass  # waiting on the message_box's on_complete to fire
+
+        elif c['phase'] == 'gray2_walking_away':
+            if self.message_box.visible:
+                return
+            wx, wy = c['walk_target']
+            if npc.tile_x == wx and npc.tile_y == wy:
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                if npc in self.npcs:
+                    self.npcs.remove(npc)
+                self.story_flags['gray_route3_done'] = True
+                self._start_skyy_powerplant_cutscene()
+            else:
+                self._force_step_npc_toward_tile(npc, wx, wy)
+
+        elif c['phase'] == 'skyy_pp_approaching':
+            wx, wy = c['walk_target']
+            if npc.tile_x == wx and npc.tile_y == wy:
+                npc.anim_frame = 0
+                self.player.facing = self.player.direction = 'left'
+                self.player.image = self.player.animations['left'][0]
+                c['phase'] = 'skyy_pp_dialogue_wait'
+                self.message_box.queue_messages(
+                    self._tag_dialogue('Skyy', [
+                        "Jet! There has been power disruptions all over the region again, we need to go to the central power plant!",
+                        "Follow me!",
+                    ]),
+                    wait_for_input=True,
+                    on_complete=self._start_skyy_pp_guided_walk
+                )
+            else:
+                self._force_step_npc_toward_tile(npc, wx, wy)
+
+        elif c['phase'] == 'skyy_pp_dialogue_wait':
+            pass  # waiting on the message_box's on_complete to fire
+
         elif c['phase'] == 'skyy_flash':
             if not self.cutscene_flash:
                 # Remove Skyy
@@ -3081,6 +3151,29 @@ class Game:
             npc.is_moving = True
             npc.anim_frame = 1
             npc.anim_timer = 0.0
+
+    def _force_step_npc_toward_tile(self, npc, tx, ty):
+        """Same as _step_npc_toward_tile but ignores solids — for a fixed
+        multi-tile scripted walk (Gray/Skyy cutscenes) where a stray tree or
+        rock along the path must never be able to soft-lock the cutscene by
+        leaving it permanently stuck one tile short of its target."""
+        dx, dy = tx - npc.tile_x, ty - npc.tile_y
+        if abs(dx) >= abs(dy) and dx != 0:
+            sx, sy = (1 if dx > 0 else -1), 0
+        elif dy != 0:
+            sx, sy = 0, (1 if dy > 0 else -1)
+        else:
+            return
+        nx, ny = npc.tile_x + sx, npc.tile_y + sy
+        self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+        npc.tile_x, npc.tile_y = nx, ny
+        self.solid_tile_coords.add((nx, ny))
+        npc.facing = npc._FACING[(sx, sy)]
+        npc.target_x = float(nx * config.TILE_SIZE)
+        npc.target_y = float(ny * config.TILE_SIZE)
+        npc.is_moving = True
+        npc.anim_frame = 1
+        npc.anim_timer = 0.0
 
     def _update_cutscene_flash(self, dt):
         f = self.cutscene_flash
@@ -3325,6 +3418,274 @@ class Game:
                 'walk_target': (npc.tile_x, npc.tile_y + 6),
             }
         self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=start_walk_away)
+
+    # ── Gray's second battle — Route 3, right after the Gym 2 badge ──────
+    GRAY2_TRIGGER_X = 33
+    GRAY2_TRIGGER_Y_RANGE = (-65, -59)  # inclusive, both ends given in the design
+
+    def _check_gray2_route3_rival(self):
+        # Checks both flags, not just 'started': jumping straight to this
+        # milestone via the sandbox quest-debug menu (Ctrl+Q) sets
+        # 'gray_route3_done' directly without ever passing through
+        # 'started', which would otherwise leave this re-triggerable.
+        if self.story_flags.get('gray_route3_started') or self.story_flags.get('gray_route3_done') or self.cutscene:
+            return
+        if not self.story_flags.get('gym2_leader_defeated'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        if self.fading or self.message_box.visible:
+            return
+        tx = self.player.rect.x // config.TILE_SIZE
+        ty = self.player.rect.y // config.TILE_SIZE
+        if tx != self.GRAY2_TRIGGER_X:
+            return
+        lo, hi = self.GRAY2_TRIGGER_Y_RANGE
+        if not (lo <= ty <= hi):
+            return
+        self.story_flags['gray_route3_started'] = True
+        self._start_gray2_route3_cutscene()
+
+    def _start_gray2_route3_cutscene(self):
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        px = self.player.rect.x // config.TILE_SIZE
+        py = self.player.rect.y // config.TILE_SIZE
+
+        sx, sy = px - 7, py
+        gray = NPC('gray2', tile_x=sx, tile_y=sy, facing='right',
+                   sight_range=0, npc_type='trainer')
+        gray.state = 'idle'
+        gray.home_tile = (sx, sy)
+        gray.home_facing = 'right'
+        self.npcs.append(gray)
+        self.solid_tile_coords.add((sx, sy))
+
+        # Same counter-starter trick as his first battle (_maybe_add_gray_rival),
+        # just the evolved form at level 21 this time.
+        starter_names = set(config.DINO_BALL_MAP.values())
+        player_starter = next(
+            (d['name'] for d in self.player_dinos + self.box_dinos
+             if d['name'] in starter_names), None
+        )
+        starter_to_gray2 = {
+            'Volkit':   ('Anemamace', 21),  # player kept magma → Gray uses evolved aqua counter
+            'Corlave':  ('Palidian', 21),   # player kept aqua  → Gray uses evolved earth counter
+            'Floravel': ('Tygraflare', 21), # player kept earth → Gray uses evolved magma counter
+        }
+        gray.override_first_dino = starter_to_gray2.get(player_starter, ('Anemamace', 21))
+
+        self.cutscene = {'phase': 'gray2_approaching', 'npc': gray, 'walk_target': (px - 1, py)}
+
+    def _start_gray2_battle(self, npc):
+        self.cutscene = None
+        self.start_trainer_battle(npc)
+
+    def _on_gray2_battle_won(self, npc):
+        data = TRAINER_DATA.get('gray2', {})
+        msgs = self._split_dialogue(*data.get('dialog', {}).get('defeated', [
+            "Ha... you're really something else."
+        ]), name=data.get('name', 'Gray'))
+        def start_walk_away():
+            npc.facing = 'left'
+            self.cutscene = {
+                'phase': 'gray2_walking_away',
+                'npc': npc,
+                'walk_target': (npc.tile_x - 7, npc.tile_y),
+            }
+        self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=start_walk_away)
+
+    # ── Skyy's Power Plant reveal — chains directly off Gray's 2nd battle ──
+    SKYY_PP_WAYPOINTS = [(2, -61), (2, -57), (-13, -57), (-13, -47), (-19, -47)]
+
+    def _start_skyy_powerplant_cutscene(self):
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        px = self.player.rect.x // config.TILE_SIZE
+        py = self.player.rect.y // config.TILE_SIZE
+
+        sx, sy = px - 7, py
+        skyy = NPC('skyy', tile_x=sx, tile_y=sy, facing='right',
+                   sight_range=0, npc_type='story')
+        skyy.state = 'idle'
+        skyy.home_tile = (sx, sy)
+        skyy.home_facing = 'right'
+        self.npcs.append(skyy)
+        self.solid_tile_coords.add((sx, sy))
+
+        self.cutscene = {'phase': 'skyy_pp_approaching', 'npc': skyy, 'walk_target': (px - 1, py)}
+
+    def _start_skyy_pp_guided_walk(self):
+        if not self.cutscene:
+            return
+        c = self.cutscene
+        c['waypoints'] = list(self.SKYY_PP_WAYPOINTS)
+        c['phase'] = 'skyy_pp_guided_walk'
+        skyy = c['npc']
+        tx, ty = c['waypoints'][0]
+        dx, dy = tx - skyy.tile_x, ty - skyy.tile_y
+        if dx or dy:
+            if abs(dx) >= abs(dy) and dx != 0:
+                skyy.facing = 'right' if dx > 0 else 'left'
+            elif dy != 0:
+                skyy.facing = 'down' if dy > 0 else 'up'
+
+    def _update_skyy_pp_guided_walk(self, dt):
+        c = self.cutscene
+        skyy = c['npc']
+        p = self.player
+        ts = config.TILE_SIZE
+
+        moving = False
+        if skyy.is_moving:
+            skyy.anim_timer += dt
+            if skyy.anim_timer >= skyy.anim_speed:
+                skyy.anim_timer = 0.0
+                skyy.anim_frame = (skyy.anim_frame + 1) % 4
+            skyy._slide(dt)
+            moving = True
+        if p.moving:
+            step = p.move_speed * dt
+            if p.pos_x < p.target_x:   p.pos_x = min(p.pos_x + step, p.target_x)
+            elif p.pos_x > p.target_x: p.pos_x = max(p.pos_x - step, p.target_x)
+            if p.pos_y < p.target_y:   p.pos_y = min(p.pos_y + step, p.target_y)
+            elif p.pos_y > p.target_y: p.pos_y = max(p.pos_y - step, p.target_y)
+            p.rect.x = round(p.pos_x)
+            p.rect.y = round(p.pos_y)
+            p.anim_timer += dt
+            if p.anim_timer >= 0.08:
+                p.anim_timer = 0.0
+                p.anim_index = (p.anim_index + 1) % 4
+                p.image = p.animations[p.direction][p.anim_index]
+            if p.rect.x == p.target_x and p.rect.y == p.target_y:
+                p.moving = False
+                p.anim_index = 0
+                p.image = p.animations[p.direction][0]
+            moving = True
+        if moving:
+            return
+
+        if not c['waypoints']:
+            self._finish_skyy_pp_guided_walk()
+            return
+        tx, ty = c['waypoints'][0]
+        if (skyy.tile_x, skyy.tile_y) == (tx, ty):
+            c['waypoints'].pop(0)
+            return
+
+        dx, dy = tx - skyy.tile_x, ty - skyy.tile_y
+        if abs(dx) >= abs(dy) and dx != 0:
+            sx, sy = (1 if dx > 0 else -1), 0
+        elif dy != 0:
+            sx, sy = 0, (1 if dy > 0 else -1)
+        else:
+            return
+        prev_tile = (skyy.tile_x, skyy.tile_y)
+        nx, ny = skyy.tile_x + sx, skyy.tile_y + sy
+        d = {(1, 0): 'right', (-1, 0): 'left', (0, 1): 'down', (0, -1): 'up'}[(sx, sy)]
+
+        # Force-step ignoring solids, like the Route 2.6 guided walk, so this
+        # long cross-map lead can't get stuck on scenery.
+        self.solid_tile_coords.discard((skyy.tile_x, skyy.tile_y))
+        skyy.tile_x, skyy.tile_y = nx, ny
+        self.solid_tile_coords.add((nx, ny))
+        skyy.facing = d
+        skyy.target_x = float(nx * ts)
+        skyy.target_y = float(ny * ts)
+        skyy.is_moving = True
+        skyy.anim_frame = 1
+        skyy.anim_timer = 0.0
+
+        # Player follows directly behind, into the tile Skyy just left.
+        p.facing = p.direction = d
+        p.target_x = float(prev_tile[0] * ts)
+        p.target_y = float(prev_tile[1] * ts)
+        p.pos_x = float(p.rect.x)
+        p.pos_y = float(p.rect.y)
+        p.moving = True
+
+    def _finish_skyy_pp_guided_walk(self):
+        c = self.cutscene
+        skyy = c['npc']
+        skyy.facing = 'down'
+        c['phase'] = 'skyy_pp_dialogue_wait'  # reuse the generic no-op dialogue-wait phase
+        self.message_box.queue_messages(
+            self._tag_dialogue('Skyy', ["Go inside and stop them while I handle the grunts out here."]),
+            wait_for_input=True,
+            on_complete=self._start_skyy_pp_heal_flash
+        )
+
+    def _start_skyy_pp_heal_flash(self):
+        for dino in self.player_dinos:
+            dino['hp'] = dino['max_hp']
+        skyy = self.cutscene['npc']
+        self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0, 'color': (255, 255, 255)}
+        self.cutscene = {'phase': 'skyy_pp_heal_flash', 'npc': skyy}
+
+    def _end_skyy_pp_cutscene(self):
+        skyy = self.cutscene['npc']
+        skyy.npc_type = 'guard'
+        skyy.block_dialog = ["Go on, I've got this handled!"]
+        skyy.state = 'idle'
+        self.story_flags['powerplant_skyy_reveal_done'] = True
+        self.cutscene = None
+
+    def _maybe_add_powerplant_scene_npcs(self):
+        """Re-adds Skyy (now guarding, post-cutscene) and the 3 grunts
+        blocking the Power Plant entrance after a world reload. On the very
+        first tick after _end_skyy_pp_cutscene, Skyy is already present —
+        this only needs to (re-)spawn everyone from scratch."""
+        if not self.story_flags.get('powerplant_skyy_reveal_done'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        present = {getattr(n, 'trainer_id', '') for n in self.npcs}
+        specs = [
+            ('skyy',      -19, -47, 'down',  ["Go on, I've got this handled!"]),
+            ('pp_grunt1', -19, -49, 'down',  ["Don't worry about us.", "Get out of here, kid."]),
+            ('pp_grunt2', -18, -49, 'down',  ["Don't worry about us.", "Get out of here, kid."]),
+            ('pp_grunt3', -22, -48, 'left', ["Don't worry about us.", "Get out of here, kid."]),
+        ]
+        for trainer_id, tx, ty, facing, dialog in specs:
+            if trainer_id in present:
+                continue
+            npc = NPC(trainer_id, tile_x=tx, tile_y=ty, facing=facing,
+                      sight_range=0, npc_type='guard')
+            npc.state = 'idle'
+            npc.home_tile = (tx, ty)
+            npc.home_facing = facing
+            npc.block_dialog = dialog
+            self.npcs.append(npc)
+            self.solid_tile_coords.add((tx, ty))
+
+    # Crossing into the Power Plant entrance itself, once Skyy's reveal has
+    # already happened — a one-time bark, not a full cutscene.
+    SKYY_DISRUPTION_LINE_X = -15
+    SKYY_DISRUPTION_LINE_Y_RANGE = (-49, -46)  # inclusive
+
+    def _check_skyy_disruption_line(self):
+        if not self.story_flags.get('powerplant_skyy_reveal_done'):
+            return
+        if self.story_flags.get('skyy_disruption_line_done') or self.cutscene:
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        if self.fading or self.message_box.visible:
+            return
+        tx = self.player.rect.x // config.TILE_SIZE
+        ty = self.player.rect.y // config.TILE_SIZE
+        if tx != self.SKYY_DISRUPTION_LINE_X:
+            return
+        lo, hi = self.SKYY_DISRUPTION_LINE_Y_RANGE
+        if not (lo <= ty <= hi):
+            return
+        self.story_flags['skyy_disruption_line_done'] = True
+        self.message_box.queue_messages(
+            self._tag_dialogue('Skyy', ["We must stop this disruption from occuring"]),
+            wait_for_input=True
+        )
 
     def _maybe_add_grunts_vanessa(self):
         if not self.story_flags.get('gym2_corn_maze_reveal_done'):
@@ -4363,6 +4724,9 @@ class Game:
             self._maybe_add_route2_blocker()
             self._maybe_add_skyy()
             self._maybe_add_gray_rival()
+            self._check_gray2_route3_rival()
+            self._maybe_add_powerplant_scene_npcs()
+            self._check_skyy_disruption_line()
             self._maybe_add_grunts_vanessa()
             self._check_gym2_corn_maze_reveal()
             self._check_route26_abby_reveal()

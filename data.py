@@ -194,6 +194,31 @@ TRAINER_DATA = {
         'reward_coins': 300,
         'rank': 'rival',
     },
+    'gray2': {
+        # Gray's rematch on Route 3, right after the Gym 2 badge. Same
+        # counter-starter trick as his first battle (see _maybe_add_gray_rival
+        # / override_first_dino), just the evolved form at level 21 this time.
+        'name': 'Gray',
+        'dinos': {0: ('Chomper', 18), 1: ('Prowscar', 19), 2: ('Sortle', 20)},
+        'dialog': {
+            'default':  [
+                "Jet! Wait up!",
+                "Heh, heard you already took down the second gym leader.",
+                "I've been training hard since our last match, my team's grown a lot stronger.",
+                "Let's see if you can keep up. Ready?"
+            ],
+            'defeated': [
+                "Ha... you're really something else.",
+                "Alright, I've got more work to do. But I'm not done yet, next time I'll be ready."
+            ]
+        },
+        'directions': ['right'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 600,
+        'rank': 'rival',
+    },
     'skyy': {
         'name': 'Skyy',
         'dinos': {0: ('Creuw', 13), 1: ('Netaslam', 14), 2: ('Luna', 16)},
@@ -595,10 +620,8 @@ DINO_DATA = {
         'moves': {0: 'Shock', 3: 'Bitemark', 7: 'Static Graze', 11: 'Fear', 15: 'Thunder Blitz', 17: 'Quick Slash', 20: 'Flame Shatter', 22: 'Lightning Bolt', 24: 'Piercing Light', 28: 'Conduit Surge', 32:'Quantum Flux', 38: 'Volt Storm'},
         'evolve': None},
 
-    # PLACEHOLDER — stats/type/moves are stand-ins pending real design.
-    # Mirrors Sortle's stat spread/level curve — its ice counterpart per the dex text.
     'Frostle': {
-        'stats': {'type': ['ice'], 'health': 120, 'attack': 110, 'defense': 140, 'speed': 60},
+        'stats': {'type': ['ice'], 'health': 125, 'attack': 125, 'defense': 90, 'speed': 90},
         'moves': {0: 'Snowfall', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Deep Freeze', 22: 'Hail Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Frozen Aura', 33: 'Hyperfrost', 36: 'Freeze Blast'},
         'evolve': None},
 
@@ -899,6 +922,10 @@ ENTRANCE_DATA = {
     # COBALT_CAVE4 <-> SHADOWHQ1
     'shadowhq1':    {'world': 'SHADOWHQ1.tmx',        'spawn': (9, 13)},
     'cobalt':       {'world': 'COBALT_CAVE.world',    'spawn': (-11, 5)},
+    # POWER_PLANT2 -> POWER_PLANT_IN1. POWER_PLANT_IN1/IN2/IN3 have no
+    # entrance_id/exit tiles of their own yet, so this is one-way for now —
+    # see note below.
+    'power':        {'world': 'POWER_PLANT_IN1.tmx',  'spawn': (9, 13)},
 
     # 'house_amber': {'world': 'HOUSE_AMBER.world',  'spawn': (3, 6)},
 }
@@ -1063,9 +1090,15 @@ ENCOUNTER_ZONES = {
 
     },
 
-            "cave": {
+            "cobalt_cave": {
         "encounter_rate": 0.03,
         "dinos": ["Roxer", "Sortle", "Bouldava", "Ghoulflame", "Prowscar"],
+        "level_range": (12, 16)
+
+    },
+                "in_power": {
+        "encounter_rate": 0.03,
+        "dinos": ["Voltzbee", "Skolt", "Magnecrab"],
         "level_range": (12, 16)
 
     },

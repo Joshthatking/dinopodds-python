@@ -148,7 +148,7 @@
  </tile>
  <tile id="662">
   <properties>
-   <property name="type" value="cave"/>
+   <property name="type" value="cobalt_cave"/>
    <property name="encounter" type="bool" value="true"/>
   </properties>
  </tile>

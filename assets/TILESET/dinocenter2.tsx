@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.12.1" name="dinocenter2" tilewidth="32" tileheight="32" tilecount="208" columns="8">
  <image source="dinocenter2.png" width="256" height="832"/>
+ <tile id="20">
+  <properties>
+   <property name="type" value="in_power"/>
+   <property name="encounter" type="bool" value="true"/>
+  </properties>
+ </tile>
  <tile id="32">
   <properties>
    <property name="collision" type="bool" value="true"/>
