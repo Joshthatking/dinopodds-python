@@ -1,165 +1,33 @@
 {
-  "coins": 99999,
+  "coins": 2160,
   "inventory": {
-    "DinoPod": 99,
-    "DinoCapsule": 99,
-    "Whitepod": 99,
-    "Repel": 97
+    "DinoPod": 1,
+    "DinoCapsule": 0,
+    "Whitepod": 0,
+    "Repel": 0,
+    "Revival Gem": 0,
+    "Mega Spray": 1
   },
   "world": "LOST_REGION.world",
-  "player_x": 1024,
-  "player_y": -855,
+  "player_x": 2368,
+  "player_y": -2006,
   "party": [
     {
-      "name": "Vusion",
-      "level": 40,
-      "nature": "Rush",
-      "type": [
-        "dark"
-      ],
-      "hp": 98,
-      "max_hp": 98,
-      "attack": 140,
-      "defense": 60,
-      "speed": 112,
-      "base_attack": 140,
-      "base_defense": 60,
-      "base_speed": 112,
-      "stat_stages": {
-        "attack": 0,
-        "defense": 0,
-        "speed": 0
-      },
-      "defending": false,
-      "moveset": [
-        {
-          "name": "Flame Shatter",
-          "type": "magma",
-          "damage": 50,
-          "accuracy": 95,
-          "ability": {
-            "kind": "stat_boost",
-            "stat": "attack",
-            "stages": -1,
-            "target": "opponent",
-            "chance": 100
-          }
-        },
-        {
-          "name": "Binding Curse",
-          "type": "dark",
-          "damage": 25,
-          "accuracy": 90,
-          "ability": {
-            "kind": "lock",
-            "turns": 2,
-            "chance": 100
-          }
-        },
-        {
-          "name": "Void Collapse",
-          "type": "dark",
-          "damage": 75,
-          "accuracy": 95,
-          "ability": null
-        },
-        {
-          "name": "Haunt",
-          "type": "dark",
-          "damage": 0,
-          "accuracy": 100,
-          "ability": {
-            "kind": "stat_boost",
-            "stat": "defense",
-            "stages": -2,
-            "target": "opponent",
-            "chance": 100
-          }
-        }
-      ],
-      "moves": [
-        "Force Shift",
-        "Flash",
-        "Fireball",
-        "Shadow Veil",
-        "Conduit Surge",
-        "Distortion",
-        "Flame Shatter",
-        "Binding Curse",
-        "Void Collapse",
-        "Haunt"
-      ],
-      "xp": 0,
-      "xp_to_next": 428.4899999999998,
-      "displayed_xp": 0
-    },
-    {
-      "name": "Vusion",
-      "level": 3,
-      "nature": "Balanced",
-      "type": [
-        "dark"
-      ],
-      "hp": 12,
-      "max_hp": 12,
-      "attack": 23,
-      "defense": 11,
-      "speed": 17,
-      "base_attack": 23,
-      "base_defense": 11,
-      "base_speed": 17,
-      "stat_stages": {
-        "attack": 0,
-        "defense": 0,
-        "speed": 0
-      },
-      "defending": false,
-      "moveset": [
-        {
-          "name": "Force Shift",
-          "type": "dark",
-          "damage": 45,
-          "accuracy": 100,
-          "ability": null
-        },
-        {
-          "name": "Flash",
-          "type": "light",
-          "damage": 0,
-          "accuracy": 95,
-          "ability": {
-            "kind": "stat_boost",
-            "stat": "attack",
-            "stages": -1,
-            "target": "opponent",
-            "chance": 100
-          }
-        }
-      ],
-      "moves": [
-        "Force Shift",
-        "Flash"
-      ],
-      "xp": 0,
-      "xp_to_next": 37.029999999999994,
-      "displayed_xp": 0
-    },
-    {
       "name": "Netaslam",
-      "level": 21,
-      "nature": "Speedy",
+      "level": 17,
+      "nature": "Bulky",
       "type": [
         "flying",
         "spike"
       ],
-      "hp": 28,
-      "max_hp": 28,
-      "attack": 44,
-      "defense": 27,
-      "speed": 42,
-      "base_attack": 44,
-      "base_defense": 27,
-      "base_speed": 42,
+      "hp": 0,
+      "max_hp": 23,
+      "attack": 36,
+      "defense": 21,
+      "speed": 31,
+      "base_attack": 36,
+      "base_defense": 21,
+      "base_speed": 31,
       "stat_stages": {
         "attack": 0,
         "defense": 0,
@@ -167,6 +35,20 @@
       },
       "defending": false,
       "moveset": [
+        {
+          "name": "Air Strike",
+          "type": "flying",
+          "damage": 30,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Rushdown",
+          "type": "ancient",
+          "damage": 40,
+          "accuracy": 90,
+          "ability": null
+        },
         {
           "name": "Static Graze",
           "type": "lightning",
@@ -180,20 +62,6 @@
           "damage": 45,
           "accuracy": 100,
           "ability": null
-        },
-        {
-          "name": "Rushdown",
-          "type": "ancient",
-          "damage": 40,
-          "accuracy": 90,
-          "ability": null
-        },
-        {
-          "name": "Mach Speed",
-          "type": "flying",
-          "damage": 60,
-          "accuracy": 100,
-          "ability": null
         }
       ],
       "moves": [
@@ -203,28 +71,30 @@
         "Lock Jaw",
         "Static Graze",
         "Double Jab",
-        "Rushdown",
-        "Mach Speed"
+        "Rushdown"
       ],
-      "xp": 0,
-      "xp_to_next": 227.46999999999935,
-      "displayed_xp": 0
+      "xp": 18.00240715583078,
+      "xp_to_next": 471.60131817134607,
+      "displayed_xp": 0,
+      "caught_ball": "DinoPod",
+      "_prev_action_defend": false,
+      "last_move_used": "Air Strike"
     },
     {
-      "name": "Corlave",
-      "level": 16,
-      "nature": "Tank",
+      "name": "Anemamace",
+      "level": 21,
+      "nature": "Power",
       "type": [
         "aqua"
       ],
-      "hp": 29,
-      "max_hp": 29,
-      "attack": 36,
-      "defense": 38,
-      "speed": 23,
-      "base_attack": 36,
-      "base_defense": 38,
-      "base_speed": 23,
+      "hp": 52,
+      "max_hp": 52,
+      "attack": 66,
+      "defense": 55,
+      "speed": 42,
+      "base_attack": 66,
+      "base_defense": 55,
+      "base_speed": 42,
       "stat_stages": {
         "attack": 0,
         "defense": 0,
@@ -253,13 +123,6 @@
           }
         },
         {
-          "name": "Quick Slash",
-          "type": "spike",
-          "damage": 40,
-          "accuracy": 95,
-          "ability": null
-        },
-        {
           "name": "Wave Dash",
           "type": "aqua",
           "damage": 45,
@@ -271,57 +134,363 @@
             "target": "self",
             "chance": 100
           }
+        },
+        {
+          "name": "Quick Slash",
+          "type": "spike",
+          "damage": 40,
+          "accuracy": 95,
+          "ability": null
         }
       ],
       "moves": [
         "Whirlpool+",
         "Arise",
-        "Quick Slash",
-        "Wave Dash"
+        "Wave Dash",
+        "Double Jab",
+        "Quick Slash"
       ],
-      "xp": 0,
-      "xp_to_next": 174.5699999999997,
-      "displayed_xp": 0
+      "xp": 153.02991872904147,
+      "xp_to_next": 629.1068574075716,
+      "displayed_xp": 0,
+      "caught_ball": "ballwhite",
+      "_prev_action_defend": false,
+      "last_move_used": "Wave Dash",
+      "stats": {
+        "type": [
+          "aqua",
+          "spike"
+        ],
+        "health": 140,
+        "attack": 115,
+        "defense": 120,
+        "speed": 80
+      }
+    },
+    {
+      "name": "Sortle",
+      "level": 21,
+      "nature": "Hardy",
+      "type": [
+        "rock"
+      ],
+      "hp": 0,
+      "max_hp": 51,
+      "attack": 57,
+      "defense": 64,
+      "speed": 31,
+      "base_attack": 57,
+      "base_defense": 64,
+      "base_speed": 31,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Boulder Smash",
+          "type": "rock",
+          "damage": 40,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Arise",
+          "type": "ancient",
+          "damage": 0,
+          "accuracy": 100,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "attack",
+            "stages": 1,
+            "target": "self",
+            "chance": 100
+          }
+        },
+        {
+          "name": "Venom Decay",
+          "type": "ancient",
+          "damage": 40,
+          "accuracy": 90,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "defense",
+            "stages": -1,
+            "target": "opponent",
+            "chance": 100
+          }
+        },
+        {
+          "name": "Quick Slash",
+          "type": "spike",
+          "damage": 40,
+          "accuracy": 95,
+          "ability": null
+        }
+      ],
+      "moves": [
+        "Dust Beam",
+        "Arise",
+        "Sand Kick",
+        "Quick Slash",
+        "Venom Decay",
+        "Boulder Smash"
+      ],
+      "xp": 203.30895031232126,
+      "xp_to_next": 629.1068574075716,
+      "displayed_xp": 0,
+      "caught_ball": "DinoPod",
+      "_prev_action_defend": false,
+      "last_move_used": "Boulder Smash",
+      "lock_turns_left": 0
+    },
+    {
+      "name": "Ghoulflame",
+      "level": 13,
+      "nature": "Hardy",
+      "type": [
+        "dark",
+        "magma"
+      ],
+      "hp": 4,
+      "max_hp": 29,
+      "attack": 42,
+      "defense": 28,
+      "speed": 42,
+      "base_attack": 42,
+      "base_defense": 28,
+      "base_speed": 42,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Fireball",
+          "type": "magma",
+          "damage": 30,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Fear",
+          "type": "dark",
+          "damage": 0,
+          "accuracy": 95,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "defense",
+            "stages": -1,
+            "target": "opponent",
+            "chance": 100
+          }
+        },
+        {
+          "name": "Dark Energy",
+          "type": "dark",
+          "damage": 35,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Binding Curse",
+          "type": "dark",
+          "damage": 25,
+          "accuracy": 90,
+          "ability": {
+            "kind": "lock",
+            "turns": 2,
+            "chance": 100
+          }
+        }
+      ],
+      "moves": [
+        "Fireball",
+        "Fear",
+        "Dark Energy",
+        "Binding Curse"
+      ],
+      "xp": 211.51446108459936,
+      "xp_to_next": 327.9529421463419,
+      "displayed_xp": 0,
+      "caught_ball": "DinoPod",
+      "_prev_action_defend": false,
+      "last_move_used": "Fireball"
+    },
+    {
+      "name": "Prickly",
+      "level": 17,
+      "nature": "Speedy",
+      "type": [
+        "earth",
+        "spike"
+      ],
+      "hp": 13,
+      "max_hp": 26,
+      "attack": 40,
+      "defense": 30,
+      "speed": 30,
+      "base_attack": 40,
+      "base_defense": 30,
+      "base_speed": 30,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Arise",
+          "type": "ancient",
+          "damage": 0,
+          "accuracy": 100,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "attack",
+            "stages": 1,
+            "target": "self",
+            "chance": 100
+          }
+        },
+        {
+          "name": "Synthesis",
+          "type": "earth",
+          "damage": 0,
+          "accuracy": 100,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "defense",
+            "stages": 2,
+            "target": "self",
+            "chance": 100
+          }
+        },
+        {
+          "name": "Vine Snare",
+          "type": "earth",
+          "damage": 30,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Quick Slash",
+          "type": "spike",
+          "damage": 40,
+          "accuracy": 95,
+          "ability": null
+        }
+      ],
+      "moves": [
+        "Arise",
+        "Sand Kick",
+        "Vine Snare",
+        "Quick Slash",
+        "Double Jab",
+        "Synthesis"
+      ],
+      "xp": 144.17623353894703,
+      "xp_to_next": 471.60131817134607,
+      "displayed_xp": 0,
+      "caught_ball": "DinoPod",
+      "_prev_action_defend": false,
+      "last_move_used": "Quick Slash"
     }
   ],
   "box": [],
   "story_flags": {
-    "game_intro": true,
-    "encounters_unlocked": true
+    "amber_intro_done": true,
+    "encounters_unlocked": true,
+    "amber_lab_done": true,
+    "gym1_accessible": true,
+    "gray_route1_done": true,
+    "gym1_leader_defeated": true,
+    "gym2_corn_maze_reveal_done": true,
+    "route26_abby_started": true,
+    "route26_abby_escort_done": true,
+    "vanessa_shadow_event_done": true,
+    "gym2_leader_defeated": true
   },
-  "sandbox": true,
-  "badges": [],
-  "play_time": 2009.6229999977863,
-  "dinos_seen": [
-    "Ghoulflame",
-    "Anemamace",
-    "Netyrant",
-    "Prowscar",
-    "Magnecrab",
-    "Sharktastrophe",
-    "Drafyton",
-    "Sortle",
-    "Tygraflare",
-    "Palidian",
-    "Netaslam",
-    "Bullicorn",
-    "Floravel",
-    "Volkit",
-    "Bouldava",
-    "Corlave",
-    "Voltzbee",
-    "Auraliz",
-    "Luna",
-    "Creuw",
-    "Scarecrux",
-    "Vusion",
-    "Teamtwood"
+  "sandbox": false,
+  "badges": [
+    "sierra",
+    "earth"
   ],
-  "picked_up_world_items": [],
-  "defeated_trainers": [],
+  "play_time": 2560.252000002666,
+  "dinos_seen": [
+    "Luna",
+    "Teamtwood",
+    "Voltzbee",
+    "Ghoulflame",
+    "Creuw",
+    "Sortle",
+    "Prickly",
+    "Prowscar",
+    "Netaslam",
+    "Vusion",
+    "Bullicorn"
+  ],
+  "picked_up_world_items": [
+    [
+      "LOST_REGION.world",
+      10,
+      22
+    ],
+    [
+      "LOST_REGION.world",
+      40,
+      -24
+    ],
+    [
+      "LOST_REGION.world",
+      13,
+      3
+    ],
+    [
+      "LOST_REGION.world",
+      -15,
+      20
+    ],
+    [
+      "LOST_REGION.world",
+      -22,
+      34
+    ],
+    [
+      "LOST_REGION.world",
+      -22,
+      18
+    ]
+  ],
+  "defeated_trainers": [
+    "route2_girl",
+    "john",
+    "ethan",
+    "gym2_trainer_b",
+    "log",
+    "basic_trainer_girl",
+    "skyy",
+    "rocko",
+    "gym_trainer_b",
+    "gray",
+    "gym2_trainer_a",
+    "gym_trainer_a",
+    "basic_trainer",
+    "grunt2",
+    "shinji",
+    "basic_trainer2",
+    "grunt1",
+    "gym2_trainer_c",
+    "cornmaze4",
+    "dylan"
+  ],
   "stats": {
-    "blackouts": 0,
-    "dinos_fainted": 0,
-    "enemies_defeated": 0
+    "blackouts": 1,
+    "dinos_fainted": 15,
+    "enemies_defeated": 81
   }
 }

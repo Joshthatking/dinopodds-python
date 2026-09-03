@@ -293,6 +293,7 @@ class Game:
         self.fading = False
 
     def trigger_blackout(self):
+        lost_npc = self.current_trainer_npc
         self.stats_blackouts += 1
         for dino in self.player_dinos:
             dino['hp'] = dino['max_hp']
@@ -352,6 +353,21 @@ class Game:
                 self.npcs = prev['npcs']
                 for npc in self.npcs:
                     self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
+
+        # Losing Gray's Route 3 rematch used to leave him standing there as a
+        # static NPC — since the scripted approach never touches npc.state,
+        # the generic "reset spotted/walking/done trainers" loop above never
+        # catches him, so he'd just sit there requiring a manual walk-up
+        # rebattle. If the player didn't notice, gray_route3_done never got
+        # set, permanently softlocking the Power Plant reveal that needs it
+        # (see _check_skyy_powerplant_trigger). Instead, fully undo the
+        # trigger: remove him and clear the "started" flag so walking onto
+        # the Route 3 trigger tile again replays the whole cutscene.
+        if lost_npc is not None and getattr(lost_npc, 'trainer_id', '') == 'gray2':
+            self.story_flags['gray_route3_started'] = False
+            if lost_npc in self.npcs:
+                self.solid_tile_coords.discard((lost_npc.tile_x, lost_npc.tile_y))
+                self.npcs.remove(lost_npc)
 
         # Place player at last DinoCenter or home spawn
         if self.last_dinocenter_tile is not None:
@@ -1043,6 +1059,12 @@ class Game:
         }
 
     def start_trainer_battle(self, npc):
+        # Guard against a duplicate/overlapping trigger (e.g. the NPC's own
+        # sight-based approach firing its challenge at the same time the
+        # player manually interacted with it) re-entering and stomping an
+        # already-starting battle's state mid-transition.
+        if self.is_trainer_battle:
+            return
         self.player.moving = False
         self.player.target_x = self.player.rect.x
         self.player.target_y = self.player.rect.y
@@ -1052,7 +1074,15 @@ class Game:
         self.fading = True
         self.fade_alpha = 0
         self.is_trainer_battle = True
+        # This starts a single-opponent battle — always clear any leftover
+        # double-battle state (e.g. from an earlier double battle this same
+        # playthrough that didn't get torn down cleanly), or the battle
+        # renders/behaves as a double with a stale, already-fainted second
+        # enemy slot that looks like "the first dino was already defeated".
+        self.is_double_battle = False
+        self.enemy_dino2 = None
         self.current_trainer_npc = npc
+        self.current_trainer_npc2 = None
 
         if npc.trainer_id == 'gray':
             self._post_trainer_battle_cb = lambda: self._on_gray_battle_won(npc)
@@ -4419,7 +4449,6 @@ class Game:
             self, "Earth Badge",
             os.path.join('assets', 'Badges', 'earth_badge.png'),
             on_dismiss=_after_badge)
-        self.push_state('badge_earned')
 
     def _check_amber_blocker(self):
         if self.story_flags.get('encounters_unlocked'):
@@ -4948,7 +4977,8 @@ class Game:
         elif event.key == pygame.K_n and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
             self.force_night = not self.night_active
             print(f"[DEBUG] force_night -> {self.force_night}")
-        elif event.key == pygame.K_j and not self.orb_fx:
+        elif (event.key == pygame.K_j and not self.orb_fx
+                and not self.fading and self.entrance_fade_state is None):
             if self.check_type_chart_interact():
                 pass
             elif self.check_box_interact():

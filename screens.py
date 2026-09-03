@@ -1309,7 +1309,49 @@ class PartyScreen:
                     [f"{config.PLAYER_NAME} sent out {chosen['name']}!", "What will you do?"], wait_for_input=True)
             return None
 
-        # ── Voluntary switch during encounter ─────────────────────
+        # ── Voluntary switch during a double battle ────────────────
+        # Double battles don't use game.active_dino_index at all — p1/p2 are
+        # always player_dinos[0]/[1] (see Game._double_battle_p2) — so this
+        # needs its own branch that actually swaps list positions instead of
+        # just repointing an index the double-battle code never reads.
+        if in_encounter and not awaiting and event.key == pygame.K_j and getattr(game, 'is_double_battle', False):
+            slot = 0 if game.double_phase == 'p1' else 1
+            other_slot = 1 - slot
+            active = game.player_dinos[slot] if slot < list_length else None
+            if active and active.get('lock_turns_left', 0) > 0:
+                game.message_box.queue_messages(
+                    [f"{active['name']} can't switch out!"], wait_for_input=True)
+                return None
+            chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
+            if chosen and self.selected_index == slot:
+                game.message_box.queue_messages(
+                    [f"{chosen['name']} is already out!"], wait_for_input=True)
+                return None
+            if chosen and self.selected_index == other_slot:
+                game.message_box.queue_messages(
+                    ["That dino is already in battle!"], wait_for_input=True)
+                return None
+            if chosen and chosen.get('hp', 0) <= 0:
+                game.message_box.queue_messages(
+                    [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
+                return None
+            if chosen and active:
+                active['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
+                active['defending']   = False
+                game.player_dinos[slot], game.player_dinos[self.selected_index] = \
+                    game.player_dinos[self.selected_index], game.player_dinos[slot]
+                game.pop_state()
+                if slot == 0:
+                    game.double_p1_queued = None
+                    on_complete = game._double_advance_to_p2
+                else:
+                    game.double_p2_queued = None
+                    on_complete = game._execute_double_turn
+                game.message_box.queue_messages(
+                    [f"{chosen['name']}, I choose you!"], on_complete=on_complete)
+            return None
+
+        # ── Voluntary switch during a single battle ─────────────────
         if in_encounter and not awaiting and event.key == pygame.K_j:
             active = game.player_dinos[game.active_dino_index]
             if active.get('lock_turns_left', 0) > 0:
@@ -1601,6 +1643,8 @@ def generate_move_desc(move_name):
     damage = md.get('damage', 0)
     target = md.get('target', 'opponent')
     ability = md.get('ability')
+    if md.get('priority', 0) > 0:
+        parts.append("Priority move: acts before non-priority moves, regardless of Speed.")
     if damage > 0:
         t = "the user" if target == 'self' else "the opponent"
         parts.append(f"Deals {damage} base damage to {t}.")
@@ -2616,8 +2660,13 @@ class TrainerCardScreen:
 
 # === Badge Earned Screen ===
 class BadgeEarnedScreen:
-    BADGE_SIZE   = 120
-    FADE_IN_SEC  = 0.6
+    """Forced full-screen badge reward — pushes its own 'badge_earned' state
+    the moment it's constructed, so every gym-win handler is guaranteed to
+    show it (no call site can forget to push the state). Can't be skipped
+    for MIN_DISPLAY_SEC seconds; only after that does it accept input."""
+    BADGE_SIZE      = 120
+    FADE_IN_SEC     = 0.6
+    MIN_DISPLAY_SEC = 3.0
 
     def __init__(self, game, badge_name, badge_path, on_dismiss=None):
         self.game       = game
@@ -2631,12 +2680,13 @@ class BadgeEarnedScreen:
             self._img = pygame.transform.scale(raw, (self.BADGE_SIZE, self.BADGE_SIZE))
         except Exception:
             self._img = None
+        game.push_state('badge_earned')
 
     def update(self, dt):
         self._timer += dt
 
     def handle_event(self, event):
-        if event.type == pygame.KEYDOWN and self._timer > self.FADE_IN_SEC:
+        if event.type == pygame.KEYDOWN and self._timer >= self.MIN_DISPLAY_SEC:
             self.game.pop_state()
             if self._on_dismiss:
                 self._on_dismiss()
@@ -2660,9 +2710,12 @@ class BadgeEarnedScreen:
         title_surf.set_alpha(alpha)
         screen.blit(title_surf, (cx - title_surf.get_width() // 2, cy + self.BADGE_SIZE // 2 - 10))
 
-        if self._timer > self.FADE_IN_SEC:
+        if self._timer >= self.MIN_DISPLAY_SEC:
             hint = self._font_sm.render("Press any key to continue", True, (200, 200, 200))
             screen.blit(hint, (cx - hint.get_width() // 2, cy + self.BADGE_SIZE // 2 + 26))
+        elif self._timer > self.FADE_IN_SEC:
+            wait_hint = self._font_sm.render("...", True, (160, 160, 160))
+            screen.blit(wait_hint, (cx - wait_hint.get_width() // 2, cy + self.BADGE_SIZE // 2 + 26))
 
 
 # === Intro Cutscene ===

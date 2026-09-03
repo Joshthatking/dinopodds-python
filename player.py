@@ -38,20 +38,46 @@ class Player(pygame.sprite.Sprite):
         self.turn_delay = 0.08
         self.forced_move = False
 
+    def _snap_to_tile(self):
+        """Instantly finish the current slide onto its destination tile.
+        Something outside the player's own movement (a cutscene, dialogue,
+        a guard/NPC seizing control, a forced walk) is about to freeze
+        input for possibly a long time — if that happens mid-step, the
+        player is otherwise left stuck at a fractional pixel position for
+        as long as the freeze lasts. Every facing-plus-one-tile check
+        (pickup_item, interact_with_npc, entrance/exit tiles) then computes
+        the wrong tile from that point on, until the player happens to
+        complete another full tile-step normally. Snapping here keeps the
+        player always tile-aligned the moment control is taken away."""
+        if not self.moving:
+            return
+        self.rect.x = round(self.target_x)
+        self.rect.y = round(self.target_y)
+        self.pos_x  = self.target_x
+        self.pos_y  = self.target_y
+        self.moving = False
+        self.anim_index = 0
+        self.image = self.animations[self.direction][0]
+
     def update(self, keys, game, dt):
         if getattr(game, 'cutscene', None):
+            self._snap_to_tile()
             return
         if any(getattr(n, 'npc_type', '') == 'guard' and n.state in ('approaching', 'returning')
                for n in getattr(game, 'npcs', [])):
+            self._snap_to_tile()
             return
         if (game.state_stack[-1] != 'world' or
                 (game.message_box and game.message_box.visible) or
                 getattr(game, 'heal_anim', None) or
                 getattr(game, 'yes_no_prompt', None)):
+            self._snap_to_tile()
             return
         if any(npc.state in ('spotted', 'walking') for npc in getattr(game, 'npcs', [])):
+            self._snap_to_tile()
             return
         if getattr(game, 'forced_walk_npc', None):
+            self._snap_to_tile()
             return
 
         if self.moving:

@@ -91,7 +91,7 @@ TRAINER_DATA = {
     },
     'route2_girl': {
         'name': 'Cleo',
-        'dinos': {0: ('Teamtwood', 13), 1: ('Teamtwood',14)},
+        'dinos': {0: ('Teamtwood', 12), 1: ('Teamtwood',13)},
         'dialog': {
             'default':  ["Hey! You look like a good trainer.", "Let's battle!"],
             'defeated': ["Wow, you're really strong!"]
@@ -210,6 +210,8 @@ TRAINER_DATA = {
             'defeated': [
                 "Ha... you're really something else.",
                 "Alright, I've got more work to do. But I'm not done yet, next time I'll be ready."
+                "Lets keep pushing it, we will be stronger than all the gym leaders in time, see you soon..."
+
             ]
         },
         'directions': ['right'],
@@ -265,7 +267,7 @@ TRAINER_DATA = {
     },
     'pp_grunt_b': {
         'name': 'Grunt',
-        'dinos': {0: ('Ghoulflame', 22), 1: ('Sortle', 22)},
+        'dinos': {0: ('Ghoulflame', 22), 1: ('Sortle', 21)},
         'dialog': {
             'default':  ["Let me handle this."],
             'defeated': ["Well... our job here is done."]
@@ -308,7 +310,7 @@ TRAINER_DATA = {
     },
     'skyy': {
         'name': 'Skyy',
-        'dinos': {0: ('Creuw', 13), 1: ('Netaslam', 14), 2: ('Luna', 16)},
+        'dinos': {0: ('Creuw', 12), 1: ('Netaslam', 13), 2: ('Luna', 15)},
         'dialog': {
             'default':  [
                 "Welcome to the Sierra Flying Gym. I am Gym Leader Skyy.",
@@ -378,7 +380,7 @@ TRAINER_DATA = {
     },
     'gym2_trainer_a': {
         'name': 'Rocco',
-        'dinos': {0: ('Teamtwood', 16), 1: ('Prickly', 16)},
+        'dinos': {0: ('Teamtwood', 15), 1: ('Prickly', 16)},
         'dialog': {
             'default':  ["You won't get past me without a fight!", "Let's see what you've got!"],
             'defeated': ["Guess I need to toughen up more."]
@@ -392,7 +394,7 @@ TRAINER_DATA = {
     },
     'gym2_trainer_b': {
         'name': 'Sage',
-        'dinos': {0: ('Floravel', 18)},
+        'dinos': {0: ('Floravel', 17)},
         'dialog': {
             'default':  ["This gym tests more than just strength.", "Let's battle!"],
             'defeated': ["Well fought, trainer."]
@@ -406,7 +408,7 @@ TRAINER_DATA = {
     },
     'gym2_trainer_c': {
         'name': 'Clay',
-        'dinos': {0: ('Teamtwood', 18)},
+        'dinos': {0: ('Teamtwood', 17)},
         'dialog': {
             'default':  ["Log trained us well for moments like this.", "Get ready!"],
             'defeated': ["Not bad at all!"]
@@ -448,7 +450,7 @@ TRAINER_DATA = {
     },
     'john': {
         'name': 'John',
-        'dinos': {0: ('Bullicorn', 16), 1: ('Bullicorn', 16), 2: ('Bullicorn', 17)},
+        'dinos': {0: ('Bullicorn', 12), 1: ('Bullicorn', 13), 2: ('Bullicorn', 14)},
         'dialog': {
             'default':  ["These horns aren't just for show, kid.", "Let's battle!"],
             'defeated': ["Ha! You handled my herd well."]
@@ -577,9 +579,9 @@ DINO_DATA = {
     'Creuw': {
         'stats': {'type': ['flying'], 'health': 60, 'attack': 75, 'defense': 50, 'speed':75},
         'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 26: 'Mach Speed', 29: 'Shadow Veil', 34: 'Wind Fracture', 38: 'Void Collapse', 43: 'Sky Scorch' },
-        'evolve': {16: 'Luna'}},
+        'evolve': {15: 'Luna'}},
     'Luna': {
-        'stats': {'type': ['flying', 'dark'], 'health': 100, 'attack': 125, 'defense': 80, 'speed':135},
+        'stats': {'type': ['flying', 'dark'], 'health': 105, 'attack': 120, 'defense': 80, 'speed':135},
         'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 26: 'Mach Speed', 29: 'Shadow Veil', 34: 'Wind Fracture', 38: 'Void Collapse', 43: 'Sky Scorch' },
         'evolve': None},
     'Prowscar': {
@@ -689,7 +691,7 @@ DINO_DATA = {
         'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 27: 'Hurricane', 32: 'Terraform', 37: 'Tree Spin'},
         'evolve': None},
     'Chomper': {
-        'stats': {'type': ['ancient'], 'health': 108, 'attack': 119, 'defense': 132, 'speed': 85},
+        'stats': {'type': ['ancient'], 'health': 108, 'attack': 119, 'defense': 130, 'speed': 85},
         'moves': {0: 'Bitemark', 1: 'Arise', 6: 'Fossil Break', 10: 'Fear', 15: 'Whirlpool', 20: 'Rushdown', 25: 'Power Fang', 30: 'Dread Thorn', 33: 'Raging Pursuit',36: 'Tree Spin' ,40: 'Ancient Mend' },
         'evolve': None},
     'Cobaltion': {
@@ -703,7 +705,7 @@ DINO_DATA = {
         'evolve': {25: 'Rockull'}},
 
     'Skolt': {
-        'stats': {'type': ['lightning'], 'health': 107, 'attack': 117, 'defense': 87, 'speed': 137},
+        'stats': {'type': ['lightning'], 'health': 107, 'attack': 117, 'defense': 97, 'speed': 137},
         'moves': {0: 'Shock', 3: 'Bitemark', 7: 'Static Graze', 11: 'Fear', 15: 'Thunder Blitz', 17: 'Quick Slash', 20: 'Flame Shatter', 22: 'Lightning Bolt', 24: 'Piercing Light', 28: 'Conduit Surge', 32:'Quantum Flux', 38: 'Volt Storm'},
         'evolve': None},
 
@@ -1088,18 +1090,18 @@ ENCOUNTER_ZONES = {
 
     "route2_burnt_grass": {
         "dinos": ["Sortle", "Teamtwood", "Creuw", "Prickly"],
-        "level_range": (7, 11)
+        "level_range": (7, 10)
 
     },
 
         "route2_belowcorn": {
         "dinos": ["Sortle", "Prickly"],
-        "level_range": (9, 12)
+        "level_range": (9, 10)
 
     },
 
         "corn_maze": {
-        "encounter_rate": 0.05,
+        "encounter_rate": 0.03,
         "dinos": [
             {"name": "Ghoulflame",  "weight": 0.4, "time": "night"},
             {"name": "Prickly",  "weight": 0.4, "time": "day"},
@@ -1107,7 +1109,7 @@ ENCOUNTER_ZONES = {
             {"name": "Creuw", "weight": 0.6, "time": "day"},
             {"name": "Vusion",   "weight": 0.2, "time": "night"},
         ],
-        "level_range": (9, 12)
+        "level_range": (8, 11)
 
     },
 

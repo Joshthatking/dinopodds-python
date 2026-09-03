@@ -297,3 +297,10 @@ if __name__ == '__main__':
 
 # 
 
+# PLAYTHROUGH NOTES
+# early game works well!
+# suggest lowering gym 1 levels by 1
+# route 2 lower levels of spawns by 2
+# part 2 of game feels a bit steep alter by 1-2 levels
+# keep ace the same
+# after gym 2 my dinos are 17-21
