@@ -154,6 +154,8 @@ class Game:
         self.abby_dinos = []
         self.is_vanessa_battle = False
         self.vanessa_dino_queue = []
+        self.is_skyy_battle = False
+        self.camera_locked = False  # True while a scripted camera pan owns camera_x/y
         self.intro_sequence = None
         self.ball_icons = {}
         for name, path in config.BALL_ICONS.items():
@@ -210,6 +212,8 @@ class Game:
         # Economy
         self.coins       = 1000
         self.repel_steps = 0
+        self.item_target_mode = None   # None | 'Revival Gem' | 'Mega Spray'
+        self.pending_pp_exit_reveal = False   # fires after the player's next completed step
 
         # Trainer card / adventure tracking
         import datetime
@@ -285,6 +289,7 @@ class Game:
         while len(self.state_stack) > 1:
             self.pop_state()
         self.awaiting_switch = False
+        self.item_target_mode = None
         self.fading = False
 
     def trigger_blackout(self):
@@ -313,6 +318,11 @@ class Game:
         self.enemy_defend_uses_remaining = 3
         self.entrance_fade_state = None
         self._post_trainer_battle_cb = None
+        # Blackout is a full reset back to normal world state — a scripted
+        # cutscene that led into this battle (e.g. a walkup trigger) must
+        # not stay "in progress" afterward, or it can never fire again.
+        self.cutscene = None
+        self.camera_locked = False
 
         # Reset any trainer stuck mid-approach so rechallenge (and the "i" menu,
         # which is blocked while a trainer is spotted/walking/done) works again
@@ -373,6 +383,50 @@ class Game:
         self.play_time_seconds = 0.0
         self.adventure_start_date = datetime.date.today()
         self.world_stack = []
+
+        # A brand new game must never carry over runtime state left behind by
+        # a previous playthrough (trainers marked defeated, picked-up ground
+        # items, leftover battle/cutscene/day-night state, etc.) — see also
+        # the equivalent reset block in load_game().
+        self.defeated_trainers = set()
+        self.picked_up_world_items = set()
+        self.repel_steps = 0
+        self.item_target_mode = None
+        self.pending_pp_exit_reveal = False
+
+        self.is_trainer_battle = False
+        self.is_double_battle = False
+        self.current_trainer_npc = None
+        self.current_trainer_npc2 = None
+        self.enemy_dino2 = None
+        self.trainer_dino_queue = []
+        self.trainer_dinos_total = 0
+        self.trainer_dinos_defeated = 0
+        self.awaiting_switch = False
+        self.double_replace_slot = None
+        self.double_replace_queue = []
+
+        self.abby_follower = None
+        self.abby_dinos = []
+        self.is_vanessa_battle = False
+        self.vanessa_dino_queue = []
+        self.is_skyy_battle = False
+        self.camera_locked = False
+        self.cutscene = None
+        self.cutscene_flash = None
+        self.orb_fx = None
+        self.heal_anim = None
+        self.yes_no_prompt = None
+        self.yes_no_callback = None
+        self.dino_pickup_popup = None
+
+        self.day_night_timer = 0.0
+        self.is_night = False
+        self.force_night = None
+        self.dn_transitioning = False
+        self.dn_transition_timer = 0.0
+        self.event_overlay_active = False
+
         self._load_world_data('HOME_JET2.tmx')
         self._spawn_world_npcs('HOME_JET2.tmx')
         # Adjust tile coords to match your Tiled spawn point in HOME_JET2.tmx
@@ -450,8 +504,9 @@ class Game:
         self.dn_transitioning   = False
         self.dn_transition_timer = 0.0
         self.event_overlay_active = (
-            self.story_flags.get('amber_intro_done', False) and
-            not self.story_flags.get('gym1_accessible', False)
+            (self.story_flags.get('amber_intro_done', False) and
+             not self.story_flags.get('gym1_accessible', False))
+            or self.story_flags.get('pp_eclipse_active', False)
         )
         self.sandbox = data.get('sandbox', False)
         self.badges_earned = data.get('badges', [])
@@ -1007,15 +1062,26 @@ class Game:
             self._post_trainer_battle_cb = self._on_skyy_gym_won
         elif npc.trainer_id == 'log' and self.current_world_file == 'GYM2.tmx':
             self._post_trainer_battle_cb = self._on_log_gym_won
+        elif npc.trainer_id == 'pp_grunt_a':
+            self._post_trainer_battle_cb = lambda: self._on_pp_grunt_a_won(npc)
+        elif npc.trainer_id == 'pp_grunt_b':
+            self._post_trainer_battle_cb = lambda: self._on_pp_grunt_b_won(npc)
 
         data = TRAINER_DATA.get(npc.trainer_id, {})
         dinos = data.get('dinos', {})
         sorted_keys = sorted(dinos.keys())
         override = getattr(npc, 'override_first_dino', None)
-        dino_name, dino_level = dinos[sorted_keys[0]]
-        self.trainer_dino_queue = [(dinos[k][0], dinos[k][1]) for k in sorted_keys[1:]]
-        if override:
-            self.trainer_dino_queue.append(override)
+        dino_list = [(dinos[k][0], dinos[k][1]) for k in sorted_keys]
+        if override and getattr(npc, 'override_replaces_first', False):
+            # Override replaces the placeholder first dino (e.g. Gray's Route 1
+            # counter-starter trick) rather than adding an extra one.
+            dino_list[0] = override
+        elif override:
+            # Override is an additional dino tacked on at the end (e.g. Gray's
+            # Route 3 rematch, where the evolved counter-starter closes it out).
+            dino_list.append(override)
+        dino_name, dino_level = dino_list[0]
+        self.trainer_dino_queue = dino_list[1:]
         self.trainer_dinos_total = len(self.trainer_dino_queue) + 1
         self.trainer_dinos_defeated = 0
 
@@ -1227,9 +1293,13 @@ class Game:
             self.message_box.queue_messages(msgs, wait_for_input=True)
 
     def _abby_is_ally(self):
-        """True when Abby is fighting alongside the player in this double
-        battle, once she's joined post-escort — the grunt pair, or the
-        Vanessa boss fight."""
+        """True when an NPC ally is fighting alongside the player in this
+        double battle — Abby (once she's joined post-escort, the grunt pair,
+        or the Vanessa boss fight) or Skyy (the Power Plant grunt pair).
+        `self.abby_dinos` doubles as the generic "ally's team" slot for
+        whichever ally is actually active; see _ally_name() for display text."""
+        if self.is_skyy_battle:
+            return bool(self.abby_dinos)
         if not (self.abby_follower and self.abby_dinos):
             return False
         if self.is_vanessa_battle:
@@ -1611,6 +1681,8 @@ class Game:
         if (not e1 or e1.get('hp', 0) <= 0) and (not e2 or e2.get('hp', 0) <= 0):
             if self.is_vanessa_battle:
                 self._finish_vanessa_battle(won=True)
+            elif self.is_skyy_battle:
+                self._finish_skyy_grunts_battle(won=True)
             else:
                 self._finish_double_battle()
             return
@@ -1618,21 +1690,25 @@ class Game:
         if all(d.get('hp', 0) <= 0 for d in self.player_dinos):
             if self.is_vanessa_battle:
                 self._finish_vanessa_battle(won=False)
+            elif self.is_skyy_battle:
+                self._finish_skyy_grunts_battle(won=False)
             else:
                 self.message_box.queue_messages(
                     ["You blacked out!", "Be careful next time..."],
                     wait_for_input=True, on_complete=self.trigger_blackout)
             return
 
-        # Abby swaps in her own bench dino automatically — it's her roster
-        # to manage, not the player's, so no "choose a replacement" prompt.
+        # Ally (Abby or Skyy) swaps in their own bench dino automatically —
+        # it's their roster to manage, not the player's, so no "choose a
+        # replacement" prompt.
         if self._abby_is_ally() and p2 and p2.get('hp', 0) <= 0:
             if len(self.abby_dinos) > 1 and self.abby_dinos[1].get('hp', 0) > 0:
                 fainted_name = self.abby_dinos[0]['name']
                 self.abby_dinos[0], self.abby_dinos[1] = self.abby_dinos[1], self.abby_dinos[0]
                 new_name = self.abby_dinos[0]['name']
+                ally = 'Skyy' if self.is_skyy_battle else 'Abby'
                 self.message_box.queue_messages(
-                    [f"{fainted_name} fainted!", f"Abby sent out {new_name}!"],
+                    [f"{fainted_name} fainted!", f"{ally} sent out {new_name}!"],
                     wait_for_input=True,
                     on_complete=self._double_turn_end_after_abby_swap)
                 return
@@ -1859,6 +1935,11 @@ class Game:
         banner_name = EXIT_BANNER_NAMES.get(prev.get('entrance_id'))
         if banner_name:
             self.route_banner.show(banner_name)
+        if (prev.get('entrance_id') == 'power' and self._pp_all_battles_done()
+                and not self.story_flags.get('pp_eclipse_reveal_done')):
+            # Don't fire immediately — wait until the player takes one more
+            # step in the overworld (see Player.update's step-complete block).
+            self.pending_pp_exit_reveal = True
 
     @property
     def _trainer_name(self):
@@ -2839,7 +2920,35 @@ class Game:
             return
         if c['phase'] == 'skyy_pp_heal_flash':
             if not self.cutscene_flash:
-                self._end_skyy_pp_cutscene()
+                self._start_pp_grunts_approach()
+            return
+        if c['phase'] == 'pp_grunts_approaching':
+            self._update_pp_grunts_approaching(dt)
+            return
+        if c['phase'] == 'pp_grunts_walking_away':
+            self._update_pp_grunts_walking_away(dt)
+            return
+        if c['phase'] == 'camera_pan':
+            self._update_camera_pan(dt)
+            return
+        if c['phase'] == 'pp_grunts2_wait':
+            return  # generic no-op wait, no npc needed
+        if c['phase'] == 'pp_grunt_a_walkup':
+            self._update_pp_grunt_a_walkup(dt)
+            return
+        if c['phase'] == 'pp_grunt_b_walkup':
+            self._update_pp_grunt_b_walkup(dt)
+            return
+        if c['phase'] == 'pp_grunts2_flash':
+            if not self.cutscene_flash:
+                self._finish_pp_grunts2_disappear()
+            return
+        if c['phase'] == 'pp_reveal_flares':
+            if not self.cutscene_flash:
+                self._pp_reveal_activate_eclipse(c['npc1'], c['npc2'])
+            return
+        if c['phase'] == 'pp_reveal_walking_away':
+            self._update_pp_reveal_walking_away(dt)
             return
         if c['phase'] == 'vanessa_heal_flash':
             if not self.cutscene_flash:
@@ -3038,7 +3147,7 @@ class Game:
                 if npc in self.npcs:
                     self.npcs.remove(npc)
                 self.story_flags['gray_route3_done'] = True
-                self._start_skyy_powerplant_cutscene()
+                self.cutscene = None
             else:
                 self._force_step_npc_toward_tile(npc, wx, wy)
 
@@ -3185,7 +3294,7 @@ class Game:
             f['alpha'] = max(0, f['alpha'] - 380 * dt)
             if f['alpha'] <= 0:
                 f['count'] += 1
-                if f['count'] < 2:
+                if f['count'] < f.get('max_count', 2):
                     f['rising'] = True
                 else:
                     self.cutscene_flash = None
@@ -3402,6 +3511,10 @@ class Game:
         gray.home_facing = 'right'
         gray.use_proximity = True
         gray.override_first_dino = gray_first_dino
+        # Gray's Route 1 dict entry for slot 0 (Prowscar) is just a fallback
+        # placeholder — the counter-starter override should replace it, not
+        # be tacked on as an extra 3rd dino.
+        gray.override_replaces_first = True
         self.npcs.append(gray)
         self.solid_tile_coords.add((tx, ty))
 
@@ -3496,8 +3609,32 @@ class Game:
             }
         self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=start_walk_away)
 
-    # ── Skyy's Power Plant reveal — chains directly off Gray's 2nd battle ──
+    # ── Skyy's Power Plant reveal — free exploration after Gray's 2nd battle,
+    # triggers on crossing either of two strips back toward Route 3 ────────
     SKYY_PP_WAYPOINTS = [(2, -61), (2, -57), (-13, -57), (-13, -47), (-19, -47)]
+    SKYY_PP_TRIGGER_STRIP_A = (-5, -72, -5, -65)  # x fixed, y range
+    SKYY_PP_TRIGGER_STRIP_B = (1, -59, 7, -59)    # y fixed, x range
+
+    def _check_skyy_powerplant_trigger(self):
+        if (self.story_flags.get('skyy_pp_started')
+                or self.story_flags.get('powerplant_skyy_reveal_done') or self.cutscene):
+            return
+        if not self.story_flags.get('gray_route3_done'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        if self.fading or self.message_box.visible:
+            return
+        tx = self.player.rect.x // config.TILE_SIZE
+        ty = self.player.rect.y // config.TILE_SIZE
+        ax, ay1, _, ay2 = self.SKYY_PP_TRIGGER_STRIP_A
+        _, by, bx1, bx2 = self.SKYY_PP_TRIGGER_STRIP_B
+        in_strip_a = tx == ax and min(ay1, ay2) <= ty <= max(ay1, ay2)
+        in_strip_b = ty == by and min(bx1, bx2) <= tx <= max(bx1, bx2)
+        if not (in_strip_a or in_strip_b):
+            return
+        self.story_flags['skyy_pp_started'] = True
+        self._start_skyy_powerplant_cutscene()
 
     def _start_skyy_powerplant_cutscene(self):
         self.player.moving = False
@@ -3609,10 +3746,10 @@ class Game:
     def _finish_skyy_pp_guided_walk(self):
         c = self.cutscene
         skyy = c['npc']
-        skyy.facing = 'down'
+        skyy.face_toward_player(self.player)
         c['phase'] = 'skyy_pp_dialogue_wait'  # reuse the generic no-op dialogue-wait phase
         self.message_box.queue_messages(
-            self._tag_dialogue('Skyy', ["Go inside and stop them while I handle the grunts out here."]),
+            self._tag_dialogue('Skyy', ["Let me heal you before we go battle."]),
             wait_for_input=True,
             on_complete=self._start_skyy_pp_heal_flash
         )
@@ -3624,6 +3761,127 @@ class Game:
         self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0, 'color': (255, 255, 255)}
         self.cutscene = {'phase': 'skyy_pp_heal_flash', 'npc': skyy}
 
+    def _start_pp_grunts_approach(self):
+        skyy = self.cutscene['npc']
+        # pp_grunt1/pp_grunt2 have already been standing guard, waiting,
+        # since gray_route3_done (see _maybe_add_pp_grunts_waiting) — just
+        # grab the existing NPCs rather than spawning fresh ones.
+        g1 = next(n for n in self.npcs if getattr(n, 'trainer_id', '') == 'pp_grunt1')
+        g2 = next(n for n in self.npcs if getattr(n, 'trainer_id', '') == 'pp_grunt2')
+
+        self.cutscene = {
+            'phase': 'pp_grunts_approaching',
+            'npc': skyy,
+            'npc1': g1, 'npc2': g2,
+            'walk_target1': (-19, -48),
+            'walk_target2': (-18, -48),
+        }
+
+    def _update_pp_grunts_approaching(self, dt):
+        c = self.cutscene
+        npc1, npc2 = c['npc1'], c['npc2']
+        all_done = True
+        for npc, target in ((npc1, c['walk_target1']), (npc2, c['walk_target2'])):
+            if npc.is_moving:
+                npc.anim_timer += dt
+                if npc.anim_timer >= npc.anim_speed:
+                    npc.anim_timer = 0.0
+                    npc.anim_frame = (npc.anim_frame + 1) % 4
+                npc._slide(dt)
+                all_done = False
+                continue
+            if (npc.tile_x, npc.tile_y) == target:
+                continue
+            all_done = False
+            self._force_step_npc_toward_tile(npc, *target)
+        if all_done:
+            self.player.facing = self.player.direction = 'up'
+            self.player.image = self.player.animations['up'][0]
+            c['npc'].facing = 'up'
+            c['phase'] = 'skyy_pp_dialogue_wait'  # reuse the generic no-op dialogue-wait phase
+            self.message_box.queue_messages(
+                self._tag_dialogue('Grunt', ["We won't let you stop us this easy!"]),
+                wait_for_input=True,
+                on_complete=self._start_skyy_grunts_battle
+            )
+
+    def _start_skyy_grunts_battle(self):
+        npc1, npc2 = self.cutscene['npc1'], self.cutscene['npc2']
+        self.start_double_trainer_battle(npc1, npc2)
+        self.is_skyy_battle = True
+        self.abby_dinos = [self.create_dino('Luna', 25), self.create_dino('Netyrant', 25)]
+
+    def _finish_skyy_grunts_battle(self, won):
+        npc1 = self.current_trainer_npc
+        npc2 = self.current_trainer_npc2
+        skyy = self.cutscene['npc'] if self.cutscene else None
+        self.is_trainer_battle = False
+        self.is_double_battle  = False
+        self.is_skyy_battle    = False
+        self.enemy_dino2       = None
+        self.abby_dinos        = []
+        for d in self.player_dinos:
+            d['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
+            d['defending']   = False
+        self.pop_to_world()
+
+        self.cutscene = {'phase': 'skyy_pp_dialogue_wait', 'npc': skyy, 'npc1': npc1, 'npc2': npc2}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Grunt', ["You will see us again soon!"]),
+            wait_for_input=True,
+            on_complete=self._start_pp_grunts_walk_away
+        )
+
+    def _start_pp_grunts_walk_away(self):
+        c = self.cutscene
+        npc1, npc2 = c['npc1'], c['npc2']
+        npc1.facing = 'right'
+        npc2.facing = 'right'
+        # Right 4 tiles, then up 4.
+        c['phase'] = 'pp_grunts_walking_away'
+        c['waypoints1'] = [(npc1.tile_x + 6, npc1.tile_y), (npc1.tile_x + 6, npc1.tile_y - 4)]
+        c['waypoints2'] = [(npc2.tile_x + 6, npc2.tile_y), (npc2.tile_x + 6, npc2.tile_y - 4)]
+
+    def _update_pp_grunts_walking_away(self, dt):
+        c = self.cutscene
+        npc1, npc2 = c['npc1'], c['npc2']
+        all_done = True
+        for npc, wp_key in ((npc1, 'waypoints1'), (npc2, 'waypoints2')):
+            if npc.is_moving:
+                npc.anim_timer += dt
+                if npc.anim_timer >= npc.anim_speed:
+                    npc.anim_timer = 0.0
+                    npc.anim_frame = (npc.anim_frame + 1) % 4
+                npc._slide(dt)
+                all_done = False
+                continue
+            waypoints = c[wp_key]
+            if not waypoints:
+                continue
+            tx, ty = waypoints[0]
+            if (npc.tile_x, npc.tile_y) == (tx, ty):
+                waypoints.pop(0)
+                all_done = False
+                continue
+            all_done = False
+            self._force_step_npc_toward_tile(npc, tx, ty)
+        if all_done:
+            for npc in (npc1, npc2):
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                if npc in self.npcs:
+                    self.npcs.remove(npc)
+            self._finish_pp_grunts_walk_away()
+
+    def _finish_pp_grunts_walk_away(self):
+        skyy = self.cutscene['npc']
+        skyy.face_toward_player(self.player)  # faces the player (right, given their positions)
+        self.cutscene = {'phase': 'skyy_pp_dialogue_wait', 'npc': skyy}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Skyy', ["Go inside and stop them while I handle the grunts out here."]),
+            wait_for_input=True,
+            on_complete=self._end_skyy_pp_cutscene
+        )
+
     def _end_skyy_pp_cutscene(self):
         skyy = self.cutscene['npc']
         skyy.npc_type = 'guard'
@@ -3633,20 +3891,60 @@ class Game:
         self.cutscene = None
 
     def _maybe_add_powerplant_scene_npcs(self):
-        """Re-adds Skyy (now guarding, post-cutscene) and the 3 grunts
-        blocking the Power Plant entrance after a world reload. On the very
-        first tick after _end_skyy_pp_cutscene, Skyy is already present —
-        this only needs to (re-)spawn everyone from scratch."""
+        """Re-adds Skyy (now guarding, post-cutscene) and pp_grunt3 blocking
+        the Power Plant entrance after a world reload. pp_grunt1/pp_grunt2
+        are deliberately NOT included — they're consumed by the double
+        battle and walk off for good afterward, so they must never respawn.
+        Skyy himself stops being re-added once pp_eclipse_reveal_done — he
+        and Abby leave for Cobalt Cave for good at the end of that scene."""
         if not self.story_flags.get('powerplant_skyy_reveal_done'):
             return
         if self.current_world_file != 'LOST_REGION.world':
             return
+        if self.cutscene:
+            return
         present = {getattr(n, 'trainer_id', '') for n in self.npcs}
         specs = [
-            ('skyy',      -19, -47, 'down',  ["Go on, I've got this handled!"]),
+            ('pp_grunt3', -22, -48, 'right', ["Don't worry about us.", "Get out of here, kid."]),
+        ]
+        if not self.story_flags.get('pp_eclipse_reveal_done'):
+            specs.insert(0, ('skyy', -19, -47, 'right', ["Go on, I've got this handled!"]))
+        for trainer_id, tx, ty, facing, dialog in specs:
+            if trainer_id in present:
+                continue
+            npc = NPC(trainer_id, tile_x=tx, tile_y=ty, facing=facing,
+                      sight_range=0, npc_type='guard')
+            npc.state = 'idle'
+            npc.home_tile = (tx, ty)
+            npc.home_facing = facing
+            npc.block_dialog = dialog
+            self.npcs.append(npc)
+            self.solid_tile_coords.add((tx, ty))
+
+    def _maybe_add_pp_grunts_waiting(self):
+        """All 3 Power Plant grunts stand waiting outside as soon as Gray's
+        Route 3 rematch is done — visible well before Skyy's own cutscene
+        triggers. Stops once the reveal sequence is complete: pp_grunt1/2
+        get claimed (and later removed for good) by that sequence, and
+        _maybe_add_powerplant_scene_npcs takes over persisting Skyy/grunt3."""
+        if not self.story_flags.get('gray_route3_done'):
+            return
+        if self.story_flags.get('powerplant_skyy_reveal_done'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        # A cutscene being active spans the whole reveal sequence, including
+        # the moment pp_grunt1/2 are removed for their final walk-off (which
+        # happens before powerplant_skyy_reveal_done actually gets set) —
+        # without this guard that gap would look like "they're missing" and
+        # this would immediately respawn them back at their starting spot.
+        if self.cutscene:
+            return
+        present = {getattr(n, 'trainer_id', '') for n in self.npcs}
+        specs = [
             ('pp_grunt1', -19, -49, 'down',  ["Don't worry about us.", "Get out of here, kid."]),
             ('pp_grunt2', -18, -49, 'down',  ["Don't worry about us.", "Get out of here, kid."]),
-            ('pp_grunt3', -22, -48, 'left', ["Don't worry about us.", "Get out of here, kid."]),
+            ('pp_grunt3', -22, -48, 'right', ["Don't worry about us.", "Get out of here, kid."]),
         ]
         for trainer_id, tx, ty, facing, dialog in specs:
             if trainer_id in present:
@@ -3686,6 +3984,372 @@ class Game:
             self._tag_dialogue('Skyy', ["We must stop this disruption from occuring"]),
             wait_for_input=True
         )
+
+    # ── Generic scripted camera pan — camera_locked keeps update_camera()
+    # from re-centering on the player while one of these is in flight. ──
+    def _start_camera_pan(self, target_px, target_py, duration, on_complete):
+        self.camera_locked = True
+        render_w = config.WIDTH // self.zoom
+        render_h = config.HEIGHT // self.zoom
+        end_x = target_px - render_w // 2
+        end_y = target_py - render_h // 2
+        min_cx = min(m['x'] for m in self.world_maps)
+        min_cy = min(m['y'] for m in self.world_maps)
+        max_cx = max(m['x'] + m['width'] for m in self.world_maps) - render_w
+        max_cy = max(m['y'] + m['height'] for m in self.world_maps) - render_h
+        end_x = max(min_cx, min(end_x, max_cx))
+        end_y = max(min_cy, min(end_y, max_cy))
+        self.cutscene = {
+            'phase': 'camera_pan', 'elapsed': 0.0, 'duration': duration,
+            'start': (self.camera_x, self.camera_y), 'end': (end_x, end_y),
+            'on_complete': on_complete,
+        }
+
+    def _update_camera_pan(self, dt):
+        c = self.cutscene
+        c['elapsed'] += dt
+        t = min(1.0, c['elapsed'] / c['duration'])
+        sx, sy = c['start']
+        ex, ey = c['end']
+        self.camera_x = sx + (ex - sx) * t
+        self.camera_y = sy + (ey - sy) * t
+        if t >= 1.0:
+            cb = c['on_complete']
+            self.cutscene = None
+            cb()
+
+    # ── Power Plant interior — the "elite" grunt pair confrontation ──────
+    PP_GRUNTS2_TRIGGER_X = 34
+    PP_GRUNTS2_TRIGGER_Y_RANGE = (-6, -5)  # inclusive
+    PP_GRUNTS2_CAM_TARGET = (30, -11)      # tile the camera pans to
+
+    def _check_pp_grunts2_scene(self):
+        if self.story_flags.get('pp_grunts2_started') or self.cutscene:
+            return
+        if self.current_world_file != 'POWERPLANT.world':
+            return
+        if self.fading or self.message_box.visible:
+            return
+        tx = self.player.rect.x // config.TILE_SIZE
+        ty = self.player.rect.y // config.TILE_SIZE
+        if tx != self.PP_GRUNTS2_TRIGGER_X:
+            return
+        lo, hi = self.PP_GRUNTS2_TRIGGER_Y_RANGE
+        if not (lo <= ty <= hi):
+            return
+        self.story_flags['pp_grunts2_started'] = True
+        self._start_pp_grunts2_scene()
+
+    def _start_pp_grunts2_scene(self):
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+
+        # Both inert (npc_type='story') until the intro finishes — grunt A
+        # only turns into a real challengeable 'trainer' once camera control
+        # is back with the player (see _end_pp_grunts2_intro), so his sight
+        # range can't fire mid-cutscene.
+        ga = NPC('pp_grunt_a', tile_x=29, tile_y=-11, facing='right', sight_range=0, npc_type='story')
+        gb = NPC('pp_grunt_b', tile_x=30, tile_y=-11, facing='left', sight_range=0, npc_type='story')
+        ga.state = gb.state = 'idle'
+        ga.home_tile, ga.home_facing = (29, -11), 'right'
+        gb.home_tile, gb.home_facing = (30, -11), 'left'
+        self.npcs.append(ga)
+        self.npcs.append(gb)
+        self.solid_tile_coords.add((29, -11))
+        self.solid_tile_coords.add((30, -11))
+
+        ts = config.TILE_SIZE
+        tx, ty = self.PP_GRUNTS2_CAM_TARGET
+        self._start_camera_pan(
+            tx * ts + ts // 2, ty * ts + ts // 2, 0.6,
+            self._show_pp_grunts2_intro_dialogue
+        )
+
+    def _show_pp_grunts2_intro_dialogue(self):
+        self.cutscene = {'phase': 'pp_grunts2_wait'}  # generic no-op wait, no npc needed
+        self.message_box.queue_messages(
+            self._tag_dialogue('Grunt', [
+                "Our distraction is working.",
+                "It is only a matter of time before the plan commences.",
+                "Soon it will be too late to stop.",
+            ]),
+            wait_for_input=True,
+            on_complete=self._pan_camera_back_to_player
+        )
+
+    def _pan_camera_back_to_player(self):
+        self._start_camera_pan(
+            self.player.rect.centerx, self.player.rect.centery, 0.6,
+            self._end_pp_grunts2_intro
+        )
+
+    def _end_pp_grunts2_intro(self):
+        self.camera_locked = False
+        self.story_flags['pp_grunts2_intro_done'] = True
+        # Grunt A stays inert — his walk-up is triggered by crossing a tile
+        # strip (_check_pp_grunt_a_walkup_trigger), not sight range.
+
+    # Crossing this strip (only reachable at x=29/30 — x=28 is a wall, kept
+    # in the range anyway since it's harmless) sends grunt A walking up.
+    PP_GRUNT_A_TRIGGER_X_RANGE = (28, 30)
+    PP_GRUNT_A_TRIGGER_Y = -7
+
+    def _check_pp_grunt_a_walkup_trigger(self):
+        if not self.story_flags.get('pp_grunts2_intro_done'):
+            return
+        if 'pp_grunt_a' in self.defeated_trainers or self.cutscene:
+            return
+        if self.current_world_file != 'POWERPLANT.world':
+            return
+        if self.fading or self.message_box.visible:
+            return
+        tx = self.player.rect.x // config.TILE_SIZE
+        ty = self.player.rect.y // config.TILE_SIZE
+        if ty != self.PP_GRUNT_A_TRIGGER_Y:
+            return
+        lo, hi = self.PP_GRUNT_A_TRIGGER_X_RANGE
+        if not (lo <= tx <= hi):
+            return
+        ga = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'pp_grunt_a'), None)
+        if not ga:
+            return
+        self._start_pp_grunt_a_walkup(ga)
+
+    def _start_pp_grunt_a_walkup(self, ga):
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+        px = self.player.rect.x // config.TILE_SIZE
+        py = self.player.rect.y // config.TILE_SIZE
+        self.cutscene = {'phase': 'pp_grunt_a_walkup', 'npc1': ga, 'walk_target': (px, py - 1)}
+
+    def _update_pp_grunt_a_walkup(self, dt):
+        c = self.cutscene
+        ga = c['npc1']
+        if ga.is_moving:
+            ga.anim_timer += dt
+            if ga.anim_timer >= ga.anim_speed:
+                ga.anim_timer = 0.0
+                ga.anim_frame = (ga.anim_frame + 1) % 4
+            ga._slide(dt)
+            return
+        tx, ty = c['walk_target']
+        if (ga.tile_x, ga.tile_y) == (tx, ty):
+            ga.facing = 'down'
+            self.player.facing = self.player.direction = 'up'
+            self.player.image = self.player.animations['up'][0]
+            self.cutscene = {'phase': 'pp_grunts2_wait'}  # generic no-op wait
+            data = TRAINER_DATA.get('pp_grunt_a', {})
+            self.message_box.queue_messages(
+                self._tag_dialogue('Grunt', data.get('dialog', {}).get('default', [])),
+                wait_for_input=True,
+                on_complete=lambda: self.start_trainer_battle(ga)
+            )
+            return
+        self._force_step_npc_toward_tile(ga, tx, ty)
+
+    def _on_pp_grunt_a_won(self, npc):
+        gb = next(n for n in self.npcs if getattr(n, 'trainer_id', '') == 'pp_grunt_b')
+        self._start_pp_grunt_b_walkup(gb)
+
+    def _start_pp_grunt_b_walkup(self, gb):
+        px = self.player.rect.x // config.TILE_SIZE
+        py = self.player.rect.y // config.TILE_SIZE
+        gb.facing = 'left'
+        # +1 on x so he doesn't walk onto grunt A's tile, who's still
+        # standing right where he finished his own walk-up.
+        self.cutscene = {'phase': 'pp_grunt_b_walkup', 'npc1': gb, 'walk_target': (px + 1, py - 1)}
+
+    def _update_pp_grunt_b_walkup(self, dt):
+        c = self.cutscene
+        gb = c['npc1']
+        if gb.is_moving:
+            gb.anim_timer += dt
+            if gb.anim_timer >= gb.anim_speed:
+                gb.anim_timer = 0.0
+                gb.anim_frame = (gb.anim_frame + 1) % 4
+            gb._slide(dt)
+            return
+        tx, ty = c['walk_target']
+        if (gb.tile_x, gb.tile_y) == (tx, ty):
+            gb.facing = 'down'
+            self.cutscene = {'phase': 'pp_grunts2_wait'}  # generic no-op wait
+            data = TRAINER_DATA.get('pp_grunt_b', {})
+            self.message_box.queue_messages(
+                self._tag_dialogue('Grunt', data.get('dialog', {}).get('default', [])),
+                wait_for_input=True,
+                on_complete=lambda: self.start_trainer_battle(gb)
+            )
+            return
+        self._force_step_npc_toward_tile(gb, tx, ty)
+
+    def _on_pp_grunt_b_won(self, npc):
+        ga = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'pp_grunt_a'), None)
+        gb = npc
+        self.message_box.queue_messages(
+            self._tag_dialogue('Grunt', ["Well... our job here is done."]),
+            wait_for_input=True,
+            on_complete=lambda: self._start_pp_grunts2_disappear(ga, gb)
+        )
+
+    def _start_pp_grunts2_disappear(self, ga, gb):
+        self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0, 'color': (0, 0, 0)}
+        self.cutscene = {'phase': 'pp_grunts2_flash', 'npc1': ga, 'npc2': gb}
+
+    def _finish_pp_grunts2_disappear(self):
+        c = self.cutscene
+        for npc in (c['npc1'], c['npc2']):
+            if npc is None:
+                continue
+            self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+            if npc in self.npcs:
+                self.npcs.remove(npc)
+        self.story_flags['pp_grunts2_done'] = True
+        self.cutscene = None
+
+    def _maybe_add_pp_grunts2(self):
+        """Persists the grunt pair across a world reload, matching whichever
+        stage of the confrontation the player last left it at."""
+        if not self.story_flags.get('pp_grunts2_intro_done'):
+            return
+        if self.story_flags.get('pp_grunts2_done'):
+            return
+        if self.current_world_file != 'POWERPLANT.world':
+            return
+        if self.cutscene:
+            return
+        present = {getattr(n, 'trainer_id', '') for n in self.npcs}
+        a_defeated = 'pp_grunt_a' in self.defeated_trainers
+        if 'pp_grunt_a' not in present:
+            # Inert either way — pre-fight he waits for the walkup trigger;
+            # post-fight he's just a defeated bystander with nothing to do.
+            ga = NPC('pp_grunt_a', tile_x=29, tile_y=-11, facing='right',
+                      sight_range=0, npc_type='story')
+            ga.state = 'idle'
+            ga.home_tile, ga.home_facing = (29, -11), 'right'
+            ga.defeated = a_defeated
+            self.npcs.append(ga)
+            self.solid_tile_coords.add((29, -11))
+        if a_defeated and 'pp_grunt_b' not in present:
+            # He was mid-walkup (or about to start it) when we left — spawn
+            # him back at his waiting spot and immediately resume.
+            gb = NPC('pp_grunt_b', tile_x=30, tile_y=-11, facing='left',
+                      sight_range=0, npc_type='story')
+            gb.state = 'idle'
+            gb.home_tile, gb.home_facing = (30, -11), 'left'
+            self.npcs.append(gb)
+            self.solid_tile_coords.add((30, -11))
+            self._start_pp_grunt_b_walkup(gb)
+
+    # ── Power Plant exit reveal — Abby & Skyy warn of the forced eclipse ──
+    def _pp_all_battles_done(self):
+        return (self.story_flags.get('pp_grunts2_done', False)
+                and 'pp_grunt_c' in self.defeated_trainers
+                and 'pp_grunt_d' in self.defeated_trainers)
+
+    def _start_pp_exit_reveal_cutscene(self):
+        self.player.moving = False
+        self.player.target_x = self.player.rect.x
+        self.player.target_y = self.player.rect.y
+
+        # Skyy should always already be here by this point (_pp_all_battles_done
+        # requires pp_grunts2_done, which can't be true until powerplant_skyy_reveal_done
+        # already spawned him persistently) — falls back to spawning him fresh
+        # at his usual post just in case.
+        skyy = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'skyy'), None)
+        if skyy is None:
+            skyy = NPC('skyy', tile_x=-19, tile_y=-47, facing='right', sight_range=0, npc_type='guard')
+            skyy.state = 'idle'
+            skyy.home_tile, skyy.home_facing = (-19, -47), 'right'
+            skyy.block_dialog = ["Go on, I've got this handled!"]
+            self.npcs.append(skyy)
+            self.solid_tile_coords.add((-19, -47))
+        abby = NPC('abby', tile_x=-18, tile_y=-47, facing='down', sight_range=0, npc_type='story')
+        abby.state = 'idle'
+        abby.home_tile, abby.home_facing = (-18, -47), 'down'
+        self.npcs.append(abby)
+        self.solid_tile_coords.add((-18, -47))
+
+        self.cutscene = {'phase': 'pp_grunts2_wait'}  # generic no-op wait
+        self.message_box.queue_messages(
+            self._tag_dialogue('Abby', [
+                "Professor Amber just warned me about all of this.",
+                "Something big is about to happen, we need to hurry to Cobalt Cave.",
+            ]),
+            wait_for_input=True,
+            on_complete=lambda: self._pp_reveal_skyy_line1(skyy, abby)
+        )
+
+    def _pp_reveal_skyy_line1(self, skyy, abby):
+        self.message_box.queue_messages(
+            self._tag_dialogue('Skyy', ["I should have known this was a trick."]),
+            wait_for_input=True,
+            on_complete=lambda: self._pp_reveal_start_flares(skyy, abby)
+        )
+
+    def _pp_reveal_start_flares(self, skyy, abby):
+        # 3 flashes of yellow light, same look as the game's opening eclipse
+        # flash (cutscene_flash defaults to a warm yellow when no color is
+        # given), just 3 cycles instead of the usual 2.
+        self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0, 'max_count': 3}
+        self.cutscene = {'phase': 'pp_reveal_flares', 'npc1': skyy, 'npc2': abby}
+
+    def _pp_reveal_activate_eclipse(self, skyy, abby):
+        self.story_flags['pp_eclipse_active'] = True
+        self.event_overlay_active = True
+        self.cutscene = {'phase': 'pp_grunts2_wait'}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Skyy', [
+                "This solar eclipse is anything but natural.",
+                "They seemed to have found a way to conjure it forcibly.",
+                "We need to make a move, meet us at the Cave Jet.",
+            ]),
+            wait_for_input=True,
+            on_complete=lambda: self._start_pp_reveal_walk_away(skyy, abby)
+        )
+
+    def _start_pp_reveal_walk_away(self, skyy, abby):
+        skyy.facing = 'right'
+        abby.facing = 'right'
+        self.cutscene = {
+            'phase': 'pp_reveal_walking_away',
+            'npc1': skyy, 'npc2': abby,
+            # Right 6 tiles, then up 6 — verified clear of solid tiles.
+            'waypoints1': [(skyy.tile_x + 6, skyy.tile_y), (skyy.tile_x + 6, skyy.tile_y - 6)],
+            'waypoints2': [(abby.tile_x + 6, abby.tile_y), (abby.tile_x + 6, abby.tile_y - 6)],
+        }
+
+    def _update_pp_reveal_walking_away(self, dt):
+        c = self.cutscene
+        npc1, npc2 = c['npc1'], c['npc2']
+        all_done = True
+        for npc, wp_key in ((npc1, 'waypoints1'), (npc2, 'waypoints2')):
+            if npc.is_moving:
+                npc.anim_timer += dt
+                if npc.anim_timer >= npc.anim_speed:
+                    npc.anim_timer = 0.0
+                    npc.anim_frame = (npc.anim_frame + 1) % 4
+                npc._slide(dt)
+                all_done = False
+                continue
+            waypoints = c[wp_key]
+            if not waypoints:
+                continue
+            tx, ty = waypoints[0]
+            if (npc.tile_x, npc.tile_y) == (tx, ty):
+                waypoints.pop(0)
+                all_done = False
+                continue
+            all_done = False
+            self._force_step_npc_toward_tile(npc, tx, ty)
+        if all_done:
+            for npc in (npc1, npc2):
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                if npc in self.npcs:
+                    self.npcs.remove(npc)
+            self.story_flags['pp_eclipse_reveal_done'] = True
+            self.cutscene = None
 
     def _maybe_add_grunts_vanessa(self):
         if not self.story_flags.get('gym2_corn_maze_reveal_done'):
@@ -3978,6 +4642,11 @@ class Game:
                 elif result == 'used':
                     self.pop_state()
                     self.items_screen.reset()
+                elif result == 'target_party':
+                    self.pop_state()
+                    self.items_screen.reset()
+                    self.party_screen.reset()
+                    self.push_state('party')
 
             elif self.state == 'dino_picker':
                 if self._dino_picker:
@@ -4723,10 +5392,16 @@ class Game:
             self._check_gym2_blocker_removal()
             self._maybe_add_route2_blocker()
             self._maybe_add_skyy()
+            self._maybe_add_gym1_skyy()
             self._maybe_add_gray_rival()
             self._check_gray2_route3_rival()
+            self._check_skyy_powerplant_trigger()
+            self._maybe_add_pp_grunts_waiting()
             self._maybe_add_powerplant_scene_npcs()
             self._check_skyy_disruption_line()
+            self._check_pp_grunts2_scene()
+            self._maybe_add_pp_grunts2()
+            self._check_pp_grunt_a_walkup_trigger()
             self._maybe_add_grunts_vanessa()
             self._check_gym2_corn_maze_reveal()
             self._check_route26_abby_reveal()
@@ -4977,6 +5652,9 @@ class Game:
 
     @property
     def night_active(self):
+        # Eclipse mode always overwrites night mode — never show both at once.
+        if self.event_overlay_active:
+            return False
         if self.force_night is not None:
             return self.force_night
         return self.is_night
@@ -5057,6 +5735,8 @@ class Game:
             surface.blit(ent['image'], (ent['rect'].x - self.camera_x, ent['rect'].y - self.camera_y))
 
     def update_camera(self):
+        if self.camera_locked:
+            return  # a scripted camera pan (_update_camera_pan) owns camera_x/y right now
         render_w = config.WIDTH // self.zoom
         render_h = config.HEIGHT // self.zoom
         self.camera_x = self.player.rect.centerx - render_w // 2

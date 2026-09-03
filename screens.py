@@ -1335,6 +1335,49 @@ class PartyScreen:
                     [f"{chosen['name']}, I choose you!"], on_complete=game._enemy_turn)
             return None
 
+        # ── Item target selection (Revival Gem / Mega Spray) ───────
+        item_mode = getattr(game, 'item_target_mode', None)
+        if item_mode and not in_encounter:
+            if event.key == pygame.K_j:
+                chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
+                if not chosen:
+                    return None
+                if item_mode == 'Revival Gem':
+                    if chosen.get('hp', 0) > 0:
+                        game.message_box.queue_messages(
+                            [f"{chosen['name']} hasn't fainted!"], wait_for_input=True)
+                        return None
+                    chosen['hp'] = max(1, chosen['max_hp'] // 2)
+                    game.inventory['Revival Gem'] = max(0, game.inventory.get('Revival Gem', 0) - 1)
+                    game.item_target_mode = None
+                    self.reset()
+                    game.pop_state()
+                    game.message_box.queue_messages(
+                        [f"{chosen['name']} was revived with half its HP back!"], wait_for_input=True)
+                elif item_mode == 'Mega Spray':
+                    if chosen.get('hp', 0) <= 0:
+                        game.message_box.queue_messages(
+                            [f"{chosen['name']} has fainted! Use a Revival Gem instead."], wait_for_input=True)
+                        return None
+                    if chosen['hp'] >= chosen['max_hp']:
+                        game.message_box.queue_messages(
+                            [f"{chosen['name']} is already at full health!"], wait_for_input=True)
+                        return None
+                    chosen['hp'] = min(chosen['max_hp'], chosen['hp'] + 20)
+                    game.inventory['Mega Spray'] = max(0, game.inventory.get('Mega Spray', 0) - 1)
+                    game.item_target_mode = None
+                    self.reset()
+                    game.pop_state()
+                    game.message_box.queue_messages(
+                        [f"{chosen['name']} was healed by 20 HP!"], wait_for_input=True)
+                return None
+            if event.key == pygame.K_SPACE:
+                game.item_target_mode = None
+                self.reset()
+                game.pop_state()
+                return None
+            return None
+
         # ── Outside encounter ──────────────────────────────────────
         if not in_encounter and not awaiting:
             if event.key == pygame.K_j:
@@ -1405,6 +1448,12 @@ class PartyScreen:
         if self.game.awaiting_switch:
             screen.blit(self.small_font.render("Choose replacement  (J=confirm)",
                                                True, (255, 200, 0)), (230, 2))
+        elif getattr(self.game, 'item_target_mode', None) == 'Revival Gem':
+            screen.blit(self.small_font.render("Choose a fainted Dino to revive  (J=confirm)",
+                                               True, (255, 200, 0)), (230, 2))
+        elif getattr(self.game, 'item_target_mode', None) == 'Mega Spray':
+            screen.blit(self.small_font.render("Choose a Dino to heal  (J=confirm)",
+                                               True, (255, 200, 0)), (230, 2))
 
         box_w, box_h = 200, 70
         for i, dino in enumerate(dinos):
@@ -1438,8 +1487,12 @@ class PartyScreen:
         self.draw_preview(screen, dinos[self.selected_index])
 
         in_encounter = 'encounter' in self.game.state_stack
-        if not in_encounter and not self.game.awaiting_switch:
+        if not in_encounter and not self.game.awaiting_switch and not getattr(self.game, 'item_target_mode', None):
             screen.blit(self.small_font.render("J=reorder  O=send to Box  SPACE=back",
+                                               True, (180, 180, 180)),
+                        (230, self.height - 24))
+        elif not in_encounter and getattr(self.game, 'item_target_mode', None):
+            screen.blit(self.small_font.render("J=select  SPACE=cancel",
                                                True, (180, 180, 180)),
                         (230, self.height - 24))
 
@@ -1921,6 +1974,28 @@ class ItemsScreen:
                          "Wild dinos will be held off for 250 steps."],
                         wait_for_input=True)
                 return 'used'
+            elif item_name == 'Revival Gem':
+                if 'encounter' in game.state_stack:
+                    game.message_box.queue_messages(
+                        ["Revival Gems can't be used in battle!"], wait_for_input=True)
+                    return 'used'
+                if not any(d.get('hp', 0) <= 0 for d in game.player_dinos):
+                    game.message_box.queue_messages(
+                        ["None of your Dinos have fainted!"], wait_for_input=True)
+                    return 'used'
+                game.item_target_mode = 'Revival Gem'
+                return 'target_party'
+            elif item_name == 'Mega Spray':
+                if 'encounter' in game.state_stack:
+                    game.message_box.queue_messages(
+                        ["Mega Sprays can't be used in battle!"], wait_for_input=True)
+                    return 'used'
+                if not any(0 < d.get('hp', 0) < d.get('max_hp', 0) for d in game.player_dinos):
+                    game.message_box.queue_messages(
+                        ["No Dinos need healing right now!"], wait_for_input=True)
+                    return 'used'
+                game.item_target_mode = 'Mega Spray'
+                return 'target_party'
         elif event.key == pygame.K_w:
             if self.selected_index > 0:
                 self.selected_index -= 1

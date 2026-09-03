@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="1">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="left-up" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="2">
  <tileset firstgid="1" source="../TILESET/dinocenter2.tsx"/>
  <tileset firstgid="209" source="../TILESET/house3.tsx"/>
  <tileset firstgid="305" source="../TILESET/INTERIOR_ALL.tsx"/>
@@ -79,4 +79,12 @@
 209,209,209,209,209,209,209,209,209,209,209,209,209,209,209,209,209,209,209,209
 </data>
  </layer>
+ <objectgroup id="5" name="Object Layer 1">
+  <object id="1" x="64" y="320" width="32" height="32">
+   <properties>
+    <property name="ball" type="bool" value="true"/>
+    <property name="item" value="Mega Spray"/>
+   </properties>
+  </object>
+ </objectgroup>
 </map>

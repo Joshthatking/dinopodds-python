@@ -219,6 +219,93 @@ TRAINER_DATA = {
         'reward_coins': 600,
         'rank': 'rival',
     },
+    # Power Plant grunts — the scripted double battle alongside Skyy.
+    'pp_grunt1': {
+        'name': 'Grunt',
+        'dinos': {0: ('Ghoulflame', 19)},
+        'dialog': {
+            'default':  ["You're not getting past us!"],
+            'defeated': ["Don't worry about us.", "Get out of here, kid."]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 350,
+        'rank': 'lowest',
+    },
+    'pp_grunt2': {
+        'name': 'Grunt',
+        'dinos': {0: ('Frostle', 19)},
+        'dialog': {
+            'default':  ["You're not getting past us!"],
+            'defeated': ["Don't worry about us.", "Get out of here, kid."]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 350,
+        'rank': 'lowest',
+    },
+    # Power Plant interior — the "elite" grunt pair, sequential single battles.
+    'pp_grunt_a': {
+        'name': 'Grunt',
+        'dinos': {0: ('Prowscar', 21), 1: ('Bouldava', 21)},
+        'dialog': {
+            'default':  ["Don't bother, I am one of the highest ranked grunts here."],
+            'defeated': ["Tch... not bad."]
+        },
+        'directions': ['right'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 500,
+        'rank': 'medium',
+    },
+    'pp_grunt_b': {
+        'name': 'Grunt',
+        'dinos': {0: ('Ghoulflame', 22), 1: ('Sortle', 22)},
+        'dialog': {
+            'default':  ["Let me handle this."],
+            'defeated': ["Well... our job here is done."]
+        },
+        'directions': ['left'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 550,
+        'rank': 'medium',
+    },
+    # Power Plant interior — plain standing guards (sight-triggered).
+    'pp_grunt_c': {
+        'name': 'Grunt',
+        'dinos': {0: ('Magnecrab', 18)},
+        'dialog': {
+            'default':  ["You shouldn't be here!"],
+            'defeated': ["Ugh... fine, go on."]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 350,
+        'rank': 'lowest',
+    },
+    'pp_grunt_d': {
+        'name': 'Grunt',
+        'dinos': {0: ('Skolt', 19)},
+        'dialog': {
+            'default':  ["You shouldn't be here!"],
+            'defeated': ["Ugh... fine, go on."]
+        },
+        'directions': ['left'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 380,
+        'rank': 'lowest',
+    },
     'skyy': {
         'name': 'Skyy',
         'dinos': {0: ('Creuw', 13), 1: ('Netaslam', 14), 2: ('Luna', 16)},
@@ -922,10 +1009,10 @@ ENTRANCE_DATA = {
     # COBALT_CAVE4 <-> SHADOWHQ1
     'shadowhq1':    {'world': 'SHADOWHQ1.tmx',        'spawn': (9, 13)},
     'cobalt':       {'world': 'COBALT_CAVE.world',    'spawn': (-11, 5)},
-    # POWER_PLANT2 -> POWER_PLANT_IN1. POWER_PLANT_IN1/IN2/IN3 have no
-    # entrance_id/exit tiles of their own yet, so this is one-way for now —
-    # see note below.
-    'power':        {'world': 'POWER_PLANT_IN1.tmx',  'spawn': (9, 13)},
+    # POWER_PLANT2 -> POWERPLANT.world (POWER_PLANT_IN1/IN2/IN3 stitched into
+    # one continuous interior, same as COBALT_CAVE.world). No exit back to
+    # POWER_PLANT2 yet — one-way for now.
+    'power':        {'world': 'POWERPLANT.world',  'spawn': (9, 13)},
 
     # 'house_amber': {'world': 'HOUSE_AMBER.world',  'spawn': (3, 6)},
 }

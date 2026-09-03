@@ -185,6 +185,10 @@ NPC_SPRITE_KEY = {
     'pp_grunt1':     'enemy_male',
     'pp_grunt2':     'enemy_male',
     'pp_grunt3':     'enemy_male',
+    'pp_grunt_a':    'enemy_male',
+    'pp_grunt_b':    'enemy_male',
+    'pp_grunt_c':    'enemy_male',
+    'pp_grunt_d':    'enemy_male',
 }
 
 # Dialogue-box speaker portraits: the display name used in a dialogue tag
@@ -264,6 +268,10 @@ WORLD_NPCS = {
         ('gym2_trainer_c', 18, 11, 'left',  5, 'trainer'),
         ('gym2_trainer_d', 15, 4,  'up',    5, 'trainer'),
     ],
+    'POWERPLANT.world': [
+        ('pp_grunt_c', 14, 4, 'down', 5, 'trainer'),
+        ('pp_grunt_d', 33, 6, 'left', 5, 'trainer'),
+    ],
 }
 
 ENCOUNTER_BASE_SIZE = 150
@@ -305,6 +313,16 @@ ITEMS = {
         "icon": os.path.join(ITEMS_PATH, "repel.png"),
         "description": "Wards off lower-level dinos for 250 steps",
     },
+    "Revival Gem": {
+        "name": "Revival Gem",
+        "icon": os.path.join(ITEMS_PATH, "revival_gem.png"),
+        "description": "Revives a fainted Dino with half its max HP back",
+    },
+    "Mega Spray": {
+        "name": "Mega Spray",
+        "icon": os.path.join(ITEMS_PATH, "mega_heal.png"),
+        "description": "Heals a chosen Dino for 20 HP",
+    },
 }
 
 # Ball type -> icon path (used for heal animation and party display)
@@ -317,9 +335,11 @@ BALL_ICONS = {
 
 # Items available in the DinoMart shop
 SHOP_ITEMS = [
-    {'name': 'DinoPod',  'price': 500},
-    {'name': 'Whitepod', 'price': 1500},
-    {'name': 'Repel',    'price': 1000},
+    {'name': 'DinoPod',      'price': 500},
+    {'name': 'Whitepod',     'price': 1500},
+    {'name': 'Repel',        'price': 1000},
+    {'name': 'Mega Spray',   'price': 1500},
+    {'name': 'Revival Gem',  'price': 2000},
 ]
 
 # Ball pickups on map — Tiled object property "item" -> dino name

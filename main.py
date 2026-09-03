@@ -272,7 +272,7 @@ if __name__ == '__main__':
  # Cobalt Cave
  # Route 4.1
  # Connecting entrances and exits
- # ShadowHQ1
+ # ShadowHQ1  
  # Add map notations when crossing into cave and routes
 
 
@@ -287,3 +287,13 @@ if __name__ == '__main__':
 #9/1
 # 4 Trainers in Corn Maze
 # Route 3 - Lake Meridian, Cave Spawns - Power Plant SPAWNS
+
+#9/2
+# Inside power plant
+# Gray rival battle 2
+# Skyy and Abby at Power plant
+# no NIGHT mode during eclipse
+# make player take one step forward after exiting power plant for abby and skyy dialogue
+
+# 
+

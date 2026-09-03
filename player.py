@@ -84,6 +84,10 @@ class Player(pygame.sprite.Sprite):
                 self.check_for_encounter(game)
                 self.check_for_entrance(game)
                 self.check_for_zone_banner(game)
+                if (getattr(game, 'pending_pp_exit_reveal', False)
+                        and game.state_stack[-1] == 'world' and not game.cutscene):
+                    game.pending_pp_exit_reveal = False
+                    game._start_pp_exit_reveal_cutscene()
             return
 
         if self.turn_timer > 0:
