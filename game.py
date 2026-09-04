@@ -751,7 +751,12 @@ class Game:
                             })
                             msgs.append(f"{dino['name']} learned {move_name}!")
                         else:
-                            msgs.append(f"{dino['name']} can learn {move_name}! Manage moves in the party screen.")
+                            # Its 4 active slots are already full — the move is
+                            # known but not battle-ready. Easy to miss as just
+                            # another line of level-up text, so give it its
+                            # own emphatic, separately-dismissed message.
+                            msgs.append(f">> {dino['name']} can learn {move_name}! <<")
+                            msgs.append(f"It already knows 4 moves - visit the Party screen to swap {move_name} in.")
         return msgs
 
     # --- Battle helpers: effective stats / move abilities / field effects ---
@@ -991,6 +996,23 @@ class Game:
 
     # --- Encounter ---
 
+    def _first_alive_dino_index(self):
+        """Which party slot a new single battle should open on. Defaults to
+        0 like before, but if the front dino is already fainted from an
+        earlier fight, skip straight to the first one that isn't instead of
+        opening on a dead dino and immediately forcing a "choose a
+        replacement" prompt the player never gets to bypass."""
+        return next((i for i, d in enumerate(self.player_dinos) if d.get('hp', 0) > 0), 0)
+
+    def _battle_bg_override(self):
+        """Cobalt Cave gets its own encounter/battle background instead of
+        the default grass art, for every wild and trainer battle fought
+        anywhere inside it (COBALT_CAVE.world covers the whole cave, every
+        sub-room included)."""
+        if self.current_world_file == 'COBALT_CAVE.world':
+            return config.CAVE_ENCOUNTER_BG_PATH
+        return None
+
     def get_player_zone(self, player_x, player_y):
         # ZONE_REGIONS is authored entirely in LOST_REGION.world's global
         # tile-coordinate space (Route 1, Route 2, Corn Maze, ...). Every
@@ -1029,12 +1051,8 @@ class Game:
                 return  # nothing available right now (e.g. a night-only zone by day)
             level = random.randint(*zone_data["level_range"])
 
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
-        self.player.pos_x = float(self.player.rect.x)
-        self.player.pos_y = float(self.player.rect.y)
-        self.active_dino_index = 0
+        self.player.freeze_in_place()
+        self.active_dino_index = self._first_alive_dino_index()
         self.fading = True
         self.fade_alpha = 0
 
@@ -1045,7 +1063,7 @@ class Game:
         self.dinos_seen.add(dino_key)
         self.encounter_ui = EncounterUI(self.fonts)
         self.encounter_text = f"A wild {dino_key} appeared!"
-        self.encounter = Encounter(self.fonts, dino_key)
+        self.encounter = Encounter(self.fonts, dino_key, bg_path=self._battle_bg_override())
 
         now = pygame.time.get_ticks()
         frames = self.dino_frames.get(self.enemy_dino['name'], [self.enemy_dino['image']])
@@ -1065,12 +1083,8 @@ class Game:
         # already-starting battle's state mid-transition.
         if self.is_trainer_battle:
             return
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
-        self.player.pos_x = float(self.player.rect.x)
-        self.player.pos_y = float(self.player.rect.y)
-        self.active_dino_index = 0
+        self.player.freeze_in_place()
+        self.active_dino_index = self._first_alive_dino_index()
         self.fading = True
         self.fade_alpha = 0
         self.is_trainer_battle = True
@@ -1122,7 +1136,7 @@ class Game:
         self.encounter_ui = EncounterUI(self.fonts)
         trainer_name = TRAINER_DATA.get(npc.trainer_id, {}).get('name', 'Trainer')
         self.encounter_text = f"{trainer_name} sent out {dino_name}!"
-        self.encounter = Encounter(self.fonts, dino_name)
+        self.encounter = Encounter(self.fonts, dino_name, bg_path=self._battle_bg_override())
 
         now = pygame.time.get_ticks()
         frames = self.dino_frames.get(dino_name, [self.enemy_dino['image']])
@@ -1200,11 +1214,7 @@ class Game:
         p.image = p.animations[p.direction][1]
 
     def start_double_trainer_battle(self, npc1, npc2):
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
-        self.player.pos_x = float(self.player.rect.x)
-        self.player.pos_y = float(self.player.rect.y)
+        self.player.freeze_in_place()
         self.fading = True
         self.fade_alpha = 0
         self.is_trainer_battle = True
@@ -1233,7 +1243,7 @@ class Game:
 
         self.encounter_ui   = DoubleBattleUI(self.fonts)
         self.encounter_text = f"Double Battle! {n1} and {n2}!"
-        self.encounter      = DoubleBattleEncounter(self.fonts, n1, n2)
+        self.encounter      = DoubleBattleEncounter(self.fonts, n1, n2, bg_path=self._battle_bg_override())
 
         now    = pygame.time.get_ticks()
         frames = self.dino_frames.get(n1, [self.enemy_dino['image']])
@@ -1893,9 +1903,7 @@ class Game:
         self.entrance_pending = (entrance_id, tile_x, tile_y)
         self.entrance_fade_state = 'out'
         self.fade_alpha = 0
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
+        self.player.freeze_in_place()
 
     def _do_entrance_teleport(self, pending):
         entrance_id, tile_x, tile_y = pending
@@ -1935,9 +1943,7 @@ class Game:
         self.entrance_pending = '__exit__'
         self.entrance_fade_state = 'out'
         self.fade_alpha = 0
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
+        self.player.freeze_in_place()
 
     def _do_exit_teleport(self):
         if not self.world_stack:
@@ -1986,7 +1992,7 @@ class Game:
         self.encounter_ui.in_fight_menu = False
         self.encounter_ui.xp_frozen = True
         self.encounter_text = f"{self._trainer_name} sent out {dino_name}!"
-        self.encounter = Encounter(self.fonts, dino_name)
+        self.encounter = Encounter(self.fonts, dino_name, bg_path=self._battle_bg_override())
         now = pygame.time.get_ticks()
         frames = self.dino_frames.get(dino_name, [self.enemy_dino['image']])
         self.encounter.current_dino_surface = frames[0]
@@ -2105,10 +2111,8 @@ class Game:
         self._start_gym2_corn_maze_cutscene()
 
     def _start_gym2_corn_maze_cutscene(self):
-        self.player.moving = False
+        self.player.freeze_in_place()
         self.player.current_move_speed = self.player.move_speed  # force normal (non-sprint) pace
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
 
         # Spawn everyone up front so the whole scene is already there to see
         # while the player walks up to it, instead of popping in mid-dialogue.
@@ -2372,9 +2376,7 @@ class Game:
         self._start_route26_abby_cutscene()
 
     def _start_route26_abby_cutscene(self):
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
+        self.player.freeze_in_place()
         sx, sy = self.ABBY_SPAWN_TILE
         abby = NPC('abby', tile_x=sx, tile_y=sy, facing='down', sight_range=0, npc_type='story')
         self.npcs.append(abby)
@@ -2695,12 +2697,8 @@ class Game:
             self.cutscene = None
             return
         self.cutscene = None
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
-        self.player.pos_x = float(self.player.rect.x)
-        self.player.pos_y = float(self.player.rect.y)
-        self.active_dino_index = 0
+        self.player.freeze_in_place()
+        self.active_dino_index = self._first_alive_dino_index()
         self.fading = True
         self.fade_alpha = 0
         self.is_trainer_battle = True
@@ -2727,7 +2725,7 @@ class Game:
 
         self.encounter_ui   = DoubleBattleUI(self.fonts)
         self.encounter_text = f"Vanessa sent out {n1} and {n2}!"
-        self.encounter      = DoubleBattleEncounter(self.fonts, n1, n2)
+        self.encounter      = DoubleBattleEncounter(self.fonts, n1, n2, bg_path=self._battle_bg_override())
 
         now    = pygame.time.get_ticks()
         frames = self.dino_frames.get(n1, [self.enemy_dino['image']])
@@ -3590,9 +3588,7 @@ class Game:
         self._start_gray2_route3_cutscene()
 
     def _start_gray2_route3_cutscene(self):
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
+        self.player.freeze_in_place()
         px = self.player.rect.x // config.TILE_SIZE
         py = self.player.rect.y // config.TILE_SIZE
 
@@ -3667,9 +3663,7 @@ class Game:
         self._start_skyy_powerplant_cutscene()
 
     def _start_skyy_powerplant_cutscene(self):
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
+        self.player.freeze_in_place()
         px = self.player.rect.x // config.TILE_SIZE
         py = self.player.rect.y // config.TILE_SIZE
 
@@ -3998,6 +3992,11 @@ class Game:
             return
         if self.story_flags.get('skyy_disruption_line_done') or self.cutscene:
             return
+        # Once the grunt pair is actually defeated, the disruption they
+        # caused is already stopped — this "we must stop this" bark no
+        # longer makes sense and shouldn't fire at all from that point on.
+        if self.story_flags.get('pp_grunts2_done'):
+            return
         if self.current_world_file != 'LOST_REGION.world':
             return
         if self.fading or self.message_box.visible:
@@ -4071,9 +4070,7 @@ class Game:
         self._start_pp_grunts2_scene()
 
     def _start_pp_grunts2_scene(self):
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
+        self.player.freeze_in_place()
 
         # Both inert (npc_type='story') until the intro finishes — grunt A
         # only turns into a real challengeable 'trainer' once camera control
@@ -4147,9 +4144,7 @@ class Game:
         self._start_pp_grunt_a_walkup(ga)
 
     def _start_pp_grunt_a_walkup(self, ga):
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
+        self.player.freeze_in_place()
         px = self.player.rect.x // config.TILE_SIZE
         py = self.player.rect.y // config.TILE_SIZE
         self.cutscene = {'phase': 'pp_grunt_a_walkup', 'npc1': ga, 'walk_target': (px, py - 1)}
@@ -4279,9 +4274,7 @@ class Game:
                 and 'pp_grunt_d' in self.defeated_trainers)
 
     def _start_pp_exit_reveal_cutscene(self):
-        self.player.moving = False
-        self.player.target_x = self.player.rect.x
-        self.player.target_y = self.player.rect.y
+        self.player.freeze_in_place()
 
         # Skyy should always already be here by this point (_pp_all_battles_done
         # requires pp_grunts2_done, which can't be true until powerplant_skyy_reveal_done
@@ -4295,9 +4288,11 @@ class Game:
             skyy.block_dialog = ["Go on, I've got this handled!"]
             self.npcs.append(skyy)
             self.solid_tile_coords.add((-19, -47))
-        abby = NPC('abby', tile_x=-18, tile_y=-47, facing='down', sight_range=0, npc_type='story')
+        # Already standing right next to Skyy, facing him (he's one tile to
+        # her left), instead of walking up to him mid-scene.
+        abby = NPC('abby', tile_x=-18, tile_y=-47, facing='left', sight_range=0, npc_type='story')
         abby.state = 'idle'
-        abby.home_tile, abby.home_facing = (-18, -47), 'down'
+        abby.home_tile, abby.home_facing = (-18, -47), 'left'
         self.npcs.append(abby)
         self.solid_tile_coords.add((-18, -47))
 
@@ -4606,6 +4601,18 @@ class Game:
                     self.message_box.handle_event(event)
                 return
 
+            # Between "gained XP!" and the rest of the win sequence, we're
+            # waiting in real time for the XP bar to finish filling (see
+            # EncounterUI.is_xp_animating / skip_xp_animation) — nothing
+            # else is actionable here, so let a keypress instantly finish
+            # it instead of leaving the player watching a silent screen for
+            # however long a big XP gain (or several stacked level-ups)
+            # takes to animate at its normal pace.
+            if (event.type == pygame.KEYDOWN and getattr(self, '_post_xp_callback', None)
+                    and hasattr(self, 'encounter_ui')):
+                self.encounter_ui.skip_xp_animation()
+                return
+
             # Block encounter actions while HP bars animate
             if ('encounter' in self.state_stack and hasattr(self, 'encounter_ui') and
                     self.encounter_ui.is_hp_animating(
@@ -4631,8 +4638,12 @@ class Game:
                     if result == 'back':
                         self.pop_state()
                         self.move_info_screen = None
-                        self.encounter_ui.move_selected = 0
-                        self.encounter_ui.show_move_info = False
+                        # Move Info can be opened from the Party screen either
+                        # mid-battle or from the overworld menu — encounter_ui
+                        # only exists once a battle has actually started.
+                        if hasattr(self, 'encounter_ui'):
+                            self.encounter_ui.move_selected = 0
+                            self.encounter_ui.show_move_info = False
 
             elif self.state == 'dinodex':
                 result = self.dinodex_screen.handle_event(event, self)

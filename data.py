@@ -176,7 +176,7 @@ TRAINER_DATA = {
     },
     'gray': {
         'name': 'Gray',
-        'dinos': {0: ('Prowscar', 7), 1: ('Sortle', 9)},
+        'dinos': {0: ('Prowscar', 7), 1: ('Netaslam', 9)},
         'dialog': {
             'default':  [
                 "It's been awhile Jet, I am ready to start this journey and get stronger,",
@@ -199,7 +199,7 @@ TRAINER_DATA = {
         # counter-starter trick as his first battle (see _maybe_add_gray_rival
         # / override_first_dino), just the evolved form at level 21 this time.
         'name': 'Gray',
-        'dinos': {0: ('Chomper', 18), 1: ('Prowscar', 19), 2: ('Sortle', 20)},
+        'dinos': {0: ('Skolt', 18), 1: ('Rhysnow', 19), 2: ('Netyrant', 22)},
         'dialog': {
             'default':  [
                 "Jet! Wait up!",
@@ -618,7 +618,7 @@ DINO_DATA = {
         'evolve': None},
     'Volkit': {
         'stats': {'type': ['magma'], 'health': 62, 'attack': 95, 'defense': 68, 'speed': 75},
-        'moves': {0: 'Fireball+', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear'},
+        'moves': {0: 'Fireball+', 1: 'Arise', 6: 'Flash', 8: 'Quick Slash', 12: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear', 24: 'Piercing Light', 27: 'Lava Burst', 31: 'Crusher' , 35: 'Magma Boost', 39: 'Solar Flare'},
         'evolve': {19: 'Tygraflare'}},
     'Drafyton': {
         'stats': {'type': ['ancient', 'flying'], 'health': 100, 'attack': 155, 'defense': 125, 'speed': 120},
@@ -638,7 +638,7 @@ DINO_DATA = {
         'evolve': None},
     'Tygraflare': {
         'stats': {'type': ['magma'], 'health': 95, 'attack': 137, 'defense': 95, 'speed': 128},
-        'moves': {0: 'Fireball+', 1: 'Arise', 6: 'Flash', 10: 'Quick Slash', 14: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear', 24: 'Piercing Light', 27: 'Lava Burst', 31: 'Crusher' , 35: 'Magma Boost', 39: 'Solar Flare'},
+        'moves': {0: 'Fireball+', 1: 'Arise', 6: 'Flash', 8: 'Quick Slash', 12: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear', 24: 'Piercing Light', 27: 'Lava Burst', 31: 'Crusher' , 35: 'Magma Boost', 39: 'Solar Flare'},
         'evolve': None},
     'Bouldava': {
         'stats': {'type': ['rock', 'magma'], 'health': 120, 'attack': 105, 'defense': 135, 'speed': 80},

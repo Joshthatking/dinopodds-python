@@ -44,10 +44,11 @@ def wrap_text(text, font, max_width):
 
 # === Encounter Background ===
 class Encounter:
-    def __init__(self, fonts, dino_key="default"):
+    def __init__(self, fonts, dino_key="default", bg_path=None):
         self.fonts = fonts
         self.dino_key = dino_key
-        self.bg = load_image(config.ENCOUNTER_BG_PATH)
+        raw_bg = load_image(bg_path or config.ENCOUNTER_BG_PATH)
+        self.bg = pygame.transform.scale(raw_bg, (config.WIDTH, config.HEIGHT))
         self.frames = []
         if dino_key in config.ENCOUNTER_DINOS_PATHS:
             self.frames.append(load_image(config.ENCOUNTER_DINOS_PATHS[dino_key], alpha=True))
@@ -71,9 +72,10 @@ class Encounter:
 class DoubleBattleEncounter:
     """Background + two side-by-side enemy sprites for double trainer battles."""
 
-    def __init__(self, fonts, dino1_key, dino2_key):
+    def __init__(self, fonts, dino1_key, dino2_key, bg_path=None):
         self.fonts = fonts
-        self.bg = load_image(config.DOUBLE_BATTLE_BG_PATH)
+        raw_bg = load_image(bg_path or config.DOUBLE_BATTLE_BG_PATH)
+        self.bg = pygame.transform.scale(raw_bg, (config.WIDTH, config.HEIGHT))
         self.frame1 = (load_image(config.ENCOUNTER_DINOS_PATHS[dino1_key], alpha=True)
                        if dino1_key in config.ENCOUNTER_DINOS_PATHS else None)
         self.frame2 = (load_image(config.ENCOUNTER_DINOS_PATHS[dino2_key], alpha=True)
@@ -584,6 +586,18 @@ class EncounterUI:
         if self._xp_target is None or self.xp_display is None:
             return False
         return abs(self.xp_display - self._xp_target) > 0.005
+
+    def skip_xp_animation(self):
+        """Snap the XP bar straight to its target. The rest of the win
+        sequence (trainer-defeated, coin reward, any post-battle dialogue
+        or cutscene) is gated behind is_xp_animating() returning False, so
+        at _xp_speed's real-time pace a big XP gain — or several level-ups
+        stacked from one battle, each restarting the fill from empty — can
+        stall that gate for a long time with nothing visibly prompting the
+        player to wait it out. Letting a keypress instantly finish it
+        mirrors the message box's own "press to reveal the rest" shortcut."""
+        if self._xp_target is not None:
+            self.xp_display = self._xp_target
 
     def show_level_up(self, dino, old_stats, new_stats):
         self.level_up_popup = LevelUpPopup(dino, old_stats, new_stats)

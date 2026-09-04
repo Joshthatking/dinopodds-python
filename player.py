@@ -37,6 +37,27 @@ class Player(pygame.sprite.Sprite):
         self.turn_timer = 0.0
         self.turn_delay = 0.08
         self.forced_move = False
+        self._was_frozen = False
+
+    def freeze_in_place(self):
+        """Stop any in-progress slide and snap cleanly onto the nearest
+        tile. Used by every scripted cutscene/trigger that seizes control
+        of the player. Many of those triggers fire the instant the player
+        crosses into a tile (via rect.x // TILE_SIZE), which can happen
+        mid-slide, before that step has actually finished — freezing at
+        the exact current pixel position in that case leaves the player
+        visually off-tile for the whole cutscene, and every
+        facing-plus-one-tile check afterward (pickup_item, interact_with_npc,
+        entrance/exit tiles) computes the wrong tile relative to where the
+        sprite is actually drawn."""
+        ts = self.tile_size
+        self.rect.x = round(self.rect.x / ts) * ts
+        self.rect.y = round(self.rect.y / ts) * ts
+        self.target_x = self.rect.x
+        self.target_y = self.rect.y
+        self.pos_x = float(self.rect.x)
+        self.pos_y = float(self.rect.y)
+        self.moving = False
 
     def _snap_to_tile(self):
         """Instantly finish the current slide onto its destination tile.
@@ -60,25 +81,34 @@ class Player(pygame.sprite.Sprite):
         self.image = self.animations[self.direction][0]
 
     def update(self, keys, game, dt):
-        if getattr(game, 'cutscene', None):
-            self._snap_to_tile()
+        frozen = (
+            getattr(game, 'cutscene', None) is not None
+            or any(getattr(n, 'npc_type', '') == 'guard' and n.state in ('approaching', 'returning')
+                   for n in getattr(game, 'npcs', []))
+            or game.state_stack[-1] != 'world'
+            or (game.message_box and game.message_box.visible)
+            or getattr(game, 'heal_anim', None)
+            or getattr(game, 'yes_no_prompt', None)
+            or any(npc.state in ('spotted', 'walking') for npc in getattr(game, 'npcs', []))
+            or getattr(game, 'forced_walk_npc', None)
+        )
+        if frozen:
+            # Only snap on the frame something *newly* freezes control, not
+            # every frame it stays frozen — a cutscene (a guided walk like
+            # Abby's or Skyy's escort, in particular) can keep game.cutscene
+            # set for many seconds while it deliberately slides the player
+            # itself, frame by frame, via its own code. Snapping every one
+            # of those frames would instantly finish each step the moment
+            # it starts, before it can visibly slide at all — the player
+            # would look like it's teleporting tile-to-tile instead of
+            # walking. Snapping only on the transition still fixes the
+            # original problem (control seized away mid-step from normal
+            # WASD movement) without fighting a cutscene's own animation.
+            if not self._was_frozen:
+                self._snap_to_tile()
+            self._was_frozen = True
             return
-        if any(getattr(n, 'npc_type', '') == 'guard' and n.state in ('approaching', 'returning')
-               for n in getattr(game, 'npcs', [])):
-            self._snap_to_tile()
-            return
-        if (game.state_stack[-1] != 'world' or
-                (game.message_box and game.message_box.visible) or
-                getattr(game, 'heal_anim', None) or
-                getattr(game, 'yes_no_prompt', None)):
-            self._snap_to_tile()
-            return
-        if any(npc.state in ('spotted', 'walking') for npc in getattr(game, 'npcs', [])):
-            self._snap_to_tile()
-            return
-        if getattr(game, 'forced_walk_npc', None):
-            self._snap_to_tile()
-            return
+        self._was_frozen = False
 
         if self.moving:
             step = self.current_move_speed * dt
