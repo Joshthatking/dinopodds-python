@@ -23,6 +23,13 @@ GOURDECRUX_TOMB_TILES = {
 }
 GOURDECRUX_TOMB_CENTER = (125, -67)
 
+# LAKE_MERIDIAN7's statue (world tile coords) — the interactable monument
+# tiles are Base1.tsx ids 209/210/217/218, tagged interact=true.
+LAKE_MERIDIAN_PROPHECY_TILES = {
+    (3, -101), (4, -101),
+    (3, -100), (4, -100),
+}
+
 
 class Game:
     def __init__(self):
@@ -61,7 +68,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -1937,6 +1944,16 @@ class Game:
     def trigger_exit(self):
         if self.entrance_fade_state is not None:
             return
+        # Can't leave the Power Plant while the elite grunt pair inside
+        # POWER_PLANT_IN3 is still unresolved.
+        if (self.current_world_file == 'POWERPLANT.world'
+                and self.story_flags.get('pp_grunts2_started')
+                and not self.story_flags.get('pp_grunts2_done')
+                and not self.message_box.visible):
+            self.message_box.queue_messages(
+                self._tag_dialogue('Skyy', ["We can't leave yet — not until we deal with those two!"]),
+                wait_for_input=True)
+            return
         _home_maps = ('HOME_JET2.tmx', 'HOME_JET.tmx')
         if not self.world_stack and self.current_world_file not in _home_maps:
             return
@@ -1973,8 +1990,10 @@ class Game:
             self.route_banner.show(banner_name)
         if (prev.get('entrance_id') == 'power' and self._pp_all_battles_done()
                 and not self.story_flags.get('pp_eclipse_reveal_done')):
-            # Don't fire immediately — wait until the player takes one more
-            # step in the overworld (see Player.update's step-complete block).
+            self._pp_setup_reveal_npcs()
+            # Dialogue itself still doesn't fire immediately — wait until
+            # the player takes one more step in the overworld (see
+            # Player.update's step-complete block).
             self.pending_pp_exit_reveal = True
 
     @property
@@ -2991,6 +3010,14 @@ class Game:
         if c['phase'] == 'abby_departing':
             self._update_abby_departing(dt)
             return
+        if c['phase'] == 'shadow_confrontation_wait':
+            return  # generic no-op wait, no npc needed
+        if c['phase'] == 'shadow_confrontation_walk':
+            self._update_shadow_confrontation_walk(dt)
+            return
+        if c['phase'] == 'shadow_confrontation_splitup':
+            self._update_shadow_confrontation_splitup(dt)
+            return
         npc = c['npc']
 
         # Always advance NPC slide first
@@ -3919,8 +3946,10 @@ class Game:
         the Power Plant entrance after a world reload. pp_grunt1/pp_grunt2
         are deliberately NOT included — they're consumed by the double
         battle and walk off for good afterward, so they must never respawn.
-        Skyy himself stops being re-added once pp_eclipse_reveal_done — he
-        and Abby leave for Cobalt Cave for good at the end of that scene."""
+        pp_grunt3 stops being re-added once pp_reveal_npcs_ready (removed
+        for good at exit-teleport time — see _pp_setup_reveal_npcs). Skyy
+        stops being re-added once pp_eclipse_reveal_done — he and Abby leave
+        for Cobalt Cave for good at the end of that scene."""
         if not self.story_flags.get('powerplant_skyy_reveal_done'):
             return
         if self.current_world_file != 'LOST_REGION.world':
@@ -3928,9 +3957,9 @@ class Game:
         if self.cutscene:
             return
         present = {getattr(n, 'trainer_id', '') for n in self.npcs}
-        specs = [
-            ('pp_grunt3', -22, -48, 'right', ["Don't worry about us.", "Get out of here, kid."]),
-        ]
+        specs = []
+        if not self.story_flags.get('pp_reveal_npcs_ready'):
+            specs.append(('pp_grunt3', -22, -48, 'right', ["Don't worry about us.", "Get out of here, kid."]))
         if not self.story_flags.get('pp_eclipse_reveal_done'):
             specs.insert(0, ('skyy', -19, -47, 'right', ["Go on, I've got this handled!"]))
         for trainer_id, tx, ty, facing, dialog in specs:
@@ -4269,17 +4298,52 @@ class Game:
 
     # ── Power Plant exit reveal — Abby & Skyy warn of the forced eclipse ──
     def _pp_all_battles_done(self):
-        return (self.story_flags.get('pp_grunts2_done', False)
-                and 'pp_grunt_c' in self.defeated_trainers
-                and 'pp_grunt_d' in self.defeated_trainers)
+        # Only the elite pair inside POWER_PLANT_IN3 (pp_grunt_a/pp_grunt_b,
+        # tracked via pp_grunts2_done) gates the Abby reveal now — pp_grunt_c
+        # and pp_grunt_d (elsewhere in the building) are optional.
+        return self.story_flags.get('pp_grunts2_done', False)
+
+    def _pp_setup_reveal_npcs(self):
+        """Remove the outside grunt and get Skyy + Abby standing together
+        by the exit — done at exit-teleport time, the instant the player is
+        back in the overworld, rather than waiting on the one-more-step
+        dialogue delay. That way nothing pops in: the scene already looks
+        finished the moment it's visible, and only the dialogue itself
+        waits for that extra step (see Player's step-complete block /
+        pending_pp_exit_reveal)."""
+        if self.story_flags.get('pp_reveal_npcs_ready'):
+            return
+        self.story_flags['pp_reveal_npcs_ready'] = True
+
+        pp_grunt3 = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'pp_grunt3'), None)
+        if pp_grunt3 is not None:
+            self.solid_tile_coords.discard((pp_grunt3.tile_x, pp_grunt3.tile_y))
+            self.npcs.remove(pp_grunt3)
+
+        present = {getattr(n, 'trainer_id', '') for n in self.npcs}
+        if 'skyy' not in present:
+            skyy = NPC('skyy', tile_x=-19, tile_y=-47, facing='right', sight_range=0, npc_type='guard')
+            skyy.state = 'idle'
+            skyy.home_tile, skyy.home_facing = (-19, -47), 'right'
+            skyy.block_dialog = ["Go on, I've got this handled!"]
+            self.npcs.append(skyy)
+            self.solid_tile_coords.add((-19, -47))
+        if 'abby' not in present:
+            # Already standing right next to Skyy, facing him (he's one
+            # tile to her left), instead of walking up to him mid-scene.
+            abby = NPC('abby', tile_x=-18, tile_y=-47, facing='left', sight_range=0, npc_type='story')
+            abby.state = 'idle'
+            abby.home_tile, abby.home_facing = (-18, -47), 'left'
+            self.npcs.append(abby)
+            self.solid_tile_coords.add((-18, -47))
 
     def _start_pp_exit_reveal_cutscene(self):
         self.player.freeze_in_place()
 
-        # Skyy should always already be here by this point (_pp_all_battles_done
-        # requires pp_grunts2_done, which can't be true until powerplant_skyy_reveal_done
-        # already spawned him persistently) — falls back to spawning him fresh
-        # at his usual post just in case.
+        # Both should already be here — _pp_setup_reveal_npcs ran at
+        # exit-teleport time. Fallback spawn just in case something
+        # unusual happened (e.g. this got reached without going through
+        # the normal exit path).
         skyy = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'skyy'), None)
         if skyy is None:
             skyy = NPC('skyy', tile_x=-19, tile_y=-47, facing='right', sight_range=0, npc_type='guard')
@@ -4288,13 +4352,13 @@ class Game:
             skyy.block_dialog = ["Go on, I've got this handled!"]
             self.npcs.append(skyy)
             self.solid_tile_coords.add((-19, -47))
-        # Already standing right next to Skyy, facing him (he's one tile to
-        # her left), instead of walking up to him mid-scene.
-        abby = NPC('abby', tile_x=-18, tile_y=-47, facing='left', sight_range=0, npc_type='story')
-        abby.state = 'idle'
-        abby.home_tile, abby.home_facing = (-18, -47), 'left'
-        self.npcs.append(abby)
-        self.solid_tile_coords.add((-18, -47))
+        abby = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'abby'), None)
+        if abby is None:
+            abby = NPC('abby', tile_x=-18, tile_y=-47, facing='left', sight_range=0, npc_type='story')
+            abby.state = 'idle'
+            abby.home_tile, abby.home_facing = (-18, -47), 'left'
+            self.npcs.append(abby)
+            self.solid_tile_coords.add((-18, -47))
 
         self.cutscene = {'phase': 'pp_grunts2_wait'}  # generic no-op wait
         self.message_box.queue_messages(
@@ -4375,6 +4439,225 @@ class Game:
                     self.npcs.remove(npc)
             self.story_flags['pp_eclipse_reveal_done'] = True
             self.cutscene = None
+
+    # ── Shadow Group Confrontation — Cobalt Cave, right after the Power
+    # Plant Takedown. Abby, Skyy and Gray are already standing in
+    # COBALT_CAVE1 the moment the player walks in; crossing either of two
+    # tiles just inside the room forces the player to walk up to the group
+    # before the scene plays. ─────────────────────────────────────────────
+    SHADOW_CONFRONTATION_NPC_SPAWNS = {
+        'abby': (4, 12, 'right'),
+        'gray': (9, 15, 'up'),
+        'skyy': (6, 10, 'down'),
+    }
+    SHADOW_CONFRONTATION_TRIGGER_TILES = {(15, y) for y in range(4, 10)}  # (15,4)..(15,9) inclusive
+    SHADOW_CONFRONTATION_PLAYER_TARGET = (9, 12)
+    GRAY_SHADOW_HQ_GUARD_POST  = (-33, 41)
+    ABBY_SHADOW_HQ_GUARD_POST  = (17, 6)
+
+    def _maybe_add_shadow_confrontation_npcs(self):
+        """Keeps Abby/Skyy/Gray persistent across a world reload, matching
+        whichever stage of the confrontation the player last left it at."""
+        if not self.story_flags.get('pp_eclipse_reveal_done'):
+            return
+        if self.current_world_file != 'COBALT_CAVE.world':
+            return
+        if self.cutscene:
+            return
+        present = {getattr(n, 'trainer_id', '') for n in self.npcs}
+
+        if self.story_flags.get('shadow_confrontation_done'):
+            specs = [
+                ('gray', *self.GRAY_SHADOW_HQ_GUARD_POST, 'down',
+                 ["I'm watching this passage - go help Skyy find Curfeu!"], 'guard'),
+                ('abby', *self.ABBY_SHADOW_HQ_GUARD_POST, 'down',
+                 ["I've got this entrance covered. Go help Curfeu!"], 'guard'),
+                ('skyy', 6, 10, 'down', None, 'story'),
+            ]
+        else:
+            # A save/reload mid-scene (cutscene is None here, so it can't be
+            # mid-dialogue/mid-walk right now) leaves 'started' stuck True
+            # without ever finishing — reset it so the trigger can fire again.
+            self.story_flags['shadow_confrontation_started'] = False
+            specs = [(tid, tx, ty, facing, None, 'story')
+                     for tid, (tx, ty, facing) in self.SHADOW_CONFRONTATION_NPC_SPAWNS.items()]
+
+        for trainer_id, tx, ty, facing, dialog, npc_type in specs:
+            if trainer_id in present:
+                continue
+            npc = NPC(trainer_id, tile_x=tx, tile_y=ty, facing=facing,
+                      sight_range=0, npc_type=npc_type)
+            npc.state = 'idle'
+            npc.home_tile, npc.home_facing = (tx, ty), facing
+            if dialog:
+                npc.block_dialog = dialog
+            self.npcs.append(npc)
+            self.solid_tile_coords.add((tx, ty))
+
+    def _check_shadow_confrontation_trigger(self):
+        if not self.story_flags.get('pp_eclipse_reveal_done'):
+            return
+        if self.story_flags.get('shadow_confrontation_started') or self.cutscene:
+            return
+        if self.current_world_file != 'COBALT_CAVE.world':
+            return
+        if self.fading or self.message_box.visible:
+            return
+        tx = self.player.rect.x // config.TILE_SIZE
+        ty = self.player.rect.y // config.TILE_SIZE
+        if (tx, ty) not in self.SHADOW_CONFRONTATION_TRIGGER_TILES:
+            return
+        self.story_flags['shadow_confrontation_started'] = True
+        self.player.freeze_in_place()
+        self.cutscene = {'phase': 'shadow_confrontation_walk',
+                          'walk_target': self.SHADOW_CONFRONTATION_PLAYER_TARGET}
+
+    def _update_shadow_confrontation_walk(self, dt):
+        """Force-walks the player (input fully blocked by self.cutscene
+        being set) one tile at a time toward the target, same solid-ignoring
+        approach as every other scripted walk this session — a stray rock
+        along the path must never be able to soft-lock the scene."""
+        c = self.cutscene
+        p = self.player
+        if p.moving:
+            step = p.move_speed * dt
+            if p.pos_x < p.target_x:   p.pos_x = min(p.pos_x + step, p.target_x)
+            elif p.pos_x > p.target_x: p.pos_x = max(p.pos_x - step, p.target_x)
+            if p.pos_y < p.target_y:   p.pos_y = min(p.pos_y + step, p.target_y)
+            elif p.pos_y > p.target_y: p.pos_y = max(p.pos_y - step, p.target_y)
+            p.rect.x = round(p.pos_x)
+            p.rect.y = round(p.pos_y)
+            p.anim_timer += dt
+            if p.anim_timer >= 0.08:
+                p.anim_timer = 0.0
+                p.anim_index = (p.anim_index + 1) % 4
+                p.image = p.animations[p.direction][p.anim_index]
+            if p.rect.x == p.target_x and p.rect.y == p.target_y:
+                p.moving = False
+                p.anim_index = 0
+                p.image = p.animations[p.direction][0]
+            return
+
+        tx, ty = c['walk_target']
+        px, py = p.rect.x // config.TILE_SIZE, p.rect.y // config.TILE_SIZE
+        if (px, py) == (tx, ty):
+            p.facing = p.direction = 'left'
+            p.image = p.animations['left'][0]
+            self._start_shadow_confrontation_dialogue()
+            return
+        dx, dy = tx - px, ty - py
+        if abs(dx) >= abs(dy) and dx != 0:
+            sx, sy = (1 if dx > 0 else -1), 0
+        elif dy != 0:
+            sx, sy = 0, (1 if dy > 0 else -1)
+        else:
+            return
+        d = {(1, 0): 'right', (-1, 0): 'left', (0, 1): 'down', (0, -1): 'up'}[(sx, sy)]
+        p.facing = p.direction = d
+        p.target_x = float((px + sx) * config.TILE_SIZE)
+        p.target_y = float((py + sy) * config.TILE_SIZE)
+        p.pos_x = float(p.rect.x)
+        p.pos_y = float(p.rect.y)
+        p.moving = True
+
+    def _start_shadow_confrontation_dialogue(self):
+        self.cutscene = {'phase': 'shadow_confrontation_wait'}  # generic no-op wait
+        gray = next(n for n in self.npcs if getattr(n, 'trainer_id', '') == 'gray')
+        skyy = next(n for n in self.npcs if getattr(n, 'trainer_id', '') == 'skyy')
+        abby = next(n for n in self.npcs if getattr(n, 'trainer_id', '') == 'abby')
+        self.message_box.queue_messages(
+            self._tag_dialogue('Gray', [
+                "I was on my way to challenge gym 3 but then I saw Curfeu battling a bunch of grunts in the cave.",
+                "He seemed concerned... and he continued onward into their makeshift base to confront the leaders by himself.",
+            ]),
+            wait_for_input=True,
+            on_complete=lambda: self._shadow_confrontation_skyy_line(gray, skyy, abby)
+        )
+
+    def _shadow_confrontation_skyy_line(self, gray, skyy, abby):
+        self.message_box.queue_messages(
+            self._tag_dialogue('Skyy', [
+                "We need to help him, I am sure he can handle the grunts on his own since he is the strongest gym leader of our region.",
+                "Though the leaders of the Shadow Group are tough.",
+            ]),
+            wait_for_input=True,
+            on_complete=lambda: self._shadow_confrontation_abby_line(gray, skyy, abby)
+        )
+
+    def _shadow_confrontation_abby_line(self, gray, skyy, abby):
+        self.message_box.queue_messages(
+            self._tag_dialogue('Abby', [
+                "I can handle any backups that try to come inside the cave.",
+                "Gray, watch the other entrance of the cave while I stay here.",
+                "Skyy and Josh, go support Curfeu.",
+            ]),
+            wait_for_input=True,
+            on_complete=lambda: self._start_shadow_confrontation_splitup(gray, skyy, abby)
+        )
+
+    def _start_shadow_confrontation_splitup(self, gray, skyy, abby):
+        # Skyy stays put — he goes with the player to find Curfeu next,
+        # which isn't built yet (no instructions were given for him beyond
+        # the dialogue line), so he's left idle here for now.
+        gray.facing = 'left'
+        self.cutscene = {
+            'phase': 'shadow_confrontation_splitup',
+            'npc1': gray, 'npc2': abby,
+            # Left 4, then down 6 — verified clear of solid tiles — before
+            # teleporting to the Route 4 side of the cave.
+            'waypoints1': [(gray.tile_x - 4, gray.tile_y), (gray.tile_x - 4, gray.tile_y + 6)],
+            'waypoints2': [(17, 6)],
+        }
+
+    def _update_shadow_confrontation_splitup(self, dt):
+        c = self.cutscene
+        gray, abby = c['npc1'], c['npc2']
+        all_done = True
+        for npc, wp_key in ((gray, 'waypoints1'), (abby, 'waypoints2')):
+            if npc.is_moving:
+                npc.anim_timer += dt
+                if npc.anim_timer >= npc.anim_speed:
+                    npc.anim_timer = 0.0
+                    npc.anim_frame = (npc.anim_frame + 1) % 4
+                npc._slide(dt)
+                all_done = False
+                continue
+            waypoints = c[wp_key]
+            if not waypoints:
+                continue
+            tx, ty = waypoints[0]
+            if (npc.tile_x, npc.tile_y) == (tx, ty):
+                waypoints.pop(0)
+                all_done = False
+                continue
+            all_done = False
+            self._force_step_npc_toward_tile(npc, tx, ty)
+        if all_done:
+            self._finish_shadow_confrontation(gray, abby)
+
+    def _finish_shadow_confrontation(self, gray, abby):
+        # Gray teleports to the Route 4 side of the cave to guard that
+        # entrance — he's already walked off camera by this point.
+        self.solid_tile_coords.discard((gray.tile_x, gray.tile_y))
+        gx, gy = self.GRAY_SHADOW_HQ_GUARD_POST
+        gray.tile_x, gray.tile_y = gx, gy
+        gray.pos_x = gray.target_x = float(gx * config.TILE_SIZE)
+        gray.pos_y = gray.target_y = float(gy * config.TILE_SIZE)
+        gray.rect.topleft = (int(gray.pos_x), int(gray.pos_y))
+        gray.is_moving = False
+        gray.facing = 'down'
+        gray.npc_type = 'guard'
+        gray.block_dialog = ["I'm watching this passage - go help Skyy find Curfeu!"]
+        gray.state = 'idle'
+        self.solid_tile_coords.add((gx, gy))
+
+        abby.facing = 'down'
+        abby.npc_type = 'guard'
+        abby.block_dialog = ["I've got this entrance covered. Go help Curfeu!"]
+        abby.state = 'idle'
+
+        self.story_flags['shadow_confrontation_done'] = True
+        self.cutscene = None
 
     def _maybe_add_grunts_vanessa(self):
         if not self.story_flags.get('gym2_corn_maze_reveal_done'):
@@ -4822,6 +5105,14 @@ class Game:
             if tile in GOURDECRUX_TOMB_TILES:
                 self._interact_gourdecrux_tomb()
                 return True
+            if tile in LAKE_MERIDIAN_PROPHECY_TILES:
+                self.message_box.queue_messages([
+                    "Eternal Darkness and Infinite Light",
+                    "One destroys while the other saves",
+                    "One day the cycle will repeat and those brave enough will take on the burden to break it",
+                    "As darkness goes cold, infinite light lives on",
+                ], wait_for_input=True)
+                return True
             if tile in self.lore_tile_coords:
                 self.message_box.queue_messages([
                     "A Tale of 2 Halves",
@@ -5173,6 +5464,13 @@ class Game:
         elif npc.trainer_id == 'skyy':
             if not self.story_flags.get('gym1_accessible'):
                 self._start_skyy_dialogue(npc)
+            elif self.story_flags.get('shadow_confrontation_done'):
+                self.message_box.queue_messages(
+                    self._tag_dialogue('Skyy', [
+                        "This battle is crucial, the more we encounter them the more I worry",
+                        "Curfeu must know what they are plotting lets help him",
+                    ]),
+                    wait_for_input=True)
         elif npc.trainer_id == 'scarecrux':
             if self.night_active:
                 self.message_box.queue_messages(
@@ -5444,6 +5742,8 @@ class Game:
             self._maybe_add_pp_grunts2()
             self._check_pp_grunt_a_walkup_trigger()
             self._maybe_add_grunts_vanessa()
+            self._maybe_add_shadow_confrontation_npcs()
+            self._check_shadow_confrontation_trigger()
             self._check_gym2_corn_maze_reveal()
             self._check_route26_abby_reveal()
             self._update_abby_follow(dt)

@@ -138,6 +138,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Skolt2':           os.path.join(DINOS_FRONT, 'Skolt.png'),
     'Frostle':          os.path.join(DINOS_FRONT, 'Frostle.png'),
     'Frostle2':         os.path.join(DINOS_FRONT, 'Frostle.png'),
+    'Typhoonray':       os.path.join(DINOS_FRONT, 'Typhoonray.png'),
+    'Typhoonray2':      os.path.join(DINOS_FRONT, 'Typhoonray.png'),
 }
 
 NPC_SHEETS = {

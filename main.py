@@ -295,7 +295,12 @@ if __name__ == '__main__':
 # no NIGHT mode during eclipse
 # make player take one step forward after exiting power plant for abby and skyy dialogue
 
-# 
+#9/8
+# Bug fixes and optimizations
+
+#9/9
+#typhoonray and colbaltion/Volkit overworld sprites
+# Begin Cave sequence
 
 # PLAYTHROUGH NOTES
 # early game works well!
@@ -304,3 +309,13 @@ if __name__ == '__main__':
 # part 2 of game feels a bit steep alter by 1-2 levels
 # keep ace the same
 # after gym 2 my dinos are 17-21
+
+# OLD LAKE_MERIDIAN7 prophecy text (kept for reference)
+# "The Prophecy of the Eternal Darkness"
+# "The harmony between light and dark will break"
+# "It always does..."
+# "A veil will cover the world, casting shadows over all"
+# "The darkest of days, the entropy has caught up"
+# "But it is not all dark, as Infinite Light exists..."
+# "One day when the cycle repeats, those brave enough will take on the burden to shatter this veil"
+# "With the power of Infinite Light, life lives on"

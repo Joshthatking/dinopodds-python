@@ -73,6 +73,35 @@
 #       _start_gray2_route3_cutscene), just level 21 and evolved this time.
 #       Win or lose, Gray walks off 7 tiles to the left.
 #
+# 14. POWER PLANT TAKEDOWN  →  pp_eclipse_reveal_done
+#       Skyy pulls the player into the Power Plant to investigate the
+#       disruptions: a scripted grunt1/grunt2 double battle alongside Skyy,
+#       then inside POWER_PLANT_IN3 the elite pp_grunt_a/pp_grunt_b pair
+#       (sequential single battles) — only that inner pair is required to
+#       finish the quest (see Game._pp_all_battles_done). Winning both
+#       makes them teleport away in a black flash. Exiting the Power Plant
+#       afterward, Skyy and Abby are already waiting together outside (the
+#       Power Plant's own guard grunt is gone by then); one more step
+#       triggers their dialogue — Amber's warning, Skyy's "I should have
+#       known this was a trick," three yellow solar flares, eclipse mode
+#       forcibly activating, and Skyy's closing line sending the player to
+#       the Cave Jet — after which both walk off toward Cobalt Cave for
+#       good (see Game._start_pp_exit_reveal_cutscene onward).
+#
+# 15. SHADOW GROUP CONFRONTATION  →  shadow_confrontation_done
+#       The moment the player next enters Cobalt Cave, Abby, Skyy and Gray
+#       are already standing in COBALT_CAVE1 — crossing either of two tiles
+#       just inside the room force-walks the player up to the group (input
+#       blocked) for a scripted talk: Gray explains Curfeu went alone into
+#       the Shadow Group's makeshift base, Skyy worries the leaders are
+#       tough, Abby volunteers to hold the cave's entrance and sends Gray to
+#       watch the other one while Skyy and the player go back Curfeu up.
+#       Gray and Abby then walk off and take up permanent guard posts —
+#       Gray teleports to the Route 4 side of the cave, Abby stays within
+#       COBALT_CAVE1 — while Skyy is left standing by, since where he/the
+#       player go to find Curfeu next isn't built yet (see
+#       Game._check_shadow_confrontation_trigger onward).
+#
 # ══════════════════════════════════════════════════════════════════
 
 STORY_EVENTS = [
@@ -180,5 +209,16 @@ QUEST_STEPS = [
         "label": "12. Defeated Gray (Route 3 Rematch)",
         "flag": "gray_route3_done",
         "defeated_trainers": ["gray2"],
+    },
+    {
+        "id": "pp_eclipse_reveal_done",
+        "label": "13. Power Plant Takedown",
+        "flag": "pp_eclipse_reveal_done",
+        "defeated_trainers": ["grunt1", "grunt2", "pp_grunt_a", "pp_grunt_b", "pp_grunt_c", "pp_grunt_d"],
+    },
+    {
+        "id": "shadow_confrontation_done",
+        "label": "14. Shadow Group Confrontation",
+        "flag": "shadow_confrontation_done",
     },
 ]

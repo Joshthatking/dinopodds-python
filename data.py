@@ -560,6 +560,7 @@ DINODEX_DATA = {
     'Roxer':      {'number': 34, 'desc': "A sleek dino carved from stone, said to spar with boulders to keep its fists sharp."},
     'Skolt':      {'number': 35, 'desc': "A quick, dual-tailed electric dino with a bold black-and-yellow coat that crackles with static voltages, its speed and power is formidable."},
     'Frostle':    {'number': 36, 'desc': "This turtle's shell is crowned with jagged ice crystals, the frozen counterpart to Sortle's swirling sand shell."},
+    'Typhoonray': {'number': 37, 'desc': "A massive ray that creates powerful winds with its torando like tail."},
 
 }
 
@@ -691,8 +692,8 @@ DINO_DATA = {
         'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 27: 'Hurricane', 32: 'Terraform', 37: 'Tree Spin'},
         'evolve': None},
     'Chomper': {
-        'stats': {'type': ['ancient'], 'health': 108, 'attack': 119, 'defense': 130, 'speed': 85},
-        'moves': {0: 'Bitemark', 1: 'Arise', 6: 'Fossil Break', 10: 'Fear', 15: 'Whirlpool', 20: 'Rushdown', 25: 'Power Fang', 30: 'Dread Thorn', 33: 'Raging Pursuit',36: 'Tree Spin' ,40: 'Ancient Mend' },
+        'stats': {'type': ['ancient'], 'health': 130, 'attack': 119, 'defense': 108, 'speed': 85},
+        'moves': {0: 'Bitemark', 1: 'Arise', 6: 'Fossil Break', 10: 'Fear', 15: 'Whirlpool', 20: 'Rushdown', 25: 'Power Fang', 28: 'Dread Thorn', 30: 'Raging Pursuit',33: 'Tree Spin' ,36: 'Ancient Mend' , 39: 'Archaic Aura'},
         'evolve': None},
     'Cobaltion': {
         'stats': {'type': ['rock', 'spike'], 'health': 140, 'attack': 130, 'defense': 140, 'speed': 80},
@@ -712,6 +713,11 @@ DINO_DATA = {
     'Frostle': {
         'stats': {'type': ['ice'], 'health': 125, 'attack': 125, 'defense': 90, 'speed': 90},
         'moves': {0: 'Snowfall', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Deep Freeze', 22: 'Hail Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Frozen Aura', 33: 'Hyperfrost', 36: 'Freeze Blast'},
+        'evolve': None},
+
+    'Typhoonray': {
+        'stats': {'type': ['aqua', 'flying'], 'health': 92, 'attack': 108, 'defense': 123, 'speed': 129},
+        'moves': {0: 'Whirlpool+', 1: 'Air Strike', 8: 'Swift Sneak', 14: 'Wave Dash', 17: 'Quick Slash', 20: 'Mach Speed', 25: 'Turbo Booster', 28: 'Wind Fracture', 32: 'Hurricane', 38: 'Sky Scorch', 44: 'Eternal Blue'},
         'evolve': None},
 
 }
@@ -959,6 +965,8 @@ MOVE_DATA = {
 
     'Raging Pursuit': {'target': 'opponent', 'damage': 55, 'accuracy': 90, 'ability': None, 'type': 'ancient', 'pierces_defend': True},
     'Dragon Zenith': {'target': 'opponent', 'damage': 100, 'accuracy': 90, 'ability': None, 'type': 'ancient', 'pierces_defend': True},
+    'Archaic Aura': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'ancient'},
+
 
     'Primal Rage':  {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'type': 'ancient',
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
