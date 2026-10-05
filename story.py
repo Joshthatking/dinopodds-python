@@ -221,4 +221,11 @@ QUEST_STEPS = [
         "label": "14. Shadow Group Confrontation",
         "flag": "shadow_confrontation_done",
     },
+    {
+        "id": "gym3_leader_defeated",
+        "label": "15. Defeated Gym 3 Leader (Sam)",
+        "flag": "gym3_leader_defeated",
+        "defeated_trainers": ["sam"],
+        "badges": ["aqua"],
+    },
 ]

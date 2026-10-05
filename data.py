@@ -279,6 +279,36 @@ TRAINER_DATA = {
         'reward_coins': 550,
         'rank': 'medium',
     },
+    # Shadow HQ — the grunt at (9,10) who walks up once the intro scene ends.
+    'hq_grunt_b': {
+        'name': 'Grunt',
+        'dinos': {0: ('Ghoulflame', 22), 1: ('Prowscar', 22)},
+        'dialog': {
+            'default':  ["You're not getting anywhere near our leaders!"],
+            'defeated': ["No... the plan can't be stopped now."]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 600,
+        'rank': 'medium',
+    },
+    # Shadow HQ — Vanessa rematch, after Skyy heals the party.
+    'vanessa_hq': {
+        'name': 'Vanessa',
+        'dinos': {0: ('Vusion', 23), 1: ('Netyrant', 24), 2: ('Ghoulflame', 24), 3: ('Gourdecrux', 25)},
+        'dialog': {
+            'default':  ["You again...", "This time I said I wouldn't go easy"],
+            'defeated': ["This is not the last time you will see me, there is much more that you do not know..."]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 1500,
+        'rank': 'boss',
+    },
     # Power Plant interior — plain standing guards (sight-triggered).
     'pp_grunt_c': {
         'name': 'Grunt',
@@ -377,6 +407,55 @@ TRAINER_DATA = {
         'biome': 'gym',
         'reward_coins': 1200,
         'rank': 'medium',
+    },
+    # Gym 3 — Palm Port (aqua)
+    'sam': {
+        'name': 'Sam',
+        'dinos': {0: ('Sharktastrophe', 24), 1: ('Seasoo', 25), 2: ('Typhoonray', 27)},
+        'dialog': {
+            'default':  [
+                "Welcome to the Aqua Gym!",
+                "The tides here have tested every trainer who walked these sands.",
+                "Let's see if you can ride the wave!"
+            ],
+            'defeated': [
+                "Wow you earned it, and with beating me let me give you the ability Surf to use to explore the region ever more!"
+            ]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 1500,
+        'rank': 'medium',
+    },
+    'gym3_trainer_a': {
+        'name': 'Marina',
+        'dinos': {0: ('Magnecrab', 23)},
+        'dialog': {
+            'default':  ["The current's strong in here!", "Let's battle!"],
+            'defeated': ["Washed right out..."]
+        },
+        'directions': ['left'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 450,
+        'rank': 'lowest',
+    },
+    'gym3_trainer_b': {
+        'name': 'Wade',
+        'dinos': {0: ('Anemamace', 23)},
+        'dialog': {
+            'default':  ["You'll have to get past me before you see Sam!"],
+            'defeated': ["Sam's going to be a lot tougher than me."]
+        },
+        'directions': ['right'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'gym',
+        'reward_coins': 450,
+        'rank': 'lowest',
     },
     'gym2_trainer_a': {
         'name': 'Rocco',
@@ -1001,9 +1080,11 @@ ENTRANCE_DATA = {
     'jet_room':   {'world': 'HOME_JET2.tmx',       'spawn': (9, 10)},
     'dinocenter':   {'world': 'DINOCENTER.tmx',       'spawn': (9, 12)},
     'dinocenter_town2': {'world': 'DINOCENTER.tmx',   'spawn': (9, 12)},
+    'dinocenter_palmport': {'world': 'DINOCENTER.tmx', 'spawn': (9, 12)},
     'research':     {'world': 'RESEARCH_LAB.tmx',    'spawn': (10, 11)},
     'gym1':         {'world': 'GYM1.tmx',             'spawn': (9, 13)},
     'gym2':         {'world': 'GYM2.tmx',             'spawn': (9, 13)},
+    'gym3':         {'world': 'GYM3.tmx',             'spawn': (9, 13)},
 
     # Cobalt Cave — ROUTE3_4 <-> COBALT_CAVE1 (mouth of the cave). Both ends
     # use a dedicated entrance_id pair rather than a plain 'exit' tile —

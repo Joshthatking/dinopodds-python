@@ -161,6 +161,9 @@ NPC_SHEETS = {
     'curfeu':             os.path.join('assets', 'NPC', 'Curfeu.png'),
     'abby':               os.path.join('assets', 'NPC', 'Abby.png'),
     'vanessa':            os.path.join('assets', 'NPC', 'Enemy_Girl.png'),
+    'emerson':            os.path.join('assets', 'NPC', 'Emerson.png'),
+    'cobaltion':          os.path.join('assets', 'NPC', 'Cobaltion_overworld.png'),
+    'sam':                os.path.join('assets', 'NPC', 'Sam.png'),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
@@ -174,6 +177,8 @@ NPC_SPRITE_KEY = {
     'gym2_trainer_b': 'blk_b',
     'gym2_trainer_c': 'blk_b',
     'gym2_trainer_d': 'blk_b',
+    'gym3_trainer_a': 'blk_b',
+    'gym3_trainer_b': 'blk_b',
     'grunt1':        'enemy_male',
     'grunt2':        'enemy_male',
     'route2_girl':   'basic_trainer_girl',
@@ -192,6 +197,9 @@ NPC_SPRITE_KEY = {
     'pp_grunt_b':    'enemy_male',
     'pp_grunt_c':    'enemy_male',
     'pp_grunt_d':    'enemy_male',
+    'hq_grunt_a':    'enemy_male',
+    'hq_grunt_b':    'enemy_male',
+    'vanessa_hq':    'vanessa',
 }
 
 # Dialogue-box speaker portraits: the display name used in a dialogue tag
@@ -206,6 +214,8 @@ DIALOGUE_PORTRAITS = {
     'Vanessa': 'vanessa',
     'Amber':   'amber',
     'Gray':    'gray',
+    'Emerson': 'emerson',
+    'Sam':     'sam',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -271,6 +281,11 @@ WORLD_NPCS = {
         ('gym2_trainer_c', 18, 11, 'left',  5, 'trainer'),
         ('gym2_trainer_d', 15, 4,  'up',    5, 'trainer'),
     ],
+    'GYM3.tmx': [
+        ('sam', 9, 2, 'down', 0, 'trainer'),
+        ('gym3_trainer_a', 16, 6, 'left',  5, 'trainer'),
+        ('gym3_trainer_b', 4, 8,  'right', 5, 'trainer'),
+    ],
     'POWERPLANT.world': [
         ('pp_grunt_c', 14, 4, 'down', 5, 'trainer'),
         ('pp_grunt_d', 33, 6, 'left', 5, 'trainer'),
@@ -325,6 +340,11 @@ ITEMS = {
         "name": "Mega Spray",
         "icon": os.path.join(ITEMS_PATH, "mega_heal.png"),
         "description": "Heals a chosen Dino for 20 HP",
+    },
+    "Twilight Lunar Shard": {
+        "name": "Twilight Lunar Shard",
+        "icon": os.path.join(ITEMS_PATH, "twilight_lunar_shard.png"),
+        "description": "A lunar shard left behind by Cobaltion, humming with twilight energy",
     },
 }
 

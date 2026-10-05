@@ -300,7 +300,23 @@ if __name__ == '__main__':
 
 #9/9
 #typhoonray and colbaltion/Volkit overworld sprites
-# Begin Cave sequence
+# Begin Cave sequence  
+
+
+#10/5
+#Battle for the lunar shard COMPLETE
+#GYM 3 complete
+# SURF LOGIC AND ABILITY POST GYM 3 active
+
+#need to add curfue, skyy, abby, cade in surf shack to discuss the meaning of what happened at cobalt cave
+#need to add water spawns! 
+#need to add mom and barley in home, heals whenever home
+
+#THEN - sound effects, route music and event music, nuzlocke/randomizer/speed run modes, maybe animations for attacks
+#go over playthrough to see how difficulty and glitches work, refine and fix, then...
+# add more lore and suspense for the plot
+#ALPHA COMPLETE
+
 
 # PLAYTHROUGH NOTES
 # early game works well!
@@ -309,6 +325,8 @@ if __name__ == '__main__':
 # part 2 of game feels a bit steep alter by 1-2 levels
 # keep ace the same
 # after gym 2 my dinos are 17-21
+
+# after the eternal darkness, have red emergency lights throughout the region
 
 # OLD LAKE_MERIDIAN7 prophecy text (kept for reference)
 # "The Prophecy of the Eternal Darkness"

@@ -3,8 +3,10 @@ import pytmx
 import json
 import re
 import math
+from collections import deque
 from player import Player
 from npc import NPC
+from surf import Surf  # SURF (testing)
 import os
 import config
 from screens import *
@@ -62,6 +64,7 @@ class Game:
         # DETERMINE PLAYER SPAWN
         self.player = Player(spawn_point='home')
         self.all_sprites = pygame.sprite.Group(self.player)
+        self.surf = Surf(self)  # SURF (testing)
 
         self.fade_alpha = 0
         self.fading = False
@@ -149,6 +152,7 @@ class Game:
         # Sandbox-only coordinate teleport input (Ctrl+Z)
         self.coord_input_active = False
         self.coord_input_text = ''
+        self.dino_spawn_picker = None  # sandbox Ctrl+D: {'filter': str, 'index': int}
 
         # Heal animation state
         self.heal_anim = None
@@ -157,6 +161,10 @@ class Game:
         self.cutscene = None
         self.cutscene_flash = None
         self.orb_fx = None
+        self.shadowhq_wave = None   # Cobaltion's dark energy rings (Shadow HQ intro)
+        self._cobaltion_battle = False  # True from Cobaltion's battle start until its result is read
+        self._wild_caught = False       # set by attempt_catch on a successful catch
+        self.screen_shake = 0.0         # seconds of screenshake left
         self.abby_follower = None
         self.abby_dinos = []
         self.is_vanessa_battle = False
@@ -438,6 +446,10 @@ class Game:
         self.cutscene = None
         self.cutscene_flash = None
         self.orb_fx = None
+        self.shadowhq_wave = None
+        self._cobaltion_battle = False
+        self._wild_caught = False
+        self.screen_shake = 0.0
         self.heal_anim = None
         self.yes_no_prompt = None
         self.yes_no_callback = None
@@ -1113,6 +1125,8 @@ class Game:
             self._post_trainer_battle_cb = self._on_skyy_gym_won
         elif npc.trainer_id == 'log' and self.current_world_file == 'GYM2.tmx':
             self._post_trainer_battle_cb = self._on_log_gym_won
+        elif npc.trainer_id == 'sam' and self.current_world_file == 'GYM3.tmx':
+            self._post_trainer_battle_cb = self._on_sam_gym_won
         elif npc.trainer_id == 'pp_grunt_a':
             self._post_trainer_battle_cb = lambda: self._on_pp_grunt_a_won(npc)
         elif npc.trainer_id == 'pp_grunt_b':
@@ -1935,6 +1949,11 @@ class Game:
         self._load_world_data(dest['world'])
         self._spawn_world_npcs(dest['world'])
         self._maybe_add_gym1_skyy()
+        if entrance_id == 'shadowhq1' and self.story_flags.get('shadow_confrontation_done'):
+            # Skyy follows the player into Shadow HQ — drop the Cobalt Cave
+            # copy so he isn't also still standing back in the cave.
+            cave_npcs = self.world_stack[-1]['npcs']
+            cave_npcs[:] = [n for n in cave_npcs if getattr(n, 'trainer_id', '') != 'skyy']
         tx, ty = dest['spawn']
         self._place_player(tx, ty)
         banner_name = ENTRANCE_BANNER_NAMES.get(entrance_id)
@@ -3017,6 +3036,24 @@ class Game:
             return
         if c['phase'] == 'shadow_confrontation_splitup':
             self._update_shadow_confrontation_splitup(dt)
+            return
+        if c['phase'] == 'shadowhq_skyy_walk':
+            self._update_shadowhq_skyy_walk(dt)
+            return
+        if c['phase'] == 'shadowhq_wait':
+            return  # generic no-op wait, no npc needed
+        if c['phase'] == 'shadowhq_grunt_walkup':
+            self._update_shadowhq_grunt_walkup(dt)
+            return
+        if c['phase'] == 'shadowhq_walk':
+            self._update_shadowhq_walk(dt)
+            return
+        if c['phase'] == 'shadowhq_heal_flash':
+            if not self.cutscene_flash:
+                self._finish_shadowhq_heal()
+            return
+        if c['phase'] == 'cobaltion_collapse':
+            self._update_cobaltion_collapse(dt)
             return
         npc = c['npc']
 
@@ -4464,6 +4501,8 @@ class Game:
             return
         if self.cutscene:
             return
+        if self.story_flags.get('shadowhq_event_done'):
+            return  # Abby and Gray have left the cave for good
         present = {getattr(n, 'trainer_id', '') for n in self.npcs}
 
         if self.story_flags.get('shadow_confrontation_done'):
@@ -4472,8 +4511,10 @@ class Game:
                  ["I'm watching this passage - go help Skyy find Curfeu!"], 'guard'),
                 ('abby', *self.ABBY_SHADOW_HQ_GUARD_POST, 'down',
                  ["I've got this entrance covered. Go help Curfeu!"], 'guard'),
-                ('skyy', 6, 10, 'down', None, 'story'),
             ]
+            # Once Skyy has followed the player into Shadow HQ he stays there.
+            if not self.story_flags.get('shadowhq_intro_done'):
+                specs.append(('skyy', 6, 10, 'down', None, 'story'))
         else:
             # A save/reload mid-scene (cutscene is None here, so it can't be
             # mid-dialogue/mid-walk right now) leaves 'started' stuck True
@@ -4659,6 +4700,724 @@ class Game:
         self.story_flags['shadow_confrontation_done'] = True
         self.cutscene = None
 
+    # ── Shadow HQ intro — plays the moment the player first walks into
+    # SHADOWHQ1 after Abby/Gray split off to guard the cave. Skyy follows the
+    # player in and squares up to a grunt, then the camera pans over to
+    # Curfeu facing down Vanessa and Emerson. ─────────────────────────────
+    SHADOWHQ_NPC_SPAWNS = {
+        'hq_grunt_a': (12, 10, 'down'),
+        'hq_grunt_b': (9, 10, 'down'),
+        'curfeu':     (4, 5, 'up'),
+        'vanessa_hq': (5, 4, 'down'),
+        'emerson':    (4, 4, 'down'),
+        'cobaltion':  (10, 3, 'down'),
+    }
+    SHADOWHQ_SKYY_START     = (10, 13)  # right beside the player's spawn tile
+    SHADOWHQ_SKYY_POST      = (12, 11)  # just below hq_grunt_a
+    SHADOWHQ_SKYY_HEAL_SPOT = (8, 13)   # reload fallback for where Skyy healed the player
+    SHADOWHQ_CAM_TARGET     = (4, 5)    # Curfeu
+    SHADOWHQ_EXIT_TILE      = (10, 13)  # everyone who leaves walks here and vanishes
+    COBALTION_TILE          = (10, 3)
+    TWILIGHT_SHARD_ITEM     = 'Twilight Lunar Shard'
+
+    # Dark energy waves pulsing out of Cobaltion — they run nonstop (through
+    # every battle and re-entry) until the player confronts it directly.
+    SHADOWHQ_WAVE_INTERVAL = 0.6     # seconds between new rings
+    SHADOWHQ_WAVE_LIFE     = 2.0     # seconds each ring takes to fade out
+    SHADOWHQ_WAVE_MAX_R    = 190     # px radius a ring reaches before vanishing
+    COBALTION_COLLAPSE_DURATION = 1.5   # whole condense + burst, = screenshake length
+    COBALTION_CONDENSE_TIME     = 0.6   # rings collapse inward, then the burst
+
+    # Story flags, in order: shadowhq_intro_done -> hq_grunt_b defeated ->
+    # shadowhq_grunt_b_left -> shadowhq_grunts_left -> shadowhq_skyy_heal_done
+    # -> vanessa_hq defeated -> shadowhq_leaders_left -> shadowhq_curfeu_done
+    # -> cobaltion_waves_collapsed -> shadowhq_event_done.
+    # _advance_shadowhq_event starts whichever step is next, so the chain
+    # resumes on its own after a battle, a blackout, or a save/reload.
+
+    def _shadowhq_npc(self, trainer_id):
+        return next((n for n in self.npcs if getattr(n, 'trainer_id', '') == trainer_id), None)
+
+    def _maybe_add_shadowhq_npcs(self):
+        """Keeps the Shadow HQ cast persistent across a world reload, matching
+        whichever stage of the event the player last left it at."""
+        f = self.story_flags
+        if not f.get('shadow_confrontation_done'):
+            return
+        if self.current_world_file != 'SHADOWHQ1.tmx':
+            return
+        if f.get('shadowhq_event_done'):
+            self._maybe_place_twilight_shard()
+            return
+        if self.cutscene:
+            # Mid-scene, an NPC that already vanished at the exit (while its
+            # partner is still walking) must not pop back in before the
+            # step's flag gets set.
+            return
+        present = {getattr(n, 'trainer_id', '') for n in self.npcs}
+        specs = []
+        for trainer_id, spec in self.SHADOWHQ_NPC_SPAWNS.items():
+            if trainer_id == 'hq_grunt_b' and f.get('shadowhq_grunt_b_left'):
+                continue
+            if trainer_id == 'hq_grunt_a' and f.get('shadowhq_grunts_left'):
+                continue
+            if trainer_id in ('vanessa_hq', 'emerson') and f.get('shadowhq_leaders_left'):
+                continue
+            if trainer_id == 'curfeu' and f.get('shadowhq_curfeu_done'):
+                continue
+            if trainer_id == 'cobaltion' and self._cobaltion_battle:
+                continue  # off-map while its battle is in progress
+            specs.append((trainer_id, spec))
+        if not f.get('shadowhq_curfeu_done'):
+            if f.get('shadowhq_skyy_heal_done'):
+                specs.append(('skyy', (*self.SHADOWHQ_SKYY_HEAL_SPOT, 'right')))
+            elif f.get('shadowhq_intro_done'):
+                specs.append(('skyy', (*self.SHADOWHQ_SKYY_POST, 'up')))
+            else:
+                specs.append(('skyy', (*self.SHADOWHQ_SKYY_START, 'up')))
+        for trainer_id, (tx, ty, facing) in specs:
+            if trainer_id in present:
+                continue
+            npc = NPC(trainer_id, tile_x=tx, tile_y=ty, facing=facing,
+                      sight_range=0, npc_type='story')
+            npc.state = 'idle'
+            npc.home_tile, npc.home_facing = (tx, ty), facing
+            npc.defeated = trainer_id in self.defeated_trainers
+            self.npcs.append(npc)
+            self.solid_tile_coords.add((tx, ty))
+
+    def _advance_shadowhq_event(self):
+        f = self.story_flags
+        if not f.get('shadow_confrontation_done') or f.get('shadowhq_event_done'):
+            return
+        if self.current_world_file != 'SHADOWHQ1.tmx':
+            return
+        if self.cutscene or self.message_box.visible or self._cobaltion_battle:
+            return
+        if self.is_trainer_battle or self.fading or self.state != 'world':
+            return
+        if self.entrance_fade_state == 'out':
+            return  # on the way out of the HQ
+        if not f.get('shadowhq_intro_done'):
+            self._start_shadowhq_intro()
+        elif 'hq_grunt_b' not in self.defeated_trainers:
+            self._start_shadowhq_grunt_walkup()
+        elif not f.get('shadowhq_grunts_left'):
+            self._start_shadowhq_grunts_leave()
+        elif not f.get('shadowhq_skyy_heal_done'):
+            self._start_shadowhq_skyy_heal()
+        elif 'vanessa_hq' not in self.defeated_trainers:
+            return  # free roam — the player walks up to Vanessa themselves
+        elif not f.get('shadowhq_leaders_left'):
+            self._start_shadowhq_leaders_leave()
+        elif not f.get('shadowhq_curfeu_done'):
+            self._start_shadowhq_curfeu_talk()
+        # After that it's on the player to go interact with Cobaltion.
+
+    # ── shared helpers ─────────────────────────────────────────────────
+
+    def _shadowhq_path(self, start, goal, walkers=()):
+        """BFS tile path start -> goal (start excluded) around walls, items,
+        the player and every NPC not in `walkers`. Falls back to a straight
+        force-walk if no path exists, so a scene can never soft-lock."""
+        min_tx, min_ty, max_tx, max_ty = self.world_bounds
+        walker_tiles = {(n.tile_x, n.tile_y) for n in walkers}
+        blocked = (set(self.solid_tile_coords) | self.solid_tiles | set(self.items_on_map)) - walker_tiles
+        ts = config.TILE_SIZE
+        blocked.add((self.player.rect.x // ts, self.player.rect.y // ts))
+        blocked.discard(start)
+        prev = {start: None}
+        queue = deque([start])
+        while queue:
+            cur = queue.popleft()
+            if cur == goal:
+                break
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nxt = (cur[0] + dx, cur[1] + dy)
+                if nxt in prev or nxt in blocked:
+                    continue
+                if not (min_tx <= nxt[0] < max_tx and min_ty <= nxt[1] < max_ty):
+                    continue
+                prev[nxt] = cur
+                queue.append(nxt)
+        if goal not in prev:
+            return [goal]
+        path = []
+        cur = goal
+        while cur != start:
+            path.append(cur)
+            cur = prev[cur]
+        return path[::-1]
+
+    def _shadowhq_exit_goal(self):
+        ts = config.TILE_SIZE
+        player_tile = (self.player.rect.x // ts, self.player.rect.y // ts)
+        for tile in (self.SHADOWHQ_EXIT_TILE, (9, 13), (10, 12)):
+            if tile != player_tile:
+                return tile
+        return self.SHADOWHQ_EXIT_TILE
+
+    def _shadowhq_spot_beside_player(self, npc):
+        """A free tile next to the player for `npc` to walk up to — never the
+        exit tile, since everyone else walks off through it later."""
+        ts = config.TILE_SIZE
+        px, py = self.player.rect.x // ts, self.player.rect.y // ts
+        others = {(n.tile_x, n.tile_y) for n in self.npcs if n is not npc}
+        min_tx, min_ty, max_tx, max_ty = self.world_bounds
+        for tile in ((px - 1, py), (px, py - 1), (px + 1, py), (px, py + 1)):
+            if tile == self.SHADOWHQ_EXIT_TILE:
+                continue
+            if tile == (npc.tile_x, npc.tile_y):
+                return tile
+            if (tile in self.solid_tile_coords or tile in self.solid_tiles
+                    or tile in others or tile in self.items_on_map):
+                continue
+            if min_tx <= tile[0] < max_tx and min_ty <= tile[1] < max_ty:
+                return tile
+        return (npc.tile_x, npc.tile_y)
+
+    def _shadowhq_face_each_other(self, npc):
+        npc.anim_frame = 0
+        npc.face_toward_player(self.player)
+        ts = config.TILE_SIZE
+        dx = npc.tile_x - self.player.rect.x // ts
+        dy = npc.tile_y - self.player.rect.y // ts
+        if abs(dx) >= abs(dy):
+            d = 'right' if dx > 0 else 'left'
+        else:
+            d = 'down' if dy > 0 else 'up'
+        self._face_player(d)
+
+    def _shadowhq_walk(self, walkers, then, vanish=False):
+        """walkers: [(npc, goal_tile)], all walked at once along BFS paths.
+        With vanish=True each NPC disappears the moment it reaches its goal."""
+        moving = [n for n, _ in walkers]
+        self.cutscene = {
+            'phase': 'shadowhq_walk', 'vanish': vanish, 'then': then,
+            'walkers': [[npc, self._shadowhq_path((npc.tile_x, npc.tile_y), goal, moving)]
+                        for npc, goal in walkers],
+        }
+
+    def _update_shadowhq_walk(self, dt):
+        c = self.cutscene
+        busy = False
+        for entry in c['walkers']:
+            npc, path = entry
+            if npc is None:
+                continue
+            if npc.is_moving:
+                npc.anim_timer += dt
+                if npc.anim_timer >= npc.anim_speed:
+                    npc.anim_timer = 0.0
+                    npc.anim_frame = (npc.anim_frame + 1) % 4
+                npc._slide(dt)
+                busy = True
+                continue
+            while path and (npc.tile_x, npc.tile_y) == path[0]:
+                path.pop(0)
+            if path:
+                self._force_step_npc_toward_tile(npc, *path[0])
+                busy = True
+                continue
+            npc.anim_frame = 0
+            if c['vanish']:
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                if npc in self.npcs:
+                    self.npcs.remove(npc)
+                entry[0] = None
+        if busy:
+            return
+        then = c['then']
+        self.cutscene = None
+        then()
+
+    # ── 1. intro: Skyy squares up, camera visits Curfeu vs. the leaders ──
+
+    def _start_shadowhq_intro(self):
+        skyy = self._shadowhq_npc('skyy')
+        if not skyy:
+            return
+        # Starts during the entrance fade-in so the player never gets a single
+        # frame of control before the scene takes over — the walk itself
+        # only starts once the fade finishes (_update_cutscene is gated on it).
+        self.player.freeze_in_place()
+        sx, sy = self.SHADOWHQ_SKYY_POST
+        self.cutscene = {
+            'phase': 'shadowhq_skyy_walk', 'npc1': skyy,
+            # Right to x=12, then up to the grunt.
+            'waypoints': [(sx, skyy.tile_y), (sx, sy)],
+        }
+
+    def _update_shadowhq_skyy_walk(self, dt):
+        c = self.cutscene
+        skyy = c['npc1']
+        if skyy.is_moving:
+            skyy.anim_timer += dt
+            if skyy.anim_timer >= skyy.anim_speed:
+                skyy.anim_timer = 0.0
+                skyy.anim_frame = (skyy.anim_frame + 1) % 4
+            skyy._slide(dt)
+            return
+        waypoints = c['waypoints']
+        while waypoints and (skyy.tile_x, skyy.tile_y) == waypoints[0]:
+            waypoints.pop(0)
+        if waypoints:
+            self._force_step_npc_toward_tile(skyy, *waypoints[0])
+            return
+        skyy.anim_frame = 0
+        skyy.facing = 'up'
+        skyy.home_tile, skyy.home_facing = self.SHADOWHQ_SKYY_POST, 'up'
+        ts = config.TILE_SIZE
+        tx, ty = self.SHADOWHQ_CAM_TARGET
+        self._start_camera_pan(
+            tx * ts + ts // 2, ty * ts + ts // 2, 0.8,
+            self._shadowhq_curfeu_line
+        )
+
+    def _shadowhq_curfeu_line(self):
+        self.cutscene = {'phase': 'shadowhq_wait'}  # generic no-op wait
+        self.message_box.queue_messages(
+            self._tag_dialogue('Curfeu', [
+                "I cannot let you take the twilight lunar shard",
+                "You do not understand the consequences at stake",
+            ]),
+            wait_for_input=True,
+            on_complete=self._shadowhq_vanessa_line
+        )
+
+    def _shadowhq_vanessa_line(self):
+        self.message_box.queue_messages(
+            self._tag_dialogue('Vanessa', [
+                "It is you who does not understand",
+                "This will expose the fake power in our region for what it really is",
+                "This is nature at its finest and nature will take its course",
+            ]),
+            wait_for_input=True,
+            on_complete=self._shadowhq_emerson_line
+        )
+
+    def _shadowhq_emerson_line(self):
+        self.message_box.queue_messages(
+            self._tag_dialogue('Emerson', ["I will take this from here"]),
+            wait_for_input=True,
+            on_complete=lambda: self._start_camera_pan(
+                self.player.rect.centerx, self.player.rect.centery, 0.8,
+                self._end_shadowhq_intro)
+        )
+
+    def _end_shadowhq_intro(self):
+        self.camera_locked = False
+        self.story_flags['shadowhq_intro_done'] = True
+        # cutscene is None here — _advance_shadowhq_event starts the grunt
+        # walk-up later this same frame.
+
+    # ── 2. grunt (9,10) walks up and battles ─────────────────────────────
+
+    def _start_shadowhq_grunt_walkup(self):
+        grunt = self._shadowhq_npc('hq_grunt_b')
+        if not grunt:
+            return
+        self.player.freeze_in_place()
+        px = self.player.rect.x // config.TILE_SIZE
+        py = self.player.rect.y // config.TILE_SIZE
+        self.cutscene = {'phase': 'shadowhq_grunt_walkup', 'npc1': grunt, 'walk_target': (px, py - 1)}
+
+    def _update_shadowhq_grunt_walkup(self, dt):
+        c = self.cutscene
+        grunt = c['npc1']
+        if grunt.is_moving:
+            grunt.anim_timer += dt
+            if grunt.anim_timer >= grunt.anim_speed:
+                grunt.anim_timer = 0.0
+                grunt.anim_frame = (grunt.anim_frame + 1) % 4
+            grunt._slide(dt)
+            return
+        tx, ty = c['walk_target']
+        if (grunt.tile_x, grunt.tile_y) == (tx, ty):
+            grunt.anim_frame = 0
+            grunt.facing = 'down'
+            self.player.facing = self.player.direction = 'up'
+            self.player.image = self.player.animations['up'][0]
+            self.cutscene = {'phase': 'shadowhq_wait'}  # generic no-op wait
+            data = TRAINER_DATA.get('hq_grunt_b', {})
+            self.message_box.queue_messages(
+                self._tag_dialogue('Grunt', data.get('dialog', {}).get('default', [])),
+                wait_for_input=True,
+                on_complete=lambda: self._start_shadowhq_trainer_battle(grunt)
+            )
+            return
+        self._force_step_npc_toward_tile(grunt, tx, ty)
+
+    def _start_shadowhq_trainer_battle(self, npc):
+        # Battle state (is_trainer_battle) takes over from here; the
+        # cutscene has to be cleared or input stays locked after the win.
+        self.cutscene = None
+        self.start_trainer_battle(npc)
+
+    # ── 3. both grunts leave ─────────────────────────────────────────────
+
+    def _start_shadowhq_grunts_leave(self):
+        self.player.freeze_in_place()
+        gb = self._shadowhq_npc('hq_grunt_b')
+        if not gb:
+            self._shadowhq_grunt_b_gone()
+            return
+        self._shadowhq_face_each_other(gb)
+        self.cutscene = {'phase': 'shadowhq_wait'}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Grunt', ["My honor has been tainted, I must leave to amend my failure"]),
+            wait_for_input=True,
+            on_complete=lambda: self._shadowhq_walk(
+                [(gb, self._shadowhq_exit_goal())], self._shadowhq_grunt_b_gone, vanish=True)
+        )
+
+    def _shadowhq_grunt_b_gone(self):
+        self.story_flags['shadowhq_grunt_b_left'] = True
+        ga = self._shadowhq_npc('hq_grunt_a')
+        if ga:
+            self._shadowhq_walk([(ga, self._shadowhq_exit_goal())], self._shadowhq_grunts_gone, vanish=True)
+        else:
+            self._shadowhq_grunts_gone()
+
+    def _shadowhq_grunts_gone(self):
+        self.story_flags['shadowhq_grunts_left'] = True
+        self.cutscene = None
+
+    # ── 4. Skyy walks over and heals the party ───────────────────────────
+
+    def _start_shadowhq_skyy_heal(self):
+        skyy = self._shadowhq_npc('skyy')
+        if not skyy:
+            self.story_flags['shadowhq_skyy_heal_done'] = True
+            return
+        self.player.freeze_in_place()
+        goal = self._shadowhq_spot_beside_player(skyy)
+        self._shadowhq_walk([(skyy, goal)], lambda: self._shadowhq_skyy_heal_talk(skyy))
+
+    def _shadowhq_skyy_heal_talk(self, skyy):
+        self._shadowhq_face_each_other(skyy)
+        skyy.home_tile, skyy.home_facing = (skyy.tile_x, skyy.tile_y), skyy.facing
+        self.cutscene = {'phase': 'shadowhq_wait'}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Skyy', [
+                "While Curfeu handles the guy, take on Vanessa, this is our chance to prevent a catastrophic event",
+                "Let's heal your dinos first",
+            ]),
+            wait_for_input=True,
+            on_complete=self._start_shadowhq_heal_flash
+        )
+
+    def _start_shadowhq_heal_flash(self):
+        for dino in self.player_dinos:
+            dino['hp'] = dino['max_hp']
+        # max_count defaults to 2 -> two white flashes.
+        self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0, 'color': (255, 255, 255)}
+        self.cutscene = {'phase': 'shadowhq_heal_flash'}
+
+    def _finish_shadowhq_heal(self):
+        self.story_flags['shadowhq_skyy_heal_done'] = True
+        self.cutscene = None
+
+    # ── 5. Vanessa battle (started from _interact_story_npc) ─────────────
+
+    def _interact_shadowhq_vanessa(self, npc):
+        if not self.story_flags.get('shadowhq_skyy_heal_done'):
+            return
+        if 'vanessa_hq' in self.defeated_trainers:
+            return
+        npc.anim_frame = 0
+        npc.face_toward_player(self.player)
+        data = TRAINER_DATA.get('vanessa_hq', {})
+        self.message_box.queue_messages(
+            self._tag_dialogue('Vanessa', data.get('dialog', {}).get('default', [])),
+            wait_for_input=True,
+            on_complete=lambda: self.start_trainer_battle(npc)
+        )
+
+    # ── 6. Vanessa + Emerson leave ───────────────────────────────────────
+
+    def _start_shadowhq_leaders_leave(self):
+        self.player.freeze_in_place()
+        van = self._shadowhq_npc('vanessa_hq')
+        em = self._shadowhq_npc('emerson')
+        leavers = [n for n in (van, em) if n]
+
+        def walk_off():
+            goal = self._shadowhq_exit_goal()
+            self._shadowhq_walk([(n, goal) for n in leavers], self._shadowhq_leaders_gone, vanish=True)
+
+        if not van:
+            walk_off()
+            return
+        self._shadowhq_face_each_other(van)
+        self.cutscene = {'phase': 'shadowhq_wait'}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Vanessa', [
+                "This is not the last time you will see me, there is much more that you do not know...",
+            ]),
+            wait_for_input=True,
+            on_complete=walk_off
+        )
+
+    def _shadowhq_leaders_gone(self):
+        self.story_flags['shadowhq_leaders_left'] = True
+        self.cutscene = None
+
+    # ── 7. Curfeu thanks the player, then he and Skyy leave ──────────────
+
+    def _start_shadowhq_curfeu_talk(self):
+        curfeu = self._shadowhq_npc('curfeu')
+        skyy = self._shadowhq_npc('skyy')
+        leavers = [n for n in (curfeu, skyy) if n]
+
+        def walk_off():
+            goal = self._shadowhq_exit_goal()
+            self._shadowhq_walk([(n, goal) for n in leavers], self._shadowhq_curfeu_gone, vanish=True)
+
+        self.player.freeze_in_place()
+        if not curfeu:
+            walk_off()
+            return
+        self._shadowhq_face_each_other(curfeu)
+        self.cutscene = {'phase': 'shadowhq_wait'}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Curfeu', [
+                "Thank you both for coming to help in such a dire time",
+                "But the mission isn't over yet",
+                "Jet, go stop the dark energy pulsing from that ancient creature",
+                "I can fill you in on whats going on after",
+                "Meet me in Palm Port after this is taken care of",
+            ]),
+            wait_for_input=True,
+            on_complete=walk_off
+        )
+
+    def _shadowhq_curfeu_gone(self):
+        self.story_flags['shadowhq_curfeu_done'] = True
+        self.cutscene = None
+
+    # ── 8. Cobaltion: waves collapse, then a wild battle ─────────────────
+
+    def _interact_cobaltion(self, npc):
+        f = self.story_flags
+        if not f.get('shadowhq_curfeu_done'):
+            return  # can't be approached until Curfeu sends the player
+        self.player.freeze_in_place()
+        self.cutscene = {'phase': 'shadowhq_wait'}
+        if f.get('cobaltion_waves_collapsed'):
+            # Ran away / blacked out last time — skip straight to the battle.
+            self._cobaltion_cry(npc)
+            return
+        self.message_box.queue_messages(
+            ["... the energy is shifting"],
+            wait_for_input=True,
+            on_complete=lambda: self._start_cobaltion_collapse(npc)
+        )
+
+    def _start_cobaltion_collapse(self, npc):
+        self.story_flags['cobaltion_waves_collapsed'] = True
+        wave_t = self.shadowhq_wave['elapsed'] if self.shadowhq_wave else 0.0
+        self.shadowhq_wave = None
+        self.screen_shake = self.COBALTION_COLLAPSE_DURATION
+        self.cutscene = {'phase': 'cobaltion_collapse', 'npc1': npc,
+                         'elapsed': 0.0, 'wave_t': wave_t, 'particles': None}
+
+    def _update_cobaltion_collapse(self, dt):
+        c = self.cutscene
+        c['elapsed'] += dt
+        if c['particles'] is None and c['elapsed'] >= self.COBALTION_CONDENSE_TIME:
+            c['particles'] = []
+            for _ in range(56):
+                a = random.uniform(0, 2 * math.pi)
+                speed = random.uniform(60, 190)
+                c['particles'].append({
+                    'x': 0.0, 'y': 0.0,
+                    'vx': math.cos(a) * speed, 'vy': math.sin(a) * speed,
+                    'size': random.choice((2, 2, 3, 4)),
+                    'color': random.choice(((255, 255, 255), (220, 235, 255),
+                                            (200, 220, 255), (235, 215, 255))),
+                })
+        if c['particles']:
+            for p in c['particles']:
+                p['x'] += p['vx'] * dt
+                p['y'] += p['vy'] * dt
+                p['vx'] *= 0.97
+                p['vy'] *= 0.97
+        if c['elapsed'] >= self.COBALTION_COLLAPSE_DURATION:
+            self._cobaltion_cry(c['npc1'])
+
+    def _cobaltion_cry(self, npc):
+        self.cutscene = {'phase': 'shadowhq_wait'}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Cobaltion', ["aaaggyyuyu"]),
+            wait_for_input=True,
+            on_complete=lambda: self._start_cobaltion_battle(npc)
+        )
+
+    def _start_cobaltion_battle(self, npc):
+        self.cutscene = None
+        # Set before the NPC is removed so _maybe_add_shadowhq_npcs doesn't
+        # put it straight back. Resolved in _check_cobaltion_battle_result.
+        self._cobaltion_battle = True
+        self._wild_caught = False
+        self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+        if npc in self.npcs:
+            self.npcs.remove(npc)
+        self.trigger_encounter(forced_dino='Cobaltion', forced_level=25)
+
+    def _check_cobaltion_battle_result(self):
+        """Runs on world frames only; trigger_encounter keeps self.fading True
+        right up until the encounter state is pushed, so the first non-fading
+        world frame after starting is the one after the battle ended."""
+        if not self._cobaltion_battle or self.fading or self.state != 'world':
+            return
+        self._cobaltion_battle = False
+        won = self._wild_caught or (self.enemy_dino and self.enemy_dino.get('hp', 1) <= 0)
+        if won:
+            self._finish_shadowhq_event()
+        # Otherwise (ran / blacked out) Cobaltion is re-added on the next
+        # visit by _maybe_add_shadowhq_npcs and can be challenged again.
+
+    def _finish_shadowhq_event(self):
+        self.story_flags['shadowhq_event_done'] = True
+        self._maybe_place_twilight_shard()
+        # Abby and Gray stop guarding Cobalt Cave — strip them from the
+        # cave's saved NPC list so they're gone when the player walks back.
+        for entry in self.world_stack:
+            if entry.get('file') == 'COBALT_CAVE.world':
+                entry['npcs'][:] = [n for n in entry['npcs']
+                                    if getattr(n, 'trainer_id', '') not in ('gray', 'abby')]
+
+    def _maybe_place_twilight_shard(self):
+        if self.current_world_file != 'SHADOWHQ1.tmx':
+            return
+        tx, ty = self.COBALTION_TILE
+        if (self.current_world_file, tx, ty) in self.picked_up_world_items:
+            return
+        if (tx, ty) in self.items_on_map:
+            return
+        self.items_on_map[(tx, ty)] = self.TWILIGHT_SHARD_ITEM
+        # Registering it as a map_ball_item makes draw() render only this
+        # one image — otherwise draw_map_below() also blits the raw icon for
+        # any loose item and the two overlap.
+        self.map_ball_items[(tx, ty)] = self.TWILIGHT_SHARD_ITEM
+        self.map_ball_images[(tx, ty)] = self._fit_icon_to_tile(
+            self.item_icons.get(self.TWILIGHT_SHARD_ITEM))
+
+    def _fit_icon_to_tile(self, icon):
+        """Scale an item icon down to fit one tile, keeping its aspect
+        ratio, centered on a transparent tile-sized surface."""
+        ts = config.TILE_SIZE
+        if icon is None:
+            return self._ballwhite_img
+        r = icon.get_bounding_rect()   # trim transparent padding first
+        icon = icon.subsurface(r) if r.width and r.height else icon
+        w, h = icon.get_size()
+        scale = min(ts / w, ts / h)
+        icon = pygame.transform.scale(icon, (max(1, round(w * scale)), max(1, round(h * scale))))
+        tile = pygame.Surface((ts, ts), pygame.SRCALPHA)
+        tile.blit(icon, ((ts - icon.get_width()) // 2, (ts - icon.get_height()) // 2))
+        return tile
+
+    # ── wave / collapse rendering ────────────────────────────────────────
+
+    def _update_shadowhq_wave(self, dt):
+        f = self.story_flags
+        active = (self.current_world_file == 'SHADOWHQ1.tmx'
+                  and f.get('shadow_confrontation_done')
+                  and not f.get('cobaltion_waves_collapsed'))
+        if not active:
+            self.shadowhq_wave = None
+            return
+        if not self.shadowhq_wave:
+            self.shadowhq_wave = {'elapsed': 0.0}
+        self.shadowhq_wave['elapsed'] += dt
+
+    def _cobaltion_center(self, cob):
+        img = cob._current_image()
+        # Sprite grows upward from its tile (see NPC.draw), so its visual
+        # center sits above the tile's center.
+        return (cob.rect.centerx - self.camera_x,
+                cob.rect.bottom - img.get_height() // 2 - self.camera_y)
+
+    def _draw_wave_ring(self, surface, cx, cy, r, alpha, thick, wobble, phase):
+        size = int(r + wobble + thick + 8) * 2
+        ring = pygame.Surface((size, size), pygame.SRCALPHA)
+        mid = size // 2
+        # Rippling edge: radius wobbles around the circle and drifts
+        # over time, so each ring reads as a wave rather than a hoop.
+        pts = []
+        for k in range(48):
+            a = k / 48 * 2 * math.pi
+            rr = r + math.sin(a * 6 + phase) * wobble
+            pts.append((mid + math.cos(a) * rr, mid + math.sin(a) * rr))
+        pygame.draw.polygon(ring, (40, 0, 60, alpha // 2), pts, thick + 4)
+        pygame.draw.polygon(ring, (5, 0, 10, alpha), pts, thick)
+        surface.blit(ring, (cx - mid, cy - mid))
+
+    def _draw_cobaltion_aura(self, surface, cob, cx, cy, radius, alpha):
+        aura = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(aura, (10, 0, 20, alpha), (radius, radius), radius)
+        surface.blit(aura, (cx - radius, cy - radius))
+        # Redraw Cobaltion over its own aura so the sprite stays readable.
+        cob.draw(surface, self.camera_x, self.camera_y)
+
+    def _draw_shadowhq_wave(self, surface):
+        w = self.shadowhq_wave
+        cob = self._shadowhq_npc('cobaltion')
+        if not w or not cob:
+            return
+        t = w['elapsed']
+        cx, cy = self._cobaltion_center(cob)
+        interval, life, max_r = self.SHADOWHQ_WAVE_INTERVAL, self.SHADOWHQ_WAVE_LIFE, self.SHADOWHQ_WAVE_MAX_R
+        n = int(t // interval)
+        for i in range(n, -1, -1):
+            age = t - i * interval
+            if age >= life:
+                break
+            p = age / life
+            self._draw_wave_ring(surface, cx, cy,
+                                 r=12 + (max_r - 12) * p,
+                                 alpha=int(235 * (1.0 - p)),
+                                 thick=max(2, int(14 * (1.0 - p))),
+                                 wobble=3 + 5 * p, phase=t * 5 + i)
+        pulse = 0.5 + 0.5 * math.sin(t * 2 * math.pi / interval)
+        self._draw_cobaltion_aura(surface, cob, cx, cy, int(26 + 6 * pulse), int(70 + 60 * pulse))
+
+    def _draw_cobaltion_collapse(self, surface):
+        c = self.cutscene
+        cob = c['npc1']
+        cx, cy = self._cobaltion_center(cob)
+        e = c['elapsed']
+        condense = self.COBALTION_CONDENSE_TIME
+        if e < condense:
+            # Rings rush inward and darken as the energy condenses.
+            p = e / condense
+            for k in range(4):
+                r = (50 + k * 45) * (1.0 - p) ** 1.5
+                if r < 3:
+                    continue
+                self._draw_wave_ring(surface, cx, cy, r=r,
+                                     alpha=int(150 + 100 * p),
+                                     thick=max(2, int(6 + 8 * p)),
+                                     wobble=4 * (1.0 - p), phase=c['wave_t'] * 5 + e * 20 + k)
+            self._draw_cobaltion_aura(surface, cob, cx, cy, int(26 + 10 * p), int(120 + 120 * p))
+            return
+        # Burst: a quick bright flash, then lighter particles flying out.
+        b = (e - condense) / (self.COBALTION_COLLAPSE_DURATION - condense)
+        if b < 0.35:
+            fp = b / 0.35
+            fr = int(10 + 60 * fp)
+            flash = pygame.Surface((fr * 2, fr * 2), pygame.SRCALPHA)
+            pygame.draw.circle(flash, (235, 240, 255, int(230 * (1.0 - fp))), (fr, fr), fr)
+            surface.blit(flash, (cx - fr, cy - fr))
+        alpha = int(255 * max(0.0, 1.0 - b))
+        for p in c['particles'] or ():
+            s = p['size']
+            dot = pygame.Surface((s, s), pygame.SRCALPHA)
+            dot.fill((*p['color'], alpha))
+            surface.blit(dot, (int(cx + p['x']) - s // 2, int(cy + p['y']) - s // 2))
+
     def _maybe_add_grunts_vanessa(self):
         if not self.story_flags.get('gym2_corn_maze_reveal_done'):
             return
@@ -4727,6 +5486,25 @@ class Game:
             self, "Earth Badge",
             os.path.join('assets', 'Badges', 'earth_badge.png'),
             on_dismiss=_after_badge)
+
+    def _on_sam_gym_won(self):
+        self.story_flags['gym3_leader_defeated'] = True
+        # Sam hands over Surf with the badge — flag for the (future) surf
+        # mechanic to check before letting the player onto water.
+        self.story_flags['surf_unlocked'] = True
+        if 'aqua' not in self.badges_earned:
+            self.badges_earned.append('aqua')
+
+        def _after_badge():
+            data = TRAINER_DATA.get('sam', {})
+            dialog = self._tag_dialogue(data.get('name', 'Sam'), data.get('dialog', {}).get('defeated', ["..."]))
+            self.message_box.queue_messages(dialog, wait_for_input=True)
+
+        # Input locked for the first 2s, then any key dismisses it.
+        self.badge_earned_screen = BadgeEarnedScreen(
+            self, "Aqua Badge",
+            os.path.join('assets', 'Badges', 'aqua_badge.png'),
+            on_dismiss=_after_badge, min_display=2.0)
 
     def _check_amber_blocker(self):
         if self.story_flags.get('encounters_unlocked'):
@@ -4871,6 +5649,10 @@ class Game:
             if self.coord_input_active:
                 self._handle_coord_input_event(event)
                 return
+
+            if self.dino_spawn_picker:
+                self._handle_dino_spawn_event(event)
+                continue  # not return — keep fast-typed filter letters from this frame
 
             # Message box is processed first, but not while HP bars are animating in battle
             if self.message_box.visible:
@@ -5279,6 +6061,9 @@ class Game:
         elif event.key == pygame.K_n and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
             self.force_night = not self.night_active
             print(f"[DEBUG] force_night -> {self.force_night}")
+        elif (event.key == pygame.K_d and (event.mod & pygame.KMOD_CTRL) and self.sandbox
+                and not self.fading and self.entrance_fade_state is None and not cutscene_locking):
+            self.dino_spawn_picker = {'filter': '', 'index': 0}
         elif (event.key == pygame.K_j and not self.orb_fx
                 and not self.fading and self.entrance_fade_state is None):
             if self.check_type_chart_interact():
@@ -5287,7 +6072,11 @@ class Game:
                 pass
             elif self.check_lore_interact():
                 pass
-            elif not self.interact_with_npc():
+            elif self.interact_with_npc():
+                pass
+            elif self.surf.try_offer():  # SURF (testing)
+                pass
+            else:
                 self.pickup_item()
 
     def _handle_coord_input_event(self, event):
@@ -5310,6 +6099,87 @@ class Game:
         ch = event.unicode
         if ch and ch in '0123456789-,. ' and len(self.coord_input_text) < 20:
             self.coord_input_text += ch
+
+    # ── Sandbox Ctrl+D: add any dino to the party at a fixed level ───────
+    SANDBOX_SPAWN_LEVEL = 40
+    DINO_SPAWN_VISIBLE_ROWS = 8
+
+    def _dino_spawn_matches(self):
+        text = self.dino_spawn_picker['filter'].lower()
+        names = sorted(DINO_DATA.keys(),
+                       key=lambda n: (DINODEX_DATA.get(n, {}).get('number', 999), n))
+        return [n for n in names if text in n.lower()]
+
+    def _handle_dino_spawn_event(self, event):
+        if event.type != pygame.KEYDOWN:
+            return
+        p = self.dino_spawn_picker
+        matches = self._dino_spawn_matches()
+        if event.key == pygame.K_ESCAPE:
+            self.dino_spawn_picker = None
+            return
+        if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            if matches:
+                self._sandbox_add_dino(matches[min(p['index'], len(matches) - 1)])
+            self.dino_spawn_picker = None
+            return
+        if event.key == pygame.K_UP:
+            p['index'] = max(0, p['index'] - 1)
+            return
+        if event.key == pygame.K_DOWN:
+            p['index'] = min(max(0, len(matches) - 1), p['index'] + 1)
+            return
+        if event.key == pygame.K_BACKSPACE:
+            p['filter'] = p['filter'][:-1]
+            p['index'] = 0
+            return
+        ch = event.unicode
+        if ch and ch.isalnum() and len(p['filter']) < 20:
+            p['filter'] += ch
+            p['index'] = 0
+
+    def _sandbox_add_dino(self, name):
+        dino = self.create_dino(name, self.SANDBOX_SPAWN_LEVEL)
+        dino['caught_ball'] = 'DinoPod'
+        self.dinos_seen.add(name)
+        if len(self.player_dinos) < self.PARTY_LIMIT:
+            self.player_dinos.append(dino)
+            where = "your party"
+        else:
+            self.box_dinos.append(dino)
+            where = "your Box (party is full)"
+        self.message_box.queue_messages(
+            [f"[SANDBOX] Lv.{self.SANDBOX_SPAWN_LEVEL} {name} was added to {where}!"],
+            wait_for_input=True)
+
+    def _draw_dino_spawn_picker(self, surface):
+        p = self.dino_spawn_picker
+        matches = self._dino_spawn_matches()
+        font = self.fonts['DIALOGUE']
+        small = self.fonts['XS']
+        row_h = font.get_height() + 6
+        rows = self.DINO_SPAWN_VISIBLE_ROWS
+        box = pygame.Rect(0, 0, 460, 70 + rows * row_h + 26)
+        box.center = (config.WIDTH // 2, config.HEIGHT // 2)
+        pygame.draw.rect(surface, (255, 255, 255), box)
+        pygame.draw.rect(surface, (0, 0, 0), box, 3)
+        title = font.render(f"Add Lv.{self.SANDBOX_SPAWN_LEVEL} dino: {p['filter']}_", True, (0, 0, 0))
+        surface.blit(title, (box.x + 12, box.y + 12))
+        idx = min(p['index'], max(0, len(matches) - 1))
+        top = max(0, min(idx - rows // 2, len(matches) - rows))
+        list_y = box.y + 12 + title.get_height() + 12
+        if not matches:
+            surface.blit(font.render("No matches", True, (140, 140, 140)), (box.x + 20, list_y))
+        for i, name in enumerate(matches[top:top + rows]):
+            y = list_y + i * row_h
+            if top + i == idx:
+                pygame.draw.rect(surface, (200, 200, 255),
+                                 (box.x + 8, y - 2, box.width - 16, row_h), border_radius=4)
+            num = DINODEX_DATA.get(name, {}).get('number')
+            label = f"#{num:03d}  {name}" if num is not None else name
+            surface.blit(font.render(label, True, (0, 0, 0)), (box.x + 20, y))
+        hint = small.render("Type to filter  |  Up/Down  |  Enter add  |  Esc cancel", True, (90, 90, 90))
+        surface.blit(hint, (box.x + 12, box.bottom - hint.get_height() - 8))
 
     def _teleport_player_sandbox(self, tx, ty):
         ts = config.TILE_SIZE
@@ -5471,6 +6341,10 @@ class Game:
                         "Curfeu must know what they are plotting lets help him",
                     ]),
                     wait_for_input=True)
+        elif npc.trainer_id == 'vanessa_hq':
+            self._interact_shadowhq_vanessa(npc)
+        elif npc.trainer_id == 'cobaltion':
+            self._interact_cobaltion(npc)
         elif npc.trainer_id == 'scarecrux':
             if self.night_active:
                 self.message_box.queue_messages(
@@ -5641,6 +6515,8 @@ class Game:
         self.update_day_night(dt)
         self.update_heal_anim(dt)
         self.update_hit_flash(dt)
+        if self.screen_shake > 0:
+            self.screen_shake = max(0.0, self.screen_shake - dt)
         self.message_box.update(dt)
         self.route_banner.update(dt)
 
@@ -5677,7 +6553,7 @@ class Game:
         if self.message_box.visible:
             return
 
-        if self.coord_input_active:
+        if self.coord_input_active or self.dino_spawn_picker:
             return
 
         # After any message clears in double battle, auto-arm p1 selection for the new turn
@@ -5705,6 +6581,7 @@ class Game:
             elif not self.fading:
                 keys = pygame.key.get_pressed()
                 self.all_sprites.update(keys, self, dt)
+                self.surf.update(dt)  # SURF (testing)
                 if self.cutscene:
                     self._update_cutscene(dt)
                 if self.cutscene_flash:
@@ -5744,6 +6621,10 @@ class Game:
             self._maybe_add_grunts_vanessa()
             self._maybe_add_shadow_confrontation_npcs()
             self._check_shadow_confrontation_trigger()
+            self._check_cobaltion_battle_result()
+            self._maybe_add_shadowhq_npcs()
+            self._advance_shadowhq_event()
+            self._update_shadowhq_wave(dt)
             self._check_gym2_corn_maze_reveal()
             self._check_route26_abby_reveal()
             self._update_abby_follow(dt)
@@ -5776,9 +6657,15 @@ class Game:
                     self.render_surface.blit(img, (tx * ts - self.camera_x, ty * ts - self.camera_y))
             for npc in self.npcs:
                 npc.draw(self.render_surface, self.camera_x, self.camera_y)
+            if self.shadowhq_wave:
+                self._draw_shadowhq_wave(self.render_surface)
+            if self.cutscene and self.cutscene.get('phase') == 'cobaltion_collapse':
+                self._draw_cobaltion_collapse(self.render_surface)
+            self.surf.draw_under_player(self.render_surface, self.camera_x, self.camera_y)  # SURF (testing)
             for sprite in self.all_sprites:
+                oy = self.surf.player_offset_y() if sprite is self.player else 0  # SURF (testing)
                 self.render_surface.blit(sprite.image,
-                                         (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y))
+                                         (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y + oy))
             self.draw_map_above(self.render_surface)
             if self.orb_fx:
                 self._draw_orb_fx(self.render_surface)
@@ -5787,7 +6674,10 @@ class Game:
             if self.heal_anim:
                 self._draw_heal_anim(self.render_surface)
             scaled_surface = pygame.transform.scale(self.render_surface, (config.WIDTH, config.HEIGHT))
-            self.screen.blit(scaled_surface, (0, 0))
+            shake = (random.randint(-6, 6), random.randint(-6, 6)) if self.screen_shake > 0 else (0, 0)
+            if shake != (0, 0):
+                self.screen.fill(config.BLACK)
+            self.screen.blit(scaled_surface, shake)
 
             if self.night_active and not self.dn_transitioning:
                 self.screen.blit(self._night_overlay, (0, 0))
@@ -5809,6 +6699,8 @@ class Game:
                 self.screen.blit(_flash, (0, 0))
             if self.coord_input_active:
                 self._draw_coord_input(self.screen)
+            if self.dino_spawn_picker:
+                self._draw_dino_spawn_picker(self.screen)
 
         elif background_state == 'encounter' and current_state != 'encounter':
             if self.is_double_battle:
@@ -6117,6 +7009,7 @@ class Game:
         success = random.random() < catch_rate
 
         if success:
+            self._wild_caught = True
             base_dino = self.create_dino(self.enemy_dino["name"], self.enemy_dino["level"])
             base_dino["hp"] = min(self.enemy_dino["hp"], base_dino["max_hp"])
             base_dino["xp"] = 0

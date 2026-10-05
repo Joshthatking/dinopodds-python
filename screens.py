@@ -2682,10 +2682,12 @@ class BadgeEarnedScreen:
     FADE_IN_SEC     = 0.6
     MIN_DISPLAY_SEC = 3.0
 
-    def __init__(self, game, badge_name, badge_path, on_dismiss=None):
+    def __init__(self, game, badge_name, badge_path, on_dismiss=None, min_display=None):
         self.game       = game
         self.badge_name = badge_name
         self._timer     = 0.0
+        if min_display is not None:
+            self.MIN_DISPLAY_SEC = min_display
         self._on_dismiss = on_dismiss
         self._font_lg   = game.fonts['DIALOGUE']
         self._font_sm   = game.fonts['BATTLE2']
@@ -3179,20 +3181,34 @@ class QuestDebugScreen:
         self.font       = pygame.font.SysFont("arial", 18)
         self.small_font = pygame.font.SysFont("arial", 14)
         self.selected_index = 0
+        self.scroll_offset = 0
         self.width = 460
         self.line_height = 34
+        self.visible_rows = 10   # rows shown at once; the list scrolls past this
 
     def reset(self):
         self.selected_index = 0
+        self.scroll_offset = 0
+
+    def _keep_selection_visible(self):
+        n = len(QUEST_STEPS)
+        rows = min(self.visible_rows, n)
+        if self.selected_index < self.scroll_offset:
+            self.scroll_offset = self.selected_index
+        elif self.selected_index >= self.scroll_offset + rows:
+            self.scroll_offset = self.selected_index - rows + 1
+        self.scroll_offset = max(0, min(self.scroll_offset, n - rows))
 
     def handle_event(self, event, game):
         if event.type != pygame.KEYDOWN:
             return None
         n = len(QUEST_STEPS)
-        if event.key == pygame.K_w:
+        if event.key in (pygame.K_w, pygame.K_UP):
             self.selected_index = (self.selected_index - 1) % n
-        elif event.key == pygame.K_s:
+            self._keep_selection_visible()
+        elif event.key in (pygame.K_s, pygame.K_DOWN):
             self.selected_index = (self.selected_index + 1) % n
+            self._keep_selection_visible()
         elif event.key == pygame.K_j:
             index = self.selected_index
             step = QUEST_STEPS[index]
@@ -3208,7 +3224,10 @@ class QuestDebugScreen:
     def draw(self, screen):
         W, H = screen.get_width(), screen.get_height()
         x = (W - self.width) // 2
-        panel_h = len(QUEST_STEPS) * self.line_height + 60
+        n = len(QUEST_STEPS)
+        rows = min(self.visible_rows, n)
+        self._keep_selection_visible()
+        panel_h = rows * self.line_height + 60
         y = (H - panel_h) // 2
         panel_rect = pygame.Rect(x, y, self.width, panel_h)
         pygame.draw.rect(screen, (255, 255, 240), panel_rect)
@@ -3216,13 +3235,27 @@ class QuestDebugScreen:
 
         title = self.font.render("Quest Debug (Sandbox)", True, (0, 0, 0))
         screen.blit(title, (panel_rect.x + 15, panel_rect.y + 12))
+        pos = self.small_font.render(f"{self.selected_index + 1}/{n}", True, (90, 90, 90))
+        screen.blit(pos, (panel_rect.right - pos.get_width() - 15, panel_rect.y + 16))
+
+        # Scroll arrows when there are steps above/below the visible window.
+        arrow_x = panel_rect.right - 22
+        if self.scroll_offset > 0:
+            top = panel_rect.y + 44
+            pygame.draw.polygon(screen, (60, 60, 60),
+                                [(arrow_x, top + 8), (arrow_x + 10, top + 8), (arrow_x + 5, top)])
+        if self.scroll_offset + rows < n:
+            bot = panel_rect.y + 44 + rows * self.line_height - 14
+            pygame.draw.polygon(screen, (60, 60, 60),
+                                [(arrow_x, bot), (arrow_x + 10, bot), (arrow_x + 5, bot + 8)])
 
         story_flags = self.game.story_flags
-        for i, step in enumerate(QUEST_STEPS):
-            row_y = panel_rect.y + 44 + i * self.line_height
+        for row, step in enumerate(QUEST_STEPS[self.scroll_offset:self.scroll_offset + rows]):
+            i = self.scroll_offset + row
+            row_y = panel_rect.y + 44 + row * self.line_height
             if i == self.selected_index:
                 pygame.draw.rect(screen, (200, 200, 255),
-                                 (panel_rect.x + 8, row_y - 3, panel_rect.width - 16, 28),
+                                 (panel_rect.x + 8, row_y - 3, panel_rect.width - 40, 28),
                                  border_radius=5)
             done = bool(story_flags.get(step['flag']))
             mark = "[x]" if done else "[ ]"
@@ -3231,7 +3264,7 @@ class QuestDebugScreen:
             screen.blit(self.small_font.render(label, True, color),
                         (panel_rect.x + 16, row_y + 4))
 
-        hint = self.small_font.render("W/S select   J skip here   Space/Esc close", True, (90, 90, 90))
+        hint = self.small_font.render("W/S scroll   J skip here   Space/Esc close", True, (90, 90, 90))
         screen.blit(hint, (panel_rect.x + 15, panel_rect.bottom - 22))
 
 

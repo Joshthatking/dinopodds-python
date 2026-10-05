@@ -91,6 +91,7 @@ class Player(pygame.sprite.Sprite):
             or getattr(game, 'yes_no_prompt', None)
             or any(npc.state in ('spotted', 'walking') for npc in getattr(game, 'npcs', []))
             or getattr(game, 'forced_walk_npc', None)
+            or (getattr(game, 'surf', None) and game.surf.hop)  # SURF (testing)
         )
         if frozen:
             # Only snap on the frame something *newly* freezes control, not
@@ -202,6 +203,14 @@ class Player(pygame.sprite.Sprite):
                 not game.story_flags.get('encounters_unlocked') and
                 (tile_x, tile_y) in game.encounter_tile_coords):
             blocked = True
+
+        surf = getattr(game, 'surf', None)  # SURF (testing)
+        if surf and surf.active:  # SURF (testing)
+            verdict = surf.movement_verdict((tile_x, tile_y))  # SURF (testing)
+            if verdict == 'dismount':  # SURF (testing)
+                surf.start_hop((tile_x, tile_y), mount=False)  # SURF (testing)
+                return  # SURF (testing)
+            blocked = verdict == 'blocked'  # SURF (testing)
 
         min_tx, min_ty, max_tx, max_ty = game.world_bounds
         if (min_tx <= tile_x < max_tx and
