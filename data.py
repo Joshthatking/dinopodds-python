@@ -1085,6 +1085,9 @@ ENTRANCE_DATA = {
     'gym1':         {'world': 'GYM1.tmx',             'spawn': (9, 13)},
     'gym2':         {'world': 'GYM2.tmx',             'spawn': (9, 13)},
     'gym3':         {'world': 'GYM3.tmx',             'spawn': (9, 13)},
+    # Palm Port surf shack — its door is a tileset "entrance" tile, so the
+    # id is auto-generated from the door's world tile (-107, -53).
+    '-107_-53':     {'world': 'SURF_SHACK.tmx',       'spawn': (9, 13)},
 
     # Cobalt Cave — ROUTE3_4 <-> COBALT_CAVE1 (mouth of the cave). Both ends
     # use a dedicated entrance_id pair rather than a plain 'exit' tile —

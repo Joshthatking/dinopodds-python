@@ -164,6 +164,14 @@ NPC_SHEETS = {
     'emerson':            os.path.join('assets', 'NPC', 'Emerson.png'),
     'cobaltion':          os.path.join('assets', 'NPC', 'Cobaltion_overworld.png'),
     'sam':                os.path.join('assets', 'NPC', 'Sam.png'),
+    'mom':                os.path.join('assets', 'NPC', 'Mom.png'),
+    'barley':             os.path.join('assets', 'NPC', 'Volkit_overworld.png'),
+}
+
+# Static (non-4x4-sheet) NPC images scaled down to fit inside this (w, h)
+# box, aspect ratio kept and transparent padding trimmed. Keyed by NPC_SHEETS key.
+NPC_STATIC_FIT = {
+    'barley': (32, 32),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
@@ -216,6 +224,7 @@ DIALOGUE_PORTRAITS = {
     'Gray':    'gray',
     'Emerson': 'emerson',
     'Sam':     'sam',
+    'Mom':     'mom',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -280,6 +289,10 @@ WORLD_NPCS = {
         ('gym2_trainer_b', 1, 3,   'right', 5, 'trainer'),
         ('gym2_trainer_c', 18, 11, 'left',  5, 'trainer'),
         ('gym2_trainer_d', 15, 4,  'up',    5, 'trainer'),
+    ],
+    'HOME_JET.tmx': [
+        ('mom',    6, 9, 'down', 0, 'story'),
+        ('barley', 4, 9, 'down', 0, 'story'),   # the family Volkit
     ],
     'GYM3.tmx': [
         ('sam', 9, 2, 'down', 0, 'trainer'),

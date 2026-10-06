@@ -1857,12 +1857,15 @@ class Game:
         for layer in tmx.visible_layers:
             if isinstance(layer, pytmx.TiledTileLayer):
                 above = self._layer_num(layer) >= 4
+                # Layer property "no_collision: true" — e.g. a floor layer
+                # reusing a tile whose tileset entry is marked collision.
+                no_collision = bool((layer.properties or {}).get('no_collision'))
                 for x, y, gid in layer:
                     if not gid:
                         continue
                     props = tmx.get_tile_properties_by_gid(gid) or {}
                     wpos = (x, y)
-                    if props.get('collision') and not above:
+                    if props.get('collision') and not above and not no_collision:
                         solid.add(wpos)
                     if props.get('encounter'):
                         encounter.add(wpos)
@@ -2053,6 +2056,56 @@ class Game:
             self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
         spawn = (9, 7)  # matches HOME_JET2.tmx entrance tile
         self._place_player(*spawn)
+
+    # ── Mom (HOME_JET downstairs) ────────────────────────────────────────
+    def _check_mom_greeting(self):
+        """First time the player comes downstairs on a new game. Waits for
+        the stairs fade-in to finish so the dialogue isn't shown over a
+        black screen."""
+        if self.story_flags.get('mom_greeting_done') or self.current_world_file != 'HOME_JET.tmx':
+            return
+        if self.story_flags.get('amber_intro_done'):
+            # Older save already past the opening — don't greet as if it's day one.
+            self.story_flags['mom_greeting_done'] = True
+            return
+        if self.cutscene or self.message_box.visible or self.fading or self.entrance_fade_state:
+            return
+        mom = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'mom'), None)
+        if not mom:
+            return
+        self.player.freeze_in_place()
+        mom.face_toward_player(self.player)
+        self.cutscene = {'phase': 'shadowhq_wait'}  # generic no-op wait
+        self.message_box.queue_messages(
+            self._tag_dialogue('Mom', ["Jet! Another Solar Eclipse just began, becareful out there today!"]),
+            wait_for_input=True,
+            on_complete=lambda: self._finish_mom_greeting(mom))
+
+    def _finish_mom_greeting(self, mom):
+        self.story_flags['mom_greeting_done'] = True
+        mom.facing = 'down'
+        self.cutscene = None
+
+    def _interact_mom(self, npc):
+        if not self.player_dinos:
+            self.message_box.queue_messages(
+                self._tag_dialogue('Mom', ["Be careful out there today, Jet!"]), wait_for_input=True)
+            return
+        self.message_box.queue_messages(
+            self._tag_dialogue('Mom', ["Welcome home, Jet! Let me take care of your dinos."]),
+            wait_for_input=True,
+            on_complete=self._start_mom_heal)
+
+    def _start_mom_heal(self):
+        for dino in self.player_dinos:
+            dino['hp'] = dino['max_hp']
+        self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0, 'color': (255, 255, 255)}
+        self.cutscene = {'phase': 'mom_heal_flash'}
+
+    def _finish_mom_heal(self):
+        self.cutscene = None
+        self.message_box.queue_messages(
+            self._tag_dialogue('Mom', ["All better! Your dinos are fully healed."]), wait_for_input=True)
 
     def _return_from_home_to_overworld(self):
         self._load_world_data('LOST_REGION.world')
@@ -3047,6 +3100,10 @@ class Game:
             return
         if c['phase'] == 'shadowhq_walk':
             self._update_shadowhq_walk(dt)
+            return
+        if c['phase'] == 'mom_heal_flash':
+            if not self.cutscene_flash:
+                self._finish_mom_heal()
             return
         if c['phase'] == 'shadowhq_heal_flash':
             if not self.cutscene_flash:
@@ -5547,12 +5604,13 @@ class Game:
             for layer in tmx.visible_layers:
                 if isinstance(layer, pytmx.TiledTileLayer):
                     above = self._layer_num(layer) >= 4
+                    no_collision = bool((layer.properties or {}).get('no_collision'))  # see _load_single_tmx
                     for x, y, gid in layer:
                         if not gid:
                             continue
                         props = tmx.get_tile_properties_by_gid(gid) or {}
                         wpos = (wtx + x, wty + y)
-                        if props.get('collision') and not above:
+                        if props.get('collision') and not above and not no_collision:
                             solid.add(wpos)
                         if props.get('encounter'):
                             encounter.add(wpos)
@@ -6341,6 +6399,10 @@ class Game:
                         "Curfeu must know what they are plotting lets help him",
                     ]),
                     wait_for_input=True)
+        elif npc.trainer_id == 'mom':
+            self._interact_mom(npc)
+        elif npc.trainer_id == 'barley':
+            self.message_box.queue_messages(self._tag_dialogue('Barley', ["Meeooww"]), wait_for_input=True)
         elif npc.trainer_id == 'vanessa_hq':
             self._interact_shadowhq_vanessa(npc)
         elif npc.trainer_id == 'cobaltion':
@@ -6621,6 +6683,7 @@ class Game:
             self._maybe_add_grunts_vanessa()
             self._maybe_add_shadow_confrontation_npcs()
             self._check_shadow_confrontation_trigger()
+            self._check_mom_greeting()
             self._check_cobaltion_battle_result()
             self._maybe_add_shadowhq_npcs()
             self._advance_shadowhq_event()

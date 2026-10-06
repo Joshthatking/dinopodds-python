@@ -23,8 +23,18 @@ def _load_sheet(trainer_id):
             # Too small to be a real 4x4 walk-cycle sheet — treat it as a
             # single static image (e.g. a one-off story prop) and reuse it
             # for every direction/frame instead of cropping a 32x32 corner.
-            frame = sheet if ts == 32 else pygame.transform.scale(
-                sheet, (round(sw * ts / 32), round(sh * ts / 32)))
+            fit = config.NPC_STATIC_FIT.get(sprite_key)
+            if fit:
+                r = sheet.get_bounding_rect()
+                if r.width and r.height:
+                    sheet = sheet.subsurface(r).copy()
+                    sw, sh = r.width, r.height
+                scale = min(fit[0] / sw, fit[1] / sh)
+                frame = pygame.transform.smoothscale(
+                    sheet, (max(1, round(sw * scale)), max(1, round(sh * scale))))
+            else:
+                frame = sheet if ts == 32 else pygame.transform.scale(
+                    sheet, (round(sw * ts / 32), round(sh * ts / 32)))
             return {d: [frame] * 4 for d in _ALL_DIRS}
         frames = {}
         for row, direction in _ROW_DIR.items():
