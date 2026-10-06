@@ -7,6 +7,7 @@ from collections import deque
 from player import Player
 from npc import NPC
 from surf import Surf  # SURF (testing)
+from moves import MoveAnimation
 import os
 import config
 from screens import *
@@ -192,6 +193,7 @@ class Game:
 
         # Hit flash state
         self.hit_flash = None   # None | {'target':'player'|'enemy','timer':0,'duration':1.5,'interval':0.08}
+        self.move_anim = None   # moves.MoveAnimation currently playing in battle
         self._post_xp_callback = None
         self._post_trainer_battle_cb = None
         self.badge_earned_screen = None
@@ -1315,12 +1317,15 @@ class Game:
         lvl     = max(1, attacker['level'])
         dmg     = max(1, int(Damage(lvl, atk, power, dfs, STAB, eff_val, rnd))) if power > 0 else 0
         defender['hp'] = max(0, defender['hp'] - dmg)
+        p1 = self.player_dinos[0] if self.player_dinos else None
+        if attacker_label == "":  # player attacking enemy
+            flash_target = 'enemy1' if defender is self.enemy_dino else 'enemy2'
+            anim_source  = 'player1' if attacker is p1 else 'player2'
+        else:  # enemy attacking player
+            flash_target = 'player1' if defender is p1 else 'player2'
+            anim_source  = 'enemy1' if attacker is self.enemy_dino else 'enemy2'
+        self.play_move_anim(move_name, flash_target, anim_source)
         if dmg > 0:
-            if attacker_label == "":  # player attacking enemy
-                flash_target = 'enemy1' if defender is self.enemy_dino else 'enemy2'
-            else:  # enemy attacking player
-                p1 = self.player_dinos[0] if self.player_dinos else None
-                flash_target = 'player1' if defender is p1 else 'player2'
             self.trigger_hit_flash(flash_target)
 
         msgs = [f"{attacker_label}{attacker['name']} used {move_name}!"]
@@ -5712,7 +5717,8 @@ class Game:
                 self._handle_dino_spawn_event(event)
                 continue  # not return — keep fast-typed filter letters from this frame
 
-            # Message box is processed first, but not while HP bars are animating in battle
+            # Message box is processed first, but not while HP bars or a move
+            # animation (moves.py) are still playing in battle
             if self.message_box.visible:
                 hp_animating = (
                     'encounter' in self.state_stack and
@@ -5720,7 +5726,7 @@ class Game:
                     self.encounter_ui.is_hp_animating(
                         self.player_dinos[self.active_dino_index], self.enemy_dino)
                 )
-                if not hp_animating:
+                if not hp_animating and self.move_anim is None:
                     self.message_box.handle_event(event)
                 return
 
@@ -6577,6 +6583,7 @@ class Game:
         self.update_day_night(dt)
         self.update_heal_anim(dt)
         self.update_hit_flash(dt)
+        self.update_move_anim(dt)
         if self.screen_shake > 0:
             self.screen_shake = max(0.0, self.screen_shake - dt)
         self.message_box.update(dt)
@@ -6857,6 +6864,9 @@ class Game:
                                        player_visible=_player_vis,
                                        field_effects=self.field_effects)
 
+            if self.move_anim and not self.encounter_anim:
+                self.move_anim.draw(self.screen)
+
         if background_state == 'encounter' and current_state == 'encounter':
             if self.night_active and not self.dn_transitioning:
                 self.screen.blit(self._night_overlay_battle, (0, 0))
@@ -7060,6 +7070,34 @@ class Game:
         self.hit_flash['timer'] += dt
         if self.hit_flash['timer'] >= self.hit_flash['duration']:
             self.hit_flash = None
+
+    # Screen-space sprite centers + effect scale for each battle slot
+    # (mirrors the sprite placement in screens.Encounter / EncounterUI / DoubleBattle*)
+    def _battle_slot_pos(self, slot):
+        if self.is_double_battle:
+            return {
+                'enemy1':  ((config.WIDTH - 250, 145), 0.85),
+                'enemy2':  ((config.WIDTH - 120, 145), 0.85),
+                'player1': ((94, 280), 1.1),
+                'player2': ((244, 280), 1.1),
+            }.get(slot, ((config.WIDTH - 250, 145), 0.85))
+        if slot.startswith('enemy'):
+            return (config.WIDTH - 157, 155), 1.0
+        return (166, 255), 1.4
+
+    def play_move_anim(self, move_name, target_slot, source_slot):
+        """Start the moves.py hit animation for move_name. Self-targeting moves play on the user."""
+        if MOVE_DATA.get(move_name, {}).get('target') == 'self':
+            target_slot = source_slot
+        tpos, scale = self._battle_slot_pos(target_slot)
+        spos, _ = self._battle_slot_pos(source_slot)
+        self.move_anim = MoveAnimation(move_name, tpos, spos, scale)
+
+    def update_move_anim(self, dt):
+        if self.move_anim:
+            self.move_anim.update(dt)
+            if self.move_anim.done:
+                self.move_anim = None
 
     def attempt_catch(self, item_name='DinoPod'):
         if self.inventory.get(item_name, 0) <= 0:
@@ -7287,11 +7325,14 @@ class Game:
         raw = Damage(lvl, atk, power, dfs, STAB, eff_val, rnd) * type_boost
         dmg = max(1, int(raw)) if power > 0 else 0
         defender['hp'] = max(0, defender['hp'] - dmg)
+        if self.is_double_battle:
+            flash_target = 'enemy1' if defender is self.enemy_dino else 'enemy2'
+            anim_source = 'player1' if self.player_dinos and attacker is self.player_dinos[0] else 'player2'
+        else:
+            flash_target = 'enemy'
+            anim_source = 'player'
+        self.play_move_anim(move_name, flash_target, anim_source)
         if dmg > 0:
-            if self.is_double_battle:
-                flash_target = 'enemy1' if defender is self.enemy_dino else 'enemy2'
-            else:
-                flash_target = 'enemy'
             self.trigger_hit_flash(flash_target)
 
         msgs = [f"{attacker['name']} used {move_name}!"]
@@ -7556,6 +7597,7 @@ class Game:
                            if fx['effect'] == 'type_power' and fx.get('boost_type') == mtype), 1.0)
         dmg = max(1, int(Damage(lvl, atk, power, dfs, STAB, eff_val, rnd) * type_boost)) if power > 0 else 0
         defender['hp'] = max(0, defender['hp'] - dmg)
+        self.play_move_anim(move['name'], 'player', 'enemy')
         if dmg > 0:
             self.trigger_hit_flash('player')
 

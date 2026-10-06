@@ -979,7 +979,7 @@ MOVE_DATA = {
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
     'Crash Impact': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'type': 'rock',
                      'ability': {'kind': 'recoil', 'percent': 15, 'chance': 100}},
-    'Sand Storm': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'ice',
+    'Sand Storm': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'rock',
                    'ability': {'kind': 'dot', 'damage_percent': 8, 'turns': 2,
                                'tick_msg': 'hit by waves of sand', 'chance': 100}},
 

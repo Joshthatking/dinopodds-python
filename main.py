@@ -307,12 +307,15 @@ if __name__ == '__main__':
 #Battle for the lunar shard COMPLETE
 #GYM 3 complete
 # SURF LOGIC AND ABILITY POST GYM 3 active
+# ANIMATIONS COMPLETE - moves.py and surf.py
+# mom and barley in home, heals whenever home
+
 
 #need to add curfue, skyy, abby, cade in surf shack to discuss the meaning of what happened at cobalt cave
 #need to add water spawns! 
-#need to add mom and barley in home, heals whenever home
 
-#THEN - sound effects, route music and event music, nuzlocke/randomizer/speed run modes, maybe animations for attacks
+
+#THEN - sound effects, route music and event music, nuzlocke/randomizer/speed run modes
 #go over playthrough to see how difficulty and glitches work, refine and fix, then...
 # add more lore and suspense for the plot
 #ALPHA COMPLETE
