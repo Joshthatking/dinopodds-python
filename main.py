@@ -306,9 +306,14 @@ if __name__ == '__main__':
 #10/5
 #Battle for the lunar shard COMPLETE
 #GYM 3 complete
-# SURF LOGIC AND ABILITY POST GYM 3 active
+# SURF LOGIC AND ABILITY POST GYM 3 active -- update, after gym 2
 # ANIMATIONS COMPLETE - moves.py and surf.py
 # mom and barley in home, heals whenever home
+
+#10/7
+#Ball catch animations and rates dependent on health%, level and stats
+#Grass animations + water movement when nearby
+
 
 
 #need to add curfue, skyy, abby, cade in surf shack to discuss the meaning of what happened at cobalt cave

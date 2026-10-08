@@ -34,10 +34,11 @@ class Surf:
     # ── queries ──────────────────────────────────────────────────────────
 
     def unlocked(self):
-        # Only after beating Sam (Gym 3) — both flags are set by that win
-        # (the quest-menu jump sets gym3_leader_defeated).
+        # Sam hands Surf over outside Gym 2 (surf_unlocked); the other two
+        # cover quest-menu jumps and saves from before that scene existed.
         f = self.game.story_flags
-        return bool(f.get('surf_unlocked') or f.get('gym3_leader_defeated'))
+        return bool(f.get('surf_unlocked') or f.get('sam_surf_intro_done')
+                    or f.get('gym3_leader_defeated'))
 
     def is_water(self, tile):
         return self.game.tile_types.get(tile) == 'water'

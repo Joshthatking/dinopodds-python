@@ -64,6 +64,11 @@
 #       Earth Badge awarded. (Gym 2's guard only clears once
 #       vanessa_shadow_event_done is set — see _maybe_add_gym2_blocker.)
 #
+# 12b. EXIT GYM 2, SAM GIVES SURF  →  sam_surf_intro_done
+#       Sam (Gym 3 leader) waits at (63, -65) beside the Gym 2 exit,
+#       introduces himself, unlocks Surf (surf_unlocked), then walks to
+#       (55, -69) and disappears (see Game._check_sam_surf_intro).
+#
 # 13. BEAT GYM 2, CROSS INTO ROUTE 3 AT (33, -65)..(33, -59)  →  gray_route3_done
 #       Rival Gray's rematch. Input pauses, Gray walks in from 7 tiles to
 #       the player's left, dialogue plays, then a battle: Chomper (18),
@@ -203,6 +208,11 @@ QUEST_STEPS = [
         "flag": "gym2_leader_defeated",
         "defeated_trainers": ["log"],
         "badges": ["earth"],
+    },
+    {
+        "id": "sam_surf_intro_done",
+        "label": "11b. Sam Gives Surf (Outside Gym 2)",
+        "flag": "sam_surf_intro_done",
     },
     {
         "id": "gray_route3_done",

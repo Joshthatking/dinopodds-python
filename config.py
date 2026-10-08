@@ -326,7 +326,7 @@ ITEMS = {
         "name": "DinoPod",
         "icon": os.path.join(ITEMS_PATH, "dinopod.png"),
         "description": "A basic device used to capture wild Dinos",
-        "catch_rate": 0.9,
+        "catch_rate": 0.3,
     },
     "DinoCapsule": {
         "name": "DinoCapsule",

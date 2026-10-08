@@ -7,7 +7,9 @@ from collections import deque
 from player import Player
 from npc import NPC
 from surf import Surf  # SURF (testing)
+from environment_fx import EnvironmentFX  # ENV FX
 from moves import MoveAnimation
+from catch_anim import CatchAnimation
 import os
 import config
 from screens import *
@@ -66,6 +68,7 @@ class Game:
         self.player = Player(spawn_point='home')
         self.all_sprites = pygame.sprite.Group(self.player)
         self.surf = Surf(self)  # SURF (testing)
+        self.env_fx = EnvironmentFX(self)  # ENV FX
 
         self.fade_alpha = 0
         self.fading = False
@@ -194,6 +197,7 @@ class Game:
         # Hit flash state
         self.hit_flash = None   # None | {'target':'player'|'enemy','timer':0,'duration':1.5,'interval':0.08}
         self.move_anim = None   # moves.MoveAnimation currently playing in battle
+        self.catch_anim = None  # catch_anim.CatchAnimation for a thrown pod
         self._post_xp_callback = None
         self._post_trainer_battle_cb = None
         self.badge_earned_screen = None
@@ -308,6 +312,7 @@ class Game:
         self.awaiting_switch = False
         self.item_target_mode = None
         self.fading = False
+        self.catch_anim = None
 
     def trigger_blackout(self):
         lost_npc = self.current_trainer_npc
@@ -3305,6 +3310,22 @@ class Game:
             else:
                 self._force_step_npc_toward_tile(npc, wx, wy)
 
+        elif c['phase'] == 'sam_surf_dialogue_wait':
+            pass  # waiting on the message_box's on_complete chain
+
+        elif c['phase'] == 'sam_surf_walking_away':
+            if self.message_box.visible:
+                return
+            wx, wy = c['walk_target']
+            if npc.tile_x == wx and npc.tile_y == wy:
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                if npc in self.npcs:
+                    self.npcs.remove(npc)
+                self.story_flags['sam_surf_intro_done'] = True
+                self.cutscene = None
+            else:
+                self._force_step_npc_toward_tile(npc, wx, wy)
+
         elif c['phase'] == 'skyy_pp_approaching':
             wx, wy = c['walk_target']
             if npc.tile_x == wx and npc.tile_y == wy:
@@ -3760,6 +3781,85 @@ class Game:
                 'walk_target': (npc.tile_x - 7, npc.tile_y),
             }
         self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=start_walk_away)
+
+    # ── Sam hands over Surf — waiting outside Gym 2 right after Log's badge ──
+    SAM_SURF_TILE = (63, -65)          # one tile left of the Gym 2 exit tile
+    SAM_SURF_LEAVE_TILE = (55, -69)    # walks here, then disappears
+
+    def _maybe_add_sam_surf_intro(self):
+        if not self.story_flags.get('gym2_leader_defeated'):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        sam = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'sam'), None)
+        if (self.story_flags.get('sam_surf_intro_done')
+                or self.story_flags.get('gym3_leader_defeated')):
+            # Quest-menu jump past this scene — don't leave him standing there.
+            if sam and not self.cutscene:
+                self.solid_tile_coords.discard((sam.tile_x, sam.tile_y))
+                self.npcs.remove(sam)
+            return
+        if sam:
+            return
+        tx, ty = self.SAM_SURF_TILE
+        sam = NPC('sam', tile_x=tx, tile_y=ty, facing='right',
+                  sight_range=0, npc_type='story')
+        sam.state = 'idle'
+        sam.home_tile = (tx, ty)
+        sam.home_facing = 'right'
+        self.npcs.append(sam)
+        self.solid_tile_coords.add((tx, ty))
+
+    def _check_sam_surf_intro(self):
+        if self.story_flags.get('sam_surf_intro_done') or self.cutscene:
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        if self.fading or self.entrance_fade_state or self.message_box.visible:
+            return
+        sam = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'sam'), None)
+        if not sam:
+            return
+        px = self.player.rect.x // config.TILE_SIZE
+        py = self.player.rect.y // config.TILE_SIZE
+        if abs(px - sam.tile_x) + abs(py - sam.tile_y) > 2:
+            return
+        self.player.freeze_in_place()
+        sam.face_toward_player(self.player)
+        dx, dy = sam.tile_x - px, sam.tile_y - py
+        if abs(dx) >= abs(dy):
+            self._face_player('right' if dx > 0 else 'left')
+        else:
+            self._face_player('down' if dy > 0 else 'up')
+        self.cutscene = {'phase': 'sam_surf_dialogue_wait', 'npc': sam}
+        self.message_box.queue_messages(
+            self._tag_dialogue('Sam', [
+                "Hey nice job on the 2nd gym leader!",
+                "My name is Sam and I am the 3rd gym leader so I expect to see you very soon.",
+                "My gym is west of here in the most beautiful part of the region, Palm Port.",
+                "..Oh and before I forget, I wanted to show you the ability to surf.",
+            ]),
+            wait_for_input=True,
+            on_complete=self._sam_grant_surf)
+
+    def _sam_grant_surf(self):
+        self.story_flags['surf_unlocked'] = True
+        self.message_box.queue_messages([
+            "You now have the ability to surf!",
+            "Try interacting with water to surf above it as a new way of traversing the region!",
+        ], wait_for_input=True, on_complete=self._sam_surf_farewell)
+
+    def _sam_surf_farewell(self):
+        self.message_box.queue_messages(
+            self._tag_dialogue('Sam', ["Try it out sometime, you might need it for me, later!"]),
+            wait_for_input=True,
+            on_complete=self._start_sam_surf_walk_away)
+
+    def _start_sam_surf_walk_away(self):
+        if not self.cutscene:
+            return
+        self.cutscene['phase'] = 'sam_surf_walking_away'
+        self.cutscene['walk_target'] = self.SAM_SURF_LEAVE_TILE
 
     # ── Skyy's Power Plant reveal — free exploration after Gray's 2nd battle,
     # triggers on crossing either of two strips back toward Route 3 ────────
@@ -5551,9 +5651,7 @@ class Game:
 
     def _on_sam_gym_won(self):
         self.story_flags['gym3_leader_defeated'] = True
-        # Sam hands over Surf with the badge — flag for the (future) surf
-        # mechanic to check before letting the player onto water.
-        self.story_flags['surf_unlocked'] = True
+        # (Surf itself is handed over earlier — see _check_sam_surf_intro.)
         if 'aqua' not in self.badges_earned:
             self.badges_earned.append('aqua')
 
@@ -5846,8 +5944,10 @@ class Game:
                     self.pop_state()
 
             elif self.state == 'encounter':
-                # No input of any kind during the intro animation
+                # No input of any kind during the intro or a pod throw
                 if self.encounter_anim is not None:
+                    return
+                if self.catch_anim and not self.catch_anim.done:
                     return
 
                 # Double battle uses its own event handler
@@ -6584,6 +6684,9 @@ class Game:
         self.update_heal_anim(dt)
         self.update_hit_flash(dt)
         self.update_move_anim(dt)
+        if self.catch_anim:
+            self.catch_anim.update(dt)
+        self.env_fx.update(dt)  # ENV FX
         if self.screen_shake > 0:
             self.screen_shake = max(0.0, self.screen_shake - dt)
         self.message_box.update(dt)
@@ -6680,6 +6783,8 @@ class Game:
             self._maybe_add_gym1_skyy()
             self._maybe_add_gray_rival()
             self._check_gray2_route3_rival()
+            self._maybe_add_sam_surf_intro()
+            self._check_sam_surf_intro()
             self._check_skyy_powerplant_trigger()
             self._maybe_add_pp_grunts_waiting()
             self._maybe_add_powerplant_scene_npcs()
@@ -6721,6 +6826,7 @@ class Game:
 
         if background_state == 'world':
             self.draw_map_below(self.render_surface)
+            self.env_fx.draw_ground(self.render_surface, self.camera_x, self.camera_y)  # ENV FX
             ts = config.TILE_SIZE
             for (tx, ty), img in self.map_ball_images.items():
                 if (tx, ty) in self.items_on_map:
@@ -6736,6 +6842,7 @@ class Game:
                 oy = self.surf.player_offset_y() if sprite is self.player else 0  # SURF (testing)
                 self.render_surface.blit(sprite.image,
                                          (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y + oy))
+            self.env_fx.draw_over_player(self.render_surface, self.camera_x, self.camera_y)  # ENV FX
             self.draw_map_above(self.render_surface)
             if self.orb_fx:
                 self._draw_orb_fx(self.render_surface)
@@ -6848,15 +6955,20 @@ class Game:
                     self.encounter.current_dino_surface = frame
                     self.encounter.draw(self.screen)
                 else:
-                    self.encounter.draw(self.screen, enemy_visible=_enemy_vis)
+                    catch_hides = bool(self.catch_anim and self.catch_anim.hides_enemy)
+                    self.encounter.draw(self.screen, enemy_visible=_enemy_vis and not catch_hides)
 
                 msg_active   = self.message_box.visible
+                throwing     = bool(self.catch_anim and not self.catch_anim.done)
                 display_text = (self.message_box.message[:self.message_box.char_index]
                                 if msg_active else self.encounter_text)
+                if throwing and not msg_active:
+                    display_text = self._catch_throw_text
                 msg_awaiting = (msg_active and self.message_box.wait_for_input and
                                 self.message_box.char_index >= len(self.message_box.message))
                 self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index],
-                                       self.enemy_dino, display_text, show_actions=not msg_active,
+                                       self.enemy_dino, display_text,
+                                       show_actions=not msg_active and not throwing,
                                        trainer_total=self.trainer_dinos_total if self.is_trainer_battle else 0,
                                        trainer_defeated=self.trainer_dinos_defeated,
                                        pod_icon=self.item_image if self.is_trainer_battle else None,
@@ -6866,6 +6978,8 @@ class Game:
 
             if self.move_anim and not self.encounter_anim:
                 self.move_anim.draw(self.screen)
+            if self.catch_anim and not self.is_double_battle:
+                self.catch_anim.draw(self.screen)
 
         if background_state == 'encounter' and current_state == 'encounter':
             if self.night_active and not self.dn_transitioning:
@@ -7099,6 +7213,39 @@ class Game:
             if self.move_anim.done:
                 self.move_anim = None
 
+    # Catch chance = pod's catch_rate x HP mult x level mult x stat-total mult,
+    # clamped to [CATCH_FLOOR, 1.0].
+    CATCH_FLOOR = 0.05
+    CATCH_LOW_HP_BONUS = 1.0        # 1 HP left -> up to x2.0, full HP -> x1.0
+    CATCH_LEVEL_PENALTY = 0.05      # per level the wild dino is above yours
+    CATCH_LEVEL_PENALTY_MIN = 0.5   # level mult never drops below this
+    CATCH_LEVEL_BONUS = 0.02        # per level the wild dino is below yours
+    CATCH_LEVEL_BONUS_MAX = 1.2
+    # (max base stat total, mult) — health + attack + defense + speed
+    CATCH_STAT_TIERS = [(440, 1.0), (460, 0.85), (float('inf'), 0.7)]
+
+    def _catch_chance(self, item_name):
+        chance = config.ITEMS.get(item_name, {}).get("catch_rate", 0.5)
+        enemy = self.enemy_dino
+
+        max_hp = max(1, enemy.get('max_hp', 1))
+        hp_frac = max(0.0, min(1.0, enemy.get('hp', max_hp) / max_hp))
+        chance *= 1 + (1 - hp_frac) * self.CATCH_LOW_HP_BONUS
+
+        active = self.player_dinos[self.active_dino_index] if self.player_dinos else None
+        if active is not None:
+            diff = enemy['level'] - active['level']
+            if diff > 0:
+                chance *= max(self.CATCH_LEVEL_PENALTY_MIN, 1 - diff * self.CATCH_LEVEL_PENALTY)
+            elif diff < 0:
+                chance *= min(self.CATCH_LEVEL_BONUS_MAX, 1 + -diff * self.CATCH_LEVEL_BONUS)
+
+        stats = DINO_DATA.get(enemy['name'], {}).get('stats', {})
+        total = sum(stats.get(k, 0) for k in ('health', 'attack', 'defense', 'speed'))
+        chance *= next(m for cap, m in self.CATCH_STAT_TIERS if total <= cap)
+
+        return max(self.CATCH_FLOOR, min(1.0, chance))
+
     def attempt_catch(self, item_name='DinoPod'):
         if self.inventory.get(item_name, 0) <= 0:
             self.message_box.queue_messages(
@@ -7106,8 +7253,24 @@ class Game:
                 on_complete=self._enemy_turn)
             return
         self.inventory[item_name] = max(0, self.inventory[item_name] - 1)
-        catch_rate = config.ITEMS.get(item_name, {}).get("catch_rate", 0.5)
-        success = random.random() < catch_rate
+        success = random.random() < self._catch_chance(item_name)
+
+        # Throw the pod first; the result messages wait for it to land.
+        dino_key = self.encounter.dino_key
+        enemy_size = int(config.ENCOUNTER_BASE_SIZE * config.ENCOUNTER_DINO_SIZES.get(dino_key, 1.0))
+        enemy_center, _ = self._battle_slot_pos('enemy')
+        self._catch_throw_text = f"You threw a {item_name}!"
+        self.catch_anim = CatchAnimation(
+            self.item_icons.get(item_name, self.item_image),
+            self.encounter.current_dino_surface,
+            enemy_center, enemy_size,
+            start_pos=(140, 290),   # just in front of the player's dino
+            success=success,
+            on_finish=lambda: self._finish_catch(item_name, success))
+
+    def _finish_catch(self, item_name, success):
+        if not success:
+            self.catch_anim = None   # dino is back out — scene draws it again
 
         if success:
             self._wild_caught = True

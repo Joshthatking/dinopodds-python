@@ -419,7 +419,9 @@ TRAINER_DATA = {
                 "Let's see if you can ride the wave!"
             ],
             'defeated': [
-                "Wow you earned it, and with beating me let me give you the ability Surf to use to explore the region ever more!"
+                "Wow, what a battle! You rode those waves like you were born on them.",
+                "That Aqua Badge is yours, you've more than earned it.",
+                "I knew you'd make it here. Palm Port will always have a spot for you, come back and visit anytime!"
             ]
         },
         'directions': ['down'],
