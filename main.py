@@ -314,6 +314,15 @@ if __name__ == '__main__':
 #Ball catch animations and rates dependent on health%, level and stats
 #Grass animations + water movement when nearby
 
+#10/8
+# Title Screen Animation
+# fix grass animation
+# add water spawns
+# fix certain paths, collisions
+# add buildings
+# add more lore
+# add electric cloud, pre evo to shark, lavaleo, 2% chance of starters in wild, orange/red pectura flying fire
+
 
 
 #need to add curfue, skyy, abby, cade in surf shack to discuss the meaning of what happened at cobalt cave
@@ -328,6 +337,7 @@ if __name__ == '__main__':
 
 # PLAYTHROUGH NOTES
 # early game works well!
+
 # suggest lowering gym 1 levels by 1
 # route 2 lower levels of spawns by 2
 # part 2 of game feels a bit steep alter by 1-2 levels

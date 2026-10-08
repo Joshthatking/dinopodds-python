@@ -10,6 +10,7 @@ from surf import Surf  # SURF (testing)
 from environment_fx import EnvironmentFX  # ENV FX
 from moves import MoveAnimation
 from catch_anim import CatchAnimation
+from title_anim import LaunchIntro
 import os
 import config
 from screens import *
@@ -43,7 +44,7 @@ class Game:
         pygame.display.set_caption('DinoPodds')
         self.clock = pygame.time.Clock()
         self.running = True
-        self.state_stack = ['title']
+        self.state_stack = ['launch']
 
         self.fonts = {name: pygame.font.Font(path, size) for name, (path, size) in config.FONT_DEFS.items()}
         self.camera_x, self.camera_y = 0, 0
@@ -108,6 +109,7 @@ class Game:
 
         # Screens
         self.title_screen = TitleScreen(self)
+        self.launch_intro = LaunchIntro(self)
         self.menu = Menu(self)
         self.quest_debug_screen = QuestDebugScreen(self)
         self.party_screen = PartyScreen(self)
@@ -5774,6 +5776,10 @@ class Game:
                 self.running = False
                 return
 
+            if self.state == 'launch':
+                self.launch_intro.handle_event(event)
+                continue
+
             if self.state == 'title':
                 self.title_screen.handle_event(event, os.path.exists(SAVE_PATH))
                 continue
@@ -6659,6 +6665,14 @@ class Game:
     # --- Update ---
 
     def update(self, dt):
+        if self.state == 'launch':
+            self.launch_intro.update(dt)
+            if self.launch_intro.done:
+                self.launch_intro = None
+                self.state_stack = ['title']
+                self.title_screen.reset(fade_from_black=False)
+            return
+
         if self.state == 'title':
             self.title_screen.update(dt)
             return
@@ -6808,6 +6822,11 @@ class Game:
     # --- Draw ---
 
     def draw(self):
+        if self.state == 'launch':
+            self.launch_intro.draw(self.screen)
+            pygame.display.flip()
+            return
+
         if self.state == 'title':
             self.title_screen.draw(self.screen, os.path.exists(SAVE_PATH))
             pygame.display.flip()

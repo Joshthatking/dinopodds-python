@@ -4,6 +4,7 @@ import pygame
 import config
 from data import *
 from story import QUEST_STEPS
+from title_anim import TitleBackdrop, TitleLogo
 
 
 def load_image(path, alpha=False):
@@ -2861,18 +2862,23 @@ class TitleScreen:
         self.game = game
         self.options = ["New Game", "Continue", "Sandbox Mode"]
         self.selected = 0
-        self.title_font = pygame.font.Font(config.FONT_PATH_B, 52)
         self.option_font = game.fonts['DIALOGUE']
         self.hint_font = game.fonts['XS']
+        self.backdrop = TitleBackdrop()
+        self.logo = TitleLogo()
         self.fade_alpha = 255
         self._fading_in = True
 
-    def reset(self):
+    def reset(self, fade_from_black=True):
         self.selected = 0
-        self.fade_alpha = 255
-        self._fading_in = True
+        self.fade_alpha = 255 if fade_from_black else 0
+        self._fading_in = fade_from_black
+        self.backdrop.show_sun = True
 
     def update(self, dt):
+        dt = min(dt, 1 / 20)
+        self.backdrop.update(dt)
+        self.logo.update(dt)
         if self._fading_in:
             self.fade_alpha = max(0, self.fade_alpha - int(255 * dt * 1.5))
             if self.fade_alpha == 0:
@@ -2902,27 +2908,18 @@ class TitleScreen:
 
     def draw(self, screen, has_save):
         W, H = screen.get_width(), screen.get_height()
-        screen.fill((15, 10, 30))
-
-        pygame.draw.rect(screen, (35, 25, 65), (0, 0, W, 65))
-        pygame.draw.rect(screen, (35, 25, 65), (0, H - 50, W, 50))
-        pygame.draw.line(screen, (80, 60, 140), (0, 65), (W, 65), 2)
-        pygame.draw.line(screen, (80, 60, 140), (0, H - 50), (W, H - 50), 2)
-
-        title_surf = self.title_font.render("DINOPODDS", True, (240, 210, 70))
-        screen.blit(title_surf, (W // 2 - title_surf.get_width() // 2, 80))
-
-        sub = self.hint_font.render("A world of ancient creatures awaits...", True, (160, 140, 200))
-        screen.blit(sub, (W // 2 - sub.get_width() // 2, 148))
+        self.backdrop.draw(screen, self.logo)
 
         for i, opt in enumerate(self.options):
-            y = 210 + i * 60
+            y = 250 + i * 52
             unavailable = opt == "Continue" and not has_save
             is_selected = i == self.selected and not unavailable
 
             if is_selected:
                 box = pygame.Rect(W // 2 - 110, y - 10, 220, 38)
-                pygame.draw.rect(screen, (50, 38, 85), box, border_radius=7)
+                box_bg = pygame.Surface(box.size, pygame.SRCALPHA)
+                pygame.draw.rect(box_bg, (30, 18, 60, 200), box_bg.get_rect(), border_radius=7)
+                screen.blit(box_bg, box.topleft)
                 pygame.draw.rect(screen, (160, 130, 255), box, 2, border_radius=7)
                 color = (255, 230, 80)
             elif unavailable:
@@ -2932,9 +2929,11 @@ class TitleScreen:
 
             label = opt + ("  (No Save)" if unavailable else "")
             surf = self.option_font.render(label, True, color)
+            shadow = self.option_font.render(label, True, (12, 6, 28))
+            screen.blit(shadow, (W // 2 - surf.get_width() // 2 + 2, y + 2))
             screen.blit(surf, (W // 2 - surf.get_width() // 2, y))
 
-        hint = self.hint_font.render("W/S  Navigate       J  Select", True, (95, 85, 125))
+        hint = self.hint_font.render("W/S  Navigate       J  Select", True, (150, 135, 190))
         screen.blit(hint, (W // 2 - hint.get_width() // 2, H - 35))
 
         if self.fade_alpha > 0:
