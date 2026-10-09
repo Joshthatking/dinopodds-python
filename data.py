@@ -724,7 +724,7 @@ DINO_DATA = {
         'evolve': None},
     'Bouldava': {
         'stats': {'type': ['rock', 'magma'], 'health': 120, 'attack': 105, 'defense': 135, 'speed': 80},
-        'moves': {0: "Boulder Smash", 1: 'Sand Kick', 12: 'Flame Shatter', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 39:'Crash Impact' },
+        'moves': {0: "Boulder Smash", 1: 'Sand Kick', 12: 'Flame Shatter', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 39:'Crash Impact', 40: 'Ultra Violet' },
         'evolve': None},
     'Ghoulflame': {
         'stats': {'type': ['dark', 'magma'], 'health': 106, 'attack': 116, 'defense': 94, 'speed': 114},
@@ -1029,6 +1029,8 @@ MOVE_DATA = {
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'light', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
    'Gamma Wave':   {'target': 'opponent', 'damage': 80, 'accuracy': 90, 'type': 'light',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'opponent', 'chance': 100}},
+    'Ultra Violet': {'target': 'opponent', 'damage': 120, 'accuracy': 100, 'type': 'light',
+                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'self', 'chance': 100}},
     #ICE MOVES
     'Snowfall': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'ice'},
     'Freeze Blast': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'ice'},
@@ -1225,6 +1227,9 @@ ENCOUNTER_ZONES = {
 
             {"name": "Drafyton",  "weight": 0.01, "time": "day"},
             {"name": "Drafyton",  "weight": 0.01, "time": "night"},
+
+            {"name": "Floravel",  "weight": 0.05, "time": "day"},
+            {"name": "Floravel",  "weight": 0.05, "time": "night"},
         ],
         "level_range": (11, 16)
 
@@ -1275,7 +1280,23 @@ ENCOUNTER_ZONES = {
 
             "cobalt_cave": {
         "encounter_rate": 0.03,
-        "dinos": ["Roxer", "Sortle", "Bouldava", "Ghoulflame", "Prowscar"],
+                "dinos": [
+            {"name": "Roxer",  "weight": 0.2, "time": "night"},
+            {"name": "Roxer",  "weight": 0.2, "time": "day"},
+
+            {"name": "Sortle",  "weight": 0.25, "time": "day"},
+            {"name": "Sortle",  "weight": 0.25, "time": "night"},
+
+            {"name": "Bouldava",  "weight": 0.25, "time": "day"},
+            {"name": "Bouldava",  "weight": 0.25, "time": "night"},
+
+            {"name": "Ghoulflame",  "weight": 0.3, "time": "night"},
+            {"name": "Prowscar",  "weight": 0.3, "time": "night"},
+            {"name": "Prowscar",  "weight": 0.1, "time": "day"},
+
+            {"name": "Volkit",  "weight": 0.1, "time": "day"},
+            {"name": "Volkit",  "weight": 0.1, "time": "night"},
+        ],
         "level_range": (12, 16)
 
     },
@@ -1286,6 +1307,62 @@ ENCOUNTER_ZONES = {
 
     },
 
+            "spawn_water": {
+        "encounter_rate": 0.03,
+                "dinos": [
+            {"name": "Corlave",  "weight": 0.05, "time": "night"},
+            {"name": "Corlave",  "weight": 0.05, "time": "day"},
+
+            {"name": "Sharka",  "weight": 0.25, "time": "day"},
+            {"name": "Sharka",  "weight": 0.25, "time": "night"},
+
+            {"name": "Seasoo",  "weight": 0.25, "time": "day"},
+            {"name": "Seasoo",  "weight": 0.25, "time": "night"},
+            {"name": "Typhoonray",  "weight": 0.25, "time": "day"},
+            {"name": "Typhoonray",  "weight": 0.25, "time": "night"},
+
+        ],
+        "level_range": (12, 16)
+
+    },
+
+            "lake_water1": {
+        "encounter_rate": 0.03,
+                "dinos": [
+            {"name": "Corlave",  "weight": 0.05, "time": "night"},
+            {"name": "Corlave",  "weight": 0.05, "time": "day"},
+
+            {"name": "Sharka",  "weight": 0.25, "time": "day"},
+            {"name": "Sharka",  "weight": 0.25, "time": "night"},
+
+            {"name": "Seasoo",  "weight": 0.25, "time": "day"},
+            {"name": "Seasoo",  "weight": 0.25, "time": "night"},
+            {"name": "Typhoonray",  "weight": 0.25, "time": "day"},
+            {"name": "Typhoonray",  "weight": 0.25, "time": "night"},
+
+        ],
+        "level_range": (13, 16)
+
+    },
+
+            "palm_water": {
+        "encounter_rate": 0.03,
+                "dinos": [
+            {"name": "Corlave",  "weight": 0.05, "time": "night"},
+            {"name": "Corlave",  "weight": 0.05, "time": "day"},
+
+            {"name": "Sharka",  "weight": 0.25, "time": "day"},
+            {"name": "Sharka",  "weight": 0.25, "time": "night"},
+
+            {"name": "Seasoo",  "weight": 0.25, "time": "day"},
+            {"name": "Seasoo",  "weight": 0.25, "time": "night"},
+            {"name": "Typhoonray",  "weight": 0.25, "time": "day"},
+            {"name": "Typhoonray",  "weight": 0.25, "time": "night"},
+
+        ],
+        "level_range": (15, 19)
+
+    },
 
         ######## fill more
 
@@ -1322,6 +1399,12 @@ ZONE_REGIONS = [
     (0,-86,11,-75, 'lake1L'),
     (41,-102,46,-81, 'lake1R'),
     (-13,-57,11,-48, 'powerplant_outside'),
+    (-45,32,15,60, 'spawn_water'),
+    (-9,-118,31,-84, 'lake_water1'),
+    (-155,-58,-35,31, 'palm_water'),
+
+
+
 
 
 

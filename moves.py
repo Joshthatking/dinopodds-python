@@ -22,6 +22,7 @@ import config
 from data import MOVE_DATA
 
 DURATION = 1.0
+DURATIONS = {'Ultra Violet': 2.2}   # signature moves that run longer than DURATION
 STRONG_POWER = 70
 TAU = math.pi * 2
 
@@ -1729,6 +1730,150 @@ def anim_gamma_wave(a):
         _strong_finish(a, p, (green, (220, 255, 200)), 160, 8)
 
 
+# ── Ultra Violet (signature, longer than the rest — see DURATIONS) ──────────
+# Attacker charges a UV orb -> launches it into the sky where it becomes an
+# eclipsed ultraviolet sun -> the sun swells and fires a helix-wrapped beam
+# down onto the target -> prism explosion -> afterglow while violet motes
+# drain off the attacker (its Attack drop).
+
+UV = ((150, 60, 255), (232, 196, 255), (58, 12, 120))
+UV_PINK = (255, 90, 220)
+UV_BLUE = (110, 170, 255)
+UV_NIGHT = (14, 0, 34)
+
+
+def _uv_sun_pos(a):
+    return (a.sx + a.tx) / 2, max(72.0, min(a.sy, a.ty) - 85 * a.s)
+
+
+def _uv_eclipse(a, x, y, r, k, rot):
+    """Black sun with a flickering violet corona; k = 0..1 intensity."""
+    if r < 2 or k <= 0.02:
+        return
+    for i in range(16):
+        ang = rot + i * TAU / 16
+        ln = r * (0.6 + 0.6 * (0.5 + 0.5 * math.sin(i * 2.3 + rot * 5)))
+        ca, sa = math.cos(ang), math.sin(ang)
+        a.line(x + ca * r * 1.05, y + sa * r * 1.05, x + ca * (r * 1.05 + ln), y + sa * (r * 1.05 + ln),
+               UV_PINK if i % 2 else UV[0], 210 * k, max(2, r * 0.12))
+    # Glows sit around the rim (not the center) so the disc stays black
+    for i in range(10):
+        ang = rot * 0.5 + i * TAU / 10
+        a.glow(x + math.cos(ang) * r * 1.2, y + math.sin(ang) * r * 1.2, r * 1.1,
+               UV[0] if i % 2 else UV_PINK, 0.9 * k)
+    a.ring(x, y, r * 1.14, UV[1], 255 * k, max(2, r * 0.16))
+    a.circle(x, y, r, (8, 0, 18), 255 * k)
+    a.ring(x, y, r, WHITE, 230 * k, 2)
+
+
+def _uv_beam(a, x1, y1, x2, y2, p, t):
+    if p is None:
+        return
+    s = a.s
+    reach = ease_out(min(1.0, p / 0.25))
+    fade = 1.0 if p < 0.7 else max(0.0, (1 - p) / 0.3)
+    bx, by = lerp(x1, x2, reach), lerp(y1, y2, reach)
+    throb = 0.9 + 0.1 * math.sin(t * 90)
+    for w, col, al in ((56, UV[2], 150), (38, UV[0], 210), (22, UV_PINK, 230), (11, UV[1], 255), (4, WHITE, 255)):
+        width = w * s * fade * throb
+        a.line(x1, y1, bx, by, col, al * fade, width)
+        a.circle(bx, by, width / 2, col, al * fade)   # round off the leading end
+    dx, dy = x2 - x1, y2 - y1
+    L = math.hypot(dx, dy) or 1.0
+    nx, ny = -dy / L, dx / L
+    for ph, col in ((0.0, UV_BLUE), (math.pi, UV_PINK)):
+        pts = []
+        for i in range(31):
+            u = i / 30 * reach
+            amp = 30 * s * fade * math.sin(u * 18 - t * 60 + ph)
+            pts.append((x1 + dx * u + nx * amp, y1 + dy * u + ny * amp))
+        a.lines(pts, col, 230 * fade, 3)
+    for i in range(1, 8):
+        u = reach * i / 7
+        a.glow(x1 + dx * u, y1 + dy * u, 34 * s, UV[0], 0.9 * fade)
+    a.burst(bx, by, min(1.0, p * 2), 12, 60 * s, UV[1], 3 * s, glow=0.4, key='uvtip')
+
+
+def anim_ultra_violet(a):
+    t, s = a.t, a.s
+    ex, ey = _uv_sun_pos(a)
+
+    # Sky darkens to a deep violet for most of the move
+    a.tint(UV_NIGHT, 170 * min(1.0, t / 0.2) * (1.0 if t < 0.85 else max(0.0, (1 - t) / 0.15)))
+
+    # 1. Charge: light spirals into an orb at the attacker
+    p = seg(t, 0.0, 0.24)
+    if p is not None:
+        a.implode(a.sx, a.sy, p, 34, 130 * s, UV[1], 3 * s, glow=0.4, swirl=4)
+        for k in range(3):
+            a.ring(a.sx, a.sy, (58 - k * 15) * s * (1 - 0.5 * p), UV_PINK if k % 2 else UV[0], 210 * p, 3)
+        a.circle(a.sx, a.sy, 13 * s * ease_out(p), WHITE, 255)
+        a.glow(a.sx, a.sy, 44 * s * p, UV[0], 1.4)
+        if p > 0.45:
+            for k in range(3):
+                ang = k * TAU / 3 + t * 20
+                a.bolt(a.sx, a.sy, a.sx + math.cos(ang) * 46 * s, a.sy + math.sin(ang) * 46 * s,
+                       UV[0], width=2, jag=8, segs=5, glow=0.4)
+
+    # 2. Orb launches skyward
+    p = seg(t, 0.2, 0.34)
+    if p is not None:
+        e = ease_in(p)
+        for i in range(6, -1, -1):
+            q = max(0.0, e - i * 0.05)
+            x = lerp(a.sx, ex, q)
+            y = lerp(a.sy, ey, q) - 40 * s * math.sin(math.pi * q)
+            a.circle(x, y, (12 - i * 1.4) * s, WHITE if i == 0 else UV[0], 255 * (1 - i / 7))
+        x = lerp(a.sx, ex, e)
+        y = lerp(a.sy, ey, e) - 40 * s * math.sin(math.pi * e)
+        a.glow(x, y, 40 * s, UV[0], 1.3)
+
+    # 3. The ultraviolet eclipse: forms, swells while charging, collapses at the end
+    sun = seg(t, 0.32, 1.0)
+    sun_r = sun_k = 0.0
+    if sun is not None:
+        form = ease_out(min(1.0, sun / 0.15))
+        collapse = 1 - ease_in(max(0.0, (sun - 0.75) / 0.25))
+        swell = 1 + 0.4 * hump(seg(t, 0.4, 0.52) or 0.0)
+        sun_r, sun_k = 30 * s * form * collapse * swell, form * collapse
+
+    # 4. Beam blasts down from the sun's rim onto the target (drawn under the sun)
+    p = seg(t, 0.5, 0.8)
+    if p is not None:
+        ang = math.atan2(a.ty - ey, a.tx - ex)
+        _uv_beam(a, ex + math.cos(ang) * sun_r * 0.8, ey + math.sin(ang) * sun_r * 0.8, a.tx, a.ty, p, t)
+        if p < 0.75:
+            a.shake(7)
+
+    if sun is not None:
+        _uv_eclipse(a, ex, ey, sun_r, sun_k, t * 3)
+        if t < 0.5:
+            a.implode(ex, ey, seg(t, 0.34, 0.5), 26, 150 * s, UV_PINK, 2.5 * s, glow=0.3, key='uvsun', swirl=-3)
+
+    # 5. Prism explosion at the target
+    p = seg(t, 0.6, 0.96)
+    if p is not None:
+        for k, col in enumerate((WHITE, UV_PINK, UV[0], UV_BLUE)):
+            q = seg(p, k * 0.08, 0.6 + k * 0.08)
+            if q is not None:
+                a.ring(a.tx, a.ty, 20 * s + 175 * s * ease_out(q), col, 240 * (1 - q), 6)
+        a.star(a.tx, a.ty, 150 * s * ease_out(min(1.0, p * 2)), UV[1], 230 * (1 - p), points=6, rot=p * 1.5, inner=0.14)
+        a.star(a.tx, a.ty, 90 * s * ease_out(min(1.0, p * 2)), WHITE, 255 * (1 - p), points=6, rot=-p, inner=0.18)
+        a.burst(a.tx, a.ty, p, 22, 170 * s, UV_PINK, 5 * s, shape='shard', key='uvshard')
+        a.burst(a.tx, a.ty, p, 18, 140 * s, UV[1], 3 * s, shape='star', glow=0.6, key='uvstar')
+        a.glow(a.tx, a.ty, 140 * s, UV[0], 1.8 * (1 - p))
+        _strong_finish(a, p, (UV[0], (240, 214, 255)), 220, 12)
+
+    # 6. Afterglow: motes settle on the target, power drains off the attacker
+    p = seg(t, 0.78, 1.0)
+    if p is not None:
+        a.rain(p, 18, UV[1], a.tx - 80 * s, a.tx + 80 * s, a.ty - 90 * s, a.ty + 40 * s,
+               width=2 * s, key='uvmote', speed=0.9, shape='dot')
+        a.rain(p, 12, UV[0], a.sx - 40 * s, a.sx + 40 * s, a.sy - 30 * s, a.sy + 50 * s,
+               width=2.5 * s, key='uvdrain', speed=0.8, shape='dot')
+        a.glow(a.sx, a.sy, 40 * s, UV[2], 0.8 * hump(p))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ICE
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2169,6 +2314,7 @@ ANIMATIONS = {
     'Flash': anim_flash,
     'Refraction': anim_refraction,
     'Gamma Wave': anim_gamma_wave,
+    'Ultra Violet': anim_ultra_violet,
     # Ice
     'Snowfall': anim_snowfall,
     'Freeze Blast': anim_freeze_blast,
@@ -2213,7 +2359,7 @@ class MoveAnimation:
         self.target = target
         self.source = source or target
         self.scale = scale
-        self.duration = DURATION
+        self.duration = DURATIONS.get(move_name, DURATION)
         self.timer = 0.0
         self.seed = random.randrange(1 << 20)
         self.size = (config.WIDTH, config.HEIGHT)

@@ -4,6 +4,8 @@ Small overworld ambience effects:
   * Grass  — encounter grass rustles when the player steps into it: the bottom
              of the grass tile's own art sways over the player's feet for a
              moment while a few leaf specks pop out, then fades back to normal.
+             While standing/walking in grass, the bottom of the player stays
+             tucked behind the grass art (FEET_FRAC).
   * Water  — water tiles shimmer: drifting ripple highlights and the odd
              twinkle. Only tiles currently on screen are drawn, from a small
              set of animation frames built once up front, so it stays cheap.
@@ -31,6 +33,7 @@ class GrassFX:
     SWAY_FREQ  = 3.0    # back-and-forth swings over the rustle
     FADE_FROM  = 0.6    # strip fades out over the last part of the rustle
     LEAVES     = 4
+    FEET_FRAC  = 0.22   # bottom fraction of the player kept covered while in grass
     # Tiled `type` values that rustle (regular + burnt grass are both
     # "grass"); cave, water, sand, snow, corn maze etc. stay still.
     TILE_TYPES = {'grass'}
@@ -39,6 +42,11 @@ class GrassFX:
         self.game = game
         self.rustles = []        # {'tile', 't', 'art', 'leaves'}
         self._last_target = None
+        self._feet_cover = []    # [(surface, (x, y))] grass art over the player's feet, this frame
+
+    def _is_grass(self, tile):
+        g = self.game
+        return tile in g.encounter_tile_coords and g.tile_types.get(tile) in self.TILE_TYPES
 
     def update(self, dt):
         g = self.game
@@ -49,8 +57,7 @@ class GrassFX:
             target = (int(p.target_x) // ts, int(p.target_y) // ts)
             if target != self._last_target:
                 self._last_target = target
-                if (target in g.encounter_tile_coords
-                        and g.tile_types.get(target) in self.TILE_TYPES):
+                if self._is_grass(target):
                     self._spawn(target)
         elif not p.moving:
             self._last_target = None
@@ -69,6 +76,7 @@ class GrassFX:
         after the ground layers are drawn but before any sprites."""
         ts = config.TILE_SIZE
         bounds = surface.get_rect()
+        self._capture_feet_cover(surface, cam_x, cam_y, bounds)
         for r in self.rustles:
             if r['art'] is not None:
                 continue
@@ -82,8 +90,31 @@ class GrassFX:
             avg = pygame.transform.average_color(r['art'])
             r['color'] = (max(0, avg[0] - 25), max(0, avg[1] - 10), max(0, avg[2] - 25))
 
+    def _capture_feet_cover(self, surface, cam_x, cam_y, bounds):
+        """Copy the ground under the player's feet band, but only the parts
+        that lie on grass tiles, so it can be pasted back over the sprite.
+        The band follows the player, so it stays put mid-step and partially
+        uncovers when stepping between grass and non-grass."""
+        self._feet_cover = []
+        g = self.game
+        if g.surf.active or g.surf.hop:
+            return
+        ts = config.TILE_SIZE
+        pr = g.player.rect
+        band_h = int(pr.height * self.FEET_FRAC)
+        band = pygame.Rect(pr.x - cam_x, pr.bottom - band_h - cam_y, pr.width, band_h)
+        for tx in range(pr.left // ts, (pr.right - 1) // ts + 1):
+            for ty in range((pr.bottom - band_h) // ts, (pr.bottom - 1) // ts + 1):
+                if not self._is_grass((tx, ty)):
+                    continue
+                part = band.clip(pygame.Rect(tx * ts - cam_x, ty * ts - cam_y, ts, ts)).clip(bounds)
+                if part.width and part.height:
+                    self._feet_cover.append((surface.subsurface(part).copy(), part.topleft))
+
     def draw(self, surface, cam_x, cam_y):
         ts = config.TILE_SIZE
+        for art, pos in self._feet_cover:
+            surface.blit(art, pos)
         for r in self.rustles:
             p = r['t'] / self.DURATION
             x = r['tile'][0] * ts - cam_x

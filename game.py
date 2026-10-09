@@ -11,6 +11,7 @@ from environment_fx import EnvironmentFX  # ENV FX
 from moves import MoveAnimation
 from catch_anim import CatchAnimation
 from title_anim import LaunchIntro
+from sky_transition import SkyTransition
 import os
 import config
 from screens import *
@@ -19,6 +20,7 @@ import random
 import story as _story
 
 SAVE_PATH = 'dinopodds_save.json'
+TITLE_MUSIC_PATH = os.path.join('assets', 'SOUND', 'title.wav')
 
 # CORN_MAZE5's 3x3 tomb monument (world tile coords) — the interactable
 # lore object housing the Scarecrux <-> Gourdecrux night transformation.
@@ -110,6 +112,8 @@ class Game:
         # Screens
         self.title_screen = TitleScreen(self)
         self.launch_intro = LaunchIntro(self)
+        self._title_music_on = False
+        self._start_title_music()
         self.menu = Menu(self)
         self.quest_debug_screen = QuestDebugScreen(self)
         self.party_screen = PartyScreen(self)
@@ -262,15 +266,13 @@ class Game:
         # self.force_night = True
 ##################################################
 
-        self.dn_transitioning = False
+        self.dn_transitioning = False      # True while a day<->night SkyTransition card plays
         self.dn_transition_timer = 0.0
-        self.DN_TRANSITION_DURATION = 1.0
+        self.sky_transition = None         # sky_transition.SkyTransition card (pauses the game)
         self._night_overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
         self._night_overlay.fill((30, 15, 60, 150))
         self._night_overlay_battle = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
         self._night_overlay_battle.fill((30, 15, 60, 70))
-        self._dn_fade = pygame.Surface((config.WIDTH, config.HEIGHT))
-        self._dn_fade.fill((0, 0, 0))
 
 ################ ECLIPSE MODE: EVENT OVERLAY #################
         self.event_overlay_active = False   # flip True during special events
@@ -469,6 +471,7 @@ class Game:
         self.force_night = None
         self.dn_transitioning = False
         self.dn_transition_timer = 0.0
+        self.sky_transition = None
         self.event_overlay_active = False
 
         self._load_world_data('HOME_JET2.tmx')
@@ -502,10 +505,33 @@ class Game:
         self.player.target_y = py
         self.state_stack = ['world']
 
+    def _start_title_music(self):
+        """Loop the title theme (launch splash + title menu). Silently skipped
+        if there's no audio device."""
+        if self._title_music_on:
+            return
+        try:
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+            pygame.mixer.music.load(TITLE_MUSIC_PATH)
+            pygame.mixer.music.set_volume(0.6)
+            pygame.mixer.music.play(-1, fade_ms=1500)
+            self._title_music_on = True
+        except pygame.error as e:
+            print(f"[audio] title music unavailable: {e}")
+
+    def _stop_title_music(self):
+        if not self._title_music_on:
+            return
+        self._title_music_on = False
+        if pygame.mixer.get_init():
+            pygame.mixer.music.fadeout(1200)
+
     def exit_to_title(self):
         self.pop_to_world()
         self.state_stack = ['title']
         self.title_screen.reset()
+        self._start_title_music()
 
     def save_game(self):
         data = {
@@ -547,10 +573,12 @@ class Game:
         self.is_night           = False
         self.dn_transitioning   = False
         self.dn_transition_timer = 0.0
+        self.sky_transition     = None
         self.event_overlay_active = (
             (self.story_flags.get('amber_intro_done', False) and
              not self.story_flags.get('gym1_accessible', False))
-            or self.story_flags.get('pp_eclipse_active', False)
+            or (self.story_flags.get('pp_eclipse_active', False)
+                and not self.story_flags.get('shadowhq_event_done', False))
         )
         self.sandbox = data.get('sandbox', False)
         self.badges_earned = data.get('badges', [])
@@ -2089,7 +2117,10 @@ class Game:
         mom.face_toward_player(self.player)
         self.cutscene = {'phase': 'shadowhq_wait'}  # generic no-op wait
         self.message_box.queue_messages(
-            self._tag_dialogue('Mom', ["Jet! Another Solar Eclipse just began, becareful out there today!"]),
+            self._tag_dialogue('Mom', [
+                "Good morning Jet! There are blueberry muffins on the counter!",
+                "The professor is looking for you, have fun today sweetie!",
+            ]),
             wait_for_input=True,
             on_complete=lambda: self._finish_mom_greeting(mom))
 
@@ -3201,8 +3232,8 @@ class Game:
         elif c['phase'] == 'flashing':
             if not self.cutscene_flash:
                 self.story_flags['amber_intro_done'] = True
-                self.event_overlay_active = True
                 self.cutscene = None
+                self.start_sky_transition('eclipse', on_swap=self._enable_eclipse_overlay)
 
         elif c['phase'] == 'skyy_walking':
             if self.message_box.visible:
@@ -4587,7 +4618,7 @@ class Game:
 
     def _pp_reveal_activate_eclipse(self, skyy, abby):
         self.story_flags['pp_eclipse_active'] = True
-        self.event_overlay_active = True
+        self.start_sky_transition('eclipse', on_swap=self._enable_eclipse_overlay)
         self.cutscene = {'phase': 'pp_grunts2_wait'}
         self.message_box.queue_messages(
             self._tag_dialogue('Skyy', [
@@ -5444,6 +5475,13 @@ class Game:
 
     def _finish_shadowhq_event(self):
         self.story_flags['shadowhq_event_done'] = True
+        # Cobaltion caught/defeated — the forced Power Plant eclipse lifts, back to day
+        self.story_flags['pp_eclipse_active'] = False
+        self.event_overlay_active = False
+        self.is_night = False
+        self.day_night_timer = 0.0
+        self.dn_transitioning = False
+        self.dn_transition_timer = 0.0
         self._maybe_place_twilight_shard()
         # Abby and Gray stop guarding Cobalt Cave — strip them from the
         # cave's saved NPC list so they're gone when the player walks back.
@@ -5788,6 +5826,9 @@ class Game:
                 if self.intro_sequence:
                     self.intro_sequence.handle_event(event)
                 continue
+
+            if self.sky_transition:
+                continue  # no input while a sky transition card plays
 
             # Block all input during the heal animation
             if self.heal_anim:
@@ -6229,8 +6270,18 @@ class Game:
             self.quest_debug_screen.reset()
             self.push_state('quest_debug')
         elif event.key == pygame.K_n and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
-            self.force_night = not self.night_active
-            print(f"[DEBUG] force_night -> {self.force_night}")
+            target = not self.night_active
+
+            def _force():
+                self.force_night = target
+                print(f"[DEBUG] force_night -> {self.force_night}")
+            self.start_sky_transition('to_night' if target else 'to_day', on_swap=_force)
+        elif event.key == pygame.K_e and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
+            # Sandbox: toggle eclipse mode (turning it on plays the eclipse card)
+            if self.event_overlay_active:
+                self.event_overlay_active = False
+            else:
+                self.start_sky_transition('eclipse', on_swap=self._enable_eclipse_overlay)
         elif (event.key == pygame.K_d and (event.mod & pygame.KMOD_CTRL) and self.sandbox
                 and not self.fading and self.entrance_fade_state is None and not cutscene_locking):
             self.dino_spawn_picker = {'filter': '', 'index': 0}
@@ -6677,6 +6728,9 @@ class Game:
             self.title_screen.update(dt)
             return
 
+        # Left the title (New Game / Continue / Sandbox) — fade the theme out
+        self._stop_title_music()
+
         if self.state == 'badge_earned':
             if getattr(self, 'badge_earned_screen', None):
                 self.badge_earned_screen.update(dt)
@@ -6691,6 +6745,14 @@ class Game:
                     self.message_box.queue_messages(
                         ["...beep...beep...beep..."], wait_for_input=True
                     )
+            return
+
+        # A sky transition card pauses everything underneath it
+        if self.sky_transition:
+            tr = self.sky_transition
+            tr.update(dt)
+            if tr.done and self.sky_transition is tr:
+                self.sky_transition = None
             return
 
         self.play_time_seconds += dt
@@ -6875,13 +6937,8 @@ class Game:
                 self.screen.fill(config.BLACK)
             self.screen.blit(scaled_surface, shake)
 
-            if self.night_active and not self.dn_transitioning:
+            if self.night_active:
                 self.screen.blit(self._night_overlay, (0, 0))
-            if self.dn_transitioning:
-                t = self.dn_transition_timer / self.DN_TRANSITION_DURATION
-                alpha = int(255 * (1.0 - abs(t * 2 - 1.0)))
-                self._dn_fade.set_alpha(alpha)
-                self.screen.blit(self._dn_fade, (0, 0))
             if self.event_overlay_active:
                 self.screen.blit(self._event_overlay, (0, 0))
             if self.sandbox:
@@ -7001,13 +7058,8 @@ class Game:
                 self.catch_anim.draw(self.screen)
 
         if background_state == 'encounter' and current_state == 'encounter':
-            if self.night_active and not self.dn_transitioning:
+            if self.night_active:
                 self.screen.blit(self._night_overlay_battle, (0, 0))
-            if self.dn_transitioning:
-                t = self.dn_transition_timer / self.DN_TRANSITION_DURATION
-                alpha = int(255 * (1.0 - abs(t * 2 - 1.0)))
-                self._dn_fade.set_alpha(alpha)
-                self.screen.blit(self._dn_fade, (0, 0))
             if self.event_overlay_active:
                 self.screen.blit(self._event_overlay_battle, (0, 0))
 
@@ -7032,13 +7084,8 @@ class Game:
 
         elif current_state in ('menu', 'party', 'items', 'shop', 'box', 'dino_picker', 'quest_debug'):
             if background_state == 'encounter':
-                if self.night_active and not self.dn_transitioning:
+                if self.night_active:
                     self.screen.blit(self._night_overlay_battle, (0, 0))
-                if self.dn_transitioning:
-                    t = self.dn_transition_timer / self.DN_TRANSITION_DURATION
-                    alpha = int(255 * (1.0 - abs(t * 2 - 1.0)))
-                    self._dn_fade.set_alpha(alpha)
-                    self.screen.blit(self._dn_fade, (0, 0))
                 if self.event_overlay_active:
                     self.screen.blit(self._event_overlay_battle, (0, 0))
             elif background_state == 'world' and current_state not in ('shop', 'box', 'dino_picker'):
@@ -7073,6 +7120,9 @@ class Game:
         if self.yes_no_prompt:
             self.yes_no_prompt.draw(self.screen)
 
+        if self.sky_transition:
+            self.sky_transition.draw(self.screen)
+
         pygame.display.flip()
 
     def draw_overlay(self):
@@ -7098,23 +7148,38 @@ class Game:
             return self.force_night
         return self.is_night
 
+    # --- Sky transition cards (day/night + eclipse) ---
+
+    def start_sky_transition(self, kind, on_swap=None, on_done=None):
+        """Play a full-screen SkyTransition card ('to_night' | 'to_day' | 'eclipse').
+        The world is paused and input ignored until it finishes; on_swap runs
+        while the card fully covers the screen."""
+        self.sky_transition = SkyTransition(kind, on_swap=on_swap, on_done=on_done)
+
+    def _enable_eclipse_overlay(self):
+        self.event_overlay_active = True
+
+    def _flip_day_night(self):
+        self.is_night = not self.is_night
+
+    def _finish_day_night(self):
+        self.dn_transitioning = False
+        self.day_night_timer = 0.0
+
     def update_day_night(self, dt):
-        if self.dn_transitioning:
-            prev = self.dn_transition_timer
-            self.dn_transition_timer += dt
-            midpoint = self.DN_TRANSITION_DURATION / 2
-            if prev < midpoint <= self.dn_transition_timer:
-                self.is_night = not self.is_night
-            if self.dn_transition_timer >= self.DN_TRANSITION_DURATION:
-                self.dn_transitioning = False
-                self.dn_transition_timer = 0.0
-                self.day_night_timer = 0.0
+        if self.dn_transitioning or self.state != 'world':
             return
-        if self.state == 'world':
-            self.day_night_timer += dt
-            if self.day_night_timer >= self.CYCLE_DURATION:
-                self.dn_transitioning = True
-                self.dn_transition_timer = 0.0
+        self.day_night_timer += dt
+        if self.day_night_timer < self.CYCLE_DURATION:
+            return
+        if self.event_overlay_active or self.force_night is not None:
+            # Eclipse / forced night hides the cycle anyway — flip quietly
+            self._flip_day_night()
+            self.day_night_timer = 0.0
+            return
+        self.dn_transitioning = True
+        self.start_sky_transition('to_day' if self.is_night else 'to_night',
+                                  on_swap=self._flip_day_night, on_done=self._finish_day_night)
 
     def _layer_num(self, layer):
         parts = layer.name.split()

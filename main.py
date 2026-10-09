@@ -319,14 +319,13 @@ if __name__ == '__main__':
 # fix grass animation
 # add water spawns
 # fix certain paths, collisions
-# add buildings
+
+
+# add buildings  
 # add more lore
-# add electric cloud, pre evo to shark, lavaleo, 2% chance of starters in wild, orange/red pectura flying fire
-
-
+# add electric cloud, pre evo to shark, lavaleo, orange/red pectura flying fire
 
 #need to add curfue, skyy, abby, cade in surf shack to discuss the meaning of what happened at cobalt cave
-#need to add water spawns! 
 
 
 #THEN - sound effects, route music and event music, nuzlocke/randomizer/speed run modes
