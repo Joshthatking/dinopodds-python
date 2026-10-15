@@ -140,6 +140,16 @@ ENCOUNTER_DINOS_PATHS = {
     'Frostle2':         os.path.join(DINOS_FRONT, 'Frostle.png'),
     'Typhoonray':       os.path.join(DINOS_FRONT, 'Typhoonray.png'),
     'Typhoonray2':      os.path.join(DINOS_FRONT, 'Typhoonray.png'),
+    'Rhinecicle':       os.path.join(DINOS_FRONT, 'Rhinecicle.png'),
+    'Rhinecicle2':      os.path.join(DINOS_FRONT, 'Rhinecicle.png'),
+    'Celestreeyl':      os.path.join(DINOS_FRONT, 'Celestreeyl.png'),
+    'Celestreeyl2':     os.path.join(DINOS_FRONT, 'Celestreeyl.png'),
+    'Sharka':           os.path.join(DINOS_FRONT, 'Sharka.png'),
+    'Sharka2':          os.path.join(DINOS_FRONT, 'Sharka.png'),
+    'Deimo':            os.path.join(DINOS_FRONT, 'Deimo.png'),
+    'Deimo2':           os.path.join(DINOS_FRONT, 'Deimo.png'),
+    'VY':               os.path.join(DINOS_FRONT, 'VY.png'),
+    'VY2':              os.path.join(DINOS_FRONT, 'VY.png'),
 }
 
 NPC_SHEETS = {
@@ -166,6 +176,7 @@ NPC_SHEETS = {
     'sam':                os.path.join('assets', 'NPC', 'Sam.png'),
     'mom':                os.path.join('assets', 'NPC', 'Mom.png'),
     'barley':             os.path.join('assets', 'NPC', 'Volkit_overworld.png'),
+    'cade':               os.path.join('assets', 'NPC', 'cade.png'),
 }
 
 # Static (non-4x4-sheet) NPC images scaled down to fit inside this (w, h)
@@ -225,6 +236,7 @@ DIALOGUE_PORTRAITS = {
     'Emerson': 'emerson',
     'Sam':     'sam',
     'Mom':     'mom',
+    'Cade':    'cade',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')

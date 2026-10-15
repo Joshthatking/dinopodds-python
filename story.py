@@ -107,6 +107,18 @@
 #       player go to find Curfeu next isn't built yet (see
 #       Game._check_shadow_confrontation_trigger onward).
 #
+# 16. SHADOW HQ (Skyy + Curfeu vs. Vanessa/Emerson, Cobaltion)  →  shadowhq_event_done
+#       See the step-by-step flag chain above Game._advance_shadowhq_event.
+#       Ends with the Twilight Lunar Shard left where Cobaltion stood.
+#
+# 17. SURF SHACK PREPARATION  →  surf_shack_prep_done
+#       Cade, Curfeu, Skyy and Abby wait in SURF_SHACK.tmx (Palm Port).
+#       Walking in, Cade greets the player, who is force-walked to (10,6)
+#       for a locked talk about the lunar shard and the lunar dino Deimo.
+#       Curfeu, Abby and Skyy walk out one by one, Cade says he'll be
+#       waiting at the Rouge gym, then leaves too (see
+#       Game._check_surf_shack_prep onward).
+#
 # ══════════════════════════════════════════════════════════════════
 
 STORY_EVENTS = [
@@ -230,6 +242,17 @@ QUEST_STEPS = [
         "id": "shadow_confrontation_done",
         "label": "14. Shadow Group Confrontation",
         "flag": "shadow_confrontation_done",
+    },
+    {
+        "id": "shadowhq_event_done",
+        "label": "14b. Shadow HQ - Cobaltion & Lunar Shard",
+        "flag": "shadowhq_event_done",
+        "defeated_trainers": ["hq_grunt_b", "vanessa_hq"],
+    },
+    {
+        "id": "surf_shack_prep_done",
+        "label": "14c. Surf Shack Preparation",
+        "flag": "surf_shack_prep_done",
     },
     {
         "id": "gym3_leader_defeated",

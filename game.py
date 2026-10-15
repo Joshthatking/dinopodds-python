@@ -78,7 +78,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -173,6 +173,7 @@ class Game:
         self.orb_fx = None
         self.shadowhq_wave = None   # Cobaltion's dark energy rings (Shadow HQ intro)
         self._cobaltion_battle = False  # True from Cobaltion's battle start until its result is read
+        self._surf_shack_prep_active = False  # True while the Surf Shack Preparation scene plays
         self._wild_caught = False       # set by attempt_catch on a successful catch
         self.screen_shake = 0.0         # seconds of screenshake left
         self.abby_follower = None
@@ -343,6 +344,7 @@ class Game:
         self.field_effects = []
         self.defend_uses_remaining = 3
         self.enemy_defend_uses_remaining = 3
+        self._clear_recharge_flags()
         self.entrance_fade_state = None
         self._post_trainer_battle_cb = None
         # Blackout is a full reset back to normal world state — a scripted
@@ -459,6 +461,7 @@ class Game:
         self.orb_fx = None
         self.shadowhq_wave = None
         self._cobaltion_battle = False
+        self._surf_shack_prep_active = False
         self._wild_caught = False
         self.screen_shake = 0.0
         self.heal_anim = None
@@ -886,7 +889,29 @@ class Game:
                 target['lock_turns_left'] = ability['turns']
                 msgs.append(f"{target['name']} is locked into {last}!")
                 msgs.append(f"{target['name']} can't switch out!")
+        elif ability['kind'] == 'recharge':
+            # Consumed on the user's next turn: _player_recharge_turn (single
+            # battle, player), _enemy_turn, _auto_attack_single, and the
+            # double-battle p1/p2 slots.
+            user['must_recharge'] = True
+            msgs.append(f"{user['name']} is drained and must recharge!")
         return msgs
+
+    def _clear_recharge_flags(self):
+        """A pending recharge never carries over into another battle."""
+        for d in list(self.player_dinos) + list(getattr(self, 'abby_dinos', None) or []):
+            d.pop('must_recharge', None)
+
+    def _player_recharge_turn(self, dino):
+        """Single battle: the player's active dino spends this turn recharging
+        instead of acting, so the enemy gets a free turn."""
+        dino.pop('must_recharge', None)
+        dino['defending'] = False
+        dino['_prev_action_defend'] = False
+        self.encounter_ui.in_fight_menu = False
+        self.message_box.queue_messages(
+            [f"{dino['name']} must recharge!"],
+            wait_for_input=True, on_complete=self._enemy_turn)
 
     def _tick_field_effects(self):
         msgs = []
@@ -1116,6 +1141,7 @@ class Game:
         self.field_effects = []
         self.defend_uses_remaining = 3
         self.enemy_defend_uses_remaining = 3
+        self._clear_recharge_flags()
         self.dinos_seen.add(dino_key)
         self.encounter_ui = EncounterUI(self.fonts)
         self.encounter_text = f"A wild {dino_key} appeared!"
@@ -1191,6 +1217,7 @@ class Game:
         self.field_effects = []
         self.defend_uses_remaining = 3
         self.enemy_defend_uses_remaining = 3
+        self._clear_recharge_flags()
         self.encounter_ui = EncounterUI(self.fonts)
         trainer_name = TRAINER_DATA.get(npc.trainer_id, {}).get('name', 'Trainer')
         self.encounter_text = f"{trainer_name} sent out {dino_name}!"
@@ -1298,6 +1325,7 @@ class Game:
         self.field_effects              = []
         self.defend_uses_remaining      = 3
         self.enemy_defend_uses_remaining = 3
+        self._clear_recharge_flags()
 
         self.encounter_ui   = DoubleBattleUI(self.fonts)
         self.encounter_text = f"Double Battle! {n1} and {n2}!"
@@ -1324,6 +1352,12 @@ class Game:
         moveset = attacker.get('moveset', [])
         if not moveset:
             if after: after()
+            return
+        if attacker.pop('must_recharge', False):
+            attacker['defending'] = False
+            self.message_box.queue_messages(
+                [f"{attacker_label}{attacker['name']} must recharge!"],
+                wait_for_input=True, on_complete=after)
             return
 
         move      = random.choice(moveset)
@@ -1543,6 +1577,10 @@ class Game:
         ui.selected_option  = 0
         ui.move_selected    = 0
         ui.selecting_p2     = False
+        p1 = self.player_dinos[0] if self.player_dinos else None
+        if p1 and p1.get('hp', 0) > 0 and p1.get('must_recharge'):
+            self.double_p1_queued = {'action': 'recharge'}
+            self._double_advance_to_p2()
 
     def _handle_double_encounter_event(self, event):
         if event.type != pygame.KEYDOWN:
@@ -1649,6 +1687,10 @@ class Game:
             self.double_p2_queued = None
             self._execute_double_turn()
             return
+        if p2.get('must_recharge'):
+            self.double_p2_queued = {'action': 'recharge'}
+            self._execute_double_turn()
+            return
         if self._abby_is_ally():
             # A seasoned trainer in her own right — Abby picks her own move
             # and target instead of waiting on the player.
@@ -1734,6 +1776,11 @@ class Game:
                 self.message_box.queue_messages(
                     [f"{p2['name']} braced for impact!"], wait_for_input=True, on_complete=e1_attacks)
                 return
+            if p2q.get('action') == 'recharge':
+                p2.pop('must_recharge', None)
+                self.message_box.queue_messages(
+                    [f"{p2['name']} must recharge!"], wait_for_input=True, on_complete=e1_attacks)
+                return
             tgt = _resolve_target(p2q.get('target_is_e2', False))
             if not tgt:
                 e1_attacks(); return
@@ -1745,6 +1792,11 @@ class Game:
             if p1q.get('action') == 'defend':
                 self.message_box.queue_messages(
                     [f"{p1['name']} braced for impact!"], wait_for_input=True, on_complete=p2_attacks)
+                return
+            if p1q.get('action') == 'recharge':
+                p1.pop('must_recharge', None)
+                self.message_box.queue_messages(
+                    [f"{p1['name']} must recharge!"], wait_for_input=True, on_complete=p2_attacks)
                 return
             tgt = _resolve_target(p1q.get('target_is_e2', False))
             if not tgt:
@@ -2856,6 +2908,7 @@ class Game:
         self.field_effects               = []
         self.defend_uses_remaining       = 3
         self.enemy_defend_uses_remaining = 3
+        self._clear_recharge_flags()
 
         self.encounter_ui   = DoubleBattleUI(self.fonts)
         self.encounter_text = f"Vanessa sent out {n1} and {n2}!"
@@ -3154,6 +3207,12 @@ class Game:
             return
         if c['phase'] == 'cobaltion_collapse':
             self._update_cobaltion_collapse(dt)
+            return
+        if c['phase'] == 'surf_shack_prep_greet':
+            self._surf_shack_prep_greet()
+            return
+        if c['phase'] == 'surf_shack_prep_walk':
+            self._update_surf_shack_prep_walk(dt)
             return
         npc = c['npc']
 
@@ -4749,11 +4808,18 @@ class Game:
                           'walk_target': self.SHADOW_CONFRONTATION_PLAYER_TARGET}
 
     def _update_shadow_confrontation_walk(self, dt):
+        if self._force_walk_player_toward(*self.cutscene['walk_target'], dt):
+            p = self.player
+            p.facing = p.direction = 'left'
+            p.image = p.animations['left'][0]
+            self._start_shadow_confrontation_dialogue()
+
+    def _force_walk_player_toward(self, tx, ty, dt):
         """Force-walks the player (input fully blocked by self.cutscene
-        being set) one tile at a time toward the target, same solid-ignoring
-        approach as every other scripted walk this session — a stray rock
-        along the path must never be able to soft-lock the scene."""
-        c = self.cutscene
+        being set) one tile at a time toward (tx, ty), longer axis first, same
+        solid-ignoring approach as every other scripted walk — a stray rock
+        along the path must never be able to soft-lock the scene. Returns
+        True once the player is standing on the target tile."""
         p = self.player
         if p.moving:
             step = p.move_speed * dt
@@ -4772,22 +4838,16 @@ class Game:
                 p.moving = False
                 p.anim_index = 0
                 p.image = p.animations[p.direction][0]
-            return
+            return False
 
-        tx, ty = c['walk_target']
         px, py = p.rect.x // config.TILE_SIZE, p.rect.y // config.TILE_SIZE
         if (px, py) == (tx, ty):
-            p.facing = p.direction = 'left'
-            p.image = p.animations['left'][0]
-            self._start_shadow_confrontation_dialogue()
-            return
+            return True
         dx, dy = tx - px, ty - py
         if abs(dx) >= abs(dy) and dx != 0:
             sx, sy = (1 if dx > 0 else -1), 0
-        elif dy != 0:
-            sx, sy = 0, (1 if dy > 0 else -1)
         else:
-            return
+            sx, sy = 0, (1 if dy > 0 else -1)
         d = {(1, 0): 'right', (-1, 0): 'left', (0, 1): 'down', (0, -1): 'up'}[(sx, sy)]
         p.facing = p.direction = d
         p.target_x = float((px + sx) * config.TILE_SIZE)
@@ -4795,6 +4855,7 @@ class Game:
         p.pos_x = float(p.rect.x)
         p.pos_y = float(p.rect.y)
         p.moving = True
+        return False
 
     def _start_shadow_confrontation_dialogue(self):
         self.cutscene = {'phase': 'shadow_confrontation_wait'}  # generic no-op wait
@@ -5619,6 +5680,154 @@ class Game:
             dot = pygame.Surface((s, s), pygame.SRCALPHA)
             dot.fill((*p['color'], alpha))
             surface.blit(dot, (int(cx + p['x']) - s // 2, int(cy + p['y']) - s // 2))
+
+    # ── Surf Shack Preparation — after the Shadow HQ (shadowhq_event_done),
+    # Cade, Curfeu, Skyy and Abby are waiting in Palm Port's Surf Shack. The
+    # moment the player walks in, Cade greets them, the player is walked up
+    # to the group and the whole talk plays with input blocked. Curfeu, Abby
+    # and Skyy then leave one after another, Cade gets the last word and
+    # leaves too. Flag: surf_shack_prep_done. ──────────────────────────────
+    SURF_SHACK_PREP_NPC_SPAWNS = {
+        'cade':   (7, 3, 'down'),
+        'curfeu': (12, 3, 'left'),
+        'skyy':   (7, 5, 'right'),
+        'abby':   (12, 5, 'left'),
+    }
+    SURF_SHACK_PREP_PLAYER_SPOT = (10, 6)
+    SURF_SHACK_EXIT_TILE        = (9, 13)  # the door tile — leavers walk here and vanish
+
+    def _maybe_add_surf_shack_prep_npcs(self):
+        f = self.story_flags
+        if not f.get('shadowhq_event_done') or f.get('surf_shack_prep_done'):
+            return
+        if self.current_world_file != 'SURF_SHACK.tmx':
+            return
+        if self._surf_shack_prep_active:
+            return  # mid-scene — anyone who already walked out stays gone
+        present = {getattr(n, 'trainer_id', '') for n in self.npcs}
+        for trainer_id, (tx, ty, facing) in self.SURF_SHACK_PREP_NPC_SPAWNS.items():
+            if trainer_id in present:
+                continue
+            npc = NPC(trainer_id, tile_x=tx, tile_y=ty, facing=facing,
+                      sight_range=0, npc_type='story')
+            npc.state = 'idle'
+            npc.home_tile, npc.home_facing = (tx, ty), facing
+            self.npcs.append(npc)
+            self.solid_tile_coords.add((tx, ty))
+
+    def _check_surf_shack_prep(self):
+        f = self.story_flags
+        if not f.get('shadowhq_event_done') or f.get('surf_shack_prep_done'):
+            return
+        if self.current_world_file != 'SURF_SHACK.tmx' or self._surf_shack_prep_active:
+            return
+        if self.cutscene or self.message_box.visible or self.fading or self.state != 'world':
+            return
+        if self.entrance_fade_state == 'out':
+            return  # on the way out
+        if not self._shadowhq_npc('cade'):
+            return
+        # Claimed during the entrance fade-in so the player never gets a
+        # frame of control; the phase itself only runs once the fade is done.
+        self._surf_shack_prep_active = True
+        self.player.freeze_in_place()
+        self.cutscene = {'phase': 'surf_shack_prep_greet'}
+
+    def _surf_shack_prep_greet(self):
+        self.cutscene = {'phase': 'shadowhq_wait'}  # generic no-op wait
+        self.message_box.queue_messages(
+            self._tag_dialogue('Cade', ["Nice to meet you Jet!"]),
+            wait_for_input=True,
+            on_complete=lambda: setattr(self, 'cutscene', {'phase': 'surf_shack_prep_walk'})
+        )
+
+    def _update_surf_shack_prep_walk(self, dt):
+        if not self._force_walk_player_toward(*self.SURF_SHACK_PREP_PLAYER_SPOT, dt):
+            return
+        p = self.player
+        p.facing = p.direction = 'up'
+        p.image = p.animations['up'][0]
+        self.cutscene = {'phase': 'shadowhq_wait'}
+        self._surf_shack_prep_say([
+            ('Cade', [
+                "Sounds like you are becoming a formidable trainer. Thank you for helping us with the threats in our region",
+                "We need to discuss the implications now of the lunar shard you possess",
+            ]),
+            ('Curfeu', [
+                "From ancient lore it seems the shadow group has figured out that the shards have the capability to contact the lunar Dino Deimo...",
+                "A celestial known to have conquered our lands eons ago, the marionette of darkness",
+            ]),
+            ('Abby', [
+                "It is all making sense now! The spontaneous eclipses haven't been random at all! They have been using the guardian of the shards to awaken Deimo and use its power",
+                "The leader mentioned to Jet and I at the Route 2 solar panels that they see the damage our solar energy has been causing to our region, and want to put an end to it",
+                "But why all the solar flares?",
+            ]),
+            ('Skyy', ["Perhaps the solar dino is fighting back..."]),
+            ('Cade', [
+                "This lunar shard you hold Jet can signal Deimo and awaken it. It has been told by legend to be a devious entity, capable of total chaos...",
+                "protect it at all costs. If in the wrong hands a catastrophic event could occur",
+            ]),
+            ('Curfeu', [
+                "Legend suggests a second lunar shard exists, with both combined allowing to summon Deimo to Earth. Looks like we got lucky that they didn't get both before us.",
+                "We will need to remain vigilant. Keep in contact if you see anything suspicious.",
+                "I will be checking the ruins for any hints as to where this last shard is located.",
+            ]),
+            ('Abby', [
+                "I will continue researching this group for Professor Amber. I know what they are doing is not right, but their reason may be valid..",
+                "The solar energy is beginning to damage our planet, there must be another way...",
+            ]),
+            ('Skyy', [
+                "At this point in time the threat is priority..",
+                "maybe this would not have happened if we worked with them to begin with years ago...",
+            ]),
+            ('Curfeu', [
+                "We will revisit this when the final shard is found. I am counting on yall.",
+            ]),
+        ], then=lambda: self._surf_shack_prep_leave(['curfeu', 'abby', 'skyy'], self._surf_shack_prep_cade_farewell))
+
+    def _surf_shack_prep_say(self, script, then):
+        """Plays [(speaker, lines), ...] back to back, then calls `then`."""
+        if not script:
+            then()
+            return
+        name, lines = script[0]
+        self.message_box.queue_messages(
+            self._tag_dialogue(name, lines),
+            wait_for_input=True,
+            on_complete=lambda: self._surf_shack_prep_say(script[1:], then)
+        )
+
+    def _surf_shack_prep_leave(self, trainer_ids, then):
+        """Walks each NPC out the door one after another (each vanishes on
+        the exit tile before the next sets off), then calls `then`."""
+        remaining = [n for n in (self._shadowhq_npc(t) for t in trainer_ids) if n]
+        if not remaining:
+            then()
+            return
+        npc = remaining[0]
+        rest = [n.trainer_id for n in remaining[1:]]
+        self._shadowhq_walk([(npc, self.SURF_SHACK_EXIT_TILE)],
+                            lambda: self._surf_shack_prep_leave(rest, then), vanish=True)
+
+    def _surf_shack_prep_cade_farewell(self):
+        self.cutscene = {'phase': 'shadowhq_wait'}
+        cade = self._shadowhq_npc('cade')
+        if cade:
+            cade.anim_frame = 0
+            cade.face_toward_player(self.player)
+        self.message_box.queue_messages(
+            self._tag_dialogue('Cade', [
+                "Hope we will get a good battle in before all this goes down.",
+                "I will be waiting at the Rouge gym for you, be careful on your way up, it is known for getting pretty hot!",
+            ]),
+            wait_for_input=True,
+            on_complete=lambda: self._surf_shack_prep_leave(['cade'], self._finish_surf_shack_prep)
+        )
+
+    def _finish_surf_shack_prep(self):
+        self.story_flags['surf_shack_prep_done'] = True
+        self._surf_shack_prep_active = False
+        self.cutscene = None
 
     def _maybe_add_grunts_vanessa(self):
         if not self.story_flags.get('gym2_corn_maze_reveal_done'):
@@ -6809,6 +7018,17 @@ class Game:
                 and self.encounter_anim is None and self.double_phase is None):
             self._double_start_p1_turn()
 
+        # Single battle: a dino that used a recharge move skips its next
+        # turn — play it out the moment control would return to the player.
+        if (self.state == 'encounter' and not self.is_double_battle
+                and self.encounter_anim is None and not self.awaiting_switch
+                and not self.fading and not self._post_xp_callback and not self.catch_anim
+                and self.player_dinos and self.enemy_dino
+                and self.enemy_dino.get('hp', 0) > 0):
+            active = self.player_dinos[self.active_dino_index]
+            if active.get('must_recharge') and active.get('hp', 0) > 0:
+                self._player_recharge_turn(active)
+
         if self.state == 'world':
             if self.entrance_fade_state == 'out':
                 self.fade_alpha = min(255, self.fade_alpha + 10)
@@ -6876,6 +7096,8 @@ class Game:
             self._maybe_add_shadowhq_npcs()
             self._advance_shadowhq_event()
             self._update_shadowhq_wave(dt)
+            self._maybe_add_surf_shack_prep_npcs()
+            self._check_surf_shack_prep()
             self._check_gym2_corn_maze_reveal()
             self._check_route26_abby_reveal()
             self._update_abby_follow(dt)
@@ -7746,6 +7968,20 @@ class Game:
             if after:
                 self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
             else:
+                msgs.append("What will you do?")
+                self.message_box.queue_messages(msgs, wait_for_input=True)
+            return
+
+        if attacker.pop('must_recharge', False):
+            attacker['defending'] = False
+            prefix = f"{self._trainer_name}'s " if self.is_trainer_battle else "The wild "
+            msgs = [f"{prefix}{attacker['name']} must recharge!"]
+            if after:
+                self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
+            else:
+                msgs.extend(self._tick_field_effects())
+                msgs.extend(self._tick_dino_effects())
+                self._clear_defending_flags()
                 msgs.append("What will you do?")
                 self.message_box.queue_messages(msgs, wait_for_input=True)
             return

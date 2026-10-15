@@ -97,7 +97,7 @@ Active party: max 5 dinos (`PARTY_LIMIT`). Box: unlimited storage (`BoxScreen`).
 XP is split between the active dino and the bench by a fixed table (`ACTIVE_XP_MULT_SOLO`/`_PARTY`, `BENCH_XP_MULT` in `data.py`) so the on-screen "gained X XP" message and the actual XP award can't drift apart. Multi-level-up in one battle is supported. New moves are auto-learned into open moveset slots (up to 4); once 4 slots are full, further learned moves are currently just **not** added — there's no forced-forget UI yet.
 
 ### Evolution System
-A species can define an `evolve: {level: 'TargetName'}` in `DINO_DATA`. On level-up past the threshold, stats/moveset are recalculated, the sprite swaps, and a message sequence plays. Current chains: Corlave→Anemamace (19), Creuw→Luna (16), Floravel→Palidian (19), Netaslam→Netyrant (22), Volkit→Tygraflare (19), Prickly→Cyflactus (21).
+A species can define an `evolve: {level: 'TargetName'}` in `DINO_DATA`. On level-up past the threshold, stats/moveset are recalculated, the sprite swaps, and a message sequence plays. Current chains: Corlave→Anemamace (19), Creuw→Luna (15), Floravel→Palidian (19), Netaslam→Netyrant (22), Sharka→Sharktastrophe (23), Volkit→Tygraflare (19), Prickly→Cyflactus (21), Rhysnow→Rhinecicle (25), Roxer→Rockull (25).
 
 ### Story & Quest System
 `story.py`'s `STORY_EVENTS` list defines one-shot scripted events (a `new_game` trigger, or `{"requires_flags": [...], "location": ...}`), each of which can show messages, award items/coins/dinos, and set flags — flags persist in the save file and gate later content. Beyond the declarative list, the current story arc (eclipse intro → Amber's missing-dino fetch quest → Gym 1 vs. Skyy → Corn Maze folklore reveal → Abby's solar-panel escort mission → Shadow Team (Vanessa + grunts) double-battle confrontation) is largely hand-coded directly in `game.py`, keyed off the same `story_flags` dict. A **sandbox quest-debug menu** (Ctrl+Q, `QuestDebugScreen`) lets you jump to any milestone in `QUEST_STEPS` for testing, retroactively applying/removing the trainer-defeated and badge flags each step implies.
@@ -132,7 +132,7 @@ DINO_DATA['Anemamace'] = {
     'evolve': None,  # or {level: 'TargetSpecies'}
 }
 ```
-29 species as of this writing (most recently Rhinecicle and Celestreeyl, added as placeholder stat blocks pending final design/art).
+40 species as of this writing. Most recent: Sharka (#038, pre-evolution of Sharktastrophe, in the `spawn_water` / `lake_water1` / `palm_water` pools), and the celestials Deimo (#039, lunar, dark/flying, learns Eternal Darkness at 40) and VY (#040, solar, light/flying, learns Infinite Light at 40) — neither celestial is placed in the world yet. New species must also be added to `config.ENCOUNTER_DINOS_PATHS` and the `Game.dino_frames` tuple in `game.py`, or they have no wild-battle / PC-box sprite.
 
 ### Move Data (`MOVE_DATA` in data.py)
 ```python
@@ -220,7 +220,7 @@ Stack-based (`state_stack`, `push_state()`/`pop_state()`) so menus/battles/dialo
 - [ ] Move-forget UI (currently, moves learned past the 4-slot cap are just silently dropped)
 - [ ] Continuing the story arc past the Vanessa/Shadow Team confrontation
 - [ ] Filling out remaining regions (Route 3 / Lake Meridian are mapped but not yet populated with encounters/trainers/story)
-- [ ] Finishing Rhinecicle & Celestreeyl (real stats/moves/typing, sprite art, spawn-table and/or trainer placement)
+- [ ] Placing Rhinecicle & Celestreeyl in the world (stats, moves and art are done; neither is in a spawn table or trainer team yet)
 
 ### Planned (GBA Feature Parity)
 - [ ] More gyms / a full 8-gym arc + Elite 4 / Champion endgame

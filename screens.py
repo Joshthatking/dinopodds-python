@@ -127,6 +127,8 @@ def _describe_move_effect(md):
             lines.append(f"User takes {ab['percent']}% recoil")
         elif kind == 'lock':
             lines.append(f"Locks foe for {ab['turns']} turns")
+        elif kind == 'recharge':
+            lines.append("User must recharge next turn")
         elif kind == 'dot':
             lines.append(f"{ab['damage_percent']}% dmg/turn for {ab['turns']} turns")
         elif kind == 'heal':
@@ -1686,6 +1688,8 @@ def generate_move_desc(move_name):
         elif kind == 'lock':
             turns = ability.get('turns', 2)
             parts.append(f"Traps the opponent for {turns} turns.")
+        elif kind == 'recharge':
+            parts.append("If it hits, the user must spend its next turn recharging.")
         elif kind == 'field':
             eff = ability.get('effect', '')
             if eff == 'type_power':

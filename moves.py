@@ -22,7 +22,11 @@ import config
 from data import MOVE_DATA
 
 DURATION = 1.0
-DURATIONS = {'Ultra Violet': 2.2}   # signature moves that run longer than DURATION
+DURATIONS = {                       # signature moves that run longer than DURATION
+    'Ultra Violet': 2.2,
+    'Eternal Darkness': 2.6,
+    'Infinite Light': 2.6,
+}
 STRONG_POWER = 70
 TAU = math.pi * 2
 
@@ -73,6 +77,10 @@ def ease_out(p):
 
 def ease_in(p):
     return p * p
+
+
+def ease_in_out(p):
+    return p * p * (3 - 2 * p)
 
 
 def hump(p):
@@ -1874,6 +1882,431 @@ def anim_ultra_violet(a):
         a.glow(a.sx, a.sy, 40 * s, UV[2], 0.8 * hump(p))
 
 
+def _vignette(a, k, col=BLACK):
+    """Darkens the screen edges inward; k = 0..1 intensity."""
+    if k <= 0.02:
+        return
+    cx, cy = a.W / 2, a.H / 2
+    R = math.hypot(cx, cy)
+    band = int(R * 0.05) + 2
+    for i in range(12):
+        f = i / 11
+        # Alpha ramps in from 0 so the vignette's inner edge never shows as a ring
+        a.ring(cx, cy, R * (0.55 + 0.5 * f), col, 58 * k * f * f, band)
+
+
+# ── Eternal Darkness (signature, recharge move — see DURATIONS) ─────────────
+# The light dies -> darkness pours into the attacker as a void orb -> the Eye
+# of Deimo opens above the target and lowers marionette strings onto it ->
+# the orb is hurled in and becomes a singularity that swallows the light ->
+# it collapses and detonates in an inverted (black) shockwave -> the eye
+# closes and the attacker's aura gutters out (it must recharge).
+
+ED_VOID    = (6, 0, 14)
+ED_PURPLE  = (150, 50, 230)
+ED_VIOLET  = (215, 130, 255)
+ED_MAGENTA = (255, 60, 170)
+ED_DEEP    = (60, 10, 105)
+
+
+def _ed_eye_pos(a):
+    return a.tx, max(58.0, a.ty - 118 * a.s)
+
+
+def _ed_eye(a, x, y, w, open_k, t, k):
+    """The almond eye of Deimo; open_k 0..1 lid opening, k 0..1 intensity."""
+    if open_k <= 0.02 or k <= 0.02:
+        return
+    h = w * 0.4 * open_k
+    top, bot = [], []
+    for i in range(25):
+        u = i / 24
+        px = x + (u - 0.5) * w
+        bulge = math.sin(math.pi * u) ** 0.85
+        top.append((px, y - h * bulge))
+        bot.append((px, y + h * bulge))
+    # Aura flickering around the lids (kept off the center so the eye stays dark)
+    for i in range(10):
+        ang = i * TAU / 10 + t * 2.5
+        a.glow(x + math.cos(ang) * w * 0.55, y + math.sin(ang) * (h + 8) * 0.9, w * 0.28,
+               ED_PURPLE if i % 2 else ED_MAGENTA, 0.65 * k)
+    # Lash-like spikes radiating from the lids
+    for i in range(1, 12):
+        u = i / 12
+        bulge = math.sin(math.pi * u) ** 0.85
+        px = x + (u - 0.5) * w
+        ln = (10 + 10 * math.sin(i * 1.7 + t * 6)) * a.s * open_k
+        a.line(px, y - h * bulge, px + (u - 0.5) * ln * 0.6, y - h * bulge - ln, ED_VIOLET, 200 * k, 2)
+        a.line(px, y + h * bulge, px + (u - 0.5) * ln * 0.6, y + h * bulge + ln * 0.7, ED_PURPLE, 170 * k, 2)
+    a.poly(top + bot[::-1], ED_VOID, 250 * k)
+    # Iris, striations, slit pupil, glint
+    ir = min(h * 0.92, w * 0.2)
+    if ir >= 2:
+        a.circle(x, y, ir, ED_PURPLE, 255 * k)
+        a.circle(x, y, ir * 0.78, ED_MAGENTA, 200 * k)
+        for i in range(14):
+            ang = i * TAU / 14 + t * 1.5
+            a.line(x + math.cos(ang) * ir * 0.35, y + math.sin(ang) * ir * 0.35,
+                   x + math.cos(ang) * ir * 0.95, y + math.sin(ang) * ir * 0.95, ED_VIOLET, 150 * k, 1)
+        a.ring(x, y, ir, ED_VIOLET, 255 * k, 2)
+        a.ellipse(x, y, ir * 0.36, min(ir * 1.9, h * 1.95), ED_VOID, 255 * k)
+        a.circle(x - ir * 0.38, y - ir * 0.38, max(1.5, ir * 0.13), WHITE, 230 * k)
+    a.lines(top, ED_VIOLET, 235 * k, 3)
+    a.lines(bot, ED_VIOLET, 235 * k, 3)
+
+
+def _ed_singularity(a, x, y, r, k, t, spin):
+    """Black hole: back half of the accretion disk, the hole, then the front half."""
+    if r < 1.5 or k <= 0.02:
+        return
+    rings = ((1.75, ED_MAGENTA, 1.0), (2.2, ED_VIOLET, 0.8), (2.7, ED_PURPLE, 0.6))
+
+    def disk(front):
+        for ri, (rm, col, al) in enumerate(rings):
+            rr = r * rm
+            n = 30
+            for j in range(n):
+                ang = j * TAU / n + t * spin * (1.0 - ri * 0.22)
+                if (math.sin(ang) > 0) != front:
+                    continue
+                px, py = x + math.cos(ang) * rr, y + math.sin(ang) * rr * 0.3
+                a.circle(px, py, max(1.5, r * 0.085 * (1.25 if front else 0.8)), col, 235 * k * al)
+                if j % 3 == 0:
+                    a.glow(px, py, r * 0.4, col, 0.45 * k * al)
+
+    disk(False)
+    # Lensed light ring hugging the event horizon
+    a.ring(x, y, r * 1.22, ED_VIOLET, 210 * k, max(2, r * 0.14))
+    a.ring(x, y, r * 1.08, WHITE, 160 * k, max(1, r * 0.05))
+    for i in range(8):
+        ang = i * TAU / 8 + t * 4
+        a.glow(x + math.cos(ang) * r * 1.3, y + math.sin(ang) * r * 1.3, r * 0.7, ED_PURPLE, 0.6 * k)
+    a.circle(x, y, r, ED_VOID, 255 * k)
+    disk(True)
+
+
+def anim_eternal_darkness(a):
+    t, s = a.t, a.s
+    ex, ey = _ed_eye_pos(a)
+
+    # The light dies: deep void tint + closing vignette for nearly the whole move
+    dark = min(1.0, t / 0.1) * (1.0 if t < 0.88 else max(0.0, (1 - t) / 0.12))
+    a.tint(ED_VOID, 215 * dark)
+    _vignette(a, dark)
+
+    # 1. Darkness pours into the attacker: rising tendrils, swirling motes, a
+    #    void orb crackling with dark lightning
+    p = seg(t, 0.02, 0.44)
+    orb_r = 0.0
+    if p is not None:
+        grow = ease_out(min(1.0, p / 0.8))
+        orb_r = 24 * s * grow
+        for i in range(7):
+            off = (i - 3) * 16 * s
+            pts = []
+            for j in range(13):
+                u = j / 12
+                reach = min(1.0, p * 1.6)
+                yy = lerp(a.sy + 70 * s, a.sy, u * reach)
+                xx = lerp(a.sx + off, a.sx, (u * reach) ** 1.5) + math.sin(u * 9 + t * 40 + i) * 7 * s * (1 - u)
+                pts.append((xx, yy))
+            a.lines(pts, ED_DEEP if i % 2 else ED_PURPLE, 220 * min(1.0, p * 3), max(2, 5 * s * (1 - p * 0.5)))
+        a.implode(a.sx, a.sy, p, 40, 170 * s, ED_VIOLET, 2.6 * s, glow=0.35, swirl=5, key='edin')
+        a.implode(a.sx, a.sy, p, 24, 120 * s, ED_DEEP, 3.5 * s, swirl=-3, key='edin2')
+        for kk in range(3):
+            a.ring(a.sx, a.sy, orb_r * (1.5 + kk * 0.5) * (1 - 0.3 * hump(p)), ED_PURPLE if kk % 2 else ED_MAGENTA,
+                   170 * grow, 2)
+        for kk in range(8):
+            ang = kk * TAU / 8 + t * 6
+            a.glow(a.sx + math.cos(ang) * orb_r * 1.25, a.sy + math.sin(ang) * orb_r * 1.25, orb_r, ED_PURPLE, 0.8 * grow)
+        a.circle(a.sx, a.sy, orb_r, ED_VOID, 255)
+        a.ring(a.sx, a.sy, orb_r, ED_VIOLET, 255 * grow, 2)
+        if p > 0.4:
+            for kk in range(4):
+                ang = kk * TAU / 4 + t * 25
+                a.bolt(a.sx, a.sy, a.sx + math.cos(ang) * 55 * s, a.sy + math.sin(ang) * 55 * s,
+                       ED_PURPLE, width=2, jag=9, segs=6, glow=0.5)
+
+    # 2. The Eye of Deimo opens above the target (and closes at the very end)
+    eye = seg(t, 0.16, 0.97)
+    if eye is not None:
+        opening = ease_out(min(1.0, (t - 0.16) / 0.14))
+        closing = 1 - ease_in(max(0.0, (t - 0.86) / 0.11))
+        blink = 1 - 0.85 * hump(seg(t, 0.36, 0.4) or 0.0)   # one slow, unsettling blink
+        _ed_eye(a, ex, ey, 128 * s, opening * closing * blink, t, min(1.0, opening * 1.5) * closing)
+
+    # 3. Marionette strings lower from the eye and pull taut on the target
+    p = seg(t, 0.3, 0.76)
+    if p is not None:
+        reach = ease_out(min(1.0, p / 0.25))
+        taut = ease_in(max(0.0, min(1.0, (p - 0.25) / 0.3)))
+        fade = 1.0 if p < 0.88 else max(0.0, (1 - p) / 0.12)
+        jerk = math.sin(t * 70) * 3 * s * taut if p > 0.5 else 0.0
+        for i in range(5):
+            f = (i - 2) / 2
+            x1, y1 = ex + f * 45 * s, ey + 18 * s
+            x2, y2 = a.tx + f * 38 * s + jerk, a.ty - 22 * s - abs(f) * 10 * s
+            pts = []
+            for j in range(15):
+                u = j / 14 * reach
+                sag = (1 - taut) * 22 * s * math.sin(math.pi * u) * (1 if i % 2 else -0.6)
+                pts.append((lerp(x1, x2, u) + sag, lerp(y1, y2, u)))
+            a.lines(pts, ED_PURPLE, 200 * fade, 4)
+            a.lines(pts, ED_VIOLET, 240 * fade, 2)
+            a.lines(pts, WHITE, 150 * fade, 1)
+            for j in range(0, len(pts), 5):
+                a.glow(pts[j][0], pts[j][1], 7 * s, ED_PURPLE, 0.45 * fade)
+            gx, gy = pts[int((t * 30 + i * 3) % len(pts))]
+            a.glow(gx, gy, 9 * s, ED_MAGENTA, 0.8 * fade)
+            if reach >= 1:
+                a.circle(x2, y2, 3 * s, ED_MAGENTA, 230 * fade)
+        if taut > 0.5:
+            a.shake(2)
+
+    # 4. The void orb is hurled at the target, shedding darkness
+    p = seg(t, 0.44, 0.56)
+    if p is not None:
+        e = ease_in(p)
+        for i in range(10, -1, -1):
+            q = max(0.0, e - i * 0.035)
+            x, y = a.travel(q, 70 * s)
+            r = (22 - i * 1.6) * s
+            if i:
+                a.circle(x, y, r, ED_PURPLE if i % 2 else ED_DEEP, 200 * (1 - i / 11))
+        x, y = a.travel(e, 70 * s)
+        a.glow(x, y, 46 * s, ED_PURPLE, 1.2)
+        a.circle(x, y, 20 * s, ED_VOID, 255)
+        a.ring(x, y, 20 * s, ED_VIOLET, 255, 3)
+        a.burst(x, y, p, 14, 50 * s, ED_VIOLET, 2.5 * s, key='edshed')
+
+    # 5. Singularity: swells, swallows the light, then collapses to a point
+    p = seg(t, 0.54, 0.79)
+    if p is not None:
+        swell = ease_out(min(1.0, p / 0.3))
+        collapse = 1 - ease_in(max(0.0, (p - 0.78) / 0.22))
+        pulse = 1 + 0.08 * math.sin(t * 60)
+        r = 36 * s * swell * collapse * pulse
+        a.implode(a.tx, a.ty, min(1.0, p * 1.4), 46, 230 * s, ED_VIOLET, 2.5 * s, glow=0.3, swirl=7, key='edsuck')
+        a.implode(a.tx, a.ty, min(1.0, p * 1.2), 22, 190 * s, (255, 255, 255), 1.8 * s, swirl=-6, key='edlight')
+        for kk in range(3):
+            q = (p * 2.2 + kk / 3) % 1.0
+            a.ring(a.tx, a.ty, (150 - 120 * q) * s, ED_PURPLE, 150 * q * collapse, 2)
+        _ed_singularity(a, a.tx, a.ty, r, 1.0, t, 9 + 30 * (1 - collapse))
+        a.shake(3 + 6 * p)
+
+    # 6. Detonation: violet-white flash, then black shockwaves with burning edges
+    p = seg(t, 0.78, 0.97)
+    if p is not None:
+        a.tint((235, 205, 255), 255 * max(0.0, 1 - p / 0.12) ** 2)
+        for kk in range(4):
+            q = seg(p, kk * 0.07, 0.65 + kk * 0.07)
+            if q is not None:
+                rr = 15 * s + 240 * s * ease_out(q)
+                a.ring(a.tx, a.ty, rr, ED_VOID, 240 * (1 - q), max(3, 22 * s * (1 - q)))
+                a.ring(a.tx, a.ty, rr + 11 * s * (1 - q), ED_MAGENTA if kk % 2 else ED_VIOLET, 230 * (1 - q), 3)
+        star = ease_out(min(1.0, p * 2.5))
+        a.star(a.tx, a.ty, 165 * s * star, ED_PURPLE, 220 * (1 - p), points=8, rot=p, inner=0.12)
+        a.star(a.tx, a.ty, 120 * s * star, ED_VOID, 255 * (1 - p), points=8, rot=p + 0.2, inner=0.14)
+        a.burst(a.tx, a.ty, p, 26, 210 * s, ED_PURPLE, 6 * s, shape='shard', key='edshard')
+        a.burst(a.tx, a.ty, p, 20, 180 * s, ED_VIOLET, 3 * s, shape='streak', glow=0.5, key='edstreak')
+        a.glow(a.tx, a.ty, 120 * s, ED_MAGENTA, 1.6 * (1 - p))
+        if p < 0.55:
+            a.shake(15 * (1 - p / 0.55))
+
+    # 7. Aftermath: embers drift up from the target; the attacker's power gutters out
+    p = seg(t, 0.84, 1.0)
+    if p is not None:
+        a.burst(a.tx, a.ty + 20 * s, p, 18, 90 * s, ED_VIOLET, 2 * s, gravity=-90 * s,
+                spread=(math.pi * 1.1, math.pi * 1.9), glow=0.4, key='edember')
+        a.rain(p, 14, ED_DEEP, a.sx - 40 * s, a.sx + 40 * s, a.sy - 35 * s, a.sy + 55 * s,
+               width=2.5 * s, key='eddrain', speed=0.8, shape='dot')
+        a.ring(a.sx, a.sy, 34 * s * (1 + p), ED_DEEP, 160 * (1 - p), 3)
+
+
+# ── Infinite Light (signature, recharge move — see DURATIONS) ──────────────
+# A hush falls -> a sacred halo spins up around the attacker -> it traces an
+# infinity sign in light that flies over the target -> a ring of light spears
+# forms and plunges in -> a prismatic pillar of light crashes down from the
+# infinity sign -> supernova whiteout -> feathers of light drift down while
+# the attacker's halo cracks and fades (it must recharge).
+
+IL_GOLD = (255, 205, 80)
+IL_PALE = (255, 246, 210)
+IL_SKY = (170, 220, 255)
+IL_HUSH = (10, 8, 34)
+
+
+def _lemniscate(cx, cy, w, u):
+    d = 1 + math.sin(u) ** 2
+    return cx + w * math.cos(u) / d, cy + w * math.sin(u) * math.cos(u) / d
+
+
+def _il_infinity(a, cx, cy, w, k, t, upto=TAU):
+    """The infinity sign drawn in light, traced from u=0 to `upto`."""
+    if k <= 0.02 or w < 3:
+        return
+    n = max(2, int(48 * upto / TAU))
+    pts = [_lemniscate(cx, cy, w, upto * i / n) for i in range(n + 1)]
+    a.lines(pts, IL_GOLD, 220 * k, max(3, int(9 * a.s)))
+    a.lines(pts, IL_PALE, 240 * k, max(2, int(5 * a.s)))
+    a.lines(pts, WHITE, 255 * k, 2)
+    for i in range(0, len(pts), 4):
+        a.glow(pts[i][0], pts[i][1], 16 * a.s, IL_GOLD, 0.55 * k)
+    # Sparks running along the sign
+    for i in range(3):
+        sx, sy = _lemniscate(cx, cy, w, (t * 14 + i * TAU / 3) % upto if upto > 0.1 else 0)
+        a.star(sx, sy, 7 * a.s, WHITE, 255 * k, points=4, rot=t * 8)
+        a.glow(sx, sy, 22 * a.s, IL_PALE, 0.9 * k)
+
+
+def _il_halo(a, x, y, r, k, t):
+    """Sacred-geometry halo: ticked rings, counter-rotating hexagram."""
+    if k <= 0.02 or r < 3:
+        return
+    for ri, (rm, spin, col) in enumerate(((1.0, 1.4, IL_GOLD), (0.78, -2.0, IL_PALE), (1.22, 0.8, IL_SKY))):
+        rr = r * rm
+        a.ring(x, y, rr, col, 200 * k, 2)
+        ticks = 12 + ri * 6
+        for i in range(ticks):
+            ang = i * TAU / ticks + t * spin
+            a.line(x + math.cos(ang) * rr, y + math.sin(ang) * rr,
+                   x + math.cos(ang) * (rr + 6 * a.s), y + math.sin(ang) * (rr + 6 * a.s), col, 200 * k, 2)
+    for tri in range(2):
+        rot = t * (2.2 if tri else -2.2) + tri * math.pi / 3
+        pts = [(x + math.cos(rot + i * TAU / 3) * r * 0.74, y + math.sin(rot + i * TAU / 3) * r * 0.74)
+               for i in range(3)]
+        a.lines(pts, WHITE if tri else IL_GOLD, 230 * k, 2, closed=True)
+    for i in range(6):
+        ang = i * TAU / 6 + t * 1.4
+        a.glow(x + math.cos(ang) * r, y + math.sin(ang) * r, 14 * a.s, IL_GOLD, 0.6 * k)
+
+
+def anim_infinite_light(a):
+    t, s = a.t, a.s
+    ix, iy = a.tx, max(56.0, a.ty - 120 * s)   # where the infinity sign hovers
+
+    # A hush first (so the light reads), then everything gives way to light
+    hush = min(1.0, t / 0.08) * (1.0 if t < 0.6 else max(0.0, (0.7 - t) / 0.1))
+    a.tint(IL_HUSH, 150 * hush)
+    _vignette(a, 0.7 * hush, IL_HUSH)
+    p = seg(t, 0.6, 0.82)
+    if p is not None:
+        a.tint(IL_PALE, 120 * ease_in(p))
+
+    # 1. Sacred halo spins up around the attacker; motes of light gather
+    p = seg(t, 0.0, 0.5)
+    if p is not None:
+        k = ease_out(min(1.0, p / 0.35)) * (1.0 if p < 0.8 else max(0.0, (1 - p) / 0.2))
+        _il_halo(a, a.sx, a.sy, 52 * s * (0.6 + 0.4 * ease_out(min(1.0, p / 0.35))), k, t * 3)
+        a.implode(a.sx, a.sy, min(1.0, p * 1.3), 36, 160 * s, IL_PALE, 2.4 * s, glow=0.35, swirl=3, key='ilin')
+        a.glow(a.sx, a.sy, 40 * s * k, IL_GOLD, 1.0 * k)
+        a.circle(a.sx, a.sy, 8 * s * k, WHITE, 255 * k)
+
+    # 2. The infinity sign is traced around the attacker...
+    p = seg(t, 0.14, 0.36)
+    if p is not None:
+        _il_infinity(a, a.sx, a.sy - 8 * s, 62 * s, 1.0, t, TAU * ease_in_out(p))
+        hx, hy = _lemniscate(a.sx, a.sy - 8 * s, 62 * s, TAU * ease_in_out(p))
+        a.star(hx, hy, 14 * s, WHITE, 255, points=4, rot=t * 10)
+        a.glow(hx, hy, 34 * s, IL_GOLD, 1.3)
+
+    # ...then rises and flies over the target, growing, and hovers there
+    p = seg(t, 0.36, 0.86)
+    if p is not None:
+        fly = ease_in_out(min(1.0, p / 0.3))
+        cx = lerp(a.sx, ix, fly)
+        cy = lerp(a.sy - 8 * s, iy, fly) - 60 * s * math.sin(math.pi * fly)
+        w = lerp(62, 92, fly) * s * (1 + 0.06 * math.sin(t * 40))
+        fade = 1.0 if p < 0.8 else max(0.0, (1 - p) / 0.2)
+        _il_infinity(a, cx, cy, w, fade, t)
+        a.glow(cx, cy, 60 * s, IL_PALE, 0.8 * fade)
+
+    # 3. A ring of light spears forms around the target and plunges in, one by one
+    p = seg(t, 0.44, 0.7)
+    if p is not None:
+        n = 12
+        for i in range(n):
+            ang = i * TAU / n + t * 2
+            form = ease_out(min(1.0, p / 0.35))
+            start = 0.45 + i * 0.03
+            dive = ease_in(max(0.0, min(1.0, (p - start) / 0.12)))
+            if dive >= 1:
+                continue
+            rr = lerp(118 * s, 6 * s, dive)
+            x, y = a.tx + math.cos(ang) * rr, a.ty + math.sin(ang) * rr * 0.75
+            a.shard(x, y, 20 * s * form, ang + math.pi, IL_GOLD, 240 * form, thin=0.22)
+            a.shard(x, y, 13 * s * form, ang + math.pi, WHITE, 255 * form, thin=0.18)
+            a.glow(x, y, 16 * s, IL_GOLD, 0.6 * form)
+        for i in range(n):
+            q = seg(p, 0.45 + i * 0.03 + 0.12, 0.45 + i * 0.03 + 0.3)
+            if q is not None:
+                ang = i * TAU / n
+                a.star(a.tx + math.cos(ang) * 8 * s, a.ty + math.sin(ang) * 6 * s,
+                       26 * s * (1 - q), WHITE, 255 * (1 - q), points=4, rot=ang)
+                a.shake(3)
+
+    # 4. Prismatic pillar of light crashes down from the infinity sign
+    p = seg(t, 0.64, 0.88)
+    if p is not None:
+        reach = ease_in(min(1.0, p / 0.18))
+        fade = 1.0 if p < 0.7 else max(0.0, (1 - p) / 0.3)
+        bottom = lerp(iy, a.ty + 40 * s, reach)
+        throb = 0.9 + 0.1 * math.sin(t * 110)
+        for w, col, al in ((92, IL_GOLD, 120), (64, IL_PALE, 170), (40, (255, 255, 235), 230), (16, WHITE, 255)):
+            width = w * s * fade * throb
+            a.line(ix, iy, ix, bottom, col, al * fade, width)
+        for side in (-1, 1):
+            for ci, col in enumerate(RAINBOW):
+                xo = side * (48 + ci * 3.2) * s * fade * throb
+                a.line(ix + xo, iy, ix + xo, bottom, col, 170 * fade, 2)
+        for i in range(8):
+            a.glow(ix, lerp(iy, bottom, i / 7), 46 * s, IL_PALE, 0.9 * fade)
+        a.rain(p, 24, WHITE, ix - 40 * s, ix + 40 * s, iy, bottom, length=18 * s, width=2,
+               alpha=220 * fade, key='ilfall', speed=1.6)
+        # Ground rings where the pillar lands
+        if reach >= 1:
+            for kk in range(3):
+                q = (p * 3 + kk / 3) % 1.0
+                a.ellipse(a.tx, a.ty + 40 * s, 30 * s + 200 * s * q, (10 + 50 * q) * s, IL_GOLD, 220 * (1 - q) * fade, 3)
+            a.shake(9 * fade)
+
+    # 5. Supernova: whiteout, rainbow shockwaves, star burst
+    p = seg(t, 0.8, 0.97)
+    if p is not None:
+        a.tint(WHITE, 250 * (1 - p) ** 2)
+        for kk, col in enumerate(RAINBOW):
+            q = seg(p, kk * 0.04, 0.55 + kk * 0.04)
+            if q is not None:
+                a.ring(a.tx, a.ty, 18 * s + 230 * s * ease_out(q), col, 230 * (1 - q), 5)
+        star = ease_out(min(1.0, p * 2.5))
+        a.star(a.tx, a.ty, 175 * s * star, IL_GOLD, 230 * (1 - p), points=8, rot=-p, inner=0.12)
+        a.star(a.tx, a.ty, 130 * s * star, WHITE, 255 * (1 - p), points=8, rot=p + 0.2, inner=0.14)
+        a.burst(a.tx, a.ty, p, 24, 200 * s, IL_PALE, 4 * s, shape='star', glow=0.6, key='ilstar')
+        a.burst(a.tx, a.ty, p, 18, 170 * s, IL_GOLD, 3 * s, shape='streak', glow=0.4, key='ilstreak')
+        a.glow(a.tx, a.ty, 140 * s, IL_PALE, 2.0 * (1 - p))
+        if p < 0.5:
+            a.shake(13 * (1 - p / 0.5))
+
+    # 6. Feathers of light drift down; the attacker's halo cracks and fades
+    p = seg(t, 0.84, 1.0)
+    if p is not None:
+        rng = a.rng('ilfeather')
+        for i in range(14):
+            x0 = a.tx + rng.uniform(-110, 110) * s
+            delay = rng.uniform(0, 0.4)
+            q = (p - delay) / 0.6
+            if 0 <= q <= 1:
+                x = x0 + math.sin(q * 6 + i) * 14 * s
+                y = lerp(a.ty - 120 * s, a.ty + 50 * s, q)
+                a.leaf(x, y, 7 * s, math.sin(q * 5 + i) * 0.8 + math.pi / 2, IL_PALE, 230 * (1 - q))
+                a.glow(x, y, 12 * s, IL_GOLD, 0.4 * (1 - q))
+        for i in range(6):
+            ang = i * TAU / 6 + 0.3
+            d = 40 * s + 30 * s * ease_in(p)
+            x, y = a.sx + math.cos(ang) * d, a.sy + math.sin(ang) * d + 40 * s * ease_in(p)
+            a.shard(x, y, 9 * s, ang + 1.2, IL_GOLD, 220 * (1 - p), thin=0.3)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ICE
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2301,6 +2734,7 @@ ANIMATIONS = {
     'Force Shift': anim_force_shift,
     'Dark Energy': anim_dark_energy,
     'Void Collapse': anim_void_collapse,
+    'Eternal Darkness': anim_eternal_darkness,
     'Bitemark': anim_bitemark,
     'Distortion': anim_distortion,
     'Fear': anim_fear,
@@ -2315,6 +2749,7 @@ ANIMATIONS = {
     'Refraction': anim_refraction,
     'Gamma Wave': anim_gamma_wave,
     'Ultra Violet': anim_ultra_violet,
+    'Infinite Light': anim_infinite_light,
     # Ice
     'Snowfall': anim_snowfall,
     'Freeze Blast': anim_freeze_blast,

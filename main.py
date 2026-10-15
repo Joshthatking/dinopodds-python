@@ -320,6 +320,10 @@ if __name__ == '__main__':
 # add water spawns
 # fix certain paths, collisions
 
+#10/14
+# sharka/deimo/VY added
+#Surf Shack Preparation
+#Eternal Darkness/Infinite Light 
 
 # add buildings  
 # add more lore

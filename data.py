@@ -608,7 +608,7 @@ DINODEX_DATA = {
     'Vusion':    {'number': 1,  'desc': "A relentless dark-type predator that hunts by sensing heat. Its flickering energy aura can destabilize opponents before they even strike."},
     'Corlave':   {'number': 2,  'desc': "A small aquatic dino that dwells in shallow coastal waters. Its compact shell deflects glancing blows, making it tougher than it looks."},
     'Anemamace': {'number': 3,  'desc': "The oceans sturdiest protector. It wields spiked appendages that can pierce rock. Feared by the celestials that once attacked both land,sky and sea."},
-    'Creuw':     {'number': 4,  'desc': "A lightweight flier with hollow bones built for bursts of speed. Often spotted riding thermals high above open plains."},
+    'Creuw':     {'number': 4,  'desc': "A lightweight flier with hollow bones built for bursts of speed. Often sited in the plains of the region"},
     'Luna':      {'number': 5,  'desc': "Creuw's evolved form. Fused flying and dark energy grant it near-invisibility at night. Rarely seen twice by the same trainer."},
     'Prowscar':  {'number': 6,  'desc': "A scrappy dark-type that roams dense undergrowth. Its jaw muscles generate enormous bite force despite its small frame."},
     'Floravel':  {'number': 7,  'desc': "A plant-armored earth-type that draws nutrients from the soil mid-battle. Its vines can reconfigure into defensive shields in an instant."},
@@ -642,6 +642,9 @@ DINODEX_DATA = {
     'Skolt':      {'number': 35, 'desc': "A quick, dual-tailed electric dino with a bold black-and-yellow coat that crackles with static voltages, its speed and power is formidable."},
     'Frostle':    {'number': 36, 'desc': "This turtle's shell is crowned with jagged ice crystals, the frozen counterpart to Sortle's swirling sand shell."},
     'Typhoonray': {'number': 37, 'desc': "A massive ray that creates powerful winds with its torando like tail."},
+    'Deimo':      {'number': 39, 'desc': "The lunar celestial, known in legend as the marionette of darkness. Eons ago it conquered the land by pulling every living thing on unseen strings. Two lunar shards together are said to summon it to Earth."},
+    'VY':         {'number': 40, 'desc': "The solar celestial, whose wings burn with the light of the sun itself. Legend says its flares grow fiercer whenever the balance of the region is threatened."},
+    'Sharka':     {'number': 38, 'desc': "A young shark dino that patrols the shallows in small packs. Its teeth regrow constantly, and its fins will one day harden into the spikes of Sharktastrophe."},
 
 }
 
@@ -692,8 +695,20 @@ DINO_DATA = {
         'evolve': None},
     'Sharktastrophe': {
         'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 120, 'defense': 115, 'speed': 125},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21:'Haunt', 25: 'Primal Rage', 28: 'Ripping Impact', 31: 'Hurricane', 35: 'Sword Slash', 40: 'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21:'Haunt', 25: 'Primal Rage', 28: 'Ripping Impact', 31: 'Hurricane', 35: 'Sword Slash', 37: 'Eternal Blue'},
         'evolve': None},
+    'Deimo': {
+        'stats': {'type': ['dark', 'ancient'], 'health': 115, 'attack': 130, 'defense': 140, 'speed': 135},
+        'moves': {0: 'Dark Energy', 1: 'Fossil Break', 8: 'Fear', 12: 'Shadow Veil', 17: 'Haunt', 20: 'Binding Curse', 24: 'Primal Rage', 26: 'Wind Fracture', 30: 'Ancient Mend', 34: 'Void Collapse', 40: 'Dragon Zenith', 45: 'Eternal Darkness'},
+        'evolve': None},
+    'VY': {
+        'stats': {'type': ['light', 'magma'], 'health': 110, 'attack': 155, 'defense': 105, 'speed': 150},
+        'moves': {0: 'Prism Glare', 1: 'Air Strike', 8: 'Fireball', 12: 'Piercing Light', 17: 'Refraction', 21: 'Mach Speed', 25: 'Flame Shatter', 29: 'Spectral Overload', 34: 'Solar Flare', 37: 'Gamma Wave', 40: 'Ultra Violet', 45: 'Infinite Light'},
+        'evolve': None},
+    'Sharka': {
+        'stats': {'type': ['aqua'], 'health': 65, 'attack': 88, 'defense': 70, 'speed': 90},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 5: 'Bitemark', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21: 'Haunt'},
+        'evolve': {23: 'Sharktastrophe'}},
     'Magnecrab': {
         'stats': {'type': ['aqua', 'lightning'], 'health': 140, 'attack': 110, 'defense': 75, 'speed': 100},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Static Graze', 14: 'Shock', 18: 'Double Jab', 24:'Lightning Bolt', 28: 'Hurricane', 31: 'Ripping Impact', 35: 'Conduit Surge', 39: 'Quantum Flux', 44: 'Eternal Blue'},
@@ -1018,6 +1033,8 @@ MOVE_DATA = {
                       'ability': {'kind': 'lock', 'turns': 2, 'chance': 100}},
     'Shadow Veil':   {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'type': 'dark',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 1, 'target': 'self', 'chance': 100}},
+    'Eternal Darkness': {'target': 'opponent', 'damage': 150, 'accuracy': 80, 'type': 'dark',
+                         'ability': {'kind': 'recharge', 'chance': 100}},
     #LIGHT MOVES
     'Prism Glare': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'light'},
     'Piercing Light': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'light', 'pierces_defend': True},
@@ -1031,6 +1048,8 @@ MOVE_DATA = {
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'opponent', 'chance': 100}},
     'Ultra Violet': {'target': 'opponent', 'damage': 120, 'accuracy': 100, 'type': 'light',
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'self', 'chance': 100}},
+    'Infinite Light': {'target': 'opponent', 'damage': 150, 'accuracy': 80, 'type': 'light',
+                       'ability': {'kind': 'recharge', 'chance': 100}},
     #ICE MOVES
     'Snowfall': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'ice'},
     'Freeze Blast': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'ice'},
