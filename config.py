@@ -150,6 +150,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Deimo2':           os.path.join(DINOS_FRONT, 'Deimo.png'),
     'VY':               os.path.join(DINOS_FRONT, 'VY.png'),
     'VY2':              os.path.join(DINOS_FRONT, 'VY.png'),
+    'Stormulus':        os.path.join(DINOS_FRONT, 'Stormulus.png'),
+    'Stormulus2':       os.path.join(DINOS_FRONT, 'Stormulus.png'),
 }
 
 NPC_SHEETS = {

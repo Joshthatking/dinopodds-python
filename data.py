@@ -645,6 +645,7 @@ DINODEX_DATA = {
     'Deimo':      {'number': 39, 'desc': "The lunar celestial, known in legend as the marionette of darkness. Eons ago it conquered the land by pulling every living thing on unseen strings. Two lunar shards together are said to summon it to Earth."},
     'VY':         {'number': 40, 'desc': "The solar celestial, whose wings burn with the light of the sun itself. Legend says its flares grow fiercer whenever the balance of the region is threatened."},
     'Sharka':     {'number': 38, 'desc': "A young shark dino that patrols the shallows in small packs. Its teeth regrow constantly, and its fins will one day harden into the spikes of Sharktastrophe."},
+    'Stormulus':  {'number': 41, 'desc': "A brooding thundercloud that drifts toward anything that hums with power. It feeds on static in the air and lashes out with forked lightning when disturbed."},
 
 }
 
@@ -726,8 +727,8 @@ DINO_DATA = {
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane', 26: 'Hyperfrost', 29: 'Deep Freeze',31: 'Fear', 34: 'Hail Storm', 37: 'Freeze Blast', 42:'Eternal Blue'},
         'evolve': None},
     'Voltzbee': {
-        'stats': {'type': ['lightning', 'flying'], 'health': 77, 'attack': 113, 'defense': 83, 'speed': 142},
-        'moves': {0: 'Shock', 4: 'Stinger Shock', 8: 'Air Strike', 12: 'Thunder Blitz', 18: 'Mach Speed', 22: 'Piercing Light', 26: 'Lightning Bolt', 30:'Quantum Flux', 35: 'Volt Storm'},
+        'stats': {'type': ['lightning'], 'health': 77, 'attack': 113, 'defense': 88, 'speed': 142},
+        'moves': {0: 'Shock', 4: 'Stinger Shock', 8: 'Air Strike', 11: 'Thunder Blitz', 14: 'Swift Sneak', 18: 'Mach Speed', 22: 'Piercing Light', 26: 'Lightning Bolt', 30:'Quantum Flux', 35: 'Volt Storm'},
         'evolve': None},
     'Teamtwood': {
         'stats': {'type': ['earth'], 'health': 88, 'attack': 102, 'defense': 128, 'speed': 107},
@@ -814,6 +815,11 @@ DINO_DATA = {
     'Typhoonray': {
         'stats': {'type': ['aqua', 'flying'], 'health': 92, 'attack': 108, 'defense': 123, 'speed': 129},
         'moves': {0: 'Whirlpool+', 1: 'Air Strike', 8: 'Swift Sneak', 14: 'Wave Dash', 17: 'Quick Slash', 20: 'Mach Speed', 25: 'Turbo Booster', 28: 'Wind Fracture', 32: 'Hurricane', 38: 'Sky Scorch', 44: 'Eternal Blue'},
+        'evolve': None},
+
+    'Stormulus': {
+        'stats': {'type': ['lightning', 'flying'], 'health': 90, 'attack': 115, 'defense': 132, 'speed': 121},
+        'moves': {0: 'Static Graze', 1: 'Air Strike', 5: 'Shock', 9: 'Thunder Blitz', 13: 'Swift Sneak', 17: 'Lightning Bolt', 21: 'Mach Speed', 25: 'Conduit Surge', 28: 'Wind Fracture', 31: 'Quantum Flux', 34: 'Hurricane', 37: 'Volt Storm', 40: 'Sky Scorch'},
         'evolve': None},
 
 }
@@ -1186,8 +1192,8 @@ ENCOUNTER_ZONES = {
     },
 
     "route1_special": {
-        "dinos": ["Luna"],
-        "level_range": (16, 18)
+        "dinos": ["Drafyton"],
+        "level_range": (7)
     },
 
     "town1_grass": {
@@ -1204,7 +1210,7 @@ ENCOUNTER_ZONES = {
     },
 
     "route2_burnt_grass": {
-        "dinos": ["Sortle", "Teamtwood", "Creuw", "Prickly"],
+        "dinos": ["Sortle", "Teamtwood", "Creuw", "Prickly", "Typhoonray"],
         "level_range": (7, 10)
 
     },
@@ -1222,9 +1228,9 @@ ENCOUNTER_ZONES = {
             {"name": "Prickly",  "weight": 0.4, "time": "day"},
             {"name": "Prowscar", "weight": 0.4, "time": "night"},
             {"name": "Creuw", "weight": 0.6, "time": "day"},
-            {"name": "Vusion",   "weight": 0.2, "time": "night"},
+            {"name": "Vusion",   "weight": 0.1, "time": "night"},
         ],
-        "level_range": (8, 11)
+        "level_range": (8, 12)
 
     },
 
@@ -1281,8 +1287,8 @@ ENCOUNTER_ZONES = {
             "powerplant_outside": {
         "encounter_rate": 0.07,
         "dinos": [
-            {"name": "Chomper",  "weight": 0.2, "time": "night"},
-            {"name": "Chomper",  "weight": 0.2, "time": "day"},
+            {"name": "Chomper",  "weight": 0.1, "time": "night"},
+            {"name": "Chomper",  "weight": 0.1, "time": "day"},
 
             {"name": "Voltzbee",  "weight": 0.25, "time": "day"},
             {"name": "Voltzbee",  "weight": 0.25, "time": "night"},
@@ -1290,8 +1296,11 @@ ENCOUNTER_ZONES = {
             {"name": "Teamtwood",  "weight": 0.25, "time": "day"},
             {"name": "Teamtwood",  "weight": 0.25, "time": "night"},
 
-            {"name": "Skolt",  "weight": 0.1, "time": "day"},
-            {"name": "Skolt",  "weight": 0.1, "time": "night"},
+            {"name": "Skolt",  "weight": 0.2, "time": "day"},
+            {"name": "Skolt",  "weight": 0.2, "time": "night"},
+
+            {"name": "Stormulus",  "weight": 0.15, "time": "day"},
+            {"name": "Stormulus",  "weight": 0.15, "time": "night"},
         ],
         "level_range": (11, 16)
 
@@ -1313,15 +1322,15 @@ ENCOUNTER_ZONES = {
             {"name": "Prowscar",  "weight": 0.3, "time": "night"},
             {"name": "Prowscar",  "weight": 0.1, "time": "day"},
 
-            {"name": "Volkit",  "weight": 0.1, "time": "day"},
-            {"name": "Volkit",  "weight": 0.1, "time": "night"},
+            {"name": "Volkit",  "weight": 0.05, "time": "day"},
+            {"name": "Volkit",  "weight": 0.05, "time": "night"},
         ],
         "level_range": (12, 16)
 
     },
                 "in_power": {
         "encounter_rate": 0.03,
-        "dinos": ["Voltzbee", "Skolt", "Magnecrab"],
+        "dinos": ["Voltzbee", "Skolt", "Magnecrab", "Stormulus"],
         "level_range": (12, 16)
 
     },

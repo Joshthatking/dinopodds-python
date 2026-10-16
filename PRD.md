@@ -132,7 +132,7 @@ DINO_DATA['Anemamace'] = {
     'evolve': None,  # or {level: 'TargetSpecies'}
 }
 ```
-40 species as of this writing. Most recent: Sharka (#038, pre-evolution of Sharktastrophe, in the `spawn_water` / `lake_water1` / `palm_water` pools), and the celestials Deimo (#039, lunar, dark/flying, learns Eternal Darkness at 40) and VY (#040, solar, light/flying, learns Infinite Light at 40) — neither celestial is placed in the world yet. New species must also be added to `config.ENCOUNTER_DINOS_PATHS` and the `Game.dino_frames` tuple in `game.py`, or they have no wild-battle / PC-box sprite.
+41 species as of this writing. Most recent: Stormulus (#041, lightning/flying thundercloud, rare in the `powerplant_outside` pool, learns Volt Storm at 41). Before that: Sharka (#038, pre-evolution of Sharktastrophe, in the `spawn_water` / `lake_water1` / `palm_water` pools), and the celestials Deimo (#039, lunar, dark/flying, learns Eternal Darkness at 40) and VY (#040, solar, light/flying, learns Infinite Light at 40) — neither celestial is placed in the world yet. New species must also be added to `config.ENCOUNTER_DINOS_PATHS` and the `Game.dino_frames` tuple in `game.py`, or they have no wild-battle / PC-box sprite.
 
 ### Move Data (`MOVE_DATA` in data.py)
 ```python
