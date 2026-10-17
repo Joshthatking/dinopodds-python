@@ -1429,6 +1429,13 @@ class PartyScreen:
                     game.pop_state()
                     game.message_box.queue_messages(
                         [f"{chosen['name']} was healed by 20 HP!"], wait_for_input=True)
+                elif config.ITEMS.get(item_mode, {}).get('tm_move'):
+                    used, msgs = game.use_tm(chosen, item_mode)
+                    if used:
+                        game.item_target_mode = None
+                        self.reset()
+                        game.pop_state()
+                    game.message_box.queue_messages(msgs, wait_for_input=True)
                 return None
             if event.key == pygame.K_SPACE:
                 game.item_target_mode = None
@@ -1512,6 +1519,10 @@ class PartyScreen:
                                                True, (255, 200, 0)), (230, 2))
         elif getattr(self.game, 'item_target_mode', None) == 'Mega Spray':
             screen.blit(self.small_font.render("Choose a Dino to heal  (J=confirm)",
+                                               True, (255, 200, 0)), (230, 2))
+        elif config.ITEMS.get(getattr(self.game, 'item_target_mode', None) or '', {}).get('tm_move'):
+            move = config.ITEMS[self.game.item_target_mode]['tm_move']
+            screen.blit(self.small_font.render(f"Teach {move} to which Dino?  (J=confirm)",
                                                True, (255, 200, 0)), (230, 2))
 
         box_w, box_h = 200, 70
@@ -1969,8 +1980,39 @@ class ItemsScreen:
         self.selected_index = 0
         self.scroll_offset = 0
 
+    ICON_BOX = 26
+
+    def _fitted_icon(self, item):
+        """Item icon scaled (aspect kept, transparent padding trimmed) to fit ICON_BOX."""
+        cache = self.__dict__.setdefault('_icon_cache', {})
+        src = self.icons.get(item)
+        if cache.get(item, (None,))[0] is not src:
+            img = None
+            if src is not None:
+                r = src.get_bounding_rect()
+                if r.width and r.height:
+                    trimmed = src.subsurface(r)
+                    s = min(self.ICON_BOX / r.width, self.ICON_BOX / r.height)
+                    size = (max(1, round(r.width * s)), max(1, round(r.height * s)))
+                    img = (pygame.transform.scale(trimmed, size) if s >= 1
+                           else pygame.transform.smoothscale(trimmed, size))
+            cache[item] = (src, img)
+        return cache[item][1]
+
+    def _fit_name(self, name, max_w):
+        """Render `name` in the bag font, falling back to the smaller font,
+        then to an ellipsis, so it never runs past max_w."""
+        for font in (self.font, self.desc_font):
+            surf = font.render(name, True, (0, 0, 0))
+            if surf.get_width() <= max_w:
+                return surf
+        text = name
+        while len(text) > 1 and self.desc_font.size(text + "...")[0] > max_w:
+            text = text[:-1]
+        return self.desc_font.render(text.rstrip() + "...", True, (0, 0, 0))
+
     def draw(self, surface):
-        right_rect = pygame.Rect(400, 50, 220, 320)
+        right_rect = pygame.Rect(340, 50, 280, 320)
         pygame.draw.rect(surface, (255, 255, 240), right_rect)
         pygame.draw.rect(surface, (0, 0, 0), right_rect, 3)
 
@@ -1982,15 +2024,24 @@ class ItemsScreen:
                          (right_rect.x + 20, right_rect.y + 40))
             return
 
+        row_h = 30
         for i, (item, count) in enumerate(filtered[self.scroll_offset:self.scroll_offset + self.visible_rows]):
             y = right_rect.y + 20 + i * 35
+            mid = y + 10
             if self.scroll_offset + i == self.selected_index:
                 pygame.draw.rect(surface, (200, 200, 255),
-                                 (right_rect.x + 5, y - 5, right_rect.width - 10, 30), border_radius=5)
-            surface.blit(self.icons[item], (right_rect.x + 10, y - 10))
-            surface.blit(self.font.render(f"{item} x{count}", True, (0, 0, 0)), (right_rect.x + 50, y))
+                                 (right_rect.x + 5, y - 5, right_rect.width - 10, row_h), border_radius=5)
+            icon = self._fitted_icon(item)
+            if icon:
+                surface.blit(icon, icon.get_rect(center=(right_rect.x + 10 + self.ICON_BOX // 2, mid)))
+            count_surf = self.font.render(f"x{count}", True, (0, 0, 0))
+            count_x = right_rect.right - 12 - count_surf.get_width()
+            surface.blit(count_surf, count_surf.get_rect(midleft=(count_x, mid)))
+            name_x = right_rect.x + 18 + self.ICON_BOX
+            name_surf = self._fit_name(item, count_x - 8 - name_x)
+            surface.blit(name_surf, name_surf.get_rect(midleft=(name_x, mid)))
 
-        desc_rect = pygame.Rect(400, 380, 220, 70)
+        desc_rect = pygame.Rect(340, 380, 280, 70)
         pygame.draw.rect(surface, (240, 240, 240), desc_rect)
         pygame.draw.rect(surface, (0, 0, 0), desc_rect, 3)
         selected_item = filtered[self.selected_index][0]
@@ -2058,6 +2109,13 @@ class ItemsScreen:
                         ["No Dinos need healing right now!"], wait_for_input=True)
                     return 'used'
                 game.item_target_mode = 'Mega Spray'
+                return 'target_party'
+            elif item_data.get('tm_move'):
+                if 'encounter' in game.state_stack:
+                    game.message_box.queue_messages(
+                        ["TMs can't be used in battle!"], wait_for_input=True)
+                    return 'used'
+                game.item_target_mode = item_name
                 return 'target_party'
         elif event.key == pygame.K_w:
             if self.selected_index > 0:

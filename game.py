@@ -78,7 +78,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus", "Lavaleo"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -174,6 +174,7 @@ class Game:
         self.shadowhq_wave = None   # Cobaltion's dark energy rings (Shadow HQ intro)
         self._cobaltion_battle = False  # True from Cobaltion's battle start until its result is read
         self._surf_shack_prep_active = False  # True while the Surf Shack Preparation scene plays
+        self._lantern_battle = None     # wisp index whose Ghoulflame battle is in progress (side quest)
         self._wild_caught = False       # set by attempt_catch on a successful catch
         self.screen_shake = 0.0         # seconds of screenshake left
         self.abby_follower = None
@@ -462,6 +463,7 @@ class Game:
         self.shadowhq_wave = None
         self._cobaltion_battle = False
         self._surf_shack_prep_active = False
+        self._lantern_battle = None
         self._wild_caught = False
         self.screen_shake = 0.0
         self.heal_anim = None
@@ -6630,6 +6632,11 @@ class Game:
                 continue
             if trainer_id in ('grunt1', 'grunt2', 'vanessa') and not self.story_flags.get('gym2_corn_maze_reveal_done'):
                 continue
+            # Gray leaves home once the 3 missing dinos are collected; Abby once Gym 1 is beaten
+            if trainer_id == 'gray_home' and self.story_flags.get('encounters_unlocked'):
+                continue
+            if trainer_id == 'abby_home' and self.story_flags.get('gym1_leader_defeated'):
+                continue
             npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
                       facing=facing, sight_range=sight, npc_type=npc_type)
             npc.home_tile   = (tx, ty)
@@ -6779,6 +6786,19 @@ class Game:
             self._interact_shadowhq_vanessa(npc)
         elif npc.trainer_id == 'cobaltion':
             self._interact_cobaltion(npc)
+        elif npc.trainer_id == 'farmer':
+            self._interact_lantern_farmer(npc)
+        elif npc.trainer_id == 'gray_home':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Gray', [
+                    f"Hey {config.PLAYER_NAME}, I can't wait to start our dino journey, you better be able to keep up with me"]),
+                wait_for_input=True)
+        elif npc.trainer_id == 'abby_home':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Abby', [
+                    f'Hey {config.PLAYER_NAME}! The professor is having me research some "nature activists" in the area',
+                    "Hope you get to enjoy the tasks she gave you!"]),
+                wait_for_input=True)
         elif npc.trainer_id == 'scarecrux':
             if self.night_active:
                 self.message_box.queue_messages(
@@ -6798,6 +6818,215 @@ class Game:
         if npc in self.npcs:
             self.npcs.remove(npc)
         self.trigger_encounter(forced_dino='Scarecrux', forced_level=15)
+
+    # --- Side quest: The Lanterns in the Corn ---
+    # Farmer Hollis (ELDER_HOUSE.tmx) tells the player about blue lights in
+    # the Corn Maze. Once started, the wisps below appear at night only.
+    # Touching one starts a wild Ghoulflame battle; winning/catching clears
+    # it. After the first 4 are cleared the 5th (stronger, by the scarecrow)
+    # appears. Clearing it sets lanterns_wisps_done; Hollis then gives the
+    # Solar Flare TM. Flags: lanterns_started, lanterns_wisp0..4,
+    # lanterns_wisps_done, lanterns_rewarded. No main-story flag is touched.
+    LANTERN_WISPS = [(94, -46), (104, -62), (114, -66), (131, -72), (147, -49)]  # last = final wisp
+    LANTERN_WISP_LEVELS = (13, 15)
+    LANTERN_FINAL_LEVEL = 18
+    LANTERN_REWARD = 'TM Solar Flare'
+
+    def _lantern_wisps_active(self):
+        f = self.story_flags
+        return (self.current_world_file == 'LOST_REGION.world'
+                and f.get('lanterns_started') and not f.get('lanterns_wisps_done')
+                and self.night_active)
+
+    def _lantern_cleared(self, i):
+        return bool(self.story_flags.get(f'lanterns_wisp{i}'))
+
+    def _visible_lantern_wisps(self):
+        first = range(len(self.LANTERN_WISPS) - 1)
+        remaining = [i for i in first if not self._lantern_cleared(i)]
+        if remaining:
+            return remaining
+        final = len(self.LANTERN_WISPS) - 1
+        return [] if self._lantern_cleared(final) else [final]
+
+    def _check_lantern_wisps(self):
+        if (not self._lantern_wisps_active() or self._lantern_battle is not None
+                or self.fading or self.entrance_fade_state is not None or self.cutscene
+                or self.message_box.visible or self.yes_no_prompt or self.player.moving):
+            return
+        px = self.player.rect.x // config.TILE_SIZE
+        py = self.player.rect.y // config.TILE_SIZE
+        for i in self._visible_lantern_wisps():
+            wx, wy = self.LANTERN_WISPS[i]
+            if max(abs(px - wx), abs(py - wy)) <= 1:
+                self._start_lantern_wisp(i)
+                return
+
+    def _start_lantern_wisp(self, i):
+        self.player.freeze_in_place()
+        final = i == len(self.LANTERN_WISPS) - 1
+        if final:
+            lines = ["The last lights swirl together into one blazing blue flame...",
+                     "A fierce Ghoulflame bursts out of the corn!"]
+            level = self.LANTERN_FINAL_LEVEL
+        else:
+            lines = ["A pale blue light flickers between the stalks...",
+                     "It flared up into a wild Ghoulflame!"]
+            level = random.randint(*self.LANTERN_WISP_LEVELS)
+
+        def start_battle():
+            self._lantern_battle = i
+            self._wild_caught = False
+            self.trigger_encounter(forced_dino='Ghoulflame', forced_level=level)
+        self.message_box.queue_messages(lines, wait_for_input=True, on_complete=start_battle)
+
+    def _check_lantern_battle_result(self):
+        """Same timing trick as _check_cobaltion_battle_result: the first
+        non-fading world frame after the battle starts is the one after it ends."""
+        if self._lantern_battle is None or self.fading or self.state != 'world':
+            return
+        i, self._lantern_battle = self._lantern_battle, None
+        won = self._wild_caught or (self.enemy_dino and self.enemy_dino.get('hp', 1) <= 0)
+        if not won:
+            return  # ran / blacked out — the light is still out there
+        self.story_flags[f'lanterns_wisp{i}'] = True
+        final = len(self.LANTERN_WISPS) - 1
+        visible = self._visible_lantern_wisps()
+        if i == final:
+            self.story_flags['lanterns_wisps_done'] = True
+            msgs = ["The last light rises above the corn and fades into the night sky...",
+                    "The maze is quiet again.",
+                    "Maybe the old farmer in Elder Town would like to hear about this."]
+        elif visible == [final]:
+            msgs = ["The light winks out...",
+                    "The remaining glow drifts deeper into the corn, toward the old scarecrow."]
+        else:
+            left = len(visible)
+            msgs = ["The light winks out...",
+                    f"{left} more light{'s' if left != 1 else ''} still drift{'s' if left == 1 else ''} through the corn."]
+        self.message_box.queue_messages(msgs, wait_for_input=True)
+
+    def _interact_lantern_farmer(self, npc):
+        f = self.story_flags
+        if f.get('lanterns_rewarded'):
+            lines = ["Ha! Lanterns in the corn... and they were Ghoulflames from the old Chateau all along.",
+                     "Thanks for humoring an old man, Jet."]
+            self.message_box.queue_messages(self._split_dialogue(*lines, name='Hollis'), wait_for_input=True)
+        elif f.get('lanterns_wisps_done'):
+            self._give_lantern_reward()
+        elif f.get('lanterns_started'):
+            cleared = sum(self._lantern_cleared(i) for i in range(len(self.LANTERN_WISPS)))
+            lines = ["The lights only drift through the Corn Maze after dark.",
+                     f"You've chased off {cleared} of them so far? Keep at it!" if cleared else
+                     "Go take a look one night. Just don't get lost in there!"]
+            self.message_box.queue_messages(self._split_dialogue(*lines, name='Hollis'), wait_for_input=True)
+        else:
+            lines = [
+                "Oh! A young trainer. Pull up a chair, would ya?",
+                "Folks around Elder Town say that on some nights, little blue lights drift through the Corn Maze.",
+                "Lanterns in the corn, we used to call 'em. My grandkid swore he followed them once...",
+                "...and came back with a strange disc, warm to the touch like a summer afternoon.",
+                "Nobody believes an old man's stories anymore. But if you're ever in the maze after dark, keep your eyes open.",
+                "Chase every last light out of the corn and come tell me about it. I might have something for you.",
+            ]
+
+            def start():
+                f['lanterns_started'] = True
+            self.message_box.queue_messages(self._split_dialogue(*lines, name='Hollis'),
+                                            wait_for_input=True, on_complete=start)
+
+    def _give_lantern_reward(self):
+        lines = [
+            "You chased off every light in the corn? So they were Ghoulflames all along!",
+            "Heh. I've got a confession. That grandkid who followed the lanterns... it was me, sixty years ago.",
+            "This is the disc I found that night. I think it belongs with someone who's seen the lights too.",
+        ]
+        item = self.LANTERN_REWARD
+
+        def give():
+            self.story_flags['lanterns_rewarded'] = True
+            self.inventory[item] = self.inventory.get(item, 0) + 1
+            move = config.ITEMS[item]['tm_move']
+            mtype = MOVE_DATA[move]['type'].capitalize()
+            self.message_box.queue_messages(
+                [f"{config.PLAYER_NAME} received {item}!",
+                 *self._split_dialogue(
+                     f"A TM can only be used once, and only on a Dino that shares its move's type. "
+                     f"{move} is a {mtype} move!", name='Hollis')],
+                wait_for_input=True)
+        self.message_box.queue_messages(self._split_dialogue(*lines, name='Hollis'),
+                                        wait_for_input=True, on_complete=give)
+
+    def _lantern_glow(self, r):
+        cache = self.__dict__.setdefault('_lantern_glow_cache', {})
+        spr = cache.get(r)
+        if spr is None:
+            spr = pygame.Surface((r * 2, r * 2))
+            for k in range(r, 0, -2):
+                f = (1 - k / r) ** 1.6
+                pygame.draw.circle(spr, (int(40 * f), int(140 * f), int(255 * f)), (r, r), k)
+            cache[r] = spr
+        return spr
+
+    def _draw_lantern_wisps(self, surface):
+        if not self._lantern_wisps_active():
+            return
+        ts = config.TILE_SIZE
+        scale = config.WIDTH / self.render_surface.get_width()
+        t = pygame.time.get_ticks() / 1000.0
+        final = len(self.LANTERN_WISPS) - 1
+        for i in self._visible_lantern_wisps():
+            wx, wy = self.LANTERN_WISPS[i]
+            big = 1.5 if i == final else 1.0
+            cx = (wx * ts + ts / 2 - self.camera_x) * scale + math.sin(t * 1.3 + i) * 3 * scale
+            cy = (wy * ts + ts / 2 - self.camera_y) * scale + math.sin(t * 2.1 + i * 2) * 4 * scale
+            if not (-80 < cx < config.WIDTH + 80 and -80 < cy < config.HEIGHT + 80):
+                continue
+            flick = 0.85 + 0.15 * math.sin(t * 9 + i * 3) + random.uniform(-0.05, 0.05)
+            r = int(26 * scale * big * flick) // 2 * 2
+            if r > 2:
+                surface.blit(self._lantern_glow(r), (cx - r, cy - r), special_flags=pygame.BLEND_RGB_ADD)
+            core = 5 * scale * big * flick
+            # teardrop flame: round base + a tip that sways
+            sway = math.sin(t * 5 + i) * core * 0.5
+            pygame.draw.polygon(surface, (120, 200, 255),
+                                [(cx - core, cy), (cx + sway, cy - core * 2.6), (cx + core, cy)])
+            pygame.draw.circle(surface, (120, 200, 255), (int(cx), int(cy)), int(core))
+            pygame.draw.circle(surface, (235, 250, 255), (int(cx), int(cy + core * 0.2)), max(1, int(core * 0.55)))
+            # a few sparks rising off the flame
+            for k in range(3):
+                q = (t * 0.7 + k / 3 + i * 0.37) % 1.0
+                sx = cx + math.sin(q * 6 + k * 2 + i) * core * 1.4
+                sy = cy - core - q * 22 * scale * big
+                c = int(255 * (1 - q))
+                pygame.draw.circle(surface, (c // 3, c * 3 // 4, c), (int(sx), int(sy)), max(1, int(scale * (1 - q) * 1.5)))
+
+    def use_tm(self, dino, item_name):
+        """Teach a TM's move to `dino`. Returns (used, messages). A TM is
+        consumed only when the move is actually learned, and only Dinos that
+        share the move's type can learn it."""
+        move = config.ITEMS[item_name]['tm_move']
+        md = MOVE_DATA[move]
+        mtype = md['type']
+        if mtype not in dino.get('type', []):
+            return False, [f"{dino['name']} can't learn {move}!",
+                           f"Only {mtype.capitalize()}-type Dinos can use this TM."]
+        if move in dino.get('moves', []) or any(m['name'] == move for m in dino.get('moveset', [])):
+            return False, [f"{dino['name']} already knows {move}!"]
+        self.inventory[item_name] = max(0, self.inventory.get(item_name, 0) - 1)
+        dino.setdefault('moves', []).append(move)
+        msgs = [f"{dino['name']} learned {move}!"]
+        if len(dino.get('moveset', [])) < 4:
+            dino.setdefault('moveset', []).append({
+                "name":     move,
+                "type":     mtype,
+                "damage":   md.get("damage", 0),
+                "accuracy": md.get("accuracy", 100),
+                "ability":  md.get("ability", None),
+            })
+        else:
+            msgs.append(f"It already knows 4 moves - visit the Party screen to swap {move} in.")
+        return True, msgs
 
     def _start_skyy_dialogue(self, npc):
         npc.face_toward_player(self.player)
@@ -7093,6 +7322,8 @@ class Game:
             self._check_shadow_confrontation_trigger()
             self._check_mom_greeting()
             self._check_cobaltion_battle_result()
+            self._check_lantern_battle_result()
+            self._check_lantern_wisps()
             self._maybe_add_shadowhq_npcs()
             self._advance_shadowhq_event()
             self._update_shadowhq_wave(dt)
@@ -7163,6 +7394,7 @@ class Game:
                 self.screen.blit(self._night_overlay, (0, 0))
             if self.event_overlay_active:
                 self.screen.blit(self._event_overlay, (0, 0))
+            self._draw_lantern_wisps(self.screen)   # after the night overlay so they glow
             if self.sandbox:
                 tag = self.fonts['XS'].render("SANDBOX MODE", True, (255, 80, 80))
                 self.screen.blit(tag, (config.WIDTH - tag.get_width() - 6, 6))

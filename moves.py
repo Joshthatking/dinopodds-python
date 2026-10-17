@@ -26,6 +26,7 @@ DURATIONS = {                       # signature moves that run longer than DURAT
     'Ultra Violet': 2.2,
     'Eternal Darkness': 2.6,
     'Infinite Light': 2.6,
+    'Leaf Ultima': 1.4,
 }
 STRONG_POWER = 70
 TAU = math.pi * 2
@@ -443,16 +444,58 @@ def anim_whirlpool_plus(a):
 
 def anim_hurricane(a):
     t = a.t
-    al = 230 * fade_late(t, 0.65)
+    al = 230 * fade_late(t, 0.7)
     rot = t * TAU * 3
-    for k in range(6):  # funnel of rotating ellipses
-        y = a.ty + 55 * a.s - k * 22 * a.s
-        w = (30 + k * 18) * a.s * (0.6 + 0.4 * ease_out(min(1, t * 3)))
-        a.ellipse(a.tx + math.sin(rot + k) * 6, y, w * 2, w * 0.5, FLYING[2], al * 0.8, 2)
-        a.circle(a.tx + math.cos(rot + k * 1.3) * w, y + math.sin(rot + k * 1.3) * w * 0.25,
-                 3 * a.s, AQUA[1], al)
-    a.rain(t, 40, AQUA[0], a.tx - 110 * a.s, a.tx + 110 * a.s, a.ty - 120 * a.s, a.ty + 70 * a.s,
-           length=14, slant=0.35, key=1, speed=1.4)
+    base = a.ty + 55 * a.s
+    rise = ease_out(min(1, t / 0.3))          # funnel grows up from the ground
+    storm_gray = (95, 110, 135)
+    a.tint(AQUA[2], 45 * hump(t))
+    a.shake(2.5 * hump(seg(t, 0.2, 0.85) or 0))
+    # storm cloud cap gathering above the funnel
+    for i in range(5):
+        cx = a.tx + (i - 2) * 26 * a.s + math.sin(t * 4 + i) * 4
+        cy = a.ty - 95 * a.s - abs(i - 2) * 4 * a.s
+        a.ellipse(cx, cy, 60 * a.s * rise, 30 * a.s * rise, storm_gray, 200 * fade_late(t, 0.75))
+    a.glow(a.tx, a.ty - 95 * a.s, 60 * a.s, AQUA[2], 0.5 * hump(t))
+    # funnel bands: wider toward the top, wobbling as they spin
+    for k in range(7):
+        if k > 6 * rise:
+            break
+        y = base - k * 22 * a.s
+        w = (22 + k * 14) * a.s
+        wob = math.sin(rot + k * 0.9) * 8 * a.s
+        a.ellipse(a.tx + wob, y, w * 2, w * 0.45, FLYING[2] if k % 2 else AQUA[1], al * 0.75, 2)
+    # spiral wind streaks climbing the funnel
+    for arm in range(3):
+        pts = []
+        for i in range(16):
+            u = i / 15
+            if u > rise:
+                break
+            ang = rot * 1.4 + arm * TAU / 3 + u * 5.0
+            w = (22 + u * 6 * 14) * a.s
+            pts.append((a.tx + math.sin(rot + u * 5.4) * 8 * a.s + math.cos(ang) * w,
+                        base - u * 132 * a.s + math.sin(ang) * w * 0.22))
+        a.lines(pts, WHITE, al * 0.85, 2)
+    # water and debris caught in the vortex (brighter in front, dimmer behind)
+    rng = a.rng('hurricane')
+    for _ in range(22):
+        h = rng.uniform(0, 1)
+        ph = rng.uniform(0, TAU)
+        ang = rot * 1.6 + ph
+        r = (22 + h * 84) * a.s
+        y = base - ((h + t * 0.6) % 1.0) * 132 * a.s * rise
+        front = math.sin(ang) > 0
+        a.circle(a.tx + math.cos(ang) * r, y + math.sin(ang) * r * 0.22,
+                 (3.5 if front else 2) * a.s, AQUA[1] if front else AQUA[0], al if front else al * 0.5)
+    a.glow(a.tx, a.ty, 70 * a.s, AQUA[0], 0.5 * hump(t))
+    a.rain(t, 46, AQUA[0], a.tx - 120 * a.s, a.tx + 120 * a.s, a.ty - 120 * a.s, a.ty + 70 * a.s,
+           length=16, slant=0.4, key=1, speed=1.4)
+    # funnel breaks apart into a spray
+    p = seg(t, 0.75, 1.0)
+    if p is not None:
+        a.burst(a.tx, a.ty, p, 20, 120 * a.s, AQUA[1], 4 * a.s, gravity=90, glow=0.3, key=2)
+        a.ring(a.tx, base - 20 * a.s, 30 * a.s + 90 * a.s * ease_out(p), FLYING[1], 180 * (1 - p), 3)
 
 
 def anim_eternal_blue(a):
@@ -740,6 +783,60 @@ def anim_tree_spin(a):
         a.burst(a.tx, a.ty, p, 12, 110 * a.s, EARTH[2], 5 * a.s, shape='square', gravity=90, key=1)
         a.ring(a.tx, a.ty, 30 * a.s + 110 * a.s * ease_out(p), EARTH[1], 220 * (1 - p), 4)
         _strong_finish(a, p, ((170, 255, 150),) * 2, 130, 9)
+
+
+def anim_leaf_ultima(a):
+    t = a.t
+    lime = (200, 255, 120)
+    # 1. Gather: leaves spiral into a glowing seed at the attacker
+    p = seg(t, 0.0, 0.3)
+    if p is not None:
+        rng = a.rng('ultima_in')
+        for _ in range(16):
+            ph = rng.uniform(0, TAU)
+            d = rng.uniform(70, 110) * a.s * (1 - ease_in(p))
+            ang = ph + p * 4
+            a.leaf(a.sx + math.cos(ang) * d, a.sy + math.sin(ang) * d, 7 * a.s, ang + 1.2,
+                   EARTH[1], 230 * hump(min(1, p * 1.2)))
+        a.circle(a.sx, a.sy, 16 * a.s * ease_out(p), EARTH[0], 230)
+        a.circle(a.sx, a.sy, 8 * a.s * ease_out(p), lime, 255)
+        a.glow(a.sx, a.sy, 55 * a.s * p, EARTH[1], 1.2)
+        a.tint(EARTH[2], 60 * p)
+    # 2. Volley: a helix of razor leaves streams to the target
+    p = seg(t, 0.25, 0.6)
+    if p is not None:
+        ang_t = a.angle_to_target()
+        nx, ny = -math.sin(ang_t), math.cos(ang_t)
+        for i in range(14):
+            q = ease_in(max(0.0, min(1.0, p * 1.5 - i * 0.035)))
+            if q <= 0 or q >= 1:
+                continue
+            x, y = a.travel(q, arc=25)
+            off = math.sin(q * TAU * 1.5 + i * 1.3) * 22 * a.s
+            lx, ly = x + nx * off, y + ny * off
+            a.leaf(lx, ly, 10 * a.s, ang_t + q * 9, EARTH[1] if i % 2 else EARTH[0], 245)
+            a.glow(lx, ly, 18 * a.s, EARTH[0], 0.5)
+        a.tint(EARTH[2], 60)
+    # 3. Bloom: a giant leaf flower opens on the target and bursts
+    p = seg(t, 0.55, 1.0)
+    if p is not None:
+        open_k = ease_out(min(1, p / 0.45))
+        al = 245 * fade_late(p, 0.55)
+        for ring_i, (n, rad, size, col) in enumerate(((8, 60, 22, EARTH[0]), (8, 34, 15, EARTH[1]))):
+            for i in range(n):
+                ang = i * TAU / n + ring_i * math.pi / n + p * 1.2
+                r = rad * a.s * open_k
+                a.leaf(a.tx + math.cos(ang) * r, a.ty + math.sin(ang) * r,
+                       size * a.s * open_k, ang, col, al)
+        a.circle(a.tx, a.ty, 14 * a.s * open_k, lime, al)
+        for k in range(3):
+            q = seg(p, k * 0.12, 0.55 + k * 0.15)
+            if q is not None:
+                a.ring(a.tx, a.ty, 20 * a.s + 130 * a.s * ease_out(q), lime, 230 * (1 - q), 5 - k)
+        a.burst(a.tx, a.ty, seg(p, 0.3, 1.0), 30, 170 * a.s, EARTH[1], 6 * a.s, shape='shard', glow=0.4)
+        a.burst(a.tx, a.ty, seg(p, 0.3, 1.0), 16, 120 * a.s, WHITE, 3 * a.s, shape='star', key=1, gravity=-30)
+        a.glow(a.tx, a.ty, 130 * a.s, EARTH[0], 1.4 * (1 - p))
+        _strong_finish(a, seg(p, 0.25, 1.0), (EARTH[0], lime), 150, 10)
 
 
 def anim_poison_ivy(a):
@@ -2692,6 +2789,7 @@ ANIMATIONS = {
     'Vine Snare+': anim_vine_snare_plus,
     'Dread Thorn': anim_dread_thorn,
     'Tree Spin': anim_tree_spin,
+    'Leaf Ultima': anim_leaf_ultima,
     'Poison Ivy': anim_poison_ivy,
     'Synthesis': anim_synthesis,
     'Terraform': anim_terraform,

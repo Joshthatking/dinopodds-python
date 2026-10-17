@@ -318,7 +318,7 @@
  </tile>
  <tile id="252">
   <properties>
-   <property name="collision" type="bool" value="true"/>
+   <property name="collision" type="bool" value="false"/>
    <property name="entrance" type="bool" value="true"/>
   </properties>
  </tile>
@@ -419,7 +419,7 @@
  </tile>
  <tile id="281">
   <properties>
-   <property name="collision" type="bool" value="true"/>
+   <property name="collision" type="bool" value="false"/>
    <property name="entrance" type="bool" value="true"/>
   </properties>
  </tile>

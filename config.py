@@ -152,6 +152,8 @@ ENCOUNTER_DINOS_PATHS = {
     'VY2':              os.path.join(DINOS_FRONT, 'VY.png'),
     'Stormulus':        os.path.join(DINOS_FRONT, 'Stormulus.png'),
     'Stormulus2':       os.path.join(DINOS_FRONT, 'Stormulus.png'),
+    'Lavaleo':          os.path.join(DINOS_FRONT, 'Lavaleo.png'),
+    'Lavaleo2':         os.path.join(DINOS_FRONT, 'Lavaleo.png'),
 }
 
 NPC_SHEETS = {
@@ -179,6 +181,7 @@ NPC_SHEETS = {
     'mom':                os.path.join('assets', 'NPC', 'Mom.png'),
     'barley':             os.path.join('assets', 'NPC', 'Volkit_overworld.png'),
     'cade':               os.path.join('assets', 'NPC', 'cade.png'),
+    'farmer':             os.path.join('assets', 'NPC', 'farmer.png'),
 }
 
 # Static (non-4x4-sheet) NPC images scaled down to fit inside this (w, h)
@@ -221,6 +224,8 @@ NPC_SPRITE_KEY = {
     'hq_grunt_a':    'enemy_male',
     'hq_grunt_b':    'enemy_male',
     'vanessa_hq':    'vanessa',
+    'gray_home':     'gray',
+    'abby_home':     'abby',
 }
 
 # Dialogue-box speaker portraits: the display name used in a dialogue tag
@@ -239,6 +244,7 @@ DIALOGUE_PORTRAITS = {
     'Sam':     'sam',
     'Mom':     'mom',
     'Cade':    'cade',
+    'Hollis':  'farmer',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -303,6 +309,16 @@ WORLD_NPCS = {
         ('gym2_trainer_b', 1, 3,   'right', 5, 'trainer'),
         ('gym2_trainer_c', 18, 11, 'left',  5, 'trainer'),
         ('gym2_trainer_d', 15, 4,  'up',    5, 'trainer'),
+    ],
+    # Silverleaf homes — present only early on (see Game._spawn_world_npcs)
+    'GRAY_HOUSE.tmx': [
+        ('gray_home', 9, 8, 'down', 0, 'story'),   # gone once encounters_unlocked
+    ],
+    'ABBY_HOUSE.tmx': [
+        ('abby_home', 9, 8, 'down', 0, 'story'),   # gone once gym1_leader_defeated
+    ],
+    'ELDER_HOUSE.tmx': [
+        ('farmer', 8, 8, 'down', 0, 'story'),   # Hollis — "Lanterns in the Corn" side quest
     ],
     'HOME_JET.tmx': [
         ('mom',    6, 9, 'down', 0, 'story'),
@@ -372,6 +388,14 @@ ITEMS = {
         "name": "Twilight Lunar Shard",
         "icon": os.path.join(ITEMS_PATH, "twilight_lunar_shard.png"),
         "description": "A lunar shard left behind by Cobaltion, humming with twilight energy",
+    },
+    # TMs: one-time use, teach `tm_move` to a Dino that shares the move's type
+    # (see Game.use_tm). Any item with a 'tm_move' key is treated as a TM.
+    "TM Solar Flare": {
+        "name": "TM Solar Flare",
+        "icon": os.path.join(ITEMS_PATH, "tm_magma.png"),
+        "description": "Teaches Solar Flare to a Magma-type Dino. Single use.",
+        "tm_move": "Solar Flare",
     },
 }
 

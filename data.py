@@ -646,6 +646,7 @@ DINODEX_DATA = {
     'VY':         {'number': 40, 'desc': "The solar celestial, whose wings burn with the light of the sun itself. Legend says its flares grow fiercer whenever the balance of the region is threatened."},
     'Sharka':     {'number': 38, 'desc': "A young shark dino that patrols the shallows in small packs. Its teeth regrow constantly, and its fins will one day harden into the spikes of Sharktastrophe."},
     'Stormulus':  {'number': 41, 'desc': "A brooding thundercloud that drifts toward anything that hums with power. It feeds on static in the air and lashes out with forked lightning when disturbed."},
+    'Lavaleo':    {'number': 42, 'desc': "Its obsidian hide is split by rivers of living magma. It prowls deep cave tunnels on four clawed legs, and the rock it walks on glows for hours after it passes."},
 
 }
 
@@ -659,7 +660,7 @@ DINO_DATA = {
         'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab', 22: 'Hurricane', 26: 'Ripping Impact'},
         'evolve': None},
     'Corlave': {
-        'stats': {'type': ['aqua'], 'health': 90, 'attack': 80, 'defense': 80, 'speed':50},
+        'stats': {'type': ['aqua'], 'health': 100, 'attack': 80, 'defense': 90, 'speed':50},
         'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab'},
         'evolve': {19: 'Anemamace'}},
     'Creuw': {
@@ -675,7 +676,7 @@ DINO_DATA = {
         'moves': {0: 'Bitemark', 1: 'Arise', 8: 'Dark Energy', 12: 'Lock Jaw', 15: 'Fear', 18: 'Double Jab', 21: 'Shadow Veil', 25: 'Haunt'},
         'evolve': None},
     'Floravel': {
-        'stats': {'type': ['earth'], 'health': 60, 'attack': 85, 'defense': 95, 'speed': 60},
+        'stats': {'type': ['earth'], 'health': 70, 'attack': 95, 'defense': 95, 'speed': 60},
         'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
         'evolve': {19: 'Palidian'}},
     'Bullicorn': {
@@ -715,7 +716,7 @@ DINO_DATA = {
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Static Graze', 14: 'Shock', 18: 'Double Jab', 24:'Lightning Bolt', 28: 'Hurricane', 31: 'Ripping Impact', 35: 'Conduit Surge', 39: 'Quantum Flux', 44: 'Eternal Blue'},
         'evolve': None},
     'Volkit': {
-        'stats': {'type': ['magma'], 'health': 62, 'attack': 95, 'defense': 68, 'speed': 75},
+        'stats': {'type': ['magma'], 'health': 67, 'attack': 95, 'defense': 78, 'speed': 80},
         'moves': {0: 'Fireball+', 1: 'Arise', 6: 'Flash', 8: 'Quick Slash', 12: 'Rushdown', 18: 'Flame Shatter', 20: 'Fear', 24: 'Piercing Light', 27: 'Lava Burst', 31: 'Crusher' , 35: 'Magma Boost', 39: 'Solar Flare'},
         'evolve': {19: 'Tygraflare'}},
     'Drafyton': {
@@ -732,7 +733,7 @@ DINO_DATA = {
         'evolve': None},
     'Teamtwood': {
         'stats': {'type': ['earth'], 'health': 88, 'attack': 102, 'defense': 128, 'speed': 107},
-        'moves': {0: 'Sand Kick', 4: 'Log Roll', 9: 'Synthesis', 12: 'Vine Snare', 15: 'Boulder Smash', 18: 'Floral Resonance', 22: 'Dread Thorn', 27: 'Terraform', 31: 'Double Jab', 35: 'Tree Spin'},
+        'moves': {0: 'Sand Kick', 4: 'Log Roll', 9: 'Synthesis', 12: 'Vine Snare', 15: 'Boulder Smash', 18: 'Floral Resonance', 22: 'Dread Thorn', 25: 'Terraform', 28: 'Double Jab', 30: 'Tree Spin', 34: 'Leaf Ultima'},
         'evolve': None},
     'Tygraflare': {
         'stats': {'type': ['magma'], 'health': 95, 'attack': 137, 'defense': 95, 'speed': 128},
@@ -748,7 +749,7 @@ DINO_DATA = {
         'evolve': None},
     'Scarecrux': {
         'stats': {'type': ['dark', 'earth'], 'health': 110, 'attack': 136, 'defense': 124, 'speed': 88},
-        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Vine Snare', 15: 'Haunt', 19: 'Distortion', 23: 'Dread Thorn', 26: 'Force Shift', 29: 'Thunder Blitz', 33: 'Tree Spin', 37: 'Void Collapse'},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Vine Snare', 15: 'Haunt', 19: 'Distortion', 23: 'Dread Thorn', 26: 'Force Shift', 29: 'Thunder Blitz', 33: 'Tree Spin', 37: 'Void Collapse', 40: 'Leaf Ultima'},
         'evolve': None},
     'Gourdecrux': {
         'stats': {'type': ['dark', 'magma'], 'health': 105, 'attack': 142, 'defense': 98, 'speed': 112},
@@ -756,7 +757,7 @@ DINO_DATA = {
         'evolve': None},
     'Palidian': {
         'stats': {'type': ['earth', 'rock'], 'health': 90, 'attack': 124, 'defense': 136, 'speed': 105},
-        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform', 31: 'Iron Core', 34: 'Raging Pursuit', 36: 'Tree Spin', 39: 'Crash Impact'},
+        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform', 31: 'Iron Core', 34: 'Raging Pursuit', 36: 'Tree Spin', 39: 'Crash Impact', 42: 'Leaf Ultima'},
         'evolve': None},
     'Rockull': {
         'stats': {'type': ['rock'], 'health': 160, 'attack': 100, 'defense': 150, 'speed': 50},
@@ -768,7 +769,7 @@ DINO_DATA = {
         'evolve': {21: 'Cyflactus'}},
     'Cyflactus': {
         'stats': {'type': ['earth', 'magma'], 'health': 115, 'attack': 131, 'defense': 119, 'speed': 85},
-        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17: 'Synthesis', 21: 'Flame Shatter', 26: 'Dread Thorn', 30: 'Floral Resonance', 34: 'Tree Spin', 37: 'Spike Storm', 40: 'Solar Flare'},
+        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17: 'Synthesis', 21: 'Flame Shatter', 26: 'Dread Thorn', 30: 'Floral Resonance', 34: 'Tree Spin', 37: 'Spike Storm', 40: 'Leaf Ultima', 43: 'Solar Flare'},
         'evolve': None},
 
     'Rhysnow': {
@@ -781,12 +782,12 @@ DINO_DATA = {
         'evolve': None},
     'Celestreeyl': {
         'stats': {'type': ['earth', 'light'], 'health': 109, 'attack': 139, 'defense': 109, 'speed': 129},
-        'moves': {0: 'Arise', 4: 'Vine Snare', 9: 'Prism Glare', 15: 'Dread Thorn', 16: 'Terraform', 19: 'Hurricane', 24: 'Piercing Light', 26: 'Synthesis', 28: 'Refraction', 30: 'Tree Spin', 35: 'Spectral Overload', 38: 'Gamma Wave'},
+        'moves': {0: 'Arise', 4: 'Vine Snare', 9: 'Prism Glare', 15: 'Dread Thorn', 16: 'Terraform', 19: 'Hurricane', 24: 'Piercing Light', 26: 'Synthesis', 28: 'Refraction', 30: 'Tree Spin', 35: 'Spectral Overload', 38: 'Gamma Wave', 40: 'Leaf Ultima'},
         'evolve': None},
 
     'Seasoo': {
         'stats': {'type': ['aqua', 'earth'], 'health': 120, 'attack': 88, 'defense': 114, 'speed': 110},
-        'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 27: 'Hurricane', 32: 'Terraform', 37: 'Tree Spin'},
+        'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 27: 'Hurricane', 30: 'Terraform', 35: 'Tree Spin', 38: 'Eternal Blue'},
         'evolve': None},
     'Chomper': {
         'stats': {'type': ['ancient'], 'health': 130, 'attack': 119, 'defense': 108, 'speed': 85},
@@ -803,7 +804,7 @@ DINO_DATA = {
         'evolve': {25: 'Rockull'}},
 
     'Skolt': {
-        'stats': {'type': ['lightning'], 'health': 107, 'attack': 117, 'defense': 97, 'speed': 137},
+        'stats': {'type': ['lightning'], 'health': 97, 'attack': 117, 'defense': 107, 'speed': 137},
         'moves': {0: 'Shock', 3: 'Bitemark', 7: 'Static Graze', 11: 'Fear', 15: 'Thunder Blitz', 17: 'Quick Slash', 20: 'Flame Shatter', 22: 'Lightning Bolt', 24: 'Piercing Light', 28: 'Conduit Surge', 32:'Quantum Flux', 38: 'Volt Storm'},
         'evolve': None},
 
@@ -818,8 +819,13 @@ DINO_DATA = {
         'evolve': None},
 
     'Stormulus': {
-        'stats': {'type': ['lightning', 'flying'], 'health': 90, 'attack': 115, 'defense': 132, 'speed': 121},
+        'stats': {'type': ['lightning', 'flying'], 'health': 90, 'attack': 115, 'defense': 127, 'speed': 116},
         'moves': {0: 'Static Graze', 1: 'Air Strike', 5: 'Shock', 9: 'Thunder Blitz', 13: 'Swift Sneak', 17: 'Lightning Bolt', 21: 'Mach Speed', 25: 'Conduit Surge', 28: 'Wind Fracture', 31: 'Quantum Flux', 34: 'Hurricane', 37: 'Volt Storm', 40: 'Sky Scorch'},
+        'evolve': None},
+
+    'Lavaleo': {
+        'stats': {'type': ['magma'], 'health': 110, 'attack': 112, 'defense': 126, 'speed': 98},
+        'moves': {0: 'Fireball', 1: 'Dust Beam', 5: 'Sand Kick', 9: 'Prism Glare', 13: 'Venom Decay', 16: 'Flame Shatter', 20: 'Lava Burst', 23: 'Piercing Light', 26: 'Iron Core', 29: 'Quick Slash', 32: 'Magma Boost', 35: 'Solar Flare', 39: 'Spectral Overload'},
         'evolve': None},
 
 }
@@ -955,6 +961,7 @@ MOVE_DATA = {
    'Vine Snare+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Dread Thorn': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Tree Spin': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Leaf Ultima': {'target': 'opponent', 'damage': 100, 'accuracy': 100, 'ability': None, 'type': 'earth'},
 
 
     
@@ -1000,7 +1007,7 @@ MOVE_DATA = {
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 2, 'target': 'self', 'chance': 100}},             
     'Momentum':   {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
-    'Crash Impact': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'type': 'rock',
+    'Crash Impact': {'target': 'opponent', 'damage': 100, 'accuracy': 100, 'type': 'rock',
                      'ability': {'kind': 'recoil', 'percent': 15, 'chance': 100}},
     'Sand Storm': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'rock',
                    'ability': {'kind': 'dot', 'damage_percent': 8, 'turns': 2,
@@ -1013,7 +1020,7 @@ MOVE_DATA = {
     'Lightning Bolt': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'ability': None, 'type': 'lightning',
                         'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 50},
 },
-    'Volt Storm': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+    'Volt Storm': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
 
 
     'Conduit Surge':  {'target': 'opponent', 'damage': 50, 'accuracy': 90,  'type': 'lightning',
@@ -1026,7 +1033,7 @@ MOVE_DATA = {
     #DARK MOVES
     'Force Shift': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None,'type': 'dark'},
     'Dark Energy': {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'ability': None, 'type': 'dark'},
-    'Void Collapse': {'target': 'opponent', 'damage': 75, 'accuracy': 95, 'ability': None, 'type': 'dark', 'pierces_defend': True},
+    'Void Collapse': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'dark', 'pierces_defend': True},
     'Bitemark': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'dark'},
 
     'Distortion':   {'target': 'opponent', 'damage': 5, 'accuracy': 100, 'type': 'dark', 'priority':1,
@@ -1058,7 +1065,7 @@ MOVE_DATA = {
                        'ability': {'kind': 'recharge', 'chance': 100}},
     #ICE MOVES
     'Snowfall': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'ice'},
-    'Freeze Blast': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+    'Freeze Blast': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'ice'},
     'Hyperfrost': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'ice', 'pierces_defend': True},
 
     'Hail Storm': {'target': 'opponent', 'damage': 25, 'accuracy': 90, 'type': 'ice',
@@ -1107,6 +1114,10 @@ MOVE_DATA = {
 ENTRANCE_DATA = {
     'home':       {'world': 'HOME_JET.tmx',        'spawn': (9, 11)},
     'jet_room':   {'world': 'HOME_JET2.tmx',       'spawn': (9, 10)},
+    # Silverleaf houses — tileset "entrance" door tiles, so ids are auto-generated
+    # from the door's world tile (START_TOWN).
+    '-2_36':      {'world': 'GRAY_HOUSE.tmx',      'spawn': (9, 13)},
+    '10_36':      {'world': 'ABBY_HOUSE.tmx',      'spawn': (9, 13)},
     'dinocenter':   {'world': 'DINOCENTER.tmx',       'spawn': (9, 12)},
     'dinocenter_town2': {'world': 'DINOCENTER.tmx',   'spawn': (9, 12)},
     'dinocenter_palmport': {'world': 'DINOCENTER.tmx', 'spawn': (9, 12)},
@@ -1117,6 +1128,9 @@ ENTRANCE_DATA = {
     # Palm Port surf shack — its door is a tileset "entrance" tile, so the
     # id is auto-generated from the door's world tile (-107, -53).
     '-107_-53':     {'world': 'SURF_SHACK.tmx',       'spawn': (9, 13)},
+    # Elder Town house — door tile is (78, -64) in TOWN2_1, auto-id like the
+    # surf shack. Exit tiles (9,14)/(10,14) pop the player back out to (78, -63).
+    '78_-64':       {'world': 'ELDER_HOUSE.tmx',      'spawn': (9, 13)},
 
     # Cobalt Cave — ROUTE3_4 <-> COBALT_CAVE1 (mouth of the cave). Both ends
     # use a dedicated entrance_id pair rather than a plain 'exit' tile —
@@ -1324,6 +1338,9 @@ ENCOUNTER_ZONES = {
 
             {"name": "Volkit",  "weight": 0.05, "time": "day"},
             {"name": "Volkit",  "weight": 0.05, "time": "night"},
+
+            {"name": "Lavaleo",  "weight": 0.1, "time": "day"},
+            {"name": "Lavaleo",  "weight": 0.1, "time": "night"},
         ],
         "level_range": (12, 16)
 

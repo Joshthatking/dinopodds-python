@@ -102,6 +102,13 @@ A species can define an `evolve: {level: 'TargetName'}` in `DINO_DATA`. On level
 ### Story & Quest System
 `story.py`'s `STORY_EVENTS` list defines one-shot scripted events (a `new_game` trigger, or `{"requires_flags": [...], "location": ...}`), each of which can show messages, award items/coins/dinos, and set flags — flags persist in the save file and gate later content. Beyond the declarative list, the current story arc (eclipse intro → Amber's missing-dino fetch quest → Gym 1 vs. Skyy → Corn Maze folklore reveal → Abby's solar-panel escort mission → Shadow Team (Vanessa + grunts) double-battle confrontation) is largely hand-coded directly in `game.py`, keyed off the same `story_flags` dict. A **sandbox quest-debug menu** (Ctrl+Q, `QuestDebugScreen`) lets you jump to any milestone in `QUEST_STEPS` for testing, retroactively applying/removing the trainer-defeated and badge flags each step implies.
 
+### Side Quests
+Side quests use their own `story_flags` and never read or set main-story flags.
+- **The Lanterns in the Corn**: Farmer Hollis (`farmer` NPC, `ELDER_HOUSE.tmx` (8,8), entered from the Elder Town door at (78,-64)) starts it (`lanterns_started`). At night only, glowing blue wisps appear in the Corn Maze at `Game.LANTERN_WISPS`. Touching one starts a wild Ghoulflame battle (Lv 13–15); winning or catching clears it (`lanterns_wisp0..3`, a lost/fled battle leaves it there). Once all four are cleared, a final wisp appears by the scarecrow (Lv 18 Ghoulflame, `lanterns_wisp4` → `lanterns_wisps_done`). Talking to Hollis again gives **TM Solar Flare** (`lanterns_rewarded`).
+
+### TMs
+Any `config.ITEMS` entry with a `tm_move` key is a TM. Used from the bag outside battle → pick a party Dino → `Game.use_tm()`. TMs are **single use**, and only a Dino whose typing includes the move's type can learn it (it's not consumed on a refusal). The learned move joins the Dino's known `moves`. If it already has 4 active moves, the player swaps it in from the Party screen's move info, same as a level-up move. Current TMs: TM Solar Flare (Magma).
+
 ### Day/Night & Eclipse
 `day_night_timer`/`is_night` drive a tinted overlay over the world and battle screens. The intro sequence includes a scripted **eclipse** (day/night cycling paused, darker overlay) that lifts once the player clears Amber's opening fetch quest.
 
@@ -132,7 +139,7 @@ DINO_DATA['Anemamace'] = {
     'evolve': None,  # or {level: 'TargetSpecies'}
 }
 ```
-41 species as of this writing. Most recent: Stormulus (#041, lightning/flying thundercloud, rare in the `powerplant_outside` pool, learns Volt Storm at 41). Before that: Sharka (#038, pre-evolution of Sharktastrophe, in the `spawn_water` / `lake_water1` / `palm_water` pools), and the celestials Deimo (#039, lunar, dark/flying, learns Eternal Darkness at 40) and VY (#040, solar, light/flying, learns Infinite Light at 40) — neither celestial is placed in the world yet. New species must also be added to `config.ENCOUNTER_DINOS_PATHS` and the `Game.dino_frames` tuple in `game.py`, or they have no wild-battle / PC-box sprite.
+42 species as of this writing. Most recent: Lavaleo (#042, magma/rock cave prowler, rare in the `cobalt_cave` pool, learns Solar Flare at 39). Before that: Stormulus (#041, lightning/flying thundercloud, rare in the `powerplant_outside` pool, learns Volt Storm at 41). Before that: Sharka (#038, pre-evolution of Sharktastrophe, in the `spawn_water` / `lake_water1` / `palm_water` pools), and the celestials Deimo (#039, lunar, dark/flying, learns Eternal Darkness at 40) and VY (#040, solar, light/flying, learns Infinite Light at 40) — neither celestial is placed in the world yet. New species must also be added to `config.ENCOUNTER_DINOS_PATHS` and the `Game.dino_frames` tuple in `game.py`, or they have no wild-battle / PC-box sprite.
 
 ### Move Data (`MOVE_DATA` in data.py)
 ```python
