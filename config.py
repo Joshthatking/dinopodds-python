@@ -413,6 +413,11 @@ ITEMS = {
         "icon": os.path.join(ITEMS_PATH, "twilight_lunar_shard.png"),
         "description": "A lunar shard left behind by Cobaltion, humming with twilight energy",
     },
+    "Celestial Solar Shard": {
+        "name": "Celestial Solar Shard",
+        "icon": os.path.join(ITEMS_PATH, "celestial_solar_shard.png"),
+        "description": "A solar shard left behind by Celestreeyl, shimmering with every color of light",
+    },
     # TMs: one-time use, teach `tm_move` to a Dino that shares the move's type
     # (see Game.use_tm). Any item with a 'tm_move' key is treated as a TM.
     "TM Solar Flare": {
@@ -427,6 +432,21 @@ ITEMS = {
         "description": "Teaches Leaf Ultima to an Earth-type Dino. Single use.",
         "tm_move": "Leaf Ultima",
     },
+    "TM Eternal Blue": {
+        "name": "TM Eternal Blue",
+        "icon": os.path.join(ITEMS_PATH, "tm_aqua.png"),
+        "description": "Teaches Eternal Blue to an Aqua-type Dino. Single use.",
+        "tm_move": "Eternal Blue",
+    },
+}
+
+# Items placed in a world from code rather than from the map's TMX objects.
+# world file -> [(tile_x, tile_y, item name)]. Once picked up they stay gone
+# (Game.picked_up_world_items), same as TMX items.
+SCRIPTED_WORLD_ITEMS = {
+    'LOST_REGION.world': [
+        (2, -104, "TM Eternal Blue"),
+    ],
 }
 
 # Ball type -> icon path (used for heal animation and party display)

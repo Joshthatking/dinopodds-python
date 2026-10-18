@@ -12,7 +12,7 @@ import math
 import random
 import pygame
 import config
-from title_anim import LW, LH, ADD, _lerp_col, _scale_col, _clamp01
+from ANIM.title_anim import LW, LH, ADD, _lerp_col, _scale_col, _clamp01
 
 HORIZON = 170
 

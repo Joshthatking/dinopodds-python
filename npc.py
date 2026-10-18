@@ -291,7 +291,7 @@ class NPC:
             player.moving   = True
 
     def update(self, dt, player, game):
-        if self.npc_type in ('healer', 'shop', 'story', 'gym_guard'):
+        if self.npc_type in ('healer', 'shop', 'story', 'gym_guard', 'horizon_guard'):
             return
         if self.npc_type == 'guard':
             self._update_guard(dt, player, game)

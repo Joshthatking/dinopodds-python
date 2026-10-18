@@ -4,7 +4,7 @@ import pygame
 import config
 from data import *
 from story import QUEST_STEPS
-from title_anim import TitleBackdrop, TitleLogo
+from ANIM.title_anim import TitleBackdrop, TitleLogo
 
 
 def load_image(path, alpha=False):
@@ -57,14 +57,14 @@ class Encounter:
             self.frames.append(load_image(config.ENCOUNTER_DINOS_PATHS[dino_key + "2"], alpha=True))
         self.current_dino_surface = self.frames[0] if self.frames else None
 
-    def draw(self, screen, enemy_visible=True):
+    def draw(self, screen, enemy_visible=True, offset_x=0):
         screen.blit(self.bg, (0, 0))
         if self.current_dino_surface and enemy_visible:
             mult = config.ENCOUNTER_DINO_SIZES.get(self.dino_key, 1.0)
             size = int(config.ENCOUNTER_BASE_SIZE * mult)
             scaled = pygame.transform.scale(self.current_dino_surface, (size, size))
             rect = scaled.get_rect()
-            rect.centerx = screen.get_width() - 157
+            rect.centerx = screen.get_width() - 157 + int(offset_x)
             rect.centery = 155
             screen.blit(scaled, rect)
 
@@ -643,6 +643,16 @@ class EncounterUI:
             surface.blit(font.render(text, True, (30, 30, 30)), (bx + pad, y + (bh - th) // 2))
             bx += bw + 3
 
+    @staticmethod
+    def player_sprite_rect(screen_w, screen_h):
+        """Where the player's dino stands: 230px, directly on top of the
+        left text box. Shared with the send-out intro animation."""
+        text_box_rect = pygame.Rect(9, screen_h - 120, screen_w - 325, 115)
+        rect = pygame.Rect(0, 0, 230, 230)
+        rect.centerx = text_box_rect.centerx
+        rect.bottom = text_box_rect.top
+        return rect
+
     def draw(self, surface, player_dino, enemy_dino, encounter_text, show_actions=True, trainer_total=0, trainer_defeated=0, pod_icon=None, msg_awaiting_input=False, player_visible=True, field_effects=None):
         if not show_actions:
             self.in_fight_menu = False
@@ -720,11 +730,8 @@ class EncounterUI:
 
         # Player dino sprite — sits directly on top of the left text box
         if player_visible:
-            scaled = pygame.transform.scale(player_dino['image'], (230, 230))
-            sprite_rect = scaled.get_rect()
-            sprite_rect.centerx = text_box_rect.centerx
-            sprite_rect.bottom = text_box_rect.top
-            surface.blit(scaled, sprite_rect)
+            sprite_rect = self.player_sprite_rect(screen_w, screen_h)
+            surface.blit(pygame.transform.scale(player_dino['image'], sprite_rect.size), sprite_rect)
 
         # Level-up popup overlay
         if self.level_up_popup and self.level_up_popup.active:
@@ -1073,7 +1080,8 @@ class BoxScreen:
                 self.box_cursor = max(0, self.box_cursor - self.COLS)
             elif event.key == pygame.K_j:
                 if self.grabbed is None:
-                    if n > 0:
+                    # Nuzlocke: a dino that fainted stays in the box for good
+                    if n > 0 and not box[self.box_cursor].get('nuzlocke_fainted'):
                         self.grabbed = {'from': 'box', 'idx': self.box_cursor}
                 else:
                     src, sidx = self.grabbed['from'], self.grabbed['idx']
@@ -1082,8 +1090,12 @@ class BoxScreen:
                         if sidx != tidx and sidx < len(box) and tidx < len(box):
                             box[sidx], box[tidx] = box[tidx], box[sidx]
                     else:  # from party → drop in box
-                        if tidx < len(box):
+                        if tidx < len(box) and not box[tidx].get('nuzlocke_fainted'):
                             party[sidx], box[tidx] = box[tidx], party[sidx]
+                        elif tidx < len(box) and len(party) > 1:
+                            box.append(party.pop(sidx))   # never swap a fainted one out
+                            self.par_cursor = min(self.par_cursor, max(0, len(party) - 1))
+                            game.active_dino_index = min(game.active_dino_index, len(party) - 1)
                         elif len(party) > 1:
                             dino = party.pop(sidx)
                             box.append(dino)
@@ -1158,13 +1170,20 @@ class BoxScreen:
 
             if idx < len(box):
                 dino = box[idx]
+                fainted = dino.get('nuzlocke_fainted')
                 icon = self._icons.get(dino['name'])
                 if icon:
+                    if fainted:
+                        icon = icon.copy()
+                        icon.fill((120, 60, 60, 255), special_flags=pygame.BLEND_RGBA_MULT)
                     surface.blit(icon, rect.topleft)
+                if fainted:   # Nuzlocke: fainted for good
+                    pygame.draw.line(surface, (220, 60, 60), rect.topleft, rect.bottomright, 2)
+                    pygame.draw.line(surface, (220, 60, 60), rect.topright, rect.bottomleft, 2)
                 surface.blit(self.xs_font.render(f"Lv{dino['level']}", True, (200, 200, 255)),
                              (rect.x, rect.bottom + 2))
                 if is_cursor:
-                    hover_name = dino['name']
+                    hover_name = dino['name'] + ("  (fainted - can't leave the box)" if fainted else "")
 
         # ── Party panel slots ──────────────────────────────────────
         par_active = self.panel == 'party'
@@ -2735,6 +2754,319 @@ class TrainerCardScreen:
                         (180, 170, 150), 20, config.HEIGHT - 16)
 
 
+# === Objectives Screen ===
+class ObjectivesScreen:
+    """Notepad of milestone battles (data.OBJECTIVES) with the play time
+    each was beaten at. Times come from Game.objective_times."""
+    PAPER  = (252, 248, 226)
+    RULE   = (160, 195, 230)
+    MARGIN = (220, 90, 90)
+    INK    = (40, 40, 70)
+    FADED  = (150, 150, 160)
+
+    def __init__(self, game):
+        self.game = game
+        self.font_title = game.fonts['BATTLE']
+        self.font_row   = game.fonts['BAG']
+        self.font_xs    = game.fonts['XS']
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j, pygame.K_i, pygame.K_ESCAPE):
+            self.game.pop_state()
+
+    @staticmethod
+    def fmt_time(seconds):
+        if seconds is None:
+            return "??:??"
+        m, s = divmod(int(seconds), 60)
+        return f"{m:02d}:{s:02d}"
+
+    def draw(self, screen):
+        W, H = screen.get_size()
+        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        dim.fill((0, 0, 0, 140))
+        screen.blit(dim, (0, 0))
+
+        pad = pygame.Rect(0, 0, 400, 420)
+        pad.center = (W // 2, H // 2 + 6)
+        pygame.draw.rect(screen, (60, 50, 40), pad.move(5, 5), border_radius=6)   # shadow
+        pygame.draw.rect(screen, self.PAPER, pad, border_radius=6)
+
+        # binding strip + spiral rings along the top
+        strip = pygame.Rect(pad.x, pad.y, pad.width, 26)
+        pygame.draw.rect(screen, (90, 110, 150), strip, border_top_left_radius=6, border_top_right_radius=6)
+        for x in range(pad.x + 22, pad.right - 10, 30):
+            pygame.draw.circle(screen, self.PAPER, (x, strip.bottom - 6), 4)
+            pygame.draw.rect(screen, (190, 190, 200), (x - 2, strip.y - 8, 4, 18), border_radius=2)
+
+        title = self.font_title.render("Objectives", True, self.INK)
+        screen.blit(title, (pad.centerx - title.get_width() // 2, strip.bottom + 8))
+
+        # ruled lines + red margin
+        top = strip.bottom + 56
+        line_h = 38
+        rows = len(OBJECTIVES) + 1
+        for i in range(rows + 1):
+            y = top + i * line_h
+            if y < pad.bottom - 30:
+                pygame.draw.line(screen, self.RULE, (pad.x + 8, y), (pad.right - 8, y), 1)
+        margin_x = pad.x + 230
+        pygame.draw.line(screen, self.MARGIN, (margin_x, strip.bottom + 50), (margin_x, pad.bottom - 30), 2)
+
+        def row_text(text, font, color, x, i, right=False):
+            surf = font.render(text, True, color)
+            y = top + i * line_h - surf.get_height() - 4
+            screen.blit(surf, (x - surf.get_width() if right else x, y))
+
+        left_x = pad.x + 24
+        right_x = pad.right - 24
+        row_text("OBJ", self.font_row, self.MARGIN, left_x, 1)
+        row_text("Completion", self.font_row, self.MARGIN, right_x, 1, right=True)
+
+        times = self.game.objective_times
+        for n, (obj_id, hidden, label, _) in enumerate(OBJECTIVES):
+            done = obj_id in times
+            i = n + 2
+            row_text(label if done else hidden, self.font_row, self.INK if done else self.FADED, left_x, i)
+            row_text(self.fmt_time(times[obj_id]) if done else "--:--",
+                     self.font_row, self.INK if done else self.FADED, right_x, i, right=True)
+            if done:
+                # a little tick in the margin
+                cy = top + i * line_h - 14
+                pygame.draw.lines(screen, (60, 150, 80), False,
+                                  [(margin_x + 10, cy), (margin_x + 15, cy + 5), (margin_x + 24, cy - 6)], 3)
+
+        hint = self.font_xs.render("SPACE / J to close", True, self.FADED)
+        screen.blit(hint, (pad.centerx - hint.get_width() // 2, pad.bottom - 22))
+
+
+# === Options Screen ===
+class OptionsScreen:
+    """i menu -> Options: sound effect / music on-off toggles and 1-10
+    volume levels. Changes apply immediately and are saved to settings.json
+    (see sfx.py). W/S pick a row, A/D change it, J toggles, Space/I/Esc close."""
+    ROWS = [
+        ('Sound Effects', 'sfx_on'),
+        ('SFX Volume',    'sfx_level'),
+        ('Music',         'music_on'),
+        ('Music Volume',  'music_level'),
+        ('Back',          None),
+    ]
+    PANEL  = (255, 255, 240)
+    INK    = (0, 0, 0)
+    FADED  = (150, 150, 150)
+    HILITE = (200, 200, 255)
+    ON_COL = (60, 160, 80)
+    OFF_COL = (200, 70, 70)
+
+    def __init__(self, game):
+        self.game = game
+        self.font_title = game.fonts['BATTLE']
+        self.font_row   = game.fonts['BAG']
+        self.font_xs    = game.fonts['XS']
+        self.selected = 0
+
+    def _change(self, key, delta):
+        sfx = self.game.sfx
+        s = sfx.settings
+        if isinstance(s[key], bool):
+            s[key] = not s[key]
+        else:
+            s[key] = max(1, min(10, s[key] + delta))
+        sfx.apply_volumes()
+        sfx.save_settings()
+
+    def handle_event(self, event):
+        if event.type != pygame.KEYDOWN:
+            return
+        k = event.key
+        label, key = self.ROWS[self.selected]
+        if k == pygame.K_w:
+            self.selected = (self.selected - 1) % len(self.ROWS)
+        elif k == pygame.K_s:
+            self.selected = (self.selected + 1) % len(self.ROWS)
+        elif k in (pygame.K_a, pygame.K_d) and key:
+            self._change(key, -1 if k == pygame.K_a else 1)
+        elif k == pygame.K_j:
+            if key is None:
+                self.game.pop_state()
+            elif isinstance(self.game.sfx.settings[key], bool):
+                self._change(key, 0)
+        elif k in (pygame.K_SPACE, pygame.K_i, pygame.K_ESCAPE):
+            self.game.pop_state()
+
+    def _row_enabled(self, key):
+        s = self.game.sfx.settings
+        if key == 'sfx_level':
+            return s['sfx_on']
+        if key == 'music_level':
+            return s['music_on']
+        return True
+
+    def draw(self, screen):
+        W, H = screen.get_size()
+        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        dim.fill((0, 0, 0, 140))
+        screen.blit(dim, (0, 0))
+
+        panel = pygame.Rect(0, 0, 420, 330)
+        panel.center = (W // 2, H // 2)
+        pygame.draw.rect(screen, self.PANEL, panel)
+        pygame.draw.rect(screen, self.INK, panel, 3)
+
+        title = self.font_title.render("Options", True, self.INK)
+        screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 14))
+
+        s = self.game.sfx.settings
+        row_h = 46
+        top = panel.y + 66
+        for i, (label, key) in enumerate(self.ROWS):
+            y = top + i * row_h
+            if i == self.selected:
+                pygame.draw.rect(screen, self.HILITE, (panel.x + 8, y - 6, panel.width - 16, 34), border_radius=5)
+            enabled = self._row_enabled(key)
+            col = self.INK if enabled else self.FADED
+            surf = self.font_row.render(label, True, col)
+            screen.blit(surf, (panel.x + 22, y))
+            if key is None:
+                continue
+            right = panel.right - 22
+            val = s[key]
+            if isinstance(val, bool):
+                txt = self.font_row.render("ON" if val else "OFF", True,
+                                           self.ON_COL if val else self.OFF_COL)
+                screen.blit(txt, (right - txt.get_width(), y))
+            else:
+                # ten pips + the number
+                num = self.font_row.render(str(val), True, col)
+                screen.blit(num, (right - num.get_width(), y))
+                pip_w, gap = 10, 3
+                px = right - 30 - 10 * (pip_w + gap)
+                for p in range(10):
+                    r = pygame.Rect(px + p * (pip_w + gap), y + 3, pip_w, 16)
+                    fill = (70, 110, 220) if enabled else (170, 170, 190)
+                    if p < val:
+                        pygame.draw.rect(screen, fill, r)
+                    pygame.draw.rect(screen, col, r, 1)
+
+        hint = self.font_xs.render("W/S choose   A/D adjust   J toggle   SPACE close", True, (110, 110, 110))
+        screen.blit(hint, (panel.centerx - hint.get_width() // 2, panel.bottom - 22))
+
+
+# === Rules Screen ===
+class RulesScreen:
+    """i menu -> Rules (only in Randomizer / Nuzlocke runs): the rules for the
+    current game mode, on a scrollable notepad. W/S scroll, Space/J/I/Esc close."""
+    PAPER  = (252, 248, 226)
+    INK    = (40, 40, 70)
+    HEAD   = (200, 70, 70)
+    FADED  = (150, 150, 160)
+
+    RANDOMIZER_RULES = [
+        "Every wild dino, trainer team, starter, gift and trade is a random dino. Levels stay the same.",
+        "Each route only spawns the first 6 different dinos rolled there.",
+    ]
+    NUZLOCKE_RULES = [
+        "You start with 99 DinoPods and 99 Whitepods.",
+        "Level cap: your dinos can't level past the ace of the next gym leader. At the cap, XP stops "
+        "just short of the next level - knocking out that leader's last dino lets them level up again.",
+        "The first 2 new dinos you meet on each route must be caught - no fighting or running. "
+        "The counter at the top of wild battles shows 0/2, 1/2 or 2/2.",
+        "Once a route is 2/2, its wild dinos can only be fought or run from.",
+        "Duplicate Skip: a dino you've already owned doesn't count toward 2/2 and can't be caught. "
+        "This applies for the whole game.",
+        "Sprays and Revival Gems can only be used outside of battle.",
+        "A dino that faints is sent to the box for good after the battle and can never leave it. "
+        "If no dinos are left, the run is over.",
+        "Legendary and story battles don't count toward 2/2.",
+    ]
+    ROUTES_NOTE = ("Route 1 and Town 1 count as one route; the Corn Maze, Lake Meridian, "
+                   "Power Plant and each cave count as their own.")
+
+    def __init__(self, game):
+        self.game = game
+        self.font_title = game.fonts['BATTLE']
+        self.font_row   = game.fonts['BAG']
+        self.font_xs    = game.fonts['XS']
+        self.scroll = 0
+
+    def reset(self):
+        self.scroll = 0
+
+    def _entries(self):
+        """[(kind, text)] where kind is 'head', 'rule' or 'note'."""
+        g = self.game
+        out = []
+        if g.randomizer:
+            out.append(('head', "Randomizer"))
+            out += [('rule', r) for r in self.RANDOMIZER_RULES]
+        if g.nuzlocke:
+            out.append(('head', "Nuzlocke"))
+            out += [('rule', r) for r in self.NUZLOCKE_RULES]
+            cap, key = g._nuzlocke_cap_info()
+            if cap is not None:
+                leader = TRAINER_DATA[key]['name'] + (" (rematch)" if key.endswith('_rematch') else "")
+                out.append(('note', f"Current level cap: Lv {cap} - {leader}"))
+            else:
+                out.append(('note', "Current level cap: none - every gym is beaten!"))
+        out.append(('note', self.ROUTES_NOTE))
+        return out
+
+    def _lines(self, width):
+        lines = []
+        for kind, text in self._entries():
+            if kind == 'head':
+                if lines:
+                    lines.append(('gap', ''))
+                lines.append(('head', text))
+                continue
+            wrapped = wrap_text(text, self.font_row, width - 16)
+            for i, w in enumerate(wrapped):
+                lines.append((kind, ("- " if kind == 'rule' and i == 0 else "  ") + w
+                              if kind == 'rule' else w))
+        return lines
+
+    def handle_event(self, event):
+        if event.type != pygame.KEYDOWN:
+            return
+        if event.key == pygame.K_w:
+            self.scroll = max(0, self.scroll - 1)
+        elif event.key == pygame.K_s:
+            self.scroll += 1   # clamped in draw, once the line count is known
+        elif event.key in (pygame.K_SPACE, pygame.K_j, pygame.K_i, pygame.K_ESCAPE):
+            self.game.pop_state()
+
+    def draw(self, screen):
+        W, H = screen.get_size()
+        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        dim.fill((0, 0, 0, 140))
+        screen.blit(dim, (0, 0))
+
+        pad = pygame.Rect(0, 0, 560, 430)
+        pad.center = (W // 2, H // 2)
+        pygame.draw.rect(screen, (60, 50, 40), pad.move(5, 5), border_radius=6)
+        pygame.draw.rect(screen, self.PAPER, pad, border_radius=6)
+        strip = pygame.Rect(pad.x, pad.y, pad.width, 24)
+        pygame.draw.rect(screen, (150, 60, 60), strip, border_top_left_radius=6, border_top_right_radius=6)
+
+        title = self.font_title.render("Rules", True, self.INK)
+        screen.blit(title, (pad.centerx - title.get_width() // 2, strip.bottom + 6))
+
+        lines = self._lines(pad.width - 40)
+        line_h = 20
+        top = strip.bottom + 46
+        visible = (pad.bottom - 30 - top) // line_h
+        self.scroll = max(0, min(self.scroll, len(lines) - visible))
+        for i, (kind, text) in enumerate(lines[self.scroll:self.scroll + visible]):
+            colour = {'head': self.HEAD, 'note': (60, 110, 160)}.get(kind, self.INK)
+            screen.blit(self.font_row.render(text, True, colour), (pad.x + 20, top + i * line_h))
+
+        more = len(lines) > visible
+        hint = "W/S scroll   SPACE / J close" if more else "SPACE / J to close"
+        h = self.font_xs.render(hint, True, self.FADED)
+        screen.blit(h, (pad.centerx - h.get_width() // 2, pad.bottom - 22))
+
+
 # === Badge Earned Screen ===
 class BadgeEarnedScreen:
     """Forced full-screen badge reward — pushes its own 'badge_earned' state
@@ -2918,12 +3250,31 @@ class IntroSequence:
             screen.blit(fade, (0, 0))
 
 
+# (mode id, label, description, playable yet?) — picked after "New Game".
+# Flip the last field to True once a mode is implemented in Game.new_game.
+GAME_MODES = [
+    ('standard', 'Standard',
+     "The classic DinoPodds adventure.", True),
+    ('randomizer', 'Randomizer',
+     "All encounters and battles have randomized dinos.", True),
+    ('nuzlocke', 'Nuzlocke',
+     "A hardcore challenge: no healing during battles, you can only catch the "
+     "first 2 dinos you find on each route, every gym has a level cap, and any "
+     "dino that faints is gone for good.", True),
+    ('randomizer_nuzlocke', 'Randomizer Nuzlocke',
+     "Randomizer and Nuzlocke combined: random dinos everywhere, under the "
+     "full Nuzlocke rules.", True),
+]
+
+
 # === Main Menu ===
 class TitleScreen:
     def __init__(self, game):
         self.game = game
         self.options = ["New Game", "Continue", "Sandbox Mode"]
         self.selected = 0
+        self.picking_mode = False   # the New Game mode picker is open
+        self.mode_selected = 0
         self.option_font = game.fonts['DIALOGUE']
         self.hint_font = game.fonts['XS']
         self.backdrop = TitleBackdrop()
@@ -2933,6 +3284,8 @@ class TitleScreen:
 
     def reset(self, fade_from_black=True):
         self.selected = 0
+        self.picking_mode = False
+        self.mode_selected = 0
         self.fade_alpha = 255 if fade_from_black else 0
         self._fading_in = fade_from_black
         self.backdrop.show_sun = True
@@ -2951,6 +3304,9 @@ class TitleScreen:
             return
         if event.type != pygame.KEYDOWN:
             return
+        if self.picking_mode:
+            self._handle_mode_picker(event)
+            return
         if event.key in (pygame.K_w, pygame.K_UP):
             self.selected = (self.selected - 1) % len(self.options)
         elif event.key in (pygame.K_s, pygame.K_DOWN):
@@ -2958,10 +3314,24 @@ class TitleScreen:
         elif event.key in (pygame.K_j, pygame.K_RETURN):
             self._confirm(has_save)
 
+    def _handle_mode_picker(self, event):
+        if event.key in (pygame.K_w, pygame.K_UP):
+            self.mode_selected = (self.mode_selected - 1) % len(GAME_MODES)
+        elif event.key in (pygame.K_s, pygame.K_DOWN):
+            self.mode_selected = (self.mode_selected + 1) % len(GAME_MODES)
+        elif event.key in (pygame.K_j, pygame.K_RETURN):
+            mode_id, _, _, playable = GAME_MODES[self.mode_selected]
+            if playable:
+                self.picking_mode = False
+                self.game.new_game(mode_id)
+        elif event.key in (pygame.K_ESCAPE, pygame.K_SPACE, pygame.K_BACKSPACE):
+            self.picking_mode = False
+
     def _confirm(self, has_save):
         opt = self.options[self.selected]
         if opt == "New Game":
-            self.game.new_game()
+            self.picking_mode = True
+            self.mode_selected = 0
         elif opt == "Continue":
             if has_save:
                 self.game.load_game()
@@ -2971,6 +3341,15 @@ class TitleScreen:
     def draw(self, screen, has_save):
         W, H = screen.get_width(), screen.get_height()
         self.backdrop.draw(screen, self.logo)
+
+        if self.picking_mode:
+            self._draw_mode_picker(screen)
+            if self.fade_alpha > 0:
+                fade = pygame.Surface((W, H))
+                fade.fill((0, 0, 0))
+                fade.set_alpha(self.fade_alpha)
+                screen.blit(fade, (0, 0))
+            return
 
         for i, opt in enumerate(self.options):
             y = 250 + i * 52
@@ -3003,6 +3382,46 @@ class TitleScreen:
             fade.fill((0, 0, 0))
             fade.set_alpha(self.fade_alpha)
             screen.blit(fade, (0, 0))
+
+    def _draw_mode_picker(self, screen):
+        W, H = screen.get_width(), screen.get_height()
+        panel = pygame.Rect(W // 2 - 270, 140, 540, 290)
+        bg = pygame.Surface(panel.size, pygame.SRCALPHA)
+        pygame.draw.rect(bg, (22, 12, 46, 255), bg.get_rect(), border_radius=10)
+        screen.blit(bg, panel.topleft)
+        pygame.draw.rect(screen, (160, 130, 255), panel, 2, border_radius=10)
+
+        desc_font = self.game.fonts['BAG']
+        title = desc_font.render("Choose a game mode", True, (190, 178, 220))
+        screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 10))
+
+        row_h = 40
+        top = panel.y + 40
+        for i, (_, label, _, playable) in enumerate(GAME_MODES):
+            y = top + i * row_h
+            if i == self.mode_selected:
+                box = pygame.Rect(panel.x + 14, y - 4, panel.width - 28, row_h - 4)
+                pygame.draw.rect(screen, (45, 28, 90), box, border_radius=7)
+                pygame.draw.rect(screen, (160, 130, 255), box, 2, border_radius=7)
+                color = (255, 230, 80) if playable else (150, 140, 180)
+            else:
+                color = (190, 178, 220) if playable else (95, 88, 125)
+            surf = self.game.fonts['BATTLE'].render(label, True, color)
+            screen.blit(surf, (panel.x + 30, y + (row_h - 4 - surf.get_height()) // 2 - 4))
+            if not playable:
+                tag = self.hint_font.render("Coming soon", True, (150, 135, 190))
+                screen.blit(tag, (panel.right - 30 - tag.get_width(), y + 8))
+
+        # description of the highlighted mode
+        desc = GAME_MODES[self.mode_selected][2]
+        div_y = top + len(GAME_MODES) * row_h + 2
+        pygame.draw.line(screen, (90, 70, 150), (panel.x + 20, div_y), (panel.right - 20, div_y), 1)
+        for j, line in enumerate(wrap_text(desc, desc_font, panel.width - 50)[:4]):
+            surf = desc_font.render(line, True, (220, 212, 240))
+            screen.blit(surf, (panel.x + 25, div_y + 10 + j * 19))
+
+        hint = self.hint_font.render("W/S  Navigate       J  Start       Esc  Back", True, (150, 135, 190))
+        screen.blit(hint, (W // 2 - hint.get_width() // 2, H - 35))
 
 
 class DinodexScreen:
@@ -3335,14 +3754,21 @@ class Menu:
         self.font = pygame.font.SysFont("arial", 24)
         self.small_font = pygame.font.SysFont("arial", 16)
         self.selected_index = 0
-        self.options = ["Dinodex", "Party", "Items", "Trainer Card", "Save Game", "Options", "Exit to Menu"]
         self.width = 220
         self.margin = 15
         self.line_height = 40
 
+    @property
+    def options(self):
+        opts = ["Dinodex", "Party", "Items", "Trainer Card", "Objectives"]
+        if self.game.game_mode != 'standard':
+            opts.append("Rules")   # Randomizer / Nuzlocke runs explain their rules
+        return opts + ["Save Game", "Options", "Exit to Menu"]
+
     def draw(self, screen):
         W = screen.get_width()
         x = W - self.width - 20
+        self.selected_index = min(self.selected_index, len(self.options) - 1)
 
         # ── Options panel ──────────────────────────────────────────────
         header_h  = 0
@@ -3378,11 +3804,17 @@ class Menu:
                 self.game.push_state('items')
             elif selected == "Trainer Card":
                 self.game.push_state('trainer_card')
+            elif selected == "Objectives":
+                self.game.push_state('objectives')
+            elif selected == "Rules":
+                self.game.rules_screen.reset()
+                self.game.push_state('rules')
             elif selected == "Save Game":
                 self.game.save_game()
                 self.game.pop_state()
             elif selected == "Options":
-                pass  # TODO: implement options
+                self.game.options_screen.selected = 0
+                self.game.push_state('options')
             elif selected == "Exit to Menu":
                 self.game.pop_state()
                 self.game.yes_no_prompt = YesNoPrompt(

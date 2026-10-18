@@ -340,8 +340,25 @@ if __name__ == '__main__':
 # HORIZON_CAVE -> spawns and Josh Battle, and Celestreeyl encounter
 # Battle transition for wild encounters and battles 
 
-#add one more TM quest
-# 
+#10/18
+# Celestial Solar Shard
+# Battle Transition, dinopod thrown out and opp slides in from the left 
+# Add an Objective button on i menu - notepad with left side saying OBJ and right side saying Completion
+# Organize ANIM/ .py files
+# Add Sam dialogue after defeating him 
+# GYM REMATCHES
+# BLOCK horizon cave until after gym 3, then Josh after rematches
+# SOUND FX? - adjust volumes, make Options in i menu allow to turn off sound effects toggle and or music toggle, and adjust volume 1-10
+# Add Eternal Blue TM Lake Meridian
+# Randomizer MODE 
+# Nuzlocke MODE 
+# CREDIT SCENE - after picking up Celestial Solar Shard
+
+
+# fix badges on the Trainer Card
+
+
+#multiple save files? (3)
 
 # add more lore
 #SOUND FX - entry, interact, selecting wasd, grass rustle, collision, save confirmation, EVENTS (legendary, cinematic)

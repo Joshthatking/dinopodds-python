@@ -223,10 +223,15 @@ class Player(pygame.sprite.Sprite):
             self.anim_index = 1
             self.anim_timer = 0
             self.image = self.animations[self.direction][1]
+            # same "is this grass" test the grass-sway animation uses (environment_fx)
+            if ((tile_x, tile_y) in game.encounter_tile_coords
+                    and game.tile_types.get((tile_x, tile_y)) == 'grass'):
+                game.sfx.play('grass')
         else:
             self.moving = False
             self.anim_index = 0
             self.image = self.animations[self.direction][0]
+            game.sfx.play('bump', cooldown=0.35)   # repeats steadily while walking into a wall
 
 
     def check_for_encounter(self, game):

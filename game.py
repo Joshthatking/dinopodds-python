@@ -6,14 +6,19 @@ import math
 from collections import deque
 from player import Player
 from npc import NPC
-from surf import Surf  # SURF (testing)
-from environment_fx import EnvironmentFX  # ENV FX
-from aether_bg import AetherBackground
-from battle_transition import BattleTransition
+from ANIM.surf import Surf  # SURF (testing)
+from ANIM.environment_fx import EnvironmentFX  # ENV FX
+from ANIM.aether_bg import AetherBackground
+from ANIM.battle_transition import BattleTransition
 from moves import MoveAnimation
-from catch_anim import CatchAnimation
-from title_anim import LaunchIntro
-from sky_transition import SkyTransition
+from ANIM.catch_anim import CatchAnimation
+from ANIM import send_out_anim
+from ANIM.send_out_anim import SendOutAnimation, enemy_slide_offset
+from ANIM.title_anim import LaunchIntro
+from ANIM.sky_transition import SkyTransition
+from ANIM.credits import CreditsSequence
+from sfx import SFX
+from randomizer import Randomizer, area_for_zone
 import os
 import config
 from screens import *
@@ -43,7 +48,9 @@ LAKE_MERIDIAN_PROPHECY_TILES = {
 
 class Game:
     def __init__(self):
+        pygame.mixer.pre_init(44100, -16, 2, 512)   # small buffer so SFX play without lag
         pygame.init()
+        self.sfx = SFX()
         self.screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT))
         pygame.display.set_caption('DinoPodds')
         self.clock = pygame.time.Clock()
@@ -126,6 +133,9 @@ class Game:
         self.move_info_screen = None
         self.dinodex_screen = DinodexScreen(self)
         self.trainer_card_screen = TrainerCardScreen(self)
+        self.objectives_screen = ObjectivesScreen(self)
+        self.options_screen = OptionsScreen(self)
+        self.rules_screen = RulesScreen(self)
         self.box_tile_coords = set()
         self.box_screen = BoxScreen(self)
         self.type_chart_tile_coords = set()
@@ -205,6 +215,7 @@ class Game:
         self._spawn_world_npcs('LOST_REGION.world')
         self._maybe_add_gym_blocker()
         self._maybe_add_gym2_blocker()
+        self._maybe_add_horizon_blockers()
         self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
 
@@ -254,6 +265,14 @@ class Game:
         import datetime
         self.adventure_start_date = datetime.date.today()
         self.play_time_seconds    = 0.0
+        self.objective_times      = {}  # OBJECTIVES id -> play-time seconds (None = beaten, time unknown)
+        self.game_mode            = 'standard'  # chosen at New Game (see GAME_MODES)
+        self.randomizer           = None        # randomizer.Randomizer in Randomizer mode
+        self.nz_route_caught      = {}    # Nuzlocke: area -> species caught there (max 2)
+        self.nz_owned_species     = []    # Nuzlocke: species owned before (e.g. traded away)
+        self.nz_encounter         = None  # Nuzlocke: this wild battle's {'area','status','label'}
+        self._nz_blackout_msgs    = []
+        self.credits              = None  # ANIM.credits.CreditsSequence while the end credits play
         self.dinos_seen           = set()
         self.badges_earned        = []  # list of badge names/ids, max 8
 
@@ -329,6 +348,8 @@ class Game:
     def trigger_blackout(self):
         lost_npc = self.current_trainer_npc
         self.stats_blackouts += 1
+        self._nz_blackout_msgs = []
+        self._nuzlocke_retire_fainted(force=True)   # Nuzlocke: the fallen go to the box first
         for dino in self.player_dinos:
             dino['hp'] = dino['max_hp']
             dino['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
@@ -416,17 +437,29 @@ class Game:
         self._place_player(tx, ty)
         self.fade_alpha = 255
         self.entrance_fade_state = 'in'
+        if self._nz_blackout_msgs:
+            self.message_box.queue_messages(self._nz_blackout_msgs, wait_for_input=True)
+            self._nz_blackout_msgs = []
 
     # --- Title / New Game / Save-Load ---
 
-    def new_game(self):
+    def new_game(self, mode='standard'):
         import datetime
         self.story_flags = {}
         self.sandbox = False
+        self.game_mode = mode
+        self.randomizer = Randomizer() if mode in ('randomizer', 'randomizer_nuzlocke') else None
+        self.nz_route_caught = {}
+        self.nz_owned_species = []
+        self.nz_encounter = None
+        self.credits = None
         self.player_dinos = []
         self.box_dinos = []
         self.coins = 1000
         self.inventory = {item: 0 for item in config.ITEMS.keys()}
+        if self.nuzlocke:
+            self.inventory['DinoPod'] = 99
+            self.inventory['Whitepod'] = 99
         self.items_screen.inventory = self.inventory
         self.badges_earned = []
         self.dinos_seen = set()
@@ -434,6 +467,7 @@ class Game:
         self.stats_dinos_fainted = 0
         self.stats_enemies_defeated = 0
         self.play_time_seconds = 0.0
+        self.objective_times = {}
         self.adventure_start_date = datetime.date.today()
         self.world_stack = []
 
@@ -498,6 +532,9 @@ class Game:
         self.story_flags = {e['id']: True for e in _story.STORY_EVENTS}
         self.story_flags['encounters_unlocked'] = True
         self.sandbox = True
+        self.game_mode = 'standard'
+        self.randomizer = None
+        self.nz_encounter = None
         self.player_dinos = [
             self.create_dino('Vusion', 40),
             self.create_dino('Vusion', 3),
@@ -527,7 +564,7 @@ class Game:
             if not pygame.mixer.get_init():
                 pygame.mixer.init()
             pygame.mixer.music.load(TITLE_MUSIC_PATH)
-            pygame.mixer.music.set_volume(0.6)
+            pygame.mixer.music.set_volume(self.sfx.music_volume())   # i menu -> Options
             pygame.mixer.music.play(-1, fade_ms=1500)
             self._title_music_on = True
         except pygame.error as e:
@@ -559,6 +596,11 @@ class Game:
             'sandbox': self.sandbox,
             'badges': self.badges_earned,
             'play_time': self.play_time_seconds,
+            'objective_times': self.objective_times,
+            'game_mode': self.game_mode,
+            'randomizer': self.randomizer.to_dict() if self.randomizer else None,
+            'nuzlocke': {'route_caught': self.nz_route_caught,
+                         'owned_species': self.nz_owned_species},
             'dinos_seen': list(self.dinos_seen),
             'picked_up_world_items': [list(entry) for entry in self.picked_up_world_items],
             'defeated_trainers': list(self.defeated_trainers),
@@ -596,12 +638,27 @@ class Game:
         self.sandbox = data.get('sandbox', False)
         self.badges_earned = data.get('badges', [])
         self.play_time_seconds = data.get('play_time', 0.0)
+        self.objective_times = dict(data.get('objective_times', {}))
+        self.game_mode = data.get('game_mode', 'standard')
+        rando = data.get('randomizer')
+        self.randomizer = Randomizer.from_dict(rando) if rando else None
+        nz = data.get('nuzlocke') or {}
+        self.nz_route_caught = {k: list(v) for k, v in nz.get('route_caught', {}).items()}
+        self.nz_owned_species = list(nz.get('owned_species', []))
+        self.nz_encounter = None
+        # Saves from before the notepad existed: anything already beaten
+        # has no real time, so it's marked done-but-unknown (None) rather
+        # than stamped with the load time.
+        for obj_id, _, _, flags in OBJECTIVES:
+            if obj_id not in self.objective_times and any(self.story_flags.get(f) for f in flags):
+                self.objective_times[obj_id] = None
         self.dinos_seen = set(data.get('dinos_seen', []))
         self.picked_up_world_items = {tuple(e) for e in data.get('picked_up_world_items', [])}
         self.defeated_trainers = set(data.get('defeated_trainers', []))
         for npc in self.npcs:
             if getattr(npc, 'trainer_id', None) in self.defeated_trainers:
                 npc.defeated = True
+        self._refresh_gym_trainers_defeated()
         s = data.get('stats', {})
         self.stats_blackouts = s.get('blackouts', 0)
         self.stats_dinos_fainted = s.get('dinos_fainted', 0)
@@ -618,6 +675,7 @@ class Game:
         self.state_stack = ['world']
         self._maybe_add_gym_blocker()
         self._maybe_add_gym2_blocker()
+        self._maybe_add_horizon_blockers()
         self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
 
@@ -648,8 +706,9 @@ class Game:
             for item, qty in event.get('award_items', {}).items():
                 self.inventory[item] = self.inventory.get(item, 0) + qty
             self.coins += event.get('award_coins', 0)
-            for spec in event.get('award_dinos', []):
-                dino = self.create_dino(spec['name'], spec['level'])
+            for i, spec in enumerate(event.get('award_dinos', [])):
+                dino = self.create_dino(self._rando(spec['name'], f"gift:{event.get('id')}:{i}"),
+                                        spec['level'])
                 if len(self.player_dinos) < self.PARTY_LIMIT:
                     self.player_dinos.append(dino)
                 else:
@@ -748,9 +807,15 @@ class Game:
 
     # --- XP & Leveling ---
 
+    def _clamp_xp_to_cap(self, dino, cap):
+        """Nuzlocke: at/over the level cap, XP stops one short of the next level."""
+        if cap is not None and dino['level'] >= cap:
+            dino['xp'] = min(dino['xp'], dino['xp_to_next'] - 1)
+
     def award_xp(self, dino, amount):
+        cap = self._nuzlocke_level_cap()
         dino['xp'] += amount
-        while dino['xp'] >= dino['xp_to_next']:
+        while dino['xp'] >= dino['xp_to_next'] and (cap is None or dino['level'] < cap):
             base_stats = DINO_DATA[dino["name"]]['stats']
             prev_max_hp = dino['max_hp']
             dino['xp'] -= dino['xp_to_next']
@@ -773,6 +838,7 @@ class Game:
             if evo_target:
                 self.start_evolution(dino, evo_target)
                 break
+        self._clamp_xp_to_cap(dino, cap)
 
     def _grant_party_xp_and_level_ups(self, xp_gain):
         """Award XP to all alive party members and return level-up messages."""
@@ -784,10 +850,11 @@ class Game:
         alive_count = len(alive)
         active_mult = ACTIVE_XP_MULT_SOLO if alive_count == 1 else ACTIVE_XP_MULT_PARTY
         bench_mult  = BENCH_XP_MULT.get(alive_count, 1.0)
+        cap = self._nuzlocke_level_cap()
         for dino in alive:
             mult = active_mult if dino is active else bench_mult
             dino['xp'] += int(round(xp_gain * mult))
-            while dino['xp'] >= dino['xp_to_next']:
+            while dino['xp'] >= dino['xp_to_next'] and (cap is None or dino['level'] < cap):
                 base_stats = DINO_DATA[dino['name']]['stats']
                 prev_max_hp = dino['max_hp']
                 dino['xp'] -= dino['xp_to_next']
@@ -826,6 +893,7 @@ class Game:
                             # own emphatic, separately-dismissed message.
                             msgs.append(f">> {dino['name']} can learn {move_name}! <<")
                             msgs.append(f"It already knows 4 moves - visit the Party screen to swap {move_name} in.")
+            self._clamp_xp_to_cap(dino, cap)
         return msgs
 
     # --- Battle helpers: effective stats / move abilities / field effects ---
@@ -1127,9 +1195,166 @@ class Game:
         if entry and direction in entry:
             self.route_banner.show(entry[direction])
 
+    # --- Randomizer helpers (randomizer.py) ---
+    # In Standard mode these all hand back the normal species.
+
+    def _rando(self, name, tag):
+        """`name`, or in Randomizer mode the save's fixed random dino for `tag`."""
+        return self.randomizer.fixed(tag) if self.randomizer else name
+
+    def _rando_team(self, dino_list, tag):
+        """[(name, level), ...] with each slot randomized, levels kept."""
+        if not self.randomizer:
+            return list(dino_list)
+        return [(self.randomizer.fixed(f"{tag}:{i}"), lvl) for i, (_, lvl) in enumerate(dino_list)]
+
+    def _starter_map(self):
+        """Starter ball id -> species (randomized in Randomizer mode)."""
+        if self.randomizer:
+            return self.randomizer.starters(config.DINO_BALL_MAP.keys())
+        return config.DINO_BALL_MAP
+
+    def _starter_names(self):
+        return set(self._starter_map().values())
+
+    def _player_original_starter(self):
+        """The starter the player kept, as its Standard-mode species name
+        (Floravel / Volkit / Corlave), so story logic keyed on the original
+        starters (Gray's counter pick, Abby's partner) keeps working."""
+        ball_of = {name: ball for ball, name in self._starter_map().items()}
+        for d in self.player_dinos + self.box_dinos:
+            if d['name'] in ball_of:
+                return config.DINO_BALL_MAP[ball_of[d['name']]]
+        return None
+
+    # --- Nuzlocke (game modes 'nuzlocke' / 'randomizer_nuzlocke') ---
+    # Rules (also shown on the i menu -> Rules page):
+    #   * Level cap = the ace (highest level) of the next gym leader to beat,
+    #     in NUZLOCKE_CAP_ORDER. At the cap, XP stops 1 short of the next
+    #     level — except the KO on that leader's last dino, which counts
+    #     against the next cap.
+    #   * Each route/area (randomizer.area_for_zone) lets you catch its first
+    #     2 new dinos. Those encounters are catch-only (no Fight/Defend/Run);
+    #     after 2/2 you can only fight or run. A species you've already owned
+    #     is a "Duplicate Skip": fight or run, no catching, doesn't count.
+    #   * Sprays / Revival Gems are out-of-battle only (true in every mode).
+    #   * A dino that faints is moved to the box for good after the battle.
+    NUZLOCKE_MODES = ('nuzlocke', 'randomizer_nuzlocke')
+    NUZLOCKE_ROUTE_CATCHES = 2
+    NUZLOCKE_CAP_ORDER = [   # (flag set when beaten, TRAINER_DATA key whose ace sets the cap)
+        ('gym1_leader_defeated',  'skyy'),
+        ('gym2_leader_defeated',  'log'),
+        ('gym3_leader_defeated',  'sam'),
+        ('gym1_rematch_defeated', 'skyy_rematch'),
+        ('gym2_rematch_defeated', 'log_rematch'),
+        ('gym3_rematch_defeated', 'sam_rematch'),
+    ]
+
+    @property
+    def nuzlocke(self):
+        return self.game_mode in self.NUZLOCKE_MODES
+
+    def _nuzlocke_cap_info(self, skip_key=None):
+        """(cap level, leader key) for the next unbeaten gym, or (None, None)
+        once every gym is done. `skip_key` treats that leader as beaten."""
+        for flag, key in self.NUZLOCKE_CAP_ORDER:
+            if self.story_flags.get(flag) or key == skip_key:
+                continue
+            return max(lvl for _, lvl in TRAINER_DATA[key]['dinos'].values()), key
+        return None, None
+
+    def _nuzlocke_level_cap(self):
+        """Current cap, or None (no cap / not a Nuzlocke run). On the KO of
+        the cap leader's final dino, the next gym's cap applies instead."""
+        if not self.nuzlocke:
+            return None
+        cap, key = self._nuzlocke_cap_info()
+        npc = self.current_trainer_npc
+        if (key and self.is_trainer_battle and npc is not None
+                and self._trainer_key(npc) == key and not self.trainer_dino_queue
+                and self.enemy_dino and self.enemy_dino.get('hp', 1) <= 0):
+            cap, _ = self._nuzlocke_cap_info(skip_key=key)
+        return cap
+
+    def _nuzlocke_owned_species(self):
+        return ({d['name'] for d in self.player_dinos + self.box_dinos}
+                | set(self.nz_owned_species))
+
+    def _nuzlocke_setup_encounter(self, zone, tile_x, dino_key):
+        """Decide this wild encounter's Nuzlocke status (None = no rule)."""
+        self.nz_encounter = None
+        if not self.nuzlocke or zone is None:
+            return
+        area = area_for_zone(zone, tile_x)
+        caught = len(self.nz_route_caught.get(area, []))
+        if caught >= self.NUZLOCKE_ROUTE_CATCHES:
+            status, label = 'full', f"{self.NUZLOCKE_ROUTE_CATCHES}/{self.NUZLOCKE_ROUTE_CATCHES}"
+        elif dino_key in self._nuzlocke_owned_species():
+            status, label = 'dupe', "Duplicate Skip"
+        else:
+            status, label = 'catch', f"{caught}/{self.NUZLOCKE_ROUTE_CATCHES}"
+        self.nz_encounter = {'area': area, 'status': status, 'label': label}
+
+    def _nuzlocke_catch_only(self):
+        """True while the battle must be a catch (no Fight/Defend/Run) — unless
+        the player has no catching items left, so they can never get stuck."""
+        nz = self.nz_encounter
+        if not nz or nz['status'] != 'catch' or self.is_trainer_battle:
+            return False
+        return any(self.inventory.get(name, 0) > 0
+                   for name, data in config.ITEMS.items() if data.get('catch_rate') is not None)
+
+    def _nuzlocke_retire_fainted(self, force=False):
+        """Move fainted party dinos to the box for good. Normally waits for a
+        calm world frame; `force` runs it right away (blackout)."""
+        if not self.nuzlocke:
+            return
+        if not force and (self.state_stack != ['world'] or self.message_box.visible
+                          or self.cutscene or self.fading or self.entrance_fade_state):
+            return
+        fallen = [d for d in self.player_dinos if d.get('hp', 0) <= 0]
+        if not fallen:
+            return
+        for d in fallen:
+            d['nuzlocke_fainted'] = True
+            self.player_dinos.remove(d)
+            self.box_dinos.append(d)
+        # An empty party pulls in any living dinos waiting in the box
+        if not self.player_dinos:
+            for d in [d for d in self.box_dinos if not d.get('nuzlocke_fainted')]:
+                if len(self.player_dinos) >= self.PARTY_LIMIT:
+                    break
+                self.box_dinos.remove(d)
+                self.player_dinos.append(d)
+        self.active_dino_index = 0
+        msgs = [f"{d['name']} fainted... it has been sent to the box for good." for d in fallen]
+        if not self.player_dinos:
+            msgs += ["You have no dinos left that can battle.", "Your Nuzlocke run is over."]
+            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.exit_to_title)
+            return
+        if not force:
+            self.message_box.queue_messages(msgs, wait_for_input=True)
+        else:
+            self._nz_blackout_msgs = msgs
+
+    def _nuzlocke_battle_hud(self, screen):
+        """Route catch counter, top center of wild battles."""
+        nz = self.nz_encounter
+        if not nz or self.is_trainer_battle:
+            return
+        font = self.fonts['BAG']
+        text = font.render(nz['label'], True, (255, 255, 255))
+        box = pygame.Rect(0, 0, max(70, text.get_width() + 24), text.get_height() + 10)
+        box.midtop = (config.WIDTH // 2, 6)
+        colour = {'catch': (40, 120, 60), 'full': (90, 90, 110), 'dupe': (150, 110, 30)}[nz['status']]
+        pygame.draw.rect(self.screen, colour, box, border_radius=6)
+        pygame.draw.rect(self.screen, (0, 0, 0), box, 2, border_radius=6)
+        self.screen.blit(text, text.get_rect(center=box.center))
+
     def trigger_encounter(self, forced_dino=None, forced_level=None):
+        self.nz_encounter = None
         if forced_dino:
-            dino_key, level = forced_dino, forced_level
+            dino_key, level = self._rando(forced_dino, f"static:{forced_dino}"), forced_level
         else:
             tile_x = self.player.rect.x // config.TILE_SIZE
             tile_y = self.player.rect.y // config.TILE_SIZE
@@ -1140,7 +1365,10 @@ class Game:
             dino_key = pick_zone_dino(zone_data, self.night_active)
             if dino_key is None:
                 return  # nothing available right now (e.g. a night-only zone by day)
+            if self.randomizer:
+                dino_key = self.randomizer.wild(zone, tile_x)
             level = random.randint(*zone_data["level_range"])
+            self._nuzlocke_setup_encounter(zone, tile_x, dino_key)
 
         self.player.freeze_in_place()
         self.active_dino_index = self._first_alive_dino_index()
@@ -1165,7 +1393,8 @@ class Game:
             "last_switch": now,
             "interval": 250,
             "start_time": now,
-            "duration": 1000,
+            "duration": send_out_anim.TOTAL_MS,
+            "intro": 'send_out',   # enemy slides in, then the player's pod is thrown
         }
 
     def start_trainer_battle(self, npc):
@@ -1190,7 +1419,11 @@ class Game:
         self.current_trainer_npc = npc
         self.current_trainer_npc2 = None
 
-        if npc.trainer_id == 'gray':
+        key = self._trainer_key(npc)
+        rematch_i, rematch_g = self._gym_rematch_entry(npc.trainer_id)
+        if key.endswith('_rematch') and npc.trainer_id == rematch_g['leader']:
+            self._post_trainer_battle_cb = lambda i=rematch_i: self._on_gym_rematch_won(i)
+        elif npc.trainer_id == 'gray':
             self._post_trainer_battle_cb = lambda: self._on_gray_battle_won(npc)
         elif npc.trainer_id == 'gray2':
             self._post_trainer_battle_cb = lambda: self._on_gray2_battle_won(npc)
@@ -1207,7 +1440,7 @@ class Game:
         elif npc.trainer_id == 'pp_grunt_b':
             self._post_trainer_battle_cb = lambda: self._on_pp_grunt_b_won(npc)
 
-        data = TRAINER_DATA.get(npc.trainer_id, {})
+        data = TRAINER_DATA.get(key, {})
         dinos = data.get('dinos', {})
         sorted_keys = sorted(dinos.keys())
         override = getattr(npc, 'override_first_dino', None)
@@ -1220,6 +1453,7 @@ class Game:
             # Override is an additional dino tacked on at the end (e.g. Gray's
             # Route 3 rematch, where the evolved counter-starter closes it out).
             dino_list.append(override)
+        dino_list = self._rando_team(dino_list, f"trainer:{key}")
         dino_name, dino_level = dino_list[0]
         self.trainer_dino_queue = dino_list[1:]
         self.trainer_dinos_total = len(self.trainer_dino_queue) + 1
@@ -1243,7 +1477,8 @@ class Game:
             "last_switch": now,
             "interval": 250,
             "start_time": now,
-            "duration": 1000,
+            "duration": send_out_anim.TOTAL_MS,
+            "intro": 'send_out',
         }
 
     def start_forced_walk_double(self, npc1, npc2):
@@ -1327,6 +1562,8 @@ class Game:
         k2 = sorted(dinos2.keys())[0]
         n1, l1 = dinos1[k1]
         n2, l2 = dinos2[k2]
+        n1 = self._rando(n1, f"trainer:{self._trainer_key(npc1)}:0")
+        n2 = self._rando(n2, f"trainer:{self._trainer_key(npc2)}:0")
 
         self.enemy_dino  = self.create_dino(n1, l1)
         self.enemy_dino2 = self.create_dino(n2, l2)
@@ -2034,6 +2271,7 @@ class Game:
         self.entrance_fade_state = 'out'
         self.fade_alpha = 0
         self.player.freeze_in_place()
+        self.sfx.play('door')
 
     def _do_entrance_teleport(self, pending):
         entrance_id, tile_x, tile_y = pending
@@ -2089,6 +2327,7 @@ class Game:
         self.entrance_fade_state = 'out'
         self.fade_alpha = 0
         self.player.freeze_in_place()
+        self.sfx.play('door')
 
     def _do_exit_teleport(self):
         if not self.world_stack:
@@ -2104,6 +2343,7 @@ class Game:
             self.solid_tile_coords.add((npc.tile_x, npc.tile_y))
         self._maybe_add_gym_blocker()
         self._maybe_add_gym2_blocker()
+        self._maybe_add_horizon_blockers()
         self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
         self._maybe_add_gray_rival()
@@ -2149,7 +2389,8 @@ class Game:
             "last_switch": now,
             "interval": 250,
             "start_time": now,
-            "duration": 800,
+            "duration": send_out_anim.SLIDE_ONLY_MS,
+            "intro": 'slide',   # the player's dino is already out
         }
 
     # --- Intro Cutscene ---
@@ -2170,7 +2411,7 @@ class Game:
         black screen."""
         if self.story_flags.get('mom_greeting_done') or self.current_world_file != 'HOME_JET.tmx':
             return
-        if self.story_flags.get('amber_intro_done'):
+        if self.story_flags.get('amber_intro_done') or self.story_flags.get('credits_done'):
             # Older save already past the opening — don't greet as if it's day one.
             self.story_flags['mom_greeting_done'] = True
             return
@@ -2189,6 +2430,70 @@ class Game:
             ]),
             wait_for_input=True,
             on_complete=lambda: self._finish_mom_greeting(mom))
+
+    # ── Ending: credits -> wake up at home -> Mom ─────────────────────────
+    # Picking up the Celestial Solar Shard rolls ANIM/credits.py. Afterwards
+    # the player wakes in their room (HOME_JET2) to the alarm, and Mom
+    # greets them downstairs. Flags: credits_done -> credits_wakeup_done ->
+    # mom_ending_done.
+
+    def _start_credits(self):
+        self.player.freeze_in_place()
+        self.credits = CreditsSequence(self.screen)
+        self._title_music_on = False
+        self._start_title_music()   # the title theme plays over the credits
+
+    def _finish_credits(self):
+        self.credits = None
+        self._stop_title_music()
+        self.story_flags['credits_done'] = True
+        self.cutscene = None
+        self.world_stack = []
+        self._load_world_data('HOME_JET2.tmx')
+        self._spawn_world_npcs('HOME_JET2.tmx')
+        self._place_player(7, 5)      # in bed, same spot as a new game
+        self.player.direction = self.player.facing = 'down'
+        self.player.image = self.player.animations['down'][0]
+        self.state_stack = ['world']
+        self.fade_alpha = 255
+        self.entrance_fade_state = 'in'
+
+    def _check_credits_wakeup(self):
+        """The alarm, once the fade back in from the credits has finished."""
+        f = self.story_flags
+        if not f.get('credits_done') or f.get('credits_wakeup_done'):
+            return
+        if self.current_world_file != 'HOME_JET2.tmx':
+            f['credits_wakeup_done'] = True
+            return
+        if self.entrance_fade_state or self.fading or self.message_box.visible:
+            return
+        f['credits_wakeup_done'] = True
+        self.message_box.queue_messages(["...beep...beep...beep..."], wait_for_input=True)
+
+    def _check_mom_ending(self):
+        f = self.story_flags
+        if not f.get('credits_done') or f.get('mom_ending_done') or self.current_world_file != 'HOME_JET.tmx':
+            return
+        if self.cutscene or self.message_box.visible or self.fading or self.entrance_fade_state:
+            return
+        mom = next((n for n in self.npcs if getattr(n, 'trainer_id', '') == 'mom'), None)
+        if not mom:
+            return
+        self.player.freeze_in_place()
+        mom.face_toward_player(self.player)
+        self.cutscene = {'phase': 'shadowhq_wait'}  # generic no-op wait
+
+        def done():
+            f['mom_ending_done'] = True
+            self.cutscene = None
+        self.message_box.queue_messages(
+            self._tag_dialogue('Mom', [
+                "Jet you did it!",
+                "I am so proud of you, you had quite the adventure dear",
+                "There is so much more the world has to offer, this is only the beginning",
+            ]),
+            wait_for_input=True, on_complete=done)
 
     def _finish_mom_greeting(self, mom):
         self.story_flags['mom_greeting_done'] = True
@@ -2228,6 +2533,7 @@ class Game:
         self._place_player(11, 44)
         self._maybe_add_gym_blocker()
         self._maybe_add_gym2_blocker()
+        self._maybe_add_horizon_blockers()
         self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
         if not self.story_flags.get('amber_intro_done'):
@@ -2759,16 +3065,10 @@ class Game:
         self.story_flags['route26_abby_escort_done'] = True
         self.cutscene = None
 
-        starter_names = set(config.DINO_BALL_MAP.values())
-        player_starter = next(
-            (d['name'] for d in self.player_dinos + self.box_dinos
-             if d['name'] in starter_names), None
-        )
+        player_starter = self._player_original_starter()
         abby_starter = self.ABBY_STARTER_MAP.get(player_starter, 'Corlave')
-        self.abby_dinos = [
-            self.create_dino(abby_starter, 15),
-            self.create_dino('Auraliz', 15),
-        ]
+        self.abby_dinos = [self.create_dino(n, lvl) for n, lvl in
+                           self._rando_team([(abby_starter, 15), ('Auraliz', 15)], "ally:abby_route26")]
 
     def _update_abby_follow(self, dt):
         abby = self.abby_follower
@@ -2911,10 +3211,10 @@ class Game:
         self.current_trainer_npc2 = vanessa
 
         dinos = TRAINER_DATA.get('vanessa', {}).get('dinos', {})
-        keys = sorted(dinos.keys())
-        n1, l1 = dinos[keys[0]]
-        n2, l2 = dinos[keys[1]]
-        self.vanessa_dino_queue = [dinos[k] for k in keys[2:]]
+        team = self._rando_team([dinos[k] for k in sorted(dinos.keys())], "trainer:vanessa")
+        n1, l1 = team[0]
+        n2, l2 = team[1]
+        self.vanessa_dino_queue = team[2:]
 
         self.enemy_dino  = self.create_dino(n1, l1)
         self.enemy_dino2 = self.create_dino(n2, l2)
@@ -3122,6 +3422,9 @@ class Game:
         c = self.cutscene
         if c['phase'] == 'celestreeyl_awaken':
             self._update_celestreeyl_awaken(dt)
+            return
+        if c['phase'] == 'solar_shard_reveal':
+            self._update_solar_shard_reveal(dt)
             return
         if c['phase'] == 'grunts_walking':
             self._update_grunts_walking(dt)
@@ -3740,6 +4043,34 @@ class Game:
             self.solid_tile_coords.discard((blocker.tile_x, blocker.tile_y))
             self.npcs.remove(blocker)
 
+    # Three BLK_Bs block the bridge to the Horizon Cave island until Gym 3 is beaten.
+    HORIZON_BLOCKER_TILES = ((24, -102), (25, -102), (26, -102))
+    HORIZON_BLOCKER_FLAG  = 'gym3_leader_defeated'
+
+    def _maybe_add_horizon_blockers(self):
+        if self.story_flags.get(self.HORIZON_BLOCKER_FLAG):
+            return
+        if self.current_world_file != 'LOST_REGION.world':
+            return
+        if any(getattr(n, 'npc_type', '') == 'horizon_guard' for n in self.npcs):
+            return
+        for tx, ty in self.HORIZON_BLOCKER_TILES:
+            blocker = NPC('blk_b', tile_x=tx, tile_y=ty, facing='down',
+                          sight_range=0, npc_type='horizon_guard')
+            blocker.state       = 'idle'
+            blocker.home_tile   = (tx, ty)
+            blocker.home_facing = 'down'
+            blocker.block_dialog = ["You may not enter"]
+            self.npcs.append(blocker)
+            self.solid_tile_coords.add((tx, ty))
+
+    def _check_horizon_blockers_removal(self):
+        if not self.story_flags.get(self.HORIZON_BLOCKER_FLAG):
+            return
+        for blocker in [n for n in self.npcs if getattr(n, 'npc_type', '') == 'horizon_guard']:
+            self.solid_tile_coords.discard((blocker.tile_x, blocker.tile_y))
+            self.npcs.remove(blocker)
+
     def apply_quest_step(self, index):
         """Sandbox debug: jump story_flags (and related state) to QUEST_STEPS[index].
 
@@ -3795,11 +4126,7 @@ class Game:
         if any(getattr(n, 'trainer_id', '') == 'gray' for n in self.npcs):
             return
         # Determine Gray's first dino: the starter the player did NOT keep
-        starter_names = set(config.DINO_BALL_MAP.values())
-        player_starter = next(
-            (d['name'] for d in self.player_dinos + self.box_dinos
-             if d['name'] in starter_names), None
-        )
+        player_starter = self._player_original_starter()
         starter_to_gray = {
             'Volkit':  ('Corlave',  9),  # player kept magma → Gray uses aqua
             'Corlave': ('Floravel', 9),  # player kept aqua  → Gray uses earth
@@ -3878,11 +4205,7 @@ class Game:
 
         # Same counter-starter trick as his first battle (_maybe_add_gray_rival),
         # just the evolved form at level 21 this time.
-        starter_names = set(config.DINO_BALL_MAP.values())
-        player_starter = next(
-            (d['name'] for d in self.player_dinos + self.box_dinos
-             if d['name'] in starter_names), None
-        )
+        player_starter = self._player_original_starter()
         starter_to_gray2 = {
             'Volkit':   ('Anemamace', 21),  # player kept magma → Gray uses evolved aqua counter
             'Corlave':  ('Palidian', 21),   # player kept aqua  → Gray uses evolved earth counter
@@ -4187,7 +4510,8 @@ class Game:
         npc1, npc2 = self.cutscene['npc1'], self.cutscene['npc2']
         self.start_double_trainer_battle(npc1, npc2)
         self.is_skyy_battle = True
-        self.abby_dinos = [self.create_dino('Luna', 25), self.create_dino('Netyrant', 25)]
+        self.abby_dinos = [self.create_dino(n, lvl) for n, lvl in
+                           self._rando_team([('Luna', 25), ('Netyrant', 25)], "ally:abby_skyy")]
 
     def _finish_skyy_grunts_battle(self, won):
         npc1 = self.current_trainer_npc
@@ -5888,6 +6212,69 @@ class Game:
             self.npcs.append(npc)
             self.solid_tile_coords.add((tx, ty))
 
+    # --- Gym rematches (data.GYM_REMATCHES) ---
+    # Unlocked by beating Sam; must go Skyy -> Log -> Sam. While a gym's
+    # rematch is the next one up, its leader and trainers battle with
+    # TRAINER_DATA['<id>_rematch'], tracked in defeated_trainers under that key.
+
+    def _gym_rematch_entry(self, trainer_id):
+        for i, g in enumerate(GYM_REMATCHES):
+            if self.current_world_file == g['world'] and trainer_id in (g['leader'],) + g['guards']:
+                return i, g
+        return None, None
+
+    def _gym_rematch_active(self, i):
+        f = self.story_flags
+        if not f.get('gym_rematches_unlocked') or f.get(GYM_REMATCHES[i]['flag']):
+            return False
+        return all(f.get(g['flag']) for g in GYM_REMATCHES[:i])
+
+    def _trainer_key(self, npc):
+        """TRAINER_DATA key this trainer battles as right now."""
+        tid = getattr(npc, 'trainer_id', '')
+        i, _ = self._gym_rematch_entry(tid)
+        if i is not None and self._gym_rematch_active(i):
+            return tid + '_rematch'
+        return tid
+
+    def _trainer_data(self, npc):
+        return TRAINER_DATA.get(self._trainer_key(npc), {})
+
+    def _refresh_gym_trainers_defeated(self):
+        """Re-sync defeated state for gym trainers whose battle key just
+        changed (a rematch opened up or was finished)."""
+        for npc in self.npcs:
+            tid = getattr(npc, 'trainer_id', '')
+            i, g = self._gym_rematch_entry(tid)
+            if i is None:
+                continue
+            key = self._trainer_key(npc)
+            if key == 'skyy':   # the original Skyy fight is tracked by flag
+                npc.defeated = bool(self.story_flags.get('gym1_leader_defeated'))
+            else:
+                npc.defeated = key in self.defeated_trainers
+            if not npc.defeated and npc.state == 'done':
+                npc.state = 'idle'
+
+    def _gym_rematch_wait_dialog(self, npc):
+        """Leader lines when rematches are open but it isn't their turn yet."""
+        i, g = self._gym_rematch_entry(npc.trainer_id)
+        if (i is None or npc.trainer_id != g['leader'] or not self.story_flags.get('gym_rematches_unlocked')
+                or self.story_flags.get(g['flag']) or self._gym_rematch_active(i)):
+            return None
+        prev = next(p for p in GYM_REMATCHES[:i] if not self.story_flags.get(p['flag']))
+        prev_name = TRAINER_DATA[prev['leader']]['name']
+        return [f"Rematch? I'd love to, but go take on {prev_name} first.",
+                "Come back once you've beaten them again!"]
+
+    def _on_gym_rematch_won(self, i):
+        g = GYM_REMATCHES[i]
+        self.story_flags[g['flag']] = True
+        self._refresh_gym_trainers_defeated()
+        data = TRAINER_DATA[g['leader'] + '_rematch']
+        self.message_box.queue_messages(
+            self._tag_dialogue(data['name'], data['dialog']['defeated']), wait_for_input=True)
+
     def _maybe_add_gym1_skyy(self):
         if not self.story_flags.get('gray_route1_done'):
             return
@@ -5899,10 +6286,9 @@ class Game:
         skyy = NPC('skyy', tile_x=tx, tile_y=ty, facing='down',
                    sight_range=0, npc_type='trainer')
         skyy.state = 'idle'
-        if self.story_flags.get('gym1_leader_defeated'):
-            skyy.defeated = True
         self.npcs.append(skyy)
         self.solid_tile_coords.add((tx, ty))
+        self._refresh_gym_trainers_defeated()
 
     def _on_skyy_gym_won(self):
         self.story_flags['gym1_leader_defeated'] = True
@@ -5940,9 +6326,16 @@ class Game:
         if 'aqua' not in self.badges_earned:
             self.badges_earned.append('aqua')
 
+        self.story_flags['gym_rematches_unlocked'] = True
+
         def _after_badge():
             data = TRAINER_DATA.get('sam', {})
-            dialog = self._tag_dialogue(data.get('name', 'Sam'), data.get('dialog', {}).get('defeated', ["..."]))
+            lines = data.get('dialog', {}).get('defeated', ["..."]) + [
+                "Oh hey also I think the other gym leaders might be ready for a rematch with you "
+                "now that you've proven to be a real challenger",
+                "Just a heads up",
+            ]
+            dialog = self._tag_dialogue(data.get('name', 'Sam'), lines)
             self.message_box.queue_messages(dialog, wait_for_input=True)
 
         # Input locked for the first 2s, then any key dismisses it.
@@ -6067,6 +6460,7 @@ class Game:
                 continue
 
             if self.state == 'title':
+                self._ui_sfx(event)
                 self.title_screen.handle_event(event, os.path.exists(SAVE_PATH))
                 continue
 
@@ -6075,12 +6469,18 @@ class Game:
                     self.intro_sequence.handle_event(event)
                 continue
 
+            if self.credits:
+                self.credits.handle_event(event)   # J/Space held = scroll faster
+                continue
+
             if self.sky_transition:
                 continue  # no input while a sky transition card plays
 
             # Block all input during the heal animation
             if self.heal_anim:
                 return
+
+            self._ui_sfx(event)
 
             # Yes/No prompt (generic — callback set by whoever opens it)
             if self.yes_no_prompt:
@@ -6225,6 +6625,15 @@ class Game:
             elif self.state == 'trainer_card':
                 self.trainer_card_screen.handle_event(event)
 
+            elif self.state == 'objectives':
+                self.objectives_screen.handle_event(event)
+
+            elif self.state == 'options':
+                self.options_screen.handle_event(event)
+
+            elif self.state == 'rules':
+                self.rules_screen.handle_event(event)
+
             elif self.state == 'badge_earned':
                 if getattr(self, 'badge_earned_screen', None):
                     self.badge_earned_screen.handle_event(event)
@@ -6280,12 +6689,21 @@ class Game:
                     if not self.message_box.visible and not self.trainer_dino_queue:
                         if self.is_trainer_battle and self.current_trainer_npc:
                             self.current_trainer_npc.defeated = True
-                            self.defeated_trainers.add(self.current_trainer_npc.trainer_id)
+                            self.defeated_trainers.add(self._trainer_key(self.current_trainer_npc))
                         self.is_trainer_battle = False
                         self.pop_to_world()  # safety net: enemy fainted but exit was missed
                     return
 
                 result = self.encounter_ui.handle_input(event, active)
+
+                # Nuzlocke: a route's first new dinos can only be caught
+                if self._nuzlocke_catch_only() and (
+                        self.encounter_ui.in_fight_menu or result in ('Run', 'Defend')):
+                    self.encounter_ui.in_fight_menu = False
+                    self.message_box.queue_messages(
+                        ["Nuzlocke: this is one of the first new dinos on this route.",
+                         "You can't fight or run - try to catch it!"], wait_for_input=True)
+                    return
 
                 if isinstance(result, str) and result.startswith("UseMove:"):
                     self.use_player_move_by_name(result.split("UseMove:", 1)[1])
@@ -6512,6 +6930,7 @@ class Game:
             zone = self.get_player_zone(tx, ty)
             print(f"[DEBUG] tile=({tx}, {ty})  encounter_tile={in_enc}  zone={zone}")
         elif event.key == pygame.K_i and not self.fading and self.entrance_fade_state is None and not trainer_approaching and not guard_active and not cutscene_locking:
+            self.sfx.play('click')
             self.push_state('menu')
         elif (event.key == pygame.K_q and (event.mod & pygame.KMOD_CTRL) and self.sandbox
                 and not self.fading and self.entrance_fade_state is None and not cutscene_locking):
@@ -6535,18 +6954,38 @@ class Game:
             self.dino_spawn_picker = {'filter': '', 'index': 0}
         elif (event.key == pygame.K_j and not self.orb_fx
                 and not self.fading and self.entrance_fade_state is None):
-            if self.check_type_chart_interact():
-                pass
-            elif self.check_box_interact():
-                pass
-            elif self.check_lore_interact():
-                pass
-            elif self.interact_with_npc():
-                pass
-            elif self.surf.try_offer():  # SURF (testing)
-                pass
-            else:
-                self.pickup_item()
+            if (self.check_type_chart_interact()
+                    or self.check_box_interact()
+                    or self.check_lore_interact()
+                    or self.interact_with_npc()
+                    or self.surf.try_offer()  # SURF (testing)
+                    or self.pickup_item()):
+                self.sfx.play('click')
+
+    UI_MOVE_KEYS = (pygame.K_w, pygame.K_a, pygame.K_s, pygame.K_d)
+    UI_PRESS_KEYS = (pygame.K_j, pygame.K_SPACE, pygame.K_i, pygame.K_ESCAPE)
+
+    def _ui_sfx(self, event):
+        """Menu/dialogue sounds: 'select' for moving a cursor, 'click' for
+        confirming/advancing/backing out. Overworld presses play their own
+        sounds where something actually happens (interact, open menu)."""
+        if event.type != pygame.KEYDOWN or self.coord_input_active or self.dino_spawn_picker:
+            return
+        k = event.key
+        if self.message_box.visible:
+            if k in (pygame.K_j, pygame.K_SPACE):
+                self.sfx.play('click')
+            return
+        if self.state == 'world' and not self.yes_no_prompt:
+            return
+        if self.state == 'encounter' and (self.encounter_anim is not None
+                                          or (self.catch_anim and not self.catch_anim.done)
+                                          or self.fading):
+            return
+        if k in self.UI_MOVE_KEYS:
+            self.sfx.play('select')
+        elif k in self.UI_PRESS_KEYS:
+            self.sfx.play('click')
 
     def _handle_coord_input_event(self, event):
         if event.type != pygame.KEYDOWN:
@@ -6686,6 +7125,7 @@ class Game:
                 npc.defeated = True
             self.npcs.append(npc)
             self.solid_tile_coords.add((tx, ty))
+        self._refresh_gym_trainers_defeated()
 
     def trigger_heal_sequence(self):
         n = len(self.player_dinos)
@@ -6752,7 +7192,7 @@ class Game:
             if (npc.tile_x, npc.tile_y) not in candidates:
                 continue
             npc.face_toward_player(self.player)
-            if npc.npc_type in ('guard', 'gym_guard', 'gym2_guard'):
+            if npc.npc_type in ('guard', 'gym_guard', 'gym2_guard', 'horizon_guard'):
                 if npc.npc_type == 'gym_guard' and not self.story_flags.get('amber_lab_done'):
                     dialog = ["The gym leader is not here right now."]
                 else:
@@ -6779,8 +7219,12 @@ class Game:
             if npc.npc_type == 'story':
                 self._interact_story_npc(npc)
                 return True
-            data = TRAINER_DATA.get(npc.trainer_id, {})
+            data = self._trainer_data(npc)
             name = data.get('name', 'Trainer')
+            wait = self._gym_rematch_wait_dialog(npc)
+            if wait:
+                self.message_box.queue_messages(self._tag_dialogue(name, wait), wait_for_input=True)
+                return True
             if npc.defeated or npc.state == 'done':
                 npc.defeated = True
                 dialog = self._tag_dialogue(name, data.get('dialog', {}).get('defeated', ["..."]))
@@ -7059,6 +7503,7 @@ class Game:
     # Catching or defeating it sets celestreeyl_done; running or blacking out
     # leaves it standing there to try again.
     CELES_LEVEL = 40
+    CELES_TILE = (40, -31)   # matches config's HORIZON_CAVE.world spawn
     CELES_CHARGE = 1.8    # rays + motes build up, screen shakes
     CELES_FLASH = 0.5     # bright burst grows to a full white-out
     CELES_HOLD = 0.25     # hold on white before the battle loads
@@ -7095,6 +7540,159 @@ class Game:
         self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
         if npc in self.npcs:
             self.npcs.remove(npc)
+        self.player.freeze_in_place()
+        self.cutscene = {'phase': 'solar_shard_reveal', 'tile': (npc.tile_x, npc.tile_y),
+                         't': 0.0, 'landed': False}
+
+    # --- Celestial Solar Shard reveal ---
+    # Right after Celestreeyl is caught/defeated: the leftover light fades,
+    # prismatic motes spiral into the spot where it stood, the shard drifts
+    # down spinning, lands in a rainbow burst, and is left as a pickup.
+    SOLAR_SHARD_ITEM    = 'Celestial Solar Shard'
+    SOLAR_FADE          = 0.7    # white from the battle's end fades away
+    SOLAR_DESCEND_START = 0.9
+    SOLAR_LAND          = 2.7    # shard touches down -> burst
+    SOLAR_END           = 3.7
+    SOLAR_DROP_TILES    = 3      # how far above its spot the shard appears
+    SOLAR_COLS = ((255, 120, 120), (255, 200, 110), (255, 250, 140), (140, 255, 150),
+                  (120, 220, 255), (150, 150, 255), (230, 140, 255))
+
+    def _update_solar_shard_reveal(self, dt):
+        c = self.cutscene
+        c['t'] += dt
+        if not c['landed'] and c['t'] >= self.SOLAR_LAND:
+            c['landed'] = True
+            self.screen_shake = 0.25
+        if c['t'] < self.SOLAR_END:
+            return
+        self.cutscene = None
+        self._maybe_place_solar_shard()
+        self.message_box.queue_messages(
+            ['Celestreeyl left something behind...',
+             f'A {self.SOLAR_SHARD_ITEM} glimmers where it stood!'],
+            wait_for_input=True)
+
+    def _maybe_place_solar_shard(self):
+        if self.current_world_file != 'HORIZON_CAVE.world' or not self.story_flags.get('celestreeyl_done'):
+            return
+        if self.cutscene and self.cutscene.get('phase') == 'solar_shard_reveal':
+            return
+        tx, ty = self.CELES_TILE
+        if (self.current_world_file, tx, ty) in self.picked_up_world_items or (tx, ty) in self.items_on_map:
+            return
+        self.items_on_map[(tx, ty)] = self.SOLAR_SHARD_ITEM
+        self.map_ball_items[(tx, ty)] = self.SOLAR_SHARD_ITEM
+        self.map_ball_images[(tx, ty)] = self._fit_icon_to_tile(
+            self.item_icons.get(self.SOLAR_SHARD_ITEM))
+
+    def _draw_solar_shard_reveal(self, screen):
+        c = self.cutscene
+        t = c['t']
+        W, H = config.WIDTH, config.HEIGHT
+        scale = W / self.render_surface.get_width()
+        ts = config.TILE_SIZE
+        tx, ty = c['tile']
+        cx = (tx * ts + ts / 2 - self.camera_x) * scale
+        cy = (ty * ts + ts / 2 - self.camera_y) * scale
+
+        def add(col, k):
+            return tuple(max(0, min(255, int(v * k))) for v in col)
+
+        build = max(0.0, min(1.0, (t - 0.3) / (self.SOLAR_LAND - 0.3)))
+        after = max(0.0, (t - self.SOLAR_LAND) / (self.SOLAR_END - self.SOLAR_LAND))
+        glow_k = build * (1 - after)
+
+        # dim the snow a little so the light and colours read
+        dim = self.__dict__.get('_celes_dim')
+        if dim is None or dim.get_size() != (W, H):
+            dim = self._celes_dim = pygame.Surface((W, H))
+            dim.fill((6, 4, 18))
+        dim.set_alpha(int(150 * glow_k))
+        screen.blit(dim, (0, 0))
+
+        fx = self.__dict__.get('_solar_fx')
+        if fx is None or fx.get_size() != (W, H):
+            fx = self._solar_fx = pygame.Surface((W, H))
+        fx.fill((0, 0, 0))
+
+        # thin rainbow rays slowly turning around the spot
+        n = 14
+        length = (30 + 90 * build) * scale
+        for i in range(n):
+            a = i * math.tau / n - t * 0.8
+            half = 0.04 + 0.02 * (i % 2)
+            k = glow_k * 0.45 * (0.7 + 0.3 * math.sin(t * 7 + i * 1.3))
+            pts = [(cx, cy),
+                   (cx + math.cos(a - half) * length, cy + math.sin(a - half) * length),
+                   (cx + math.cos(a + half) * length, cy + math.sin(a + half) * length)]
+            pygame.draw.polygon(fx, add(self.SOLAR_COLS[i % len(self.SOLAR_COLS)], k), pts)
+
+        # prismatic motes spiralling inward
+        rng = random.Random(4321)
+        for _ in range(36):
+            ang0 = rng.uniform(0, math.tau)
+            q = (t * rng.uniform(0.5, 0.9) + rng.random()) % 1.0
+            d = (1 - q) * rng.uniform(70, 150) * scale
+            ang = ang0 + q * 2.2
+            x, y = cx + math.cos(ang) * d, cy + math.sin(ang) * d
+            pygame.draw.circle(fx, add(rng.choice(self.SOLAR_COLS), glow_k * (0.5 + q)),
+                               (int(x), int(y)), max(1, int((1 + 1.5 * q) * scale)))
+
+        # soft green-white glow pooling on the ground
+        core = (8 + 18 * build) * scale
+        for k in range(10, 0, -1):
+            f = k / 10
+            pygame.draw.circle(fx, add((200, 255, 215), glow_k * (1 - f) ** 1.5 * 1.4),
+                               (int(cx), int(cy)), max(1, int(core * f)))
+
+        # landing burst: expanding rainbow rings + star sparkles
+        if c['landed']:
+            for j, col in enumerate(self.SOLAR_COLS):
+                r = (6 + 110 * after + j * 3) * scale
+                pygame.draw.circle(fx, add(col, 1.0 - after), (int(cx), int(cy)),
+                                   int(r), max(1, int(1.5 * scale)))
+            srng = random.Random(99)
+            for _ in range(14):
+                ang = srng.uniform(0, math.tau)
+                d = (10 + srng.uniform(30, 70) * (after ** 0.6)) * scale
+                x, y = cx + math.cos(ang) * d, cy + math.sin(ang) * d
+                s = (1 - after) * 4 * scale
+                col = add(srng.choice(self.SOLAR_COLS), 1.0 - after)
+                pygame.draw.line(fx, col, (x - s, y), (x + s, y), max(1, int(scale / 2)))
+                pygame.draw.line(fx, col, (x, y - s), (x, y + s), max(1, int(scale / 2)))
+        screen.blit(fx, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+        # the shard itself: drifts down spinning, then rests and pulses
+        icon = self.item_icons.get(self.SOLAR_SHARD_ITEM)
+        if icon is not None and t >= self.SOLAR_DESCEND_START:
+            tile_img = self._fit_icon_to_tile(icon)
+            size = int(ts * scale)
+            if c['landed']:
+                drop, spin = 0.0, 1.0
+            else:
+                p = (t - self.SOLAR_DESCEND_START) / (self.SOLAR_LAND - self.SOLAR_DESCEND_START)
+                ease = 1 - (1 - p) ** 2
+                drop = (1 - ease) * self.SOLAR_DROP_TILES * ts * scale + math.sin(t * 6) * 2 * scale * (1 - p)
+                spin = abs(math.cos((1 - ease) * math.tau * 2.5))
+            w = max(1, int(size * max(0.08, spin)))
+            img = pygame.transform.scale(tile_img, (w, size))
+            alpha = int(255 * min(1.0, (t - self.SOLAR_DESCEND_START) / 0.3))
+            img.set_alpha(alpha)
+            screen.blit(img, (int(cx - w / 2), int(cy - size / 2 - drop)))
+
+        # leftover white from the battle melting away, then a flash on landing
+        white_a = 0
+        if t < self.SOLAR_FADE:
+            white_a = 255 * (1 - t / self.SOLAR_FADE) ** 1.5
+        elif c['landed'] and after < 0.25:
+            white_a = 150 * (1 - after / 0.25)
+        if white_a > 0:
+            white = self.__dict__.get('_celes_white')
+            if white is None or white.get_size() != (W, H):
+                white = self._celes_white = pygame.Surface((W, H))
+                white.fill((255, 255, 255))
+            white.set_alpha(int(white_a))
+            screen.blit(white, (0, 0))
 
     def _draw_celestreeyl_awaken(self, screen):
         c = self.cutscene
@@ -7174,7 +7772,7 @@ class Game:
     # entrance to HORIZON_CAVE.world. Until JOSH_UNLOCK_FLAG is set he only
     # turns the player away; after it he battles (TRAINER_DATA['josh']), and
     # on a win walks out of the cave and is gone for good. Flag: josh_defeated.
-    JOSH_UNLOCK_FLAG = 'gym3_leader_defeated'   # TODO: move to the end-game flag later
+    JOSH_UNLOCK_FLAG = 'gym3_rematch_defeated'  # Sam's rematch — the last of the 3 (see GYM_REMATCHES)
     JOSH_EXIT_TILE = (9, 14)                    # HORIZON_CAVE1's exit tile
 
     def _interact_josh(self, npc):
@@ -7188,8 +7786,15 @@ class Game:
             self._split_dialogue(*dialog['default'], name='Josh'),
             wait_for_input=True, on_complete=lambda: self.start_trainer_battle(npc))
 
+    def _record_objective_times(self):
+        """Stamp the play time the first frame each objective's flag is set."""
+        for obj_id, _, _, flags in OBJECTIVES:
+            if obj_id not in self.objective_times and any(self.story_flags.get(f) for f in flags):
+                self.objective_times[obj_id] = self.play_time_seconds
+
     def _on_josh_battle_won(self, npc):
-        msgs = self._split_dialogue(*TRAINER_DATA['josh']['dialog']['defeated'], name='Josh')
+        self.story_flags['josh_battle_won'] = True   # objective time = the win, not the walk-off
+        msgs =self._split_dialogue(*TRAINER_DATA['josh']['dialog']['defeated'], name='Josh')
         ex, ey = self.JOSH_EXIT_TILE
         px = self.player.rect.x // config.TILE_SIZE
         # The player is usually standing right below him; sidestep down a
@@ -7208,21 +7813,32 @@ class Game:
     TRADE_WANT = 'Pectura'
     TRADE_GIVE = ('Rhysnow', 10)
 
+    def _trade_want(self):
+        return self._rando(self.TRADE_WANT, "trade_want:collector")
+
+    def _trade_give(self):
+        name, level = self.TRADE_GIVE
+        return self._rando(name, "gift:collector"), level
+
     def _interact_trade_collector(self, npc):
+        want = self._trade_want()
         if self.story_flags.get('collector_traded'):
-            lines = ["Pectura and I are getting along great!",
+            lines = [f"{want} and I are getting along great!",
                      "Good luck against Skyy... and remember, you didn't hear it from me."]
             self.message_box.queue_messages(self._split_dialogue(*lines, name='Collector'), wait_for_input=True)
             return
-        lines = ["Hey I love to collect rare dinos, and I can never seem to find Pectura, the magma and flying type!",
+        find_line = (f"Hey I love to collect rare dinos, and I can never seem to find {want}!"
+                     if self.randomizer else
+                     "Hey I love to collect rare dinos, and I can never seem to find Pectura, the magma and flying type!")
+        lines = [find_line,
                  "I am visiting from Skelig Town up north and only see cold dinos you see",
-                 "If you can find me a Pectura to trade I would happily give you something you cannot find around here!"]
-        offer = next((d for d in self.player_dinos if d['name'] == self.TRADE_WANT), None)
+                 f"If you can find me a {want} to trade I would happily give you something you cannot find around here!"]
+        offer = next((d for d in self.player_dinos if d['name'] == want), None)
         on_complete = None
         if offer:
             def ask():
                 self.yes_no_prompt = YesNoPrompt(
-                    f"Trade your Lv {offer['level']} {offer['name']} for a {self.TRADE_GIVE[0]}?",
+                    f"Trade your Lv {offer['level']} {offer['name']} for a {self._trade_give()[0]}?",
                     self.fonts, config.WIDTH, config.HEIGHT)
                 self.yes_no_callback = lambda: self._do_collector_trade(offer)
             on_complete = ask
@@ -7232,12 +7848,14 @@ class Game:
     def _do_collector_trade(self, offer):
         if offer not in self.player_dinos:
             return
-        name, level = self.TRADE_GIVE
+        name, level = self._trade_give()
+        if offer['name'] not in self.nz_owned_species:   # Nuzlocke dupes count traded-away dinos
+            self.nz_owned_species.append(offer['name'])
         received = self.create_dino(name, level)
         self.player_dinos[self.player_dinos.index(offer)] = received
         self.dinos_seen.add(name)
         self.story_flags['collector_traded'] = True
-        lines = ["You are the best! Here as promised a Rhysnow!",
+        lines = [f"You are the best! Here as promised a {name}!",
                  "This should help with the flying gym leader Skyy, don't tell him I gave you this..."]
         self.message_box.queue_messages(
             [f"{config.PLAYER_NAME} traded {offer['name']} for {name}!",
@@ -7345,7 +7963,7 @@ class Game:
             npc.facing = 'down'
 
     def _start_amber_lab_event(self):
-        starter_names = set(config.DINO_BALL_MAP.values())
+        starter_names = self._starter_names()
         starters = [d for d in self.player_dinos + self.box_dinos
                     if d.get('name') in starter_names]
 
@@ -7394,6 +8012,9 @@ class Game:
             self.items_on_map.pop(pos, None)
         self.map_ball_items = {}
         self.map_ball_images = {}
+        ball_items = dict(ball_items)
+        for tx, ty, item_name in config.SCRIPTED_WORLD_ITEMS.get(self.current_world_file, []):
+            ball_items[(tx, ty)] = (item_name, None)
         for (tx, ty), (item_name, img) in ball_items.items():
             if (self.current_world_file, tx, ty) in self.picked_up_world_items:
                 continue
@@ -7418,13 +8039,13 @@ class Game:
         elif self.player.facing == "left": px -= 1
         elif self.player.facing == "right":px += 1
         if (px, py) not in self.items_on_map:
-            return
+            return False
         item_name = self.items_on_map.pop((px, py))
         self.map_ball_items.pop((px, py), None)
         self.map_ball_images.pop((px, py), None)
         self.picked_up_world_items.add((self.current_world_file, px, py))
         if item_name in config.DINO_BALL_MAP:
-            dino_name = config.DINO_BALL_MAP[item_name]
+            dino_name = self._starter_map()[item_name]
             new_dino = self.create_dino(dino_name, config.DINO_BALL_LEVEL)
             new_dino['caught_ball'] = 'ballwhite'
             party_full = len(self.player_dinos) >= self.PARTY_LIMIT
@@ -7436,7 +8057,11 @@ class Game:
                 new_dino, self.fonts, party_full, config.WIDTH, config.HEIGHT)
         else:
             self.inventory[item_name] += 1
-            self.message_box.queue_messages([f'Picked up a {item_name}!'], wait_for_input=True)
+            # The Celestial Solar Shard ends the story — roll the credits
+            on_done = self._start_credits if item_name == self.SOLAR_SHARD_ITEM else None
+            self.message_box.queue_messages([f'Picked up a {item_name}!'], wait_for_input=True,
+                                            on_complete=on_done)
+        return True
 
     # --- Update ---
 
@@ -7451,6 +8076,12 @@ class Game:
 
         if self.state == 'title':
             self.title_screen.update(dt)
+            return
+
+        if self.credits:
+            self.credits.update(dt)
+            if self.credits.done:
+                self._finish_credits()
             return
 
         # Left the title (New Game / Continue / Sandbox) — fade the theme out
@@ -7481,6 +8112,7 @@ class Game:
             return
 
         self.play_time_seconds += dt
+        self._record_objective_times()
         self.update_day_night(dt)
         self.update_heal_anim(dt)
         self.update_hit_flash(dt)
@@ -7521,10 +8153,11 @@ class Game:
                 if not self.is_double_battle:
                     self.encounter.current_dino_surface = anim["frames"][0]
                 self.enemy_dino["image"] = anim["frames"][0]
-                self.message_box.queue_messages(
-                    [self.encounter_text, "What will you do?"],
-                    wait_for_input=True
-                )
+                # The send-out intro already showed encounter_text and "Go!"
+                # while it played, so only the prompt is left.
+                msgs = (["What will you do?"] if anim.get("intro") == 'send_out'
+                        else [self.encounter_text, "What will you do?"])
+                self.message_box.queue_messages(msgs, wait_for_input=True)
 
         if self.message_box.visible:
             return
@@ -7586,6 +8219,10 @@ class Game:
                 self.fading = False
                 self.fade_color = (0, 0, 0)   # a white-out transition only lasts one fade
                 self.push_state('encounter')
+                if self.encounter_anim is not None:
+                    now = pygame.time.get_ticks()
+                    self.encounter_anim['start_time'] = now
+                    self.encounter_anim['last_switch'] = now
             else:
                 if self.battle_transition is None:
                     self.battle_transition = BattleTransition()
@@ -7605,6 +8242,8 @@ class Game:
             self._maybe_add_gym_blocker()
             self._maybe_add_gym2_blocker()
             self._check_gym2_blocker_removal()
+            self._maybe_add_horizon_blockers()
+            self._check_horizon_blockers_removal()
             self._maybe_add_route2_blocker()
             self._maybe_add_skyy()
             self._maybe_add_gym1_skyy()
@@ -7623,8 +8262,12 @@ class Game:
             self._maybe_add_shadow_confrontation_npcs()
             self._check_shadow_confrontation_trigger()
             self._check_mom_greeting()
+            self._check_credits_wakeup()
+            self._check_mom_ending()
             self._check_cobaltion_battle_result()
             self._check_celestreeyl_battle_result()
+            self._nuzlocke_retire_fainted()
+            self._maybe_place_solar_shard()
             self._check_lantern_battle_result()
             self._check_lantern_wisps()
             self._maybe_add_shadowhq_npcs()
@@ -7653,6 +8296,11 @@ class Game:
         if self.state == 'intro':
             if self.intro_sequence:
                 self.intro_sequence.draw(self.screen)
+            pygame.display.flip()
+            return
+
+        if self.credits:
+            self.credits.draw(self.screen)
             pygame.display.flip()
             return
 
@@ -7703,6 +8351,8 @@ class Game:
             self._draw_lantern_wisps(self.screen)   # after the night overlay so they glow
             if self.cutscene and self.cutscene.get('phase') == 'celestreeyl_awaken':
                 self._draw_celestreeyl_awaken(self.screen)
+            if self.cutscene and self.cutscene.get('phase') == 'solar_shard_reveal':
+                self._draw_solar_shard_reveal(self.screen)
             if self.sandbox:
                 tag = self.fonts['XS'].render("SANDBOX MODE", True, (255, 80, 80))
                 self.screen.blit(tag, (config.WIDTH - tag.get_width() - 6, 6))
@@ -7783,6 +8433,7 @@ class Game:
                 )
             else:
                 # Single battle draw path
+                send_out_fx, intro_t = None, 0.0
                 if self.encounter_anim:
                     anim = self.encounter_anim
                     now  = pygame.time.get_ticks()
@@ -7791,7 +8442,25 @@ class Game:
                         anim["last_switch"] = now
                     frame = anim["frames"][anim["frame_idx"]]
                     self.encounter.current_dino_surface = frame
-                    self.encounter.draw(self.screen)
+                    intro = anim.get("intro")
+                    intro_t = max(0.0, (now - anim["start_time"]) / 1000.0)
+                    offset_x = 0
+                    if intro in ('send_out', 'slide'):
+                        size = int(config.ENCOUNTER_BASE_SIZE
+                                   * config.ENCOUNTER_DINO_SIZES.get(self.encounter.dino_key, 1.0))
+                        (ex, _), _ = self._battle_slot_pos('enemy')
+                        offset_x = enemy_slide_offset(intro_t, ex, size)
+                    if intro == 'send_out':
+                        send_out_fx = anim.get("send_out_fx")
+                        if send_out_fx is None:
+                            d = self.player_dinos[self.active_dino_index]
+                            pod = self.ball_icons.get(d.get('caught_ball', 'DinoPod'),
+                                                      self.ball_icons['DinoPod'])
+                            send_out_fx = anim["send_out_fx"] = SendOutAnimation(
+                                pod, d['image'],
+                                EncounterUI.player_sprite_rect(config.WIDTH, config.HEIGHT),
+                                start_pos=(-30, config.HEIGHT - 80))
+                    self.encounter.draw(self.screen, offset_x=offset_x)
                 else:
                     catch_hides = bool(self.catch_anim and self.catch_anim.hides_enemy)
                     self.encounter.draw(self.screen, enemy_visible=_enemy_vis and not catch_hides)
@@ -7802,17 +8471,24 @@ class Game:
                                 if msg_active else self.encounter_text)
                 if throwing and not msg_active:
                     display_text = self._catch_throw_text
+                if send_out_fx is not None:
+                    if intro_t >= send_out_anim.SEND_START and not msg_active:
+                        display_text = f"Go! {self.player_dinos[self.active_dino_index]['name']}!"
+                    _player_vis = _player_vis and not send_out_fx.player_hidden(intro_t)
                 msg_awaiting = (msg_active and self.message_box.wait_for_input and
                                 self.message_box.char_index >= len(self.message_box.message))
                 self.encounter_ui.draw(self.screen, self.player_dinos[self.active_dino_index],
                                        self.enemy_dino, display_text,
-                                       show_actions=not msg_active and not throwing,
+                                       show_actions=not msg_active and not throwing and not self.encounter_anim,
                                        trainer_total=self.trainer_dinos_total if self.is_trainer_battle else 0,
                                        trainer_defeated=self.trainer_dinos_defeated,
                                        pod_icon=self.item_image if self.is_trainer_battle else None,
                                        msg_awaiting_input=msg_awaiting,
                                        player_visible=_player_vis,
                                        field_effects=self.field_effects)
+                if send_out_fx is not None:
+                    send_out_fx.draw(self.screen, intro_t)
+                self._nuzlocke_battle_hud(self.screen)
 
             if self.move_anim and not self.encounter_anim:
                 self.move_anim.draw(self.screen)
@@ -7831,6 +8507,15 @@ class Game:
 
         elif current_state == 'trainer_card':
             self.trainer_card_screen.draw(self.screen)
+
+        elif current_state == 'objectives':
+            self.objectives_screen.draw(self.screen)
+
+        elif current_state == 'options':
+            self.options_screen.draw(self.screen)
+
+        elif current_state == 'rules':
+            self.rules_screen.draw(self.screen)
 
         elif current_state == 'badge_earned':
             self.screen.fill((0, 0, 0))
@@ -8098,6 +8783,13 @@ class Game:
         return max(self.CATCH_FLOOR, min(1.0, chance))
 
     def attempt_catch(self, item_name='DinoPod'):
+        nz = self.nz_encounter if self.nuzlocke else None
+        if nz and nz['status'] in ('full', 'dupe'):
+            reason = ("You've already caught this route's 2 dinos." if nz['status'] == 'full'
+                      else "You've already caught this kind of dino (Duplicate Skip).")
+            self.message_box.queue_messages(
+                [f"Nuzlocke: {reason}", "You can only fight or run."], wait_for_input=True)
+            return
         if self.inventory.get(item_name, 0) <= 0:
             self.message_box.queue_messages(
                 [f"You have no {item_name}s left!"], wait_for_input=True,
@@ -8125,6 +8817,14 @@ class Game:
 
         if success:
             self._wild_caught = True
+            nz = self.nz_encounter
+            if self.nuzlocke:
+                if nz and nz['status'] == 'catch':
+                    self.nz_route_caught.setdefault(nz['area'], []).append(self.enemy_dino['name'])
+                    caught = len(self.nz_route_caught[nz['area']])
+                    nz['label'] = f"{caught}/{self.NUZLOCKE_ROUTE_CATCHES}"
+                if self.enemy_dino['name'] not in self.nz_owned_species:
+                    self.nz_owned_species.append(self.enemy_dino['name'])
             base_dino = self.create_dino(self.enemy_dino["name"], self.enemy_dino["level"])
             base_dino["hp"] = min(self.enemy_dino["hp"], base_dino["max_hp"])
             base_dino["xp"] = 0
@@ -8398,9 +9098,8 @@ class Game:
                         return
                     if self.current_trainer_npc:
                         self.current_trainer_npc.defeated = True
-                        self.defeated_trainers.add(self.current_trainer_npc.trainer_id)
-                        coin_reward = TRAINER_DATA.get(
-                            self.current_trainer_npc.trainer_id, {}).get('reward_coins', 0)
+                        self.defeated_trainers.add(self._trainer_key(self.current_trainer_npc))
+                        coin_reward = self._trainer_data(self.current_trainer_npc).get('reward_coins', 0)
                     self.is_trainer_battle = False
 
                 def finish_battle():

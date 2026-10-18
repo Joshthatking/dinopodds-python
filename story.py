@@ -122,7 +122,8 @@
 # 18. HORIZON CAVE GUARDIAN (Josh)  →  josh_defeated
 #       Josh stands at (9,3) in HORIZON_CAVE1, blocking the "cele" entrance
 #       to HORIZON_CAVE.world for the whole game. Before Game.JOSH_UNLOCK_FLAG
-#       (currently gym3_leader_defeated) he just turns the player away; after
+#       (gym3_rematch_defeated — all 3 gym rematches done) he just turns the
+#       player away; after
 #       it he battles (Skolt/Drafyton/Deimo/VY/Vusion, Lv 38-41). Winning makes
 #       him walk out of the cave and disappear (see Game._interact_josh).
 #

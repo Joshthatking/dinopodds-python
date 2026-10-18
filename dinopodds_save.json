@@ -1,5 +1,5 @@
 {
-  "coins": 1000,
+  "coins": 600,
   "inventory": {
     "DinoPod": 0,
     "DinoCapsule": 0,
@@ -8,27 +8,31 @@
     "Revival Gem": 0,
     "Mega Spray": 0,
     "Twilight Lunar Shard": 0,
-    "TM Solar Flare": 0
+    "Celestial Solar Shard": 0,
+    "TM Solar Flare": 0,
+    "TM Leaf Ultima": 1,
+    "TM Eternal Blue": 0
   },
   "world": "LOST_REGION.world",
-  "player_x": -704,
-  "player_y": 768,
+  "player_x": 64,
+  "player_y": -160,
   "party": [
     {
-      "name": "Corlave",
-      "level": 5,
-      "nature": "Rush",
+      "name": "Cobaltion",
+      "level": 9,
+      "nature": "Bulky",
       "type": [
-        "aqua"
+        "rock",
+        "spike"
       ],
-      "hp": 14,
-      "max_hp": 14,
-      "attack": 15,
-      "defense": 10,
-      "speed": 10,
-      "base_attack": 15,
-      "base_defense": 10,
-      "base_speed": 10,
+      "hp": 23,
+      "max_hp": 23,
+      "attack": 36,
+      "defense": 33,
+      "speed": 22,
+      "base_attack": 36,
+      "base_defense": 33,
+      "base_speed": 22,
       "stat_stages": {
         "attack": 0,
         "defense": 0,
@@ -37,9 +41,72 @@
       "defending": false,
       "moveset": [
         {
-          "name": "Whirlpool+",
+          "name": "Arise",
+          "type": "ancient",
+          "damage": 0,
+          "accuracy": 100,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "attack",
+            "stages": 1,
+            "target": "self",
+            "chance": 100
+          }
+        },
+        {
+          "name": "Dust Beam",
+          "type": "rock",
+          "damage": 20,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Static Graze",
+          "type": "lightning",
+          "damage": 25,
+          "accuracy": 100,
+          "ability": null
+        }
+      ],
+      "moves": [
+        "Arise",
+        "Dust Beam",
+        "Static Graze"
+      ],
+      "xp": 70.01849008938575,
+      "xp_to_next": 200.5459906041126,
+      "displayed_xp": 0,
+      "caught_ball": "ballwhite",
+      "_prev_action_defend": false,
+      "last_move_used": "Dust Beam"
+    },
+    {
+      "name": "Sharktastrophe",
+      "level": 7,
+      "nature": "Power",
+      "type": [
+        "aqua",
+        "spike"
+      ],
+      "hp": 16,
+      "max_hp": 16,
+      "attack": 30,
+      "defense": 20,
+      "speed": 29,
+      "base_attack": 30,
+      "base_defense": 20,
+      "base_speed": 29,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Whirlpool",
           "type": "aqua",
-          "damage": 40,
+          "damage": 30,
           "accuracy": 100,
           "ability": null
         },
@@ -58,35 +125,205 @@
         }
       ],
       "moves": [
-        "Whirlpool+",
+        "Whirlpool",
         "Arise"
       ],
-      "xp": 0,
-      "xp_to_next": 93.3536741316106,
+      "xp": 59.205141539181795,
+      "xp_to_next": 144.06370333303147,
       "displayed_xp": 0,
-      "caught_ball": "ballwhite"
+      "caught_ball": "DinoPod",
+      "_prev_action_defend": false,
+      "last_move_used": "Whirlpool"
+    },
+    {
+      "name": "Ghoulflame",
+      "level": 8,
+      "nature": "Speedy",
+      "type": [
+        "dark",
+        "magma"
+      ],
+      "hp": 18,
+      "max_hp": 18,
+      "attack": 29,
+      "defense": 18,
+      "speed": 32,
+      "base_attack": 29,
+      "base_defense": 18,
+      "base_speed": 32,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Fireball",
+          "type": "magma",
+          "damage": 30,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Fear",
+          "type": "dark",
+          "damage": 0,
+          "accuracy": 95,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "defense",
+            "stages": -1,
+            "target": "opponent",
+            "chance": 100
+          }
+        }
+      ],
+      "moves": [
+        "Fireball",
+        "Fear"
+      ],
+      "xp": 60.93629666696853,
+      "xp_to_next": 171.63877499430305,
+      "displayed_xp": 0,
+      "caught_ball": "DinoPod",
+      "_prev_action_defend": false,
+      "last_move_used": "Fireball"
+    },
+    {
+      "name": "Lavaleo",
+      "level": 7,
+      "nature": "Balanced",
+      "type": [
+        "magma"
+      ],
+      "hp": 17,
+      "max_hp": 17,
+      "attack": 27,
+      "defense": 22,
+      "speed": 22,
+      "base_attack": 27,
+      "base_defense": 22,
+      "base_speed": 22,
+      "stat_stages": {
+        "attack": 0,
+        "defense": 0,
+        "speed": 0
+      },
+      "defending": false,
+      "moveset": [
+        {
+          "name": "Fireball",
+          "type": "magma",
+          "damage": 30,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Dust Beam",
+          "type": "rock",
+          "damage": 20,
+          "accuracy": 100,
+          "ability": null
+        },
+        {
+          "name": "Sand Kick",
+          "type": "rock",
+          "damage": 0,
+          "accuracy": 95,
+          "ability": {
+            "kind": "stat_boost",
+            "stat": "attack",
+            "stages": -1,
+            "target": "opponent",
+            "chance": 100
+          }
+        }
+      ],
+      "moves": [
+        "Fireball",
+        "Dust Beam",
+        "Sand Kick"
+      ],
+      "xp": 88,
+      "xp_to_next": 144.06370333303147,
+      "displayed_xp": 0,
+      "caught_ball": "DinoPod",
+      "_prev_action_defend": false,
+      "last_move_used": "Sand Kick"
     }
   ],
   "box": [],
   "story_flags": {
     "mom_greeting_done": true,
-    "amber_intro_done": true
+    "amber_intro_done": true,
+    "encounters_unlocked": true,
+    "amber_lab_done": true,
+    "package_started": true,
+    "gym1_accessible": true,
+    "package_delivered": true
   },
   "sandbox": false,
   "badges": [],
-  "play_time": 134.34300000000067,
-  "dinos_seen": [],
+  "play_time": 1097.8130000006624,
+  "objective_times": {},
+  "game_mode": "randomizer",
+  "randomizer": {
+    "seed": 408043153,
+    "area_pools": {
+      "route1": [
+        "Sharktastrophe",
+        "Lavaleo",
+        "Skolt",
+        "Anemamace",
+        "Ghoulflame",
+        "Cobaltion"
+      ]
+    }
+  },
+  "dinos_seen": [
+    "Sharktastrophe",
+    "Lavaleo",
+    "Anemamace",
+    "Skolt",
+    "Cobaltion",
+    "Ghoulflame"
+  ],
   "picked_up_world_items": [
+    [
+      "LOST_REGION.world",
+      10,
+      22
+    ],
+    [
+      "LOST_REGION.world",
+      13,
+      3
+    ],
+    [
+      "LOST_REGION.world",
+      -15,
+      20
+    ],
     [
       "LOST_REGION.world",
       -22,
       34
+    ],
+    [
+      "LOST_REGION.world",
+      -22,
+      18
     ]
   ],
-  "defeated_trainers": [],
+  "defeated_trainers": [
+    "shinji",
+    "basic_trainer_girl",
+    "ethan"
+  ],
   "stats": {
-    "blackouts": 0,
-    "dinos_fainted": 0,
-    "enemies_defeated": 0
+    "blackouts": 2,
+    "dinos_fainted": 8,
+    "enemies_defeated": 11
   }
 }

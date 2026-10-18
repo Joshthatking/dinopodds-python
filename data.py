@@ -15,6 +15,22 @@ ACTIVE_XP_MULT_SOLO  = 2.0   # active dino's multiplier when it's the only one a
 ACTIVE_XP_MULT_PARTY = 1.5   # active dino's multiplier when others are alive too
 BENCH_XP_MULT = {2: 1.2, 3: 1.0, 4: 0.8, 5: 0.6}
 
+# Objectives notepad (i menu -> Objectives). Each row is
+# (id, label before completion, label once completed, story flags).
+# The first frame any of its flags is True, Game._record_objective_times
+# stamps the current play time into Game.objective_times[id].
+# The rematch flags aren't set anywhere yet — set them when those battles
+# are won and their times will record on their own.
+OBJECTIVES = [
+    ('gym1',         'Gym 1', 'Gym 1',         ('gym1_leader_defeated',)),
+    ('gym2',         'Gym 2', 'Gym 2',         ('gym2_leader_defeated',)),
+    ('gym3',         'Gym 3', 'Gym 3',         ('gym3_leader_defeated',)),
+    ('gym1_rematch', 'Gym ?', 'Gym 1 Rematch', ('gym1_rematch_defeated',)),
+    ('gym2_rematch', 'Gym ?', 'Gym 2 Rematch', ('gym2_rematch_defeated',)),
+    ('gym3_rematch', 'Gym ?', 'Gym 3 Rematch', ('gym3_rematch_defeated',)),
+    ('josh',         '???',   'Josh',          ('josh_battle_won', 'josh_defeated')),
+]
+
 TRAINER_DATA = {
     'amber': {
         'name': 'Amber',
@@ -866,6 +882,82 @@ DINO_DATA = {
 }
 
 
+# ── Gym rematches ───────────────────────────────────────────────────────
+# Unlocked by beating Sam (story flag 'gym_rematches_unlocked'), and must be
+# done in order: Skyy -> Log -> Sam. While a gym's rematch is active its
+# leader and trainers battle as TRAINER_DATA['<id>_rematch'] (see
+# Game._trainer_key); beating the leader sets that gym's 'flag'.
+GYM_REMATCHES = [
+    {'world': 'GYM1.tmx', 'leader': 'skyy', 'guards': ('gym_trainer_a', 'gym_trainer_b'),
+     'flag': 'gym1_rematch_defeated'},
+    {'world': 'GYM2.tmx', 'leader': 'log',
+     'guards': ('gym2_trainer_a', 'gym2_trainer_b', 'gym2_trainer_c', 'gym2_trainer_d'),
+     'flag': 'gym2_rematch_defeated'},
+    {'world': 'GYM3.tmx', 'leader': 'sam', 'guards': ('gym3_trainer_a', 'gym3_trainer_b'),
+     'flag': 'gym3_rematch_defeated'},
+]
+GYM_GUARD_REMATCH_GAP = 4   # gym trainers rematch this many levels below the leader's ace
+
+TRAINER_DATA['skyy_rematch'] = {
+    **TRAINER_DATA['skyy'],
+    # Pectura is a stand-in for Browler (its evolution, not in the game yet)
+    'dinos': {0: ('Typhoonray', 29), 1: ('Pectura', 30), 2: ('Netyrant', 31), 3: ('Luna', 32)},
+    'dialog': {
+        'default': ["Jet! Sam told me you'd be coming back around.",
+                    "My team has grown a lot since our last battle. Let's see how far you've flown!"],
+        'defeated': ["You've soared even higher than I imagined...",
+                     "Log's been training hard too. Go show him what you've got!"],
+    },
+    'reward_coins': 2500,
+}
+TRAINER_DATA['log_rematch'] = {
+    **TRAINER_DATA['log'],
+    'dinos': {0: ('Palidian', 33), 1: ('Teamtwood', 33), 2: ('Scarecrux', 34), 3: ('Cyflactus', 34)},
+    'dialog': {
+        'default': ["Heard you already took down Skyy again!",
+                    "The earth has been shifting, Jet. My dinos are stronger than ever. Let's go!"],
+        'defeated': ["Hah! Solid as bedrock, you are.",
+                     "Sam's waiting for you at the Aqua Gym. Don't keep the tides waiting!"],
+    },
+    'reward_coins': 2800,
+}
+TRAINER_DATA['sam_rematch'] = {
+    **TRAINER_DATA['sam'],
+    'dinos': {0: ('Anemamace', 35), 1: ('Sharktastrophe', 35), 2: ('Magnecrab', 36),
+              3: ('Seasoo', 36), 4: ('Typhoonray', 37)},
+    'dialog': {
+        'default': ["You made it through Skyy and Log again? I knew it!",
+                    "No holding back this time. Let's make some waves!"],
+        'defeated': ["What a ride... you're the real deal, Jet.",
+                     "All three of us, twice over. Nobody's done that before!"],
+    },
+    'reward_coins': 3200,
+}
+
+
+def evolve_for_level(name, level):
+    """The furthest form of `name` a dino at `level` would have evolved into."""
+    for _ in range(5):   # guard against a bad (cyclic) evolve table
+        evo = DINO_DATA.get(name, {}).get('evolve') or {}
+        reached = [(lv, nxt) for lv, nxt in evo.items() if lv <= level]
+        if not reached:
+            break
+        name = min(reached)[1]
+    return name
+
+
+# Gym trainers rematch with their same dinos, evolved where they can,
+# GYM_GUARD_REMATCH_GAP levels below the leader's ace (highest level).
+for _g in GYM_REMATCHES:
+    _ace = max(lv for _, lv in TRAINER_DATA[_g['leader'] + '_rematch']['dinos'].values())
+    _lvl = _ace - GYM_GUARD_REMATCH_GAP
+    for _gid in _g['guards']:
+        _base = TRAINER_DATA[_gid]
+        TRAINER_DATA[_gid + '_rematch'] = {
+            **_base,
+            'dinos': {k: (evolve_for_level(n, _lvl), _lvl) for k, (n, _) in _base['dinos'].items()},
+            'reward_coins': _base.get('reward_coins', 0) * 2,
+        }
 
 
 TYPE_DATA = {
@@ -1297,7 +1389,7 @@ ENCOUNTER_ZONES = {
 
     "route1_special": {
         "dinos": ["Chomper"],
-        "level_range": (7)
+        "level_range": (7, 7)
     },
 
     "town1_grass": {
