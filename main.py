@@ -357,8 +357,17 @@ if __name__ == '__main__':
 # SOUND FX - events 
 # fix badges on the Trainer Card
 # DEFENSE scale level^.9 to level^.88
+# NERF damages on high moves
+# NEW battles in Palm Port
+# Repel gift in corn maze house
+# haunted mansion in Elder Town ???
+
+# build moat area north of corn maze
 
 
+
+# Add songs to certain parts of game
+# End credits, Routes, corn maze, cave, horizon cave, boss battles, battles, legendary
 #multiple save files? (3)
 # Need to finish Browler, Gartunis/Relucturen, Stagnetic, Panthyr/Vlyth, Prowscar evo, Brishton
 #SOUND FX - entry, interact, selecting wasd, grass rustle, collision, save confirmation, EVENTS (legendary, cinematic)

@@ -246,6 +246,13 @@
             "y": -2816
         },
         {
+            "fileName": "../MAPS/TOWN2_4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 3040,
+            "y": -2816
+        },
+        {
             "fileName": "../MAPS/ROUTE3_1.tmx",
             "height": 480,
             "width": 640,

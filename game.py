@@ -7300,6 +7300,8 @@ class Game:
             self._interact_mom(npc)
         elif npc.trainer_id == 'barley':
             self.message_box.queue_messages(self._tag_dialogue('Barley', ["Meeooww"]), wait_for_input=True)
+        elif npc.trainer_id == 'carrie':
+            self._interact_carrie(npc)
         elif npc.trainer_id == 'vanessa_hq':
             self._interact_shadowhq_vanessa(npc)
         elif npc.trainer_id == 'cobaltion':
@@ -7528,6 +7530,29 @@ class Game:
                      f"{move} is a {mtype} move!", name='Mom')],
                 wait_for_input=True)
         self.message_box.queue_messages(self._split_dialogue(*lines, name='Mom'),
+                                        wait_for_input=True, on_complete=give)
+
+    # --- Carrie (MAZE_HOUSE.tmx) ---
+    # Warns about the corn maze at night and hands over 5 Repels the first
+    # time; afterwards just repeats the warning. Flag: carrie_repels_given.
+    CARRIE_REPELS = 5
+
+    def _interact_carrie(self, npc):
+        if self.story_flags.get('carrie_repels_given'):
+            self.message_box.queue_messages(
+                self._split_dialogue("This maze is known for anomalies throughout the night",
+                                     name='Carrie'),
+                wait_for_input=True)
+            return
+        lines = ["This maze is known for anomalies throughout the night",
+                 "Be careful around here past sunset, here take these repels with you!"]
+
+        def give():
+            self.story_flags['carrie_repels_given'] = True
+            self.inventory['Repel'] = self.inventory.get('Repel', 0) + self.CARRIE_REPELS
+            self.message_box.queue_messages(
+                [f"{config.PLAYER_NAME} received {self.CARRIE_REPELS} Repels!"], wait_for_input=True)
+        self.message_box.queue_messages(self._split_dialogue(*lines, name='Carrie'),
                                         wait_for_input=True, on_complete=give)
 
     # --- Horizon Cave legendary: Celestreeyl ---

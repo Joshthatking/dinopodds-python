@@ -639,6 +639,36 @@ TRAINER_DATA = {
         'reward_coins': 310,
         'rank': 'lowest',
     },
+    # ROUTE4_2
+    'jill': {
+        'name': 'Jill',
+        'dinos': {0: ('Seasoo', 23), 1: ('Auraliz', 24)},
+        'dialog': {
+            'default':  ["The cold air out here keeps my dinos sharp!", "Let's battle!"],
+            'defeated': ["Brr... you sure warmed things up."]
+        },
+        'directions': ['down'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 500,
+        'rank': 'lowest',
+    },
+    # PALM_PORT9
+    'becca': {
+        'name': 'Becca',
+        'dinos': {0: ('Sharktastrophe', 24), 1: ('Skolt', 24)},
+        'dialog': {
+            'default':  ["You're in Palm Port waters now!", "Let's see what you've got!"],
+            'defeated': ["Washed up... nice battle."]
+        },
+        'directions': ['right'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 500,
+        'rank': 'lowest',
+    },
 }
 
 
@@ -1789,6 +1819,7 @@ ZONE_BANNER_TRANSITIONS = [
     {'tiles': _tile_strip(21, -75, 29, -75), 'up': 'Lake Meridian',  'down': 'Route 3'},
     {'tiles': _tile_strip(1, -58, 7, -58),   'down': 'Power Plant',  'up': 'Route 3'},
     {'tiles': _tile_strip(-85, -42, -85, -32), 'right': 'Route 4',   'left': 'Palm Port'},
+    {'tiles': _tile_strip(95, -86, 95, -86),   'right': 'Episc Chateau', 'left': 'Elder Town'},
 ]
 
 # (tile) -> transition dict, for O(1) lookup as the player steps tile by tile.

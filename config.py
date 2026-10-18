@@ -189,6 +189,8 @@ NPC_SHEETS = {
     'debby':              os.path.join('assets', 'NPC', 'Blue_G.png'),
     'josh':               os.path.join('assets', 'NPC', 'Josh.png'),
     'celestreeyl':        os.path.join('assets', 'NPC', 'Celestreeyl_overworld.png'),
+    'sparky':             os.path.join('assets', 'NPC', 'sparky_overworld.png'),
+    'carrie':             os.path.join('assets', 'NPC', 'lady2.png'),
 }
 
 # Static (non-4x4-sheet) NPC images scaled down to fit inside this (w, h)
@@ -235,6 +237,8 @@ NPC_SPRITE_KEY = {
     'gray_home':     'gray',
     'abby_home':     'abby',
     'collector':     'rocko',
+    'jill':          'carrie',   # lady2.png
+    'becca':         'debby',    # Blue_G.png
 }
 
 # Dialogue-box speaker portraits: the display name used in a dialogue tag
@@ -257,6 +261,7 @@ DIALOGUE_PORTRAITS = {
     'Debby':   'debby',
     'Collector': 'rocko',
     'Josh':    'josh',
+    'Carrie':  'carrie',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -291,6 +296,11 @@ WORLD_NPCS = {
 
         # CORN_MAZE3 lore prop
         ('scarecrux', 145, -53, 'down', 0, 'story'),
+        ('sparky', 101, -71, 'down', 0, 'story'),
+
+        # ROUTE4_2 / PALM_PORT9 single battles
+        ('jill', -72, -41, 'down', 5, 'trainer'),
+        ('becca', -49, 3, 'right', 5, 'trainer'),
 
         # Corn Maze single battles
         ('cornmaze1', 96, -56, 'right', 5, 'trainer'),
@@ -328,6 +338,9 @@ WORLD_NPCS = {
     ],
     'ABBY_HOUSE.tmx': [
         ('abby_home', 6, 5, 'down', 0, 'story'),   # gone once gym1_leader_defeated
+    ],
+    'MAZE_HOUSE.tmx': [
+        ('carrie', 8, 9, 'down', 0, 'story'),   # warns about the maze at night, gives 5 Repels once
     ],
     'ELDER_HOUSE.tmx': [
         ('farmer', 8, 8, 'down', 0, 'story'),   # Hollis — "Lanterns in the Corn" side quest
