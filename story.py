@@ -119,6 +119,13 @@
 #       waiting at the Rouge gym, then leaves too (see
 #       Game._check_surf_shack_prep onward).
 #
+# 18. HORIZON CAVE GUARDIAN (Josh)  →  josh_defeated
+#       Josh stands at (9,3) in HORIZON_CAVE1, blocking the "cele" entrance
+#       to HORIZON_CAVE.world for the whole game. Before Game.JOSH_UNLOCK_FLAG
+#       (currently gym3_leader_defeated) he just turns the player away; after
+#       it he battles (Skolt/Drafyton/Deimo/VY/Vusion, Lv 38-41). Winning makes
+#       him walk out of the cave and disappear (see Game._interact_josh).
+#
 # ══════════════════════════════════════════════════════════════════
 
 STORY_EVENTS = [
@@ -260,5 +267,11 @@ QUEST_STEPS = [
         "flag": "gym3_leader_defeated",
         "defeated_trainers": ["sam"],
         "badges": ["aqua"],
+    },
+    {
+        "id": "josh_defeated",
+        "label": "16. Defeated Josh (Horizon Cave Guardian)",
+        "flag": "josh_defeated",
+        "defeated_trainers": ["josh"],
     },
 ]

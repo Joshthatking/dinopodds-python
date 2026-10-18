@@ -1,9 +1,80 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.12.1" name="clouds1" tilewidth="32" tileheight="32" tilecount="184" columns="8">
  <image source="clouds1.png" width="256" height="736"/>
+ <tile id="8">
+  <properties>
+   <property name="encounter" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="16">
+  <properties>
+   <property name="encounter" type="bool" value="true"/>
+   <property name="type" value="grass"/>
+  </properties>
+ </tile>
  <tile id="19">
   <properties>
    <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="24">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="25">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="26">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="32">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="34">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="40">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="41">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="42">
+  <properties>
+   <property name="collision" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="43">
+  <properties>
+   <property name="type" value="stairs"/>
+  </properties>
+ </tile>
+ <tile id="44">
+  <properties>
+   <property name="type" value="stairs"/>
+  </properties>
+ </tile>
+ <tile id="45">
+  <properties>
+   <property name="type" value="stairs"/>
+  </properties>
+ </tile>
+ <tile id="50">
+  <properties>
+   <property name="type" value="stairs"/>
   </properties>
  </tile>
  <tile id="147">

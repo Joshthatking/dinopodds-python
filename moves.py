@@ -1027,6 +1027,64 @@ def anim_turbo_booster(a):
             a.ellipse(a.tx, base - q * 100 * a.s, 110 * a.s, 26 * a.s, WHITE, 200 * (1 - q), 2)
 
 
+def anim_velo_induction(a):
+    """Wind spirals in around the user, it rockets into the foe, then a
+    shimmer settles back on the user (its Defense boost)."""
+    t = a.t
+    # 1) induction: wind streaks spiral inward and spin up around the user
+    p = seg(t, 0.0, 0.45)
+    if p is not None:
+        rng = a.rng('velo_in')
+        spin = t * TAU * 3
+        for i in range(14):
+            base = rng.uniform(0, TAU)
+            r = (85 - 50 * ease_in(p)) * a.s * rng.uniform(0.8, 1.1)
+            ang = base + spin
+            for k in range(4):  # short curved streak trailing behind each gust
+                ak = ang - k * 0.12
+                x, y = a.sx + math.cos(ak) * r, a.sy + math.sin(ak) * r * 0.6
+                a.circle(x, y, (4 - k * 0.7) * a.s, FLYING[1] if k == 0 else FLYING[0], 220 * hump(p) * (1 - k / 4))
+        a.ring(a.sx, a.sy, (60 - 30 * p) * a.s, FLYING[2], 160 * hump(p), 2)
+        a.glow(a.sx, a.sy, 55 * a.s, FLYING[0], 0.9 * ease_in(p))
+    # 2) dash: a wind comet with speed lines shoots to the target
+    p = seg(t, 0.42, 0.7)
+    if p is not None:
+        e = ease_in(p)
+        x, y = a.travel(e, arc=20 * a.s)
+        ang = a.angle_to_target()
+        ca, sa = math.cos(ang), math.sin(ang)
+        rng = a.rng('velo_lines')
+        for _ in range(9):
+            off = rng.uniform(-22, 22) * a.s
+            ln = rng.uniform(40, 90) * a.s
+            bx, by = x - sa * off - ca * 12 * a.s, y + ca * off - sa * 12 * a.s
+            a.line(bx, by, bx - ca * ln, by - sa * ln, FLYING[0], 200 * (1 - p * 0.5), 2)
+        a.ellipse(x, y, 34 * a.s, 22 * a.s, FLYING[0], 230)
+        a.ellipse(x, y, 18 * a.s, 12 * a.s, WHITE, 255)
+        a.glow(x, y, 45 * a.s, FLYING[1], 1.0)
+    # 3) impact: concentric wind rings and gust shards burst off the foe
+    p = seg(t, 0.68, 1.0)
+    if p is not None:
+        for k in range(3):
+            q = seg(p, k * 0.15, 0.7 + k * 0.1)
+            if q is not None:
+                a.ellipse(a.tx, a.ty, (30 + 110 * ease_out(q)) * a.s, (18 + 55 * ease_out(q)) * a.s,
+                          FLYING[1] if k == 0 else FLYING[0], 220 * (1 - q), 3)
+        a.burst(a.tx, a.ty, p, 14, 80 * a.s, FLYING[1], 4 * a.s, shape='streak', key='velo_hit')
+        a.glow(a.tx, a.ty, 60 * a.s, FLYING[0], 1.1 * (1 - p))
+        if p < 0.4:
+            a.shake(5 * (1 - p / 0.4))
+    # 4) induced barrier: a faint hexagon shell shimmers onto the user
+    p = seg(t, 0.75, 1.0)
+    if p is not None:
+        al = 200 * hump(p)
+        R = 55 * a.s
+        pts = [(a.sx + math.cos(i * TAU / 6 + 0.5) * R, a.sy + math.sin(i * TAU / 6 + 0.5) * R) for i in range(6)]
+        a.lines(pts, FLYING[2], al, 3, closed=True)
+        a.lines(pts, WHITE, al * 0.8, 1, closed=True)
+        a.glow(a.sx, a.sy, 50 * a.s, FLYING[2], 0.6 * hump(p))
+
+
 def anim_sky_scorch(a):
     t = a.t
     start = (a.tx + 220 * a.s, a.ty - 260 * a.s)
@@ -1362,6 +1420,78 @@ def anim_crash_impact(a):
         a.burst(a.tx, base, p, 30, 140 * a.s, ROCK[1], 10 * a.s, spread=(math.pi, TAU), key=2)
         a.glow(a.tx, a.ty, 120 * a.s, (255, 220, 170), 1.3 * (1 - p))
         _strong_finish(a, p, ((255, 235, 200),) * 2, 170, 16)
+
+
+CHAIN = ((150, 145, 160), (225, 220, 235), (70, 65, 80))
+
+
+def _chain_link(a, x, y, ang, size, alpha, flat):
+    """One oval chain link outline along `ang`; `flat` links are seen edge-on."""
+    ca, sa = math.cos(ang), math.sin(ang)
+    w = size * (0.22 if flat else 0.5)
+    pts = []
+    for i in range(10):
+        u = i * TAU / 10
+        lx, ly = math.cos(u) * size, math.sin(u) * w
+        pts.append((x + ca * lx - sa * ly, y + sa * lx + ca * ly))
+    a.lines(pts, CHAIN[2], alpha, 4, closed=True)
+    a.lines(pts, CHAIN[1] if flat else CHAIN[0], alpha, 2, closed=True)
+
+
+def anim_chain_rip(a):
+    """A chain whips out and coils the foe, then is ripped back, tearing
+    off rock and sending links flying."""
+    t = a.t
+    ang = a.angle_to_target()
+    link = 11 * a.s
+    # 1) lash: the chain snakes from the user to the target
+    p = seg(t, 0.0, 0.35)
+    if p is not None:
+        reach = ease_out(p)
+        n = int(22 * reach) + 1
+        for i in range(n):
+            u = i / 22
+            x, y = a.travel(u)
+            wave = math.sin(u * 9 - t * 30) * 14 * a.s * (1 - u) * (1 - p)
+            x += -math.sin(ang) * wave
+            y += math.cos(ang) * wave
+            _chain_link(a, x, y, ang, link, 240, i % 2)
+        hx, hy = a.travel(reach)
+        a.glow(hx, hy, 18 * a.s, CHAIN[1], 0.6)
+    # 2) coil: links wrap and tighten around the target
+    p = seg(t, 0.3, 0.68)
+    if p is not None:
+        tight = 1 - 0.35 * ease_in(p)
+        n = int(16 * min(1.0, p * 2.5)) + 1
+        al = 240 if p < 0.85 else 240 * (1 - p) / 0.15
+        for i in range(n):
+            u = i * TAU / 16 + p * 1.5
+            x = a.tx + math.cos(u) * 62 * a.s * tight
+            y = a.ty + math.sin(u) * 24 * a.s * tight + (i / 16 - 0.5) * 50 * a.s
+            _chain_link(a, x, y, u + math.pi / 2, link, al, i % 2)
+        if p > 0.6:
+            a.shake(2)
+    # 3) rip: the chain yanks back, rock chunks and loose links scatter
+    p = seg(t, 0.62, 1.0)
+    if p is not None:
+        e = ease_in(min(1.0, p * 1.6))
+        for i in range(10):  # retreating chain segment
+            u = i / 10 * (1 - e)
+            x, y = a.travel(u)
+            _chain_link(a, x, y, ang, link, 230 * (1 - p), i % 2)
+        a.burst(a.tx, a.ty, p, 12, 85 * a.s, ROCK[0], 5 * a.s, gravity=70 * a.s, shape='square', key='rip_rock')
+        a.burst(a.tx, a.ty, p, 8, 70 * a.s, ROCK[1], 3 * a.s, gravity=50 * a.s, shape='shard', key='rip_dust')
+        rng = a.rng('rip_links')
+        for k in range(5):  # snapped links tumbling away
+            la = rng.uniform(0, TAU)
+            d = 90 * a.s * ease_out(p) * rng.uniform(0.6, 1.0)
+            x = a.tx + math.cos(la) * d
+            y = a.ty + math.sin(la) * d + 60 * a.s * p * p
+            _chain_link(a, x, y, la + p * 8 * (1 if k % 2 else -1), link * 0.8, 230 * (1 - p), k % 2)
+        a.ring(a.tx, a.ty, (20 + 60 * ease_out(p)) * a.s, ROCK[1], 220 * (1 - p), 3)
+        a.glow(a.tx, a.ty, 55 * a.s, ROCK[1], 1.0 * (1 - p))
+        if p < 0.35:
+            a.shake(6 * (1 - p / 0.35))
 
 
 def anim_sand_storm(a):
@@ -2801,6 +2931,7 @@ ANIMATIONS = {
     'Wind Fracture': anim_wind_fracture,
     'Turbo Booster': anim_turbo_booster,
     'Sky Scorch': anim_sky_scorch,
+    'Velo Induction': anim_velo_induction,
     # Spike
     'Lock Jaw': anim_lock_jaw,
     'Horn Tackle': anim_horn_tackle,
@@ -2819,6 +2950,7 @@ ANIMATIONS = {
     'Momentum': anim_momentum,
     'Crash Impact': anim_crash_impact,
     'Sand Storm': anim_sand_storm,
+    'Chain Rip': anim_chain_rip,
     # Lightning
     'Stinger Shock': anim_stinger_shock,
     'Static Graze': anim_static_graze,

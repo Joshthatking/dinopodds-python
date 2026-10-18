@@ -1,0 +1,55 @@
+{
+    "maps": [
+        {
+            "fileName": "../MAPS/HORIZON_CAVE8.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 992,
+            "y": -1056
+        },
+        {
+            "fileName": "../MAPS/HORIZON_CAVE7.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 992,
+            "y": -576
+        },
+        {
+            "fileName": "../MAPS/HORIZON_CAVE6.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 992,
+            "y": -96
+        },
+        {
+            "fileName": "../MAPS/HORIZON_CAVE5.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 1632,
+            "y": 384
+        },
+        {
+            "fileName": "../MAPS/HORIZON_CAVE4.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 352,
+            "y": 384
+        },
+        {
+            "fileName": "../MAPS/HORIZON_CAVE3.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 992,
+            "y": 384
+        },
+        {
+            "fileName": "../MAPS/HORIZON_CAVE2.tmx",
+            "height": 480,
+            "width": 640,
+            "x": 992,
+            "y": 864
+        }
+    ],
+    "onlyShowAdjacentMaps": false,
+    "type": "world"
+}

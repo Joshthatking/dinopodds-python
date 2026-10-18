@@ -19,13 +19,16 @@ def _load_sheet(trainer_id):
     if path and os.path.exists(path):
         sheet  = pygame.image.load(path).convert_alpha()
         sw, sh = sheet.get_size()
-        if sw < 32 * 4 or sh < 32 * 4:
-            # Too small to be a real 4x4 walk-cycle sheet — treat it as a
-            # single static image (e.g. a one-off story prop) and reuse it
-            # for every direction/frame instead of cropping a 32x32 corner.
-            fit = config.NPC_STATIC_FIT.get(sprite_key)
+        fit = config.NPC_STATIC_FIT.get(sprite_key)
+        if sw < 32 * 4 or sh < 32 * 4 or fit:
+            # Too small to be a real 4x4 walk-cycle sheet (or listed in
+            # NPC_STATIC_FIT, e.g. a large one-off overworld legendary) —
+            # treat it as a single static image and reuse it for every
+            # direction/frame instead of cropping a 32x32 corner.
             if fit:
-                r = sheet.get_bounding_rect()
+                # min_alpha skips faint stray pixels some exported art has
+                # around the real sprite, which would defeat the trim.
+                r = sheet.get_bounding_rect(min_alpha=16)
                 if r.width and r.height:
                     sheet = sheet.subsurface(r).copy()
                     sw, sh = r.width, r.height

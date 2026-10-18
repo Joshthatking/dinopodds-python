@@ -8,6 +8,8 @@ from player import Player
 from npc import NPC
 from surf import Surf  # SURF (testing)
 from environment_fx import EnvironmentFX  # ENV FX
+from aether_bg import AetherBackground
+from battle_transition import BattleTransition
 from moves import MoveAnimation
 from catch_anim import CatchAnimation
 from title_anim import LaunchIntro
@@ -72,13 +74,16 @@ class Game:
         self.all_sprites = pygame.sprite.Group(self.player)
         self.surf = Surf(self)  # SURF (testing)
         self.env_fx = EnvironmentFX(self)  # ENV FX
+        self.aether_bg = AetherBackground()  # void backdrop for AETHER_WORLDS
 
         self.fade_alpha = 0
+        self.fade_color = (0, 0, 0)   # set white for one fade by a light-burst encounter
+        self.battle_transition = None  # BattleTransition while a battle is starting
         self.fading = False
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus", "Lavaleo"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus", "Lavaleo", "Pectura", "Ghoslink"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -175,6 +180,7 @@ class Game:
         self._cobaltion_battle = False  # True from Cobaltion's battle start until its result is read
         self._surf_shack_prep_active = False  # True while the Surf Shack Preparation scene plays
         self._lantern_battle = None     # wisp index whose Ghoulflame battle is in progress (side quest)
+        self._celestreeyl_battle = None  # the Celestreeyl NPC while its Horizon Cave battle runs
         self._wild_caught = False       # set by attempt_catch on a successful catch
         self.screen_shake = 0.0         # seconds of screenshake left
         self.abby_follower = None
@@ -348,6 +354,8 @@ class Game:
         self._clear_recharge_flags()
         self.entrance_fade_state = None
         self._post_trainer_battle_cb = None
+        self.fade_color = (0, 0, 0)
+        self.battle_transition = None
         # Blackout is a full reset back to normal world state — a scripted
         # cutscene that led into this battle (e.g. a walkup trigger) must
         # not stay "in progress" afterward, or it can never fire again.
@@ -1103,11 +1111,11 @@ class Game:
         # small, locally-originated tile coordinates that can coincidentally
         # fall inside one of those overworld rectangles (e.g. an interior's
         # (2,2) lands inside route1_grass's region), so only consult it
-        # while actually standing in the overworld.
-        if self.current_world_file == 'LOST_REGION.world':
-            zone = get_zone_for_tile(player_x, player_y)
-            if zone:
-                return zone
+        # while actually standing in the overworld. Other .worlds with
+        # their own regions (e.g. Horizon Cave) live in WORLD_ZONE_REGIONS.
+        zone = get_zone_for_tile(player_x, player_y, self.current_world_file)
+        if zone:
+            return zone
         return self.tile_types.get((player_x, player_y))
 
     def check_zone_banner(self, tile_x, tile_y, direction):
@@ -1192,6 +1200,8 @@ class Game:
             self._post_trainer_battle_cb = self._on_log_gym_won
         elif npc.trainer_id == 'sam' and self.current_world_file == 'GYM3.tmx':
             self._post_trainer_battle_cb = self._on_sam_gym_won
+        elif npc.trainer_id == 'josh':
+            self._post_trainer_battle_cb = lambda: self._on_josh_battle_won(npc)
         elif npc.trainer_id == 'pp_grunt_a':
             self._post_trainer_battle_cb = lambda: self._on_pp_grunt_a_won(npc)
         elif npc.trainer_id == 'pp_grunt_b':
@@ -1942,6 +1952,8 @@ class Game:
     def _load_single_tmx(self, filename):
         """Load one .tmx file directly — used for small interior maps."""
         path = os.path.join('assets/WORLD', filename)
+        if not os.path.exists(path):  # cave interiors like HORIZON_CAVE1 live in MAPS
+            path = os.path.join('assets/MAPS', filename)
         tmx = pytmx.load_pygame(path, pixelalpha=True)
         ts = config.TILE_SIZE
         solid, encounter, tile_types, entrances, exits, ball_items = set(), set(), {}, {}, set(), {}
@@ -1963,8 +1975,8 @@ class Game:
                         solid.add(wpos)
                     if props.get('encounter'):
                         encounter.add(wpos)
-                        if props.get('type'):
-                            tile_types[wpos] = props['type']
+                    if (props.get('encounter') or props.get('interact')) and props.get('type'):
+                        tile_types[wpos] = props['type']   # see load_world
                     if props.get('lore1'):
                         self.lore_tile_coords.add(wpos)
                     eid = props.get('entrance_id') or (f'{x}_{y}' if props.get('entrance') else None)
@@ -2184,6 +2196,9 @@ class Game:
         self.cutscene = None
 
     def _interact_mom(self, npc):
+        if self.story_flags.get('package_started') and not self.story_flags.get('package_delivered'):
+            self._deliver_package_to_mom()
+            return
         if not self.player_dinos:
             self.message_box.queue_messages(
                 self._tag_dialogue('Mom', ["Be careful out there today, Jet!"]), wait_for_input=True)
@@ -3105,6 +3120,9 @@ class Game:
 
     def _update_cutscene(self, dt):
         c = self.cutscene
+        if c['phase'] == 'celestreeyl_awaken':
+            self._update_celestreeyl_awaken(dt)
+            return
         if c['phase'] == 'grunts_walking':
             self._update_grunts_walking(dt)
             return
@@ -3401,6 +3419,22 @@ class Game:
                     self.npcs.remove(npc)
                 self.story_flags['gray_route3_done'] = True
                 self.cutscene = None
+            else:
+                self._force_step_npc_toward_tile(npc, wx, wy)
+
+        elif c['phase'] == 'josh_walking_away':
+            if self.message_box.visible:
+                return
+            path = c['path']
+            wx, wy = path[0]
+            if npc.tile_x == wx and npc.tile_y == wy:
+                path.pop(0)
+                if not path:
+                    self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                    if npc in self.npcs:
+                        self.npcs.remove(npc)
+                    self.story_flags['josh_defeated'] = True
+                    self.cutscene = None
             else:
                 self._force_step_npc_toward_tile(npc, wx, wy)
 
@@ -5968,6 +6002,9 @@ class Game:
                             solid.add(wpos)
                         if props.get('encounter'):
                             encounter.add(wpos)
+                        # `interact` tiles (e.g. Horizon Cave's surf pool) keep
+                        # their type too, so water with no encounters is still surfable.
+                        if props.get('encounter') or props.get('interact'):
                             tile_type = props.get('type')
                             if tile_type:
                                 tile_types[wpos] = tile_type
@@ -6637,6 +6674,10 @@ class Game:
                 continue
             if trainer_id == 'abby_home' and self.story_flags.get('gym1_leader_defeated'):
                 continue
+            if trainer_id == 'josh' and self.story_flags.get('josh_defeated'):
+                continue
+            if trainer_id == 'celestreeyl' and self.story_flags.get('celestreeyl_done'):
+                continue
             npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
                       facing=facing, sight_range=sight, npc_type=npc_type)
             npc.home_tile   = (tx, ty)
@@ -6788,6 +6829,14 @@ class Game:
             self._interact_cobaltion(npc)
         elif npc.trainer_id == 'farmer':
             self._interact_lantern_farmer(npc)
+        elif npc.trainer_id == 'debby':
+            self._interact_package_debby(npc)
+        elif npc.trainer_id == 'collector':
+            self._interact_trade_collector(npc)
+        elif npc.trainer_id == 'josh':
+            self._interact_josh(npc)
+        elif npc.trainer_id == 'celestreeyl':
+            self._interact_celestreeyl(npc)
         elif npc.trainer_id == 'gray_home':
             self.message_box.queue_messages(
                 self._tag_dialogue('Gray', [
@@ -6823,11 +6872,11 @@ class Game:
     # Farmer Hollis (ELDER_HOUSE.tmx) tells the player about blue lights in
     # the Corn Maze. Once started, the wisps below appear at night only.
     # Touching one starts a wild Ghoulflame battle; winning/catching clears
-    # it. After the first 4 are cleared the 5th (stronger, by the scarecrow)
+    # it. After the first 2 are cleared the 3rd (stronger, by the scarecrow)
     # appears. Clearing it sets lanterns_wisps_done; Hollis then gives the
-    # Solar Flare TM. Flags: lanterns_started, lanterns_wisp0..4,
+    # Solar Flare TM. Flags: lanterns_started, lanterns_wisp0..2,
     # lanterns_wisps_done, lanterns_rewarded. No main-story flag is touched.
-    LANTERN_WISPS = [(94, -46), (104, -62), (114, -66), (131, -72), (147, -49)]  # last = final wisp
+    LANTERN_WISPS = [(94, -46), (131, -72), (147, -49)]  # last = final wisp
     LANTERN_WISP_LEVELS = (13, 15)
     LANTERN_FINAL_LEVEL = 18
     LANTERN_REWARD = 'TM Solar Flare'
@@ -6956,6 +7005,244 @@ class Game:
                 wait_for_input=True)
         self.message_box.queue_messages(self._split_dialogue(*lines, name='Hollis'),
                                         wait_for_input=True, on_complete=give)
+
+    # --- Side quest: Deliver Package to Mom ---
+    # Debby (SIERRA_HOUSE3.tmx, Mom's sister) hands the player a gift for Mom.
+    # Talking to Mom while it's active delivers it and gives the TM.
+    # Flags: package_started, package_delivered. No main-story flag is touched.
+    PACKAGE_REWARD = 'TM Leaf Ultima'
+
+    def _interact_package_debby(self, npc):
+        f = self.story_flags
+        if f.get('package_delivered'):
+            lines = ["Your mother loved the gift? Oh, I knew she would!",
+                     "Take care out there, sweetie."]
+            self.message_box.queue_messages(self._split_dialogue(*lines, name='Debby'), wait_for_input=True)
+        elif f.get('package_started'):
+            lines = ["Did you bring that gift to your mother yet?",
+                     "She's back home in Silverleaf Town."]
+            self.message_box.queue_messages(self._split_dialogue(*lines, name='Debby'), wait_for_input=True)
+        else:
+            lines = ["Oh dear give your mother this gift, I have been shopping and saw the perfect decor for her house!",
+                     "There is also a little something for you in there as well!"]
+
+            def start():
+                f['package_started'] = True
+                self.message_box.queue_messages(
+                    [f"{config.PLAYER_NAME} received Debby's package!"], wait_for_input=True)
+            self.message_box.queue_messages(self._split_dialogue(*lines, name='Debby'),
+                                            wait_for_input=True, on_complete=start)
+
+    def _deliver_package_to_mom(self):
+        lines = ["Thank you, oh Debby is the best sister!",
+                 "Here she left you this for you journey ahead, how sweet of her!"]
+        item = self.PACKAGE_REWARD
+
+        def give():
+            self.story_flags['package_delivered'] = True
+            self.inventory[item] = self.inventory.get(item, 0) + 1
+            move = config.ITEMS[item]['tm_move']
+            mtype = MOVE_DATA[move]['type'].capitalize()
+            self.message_box.queue_messages(
+                [f"{config.PLAYER_NAME} received {item}!",
+                 *self._split_dialogue(
+                     f"A TM can only be used once, and only on a Dino that shares its move's type. "
+                     f"{move} is a {mtype} move!", name='Mom')],
+                wait_for_input=True)
+        self.message_box.queue_messages(self._split_dialogue(*lines, name='Mom'),
+                                        wait_for_input=True, on_complete=give)
+
+    # --- Horizon Cave legendary: Celestreeyl ---
+    # Stands at (40,-31) in HORIZON_CAVE.world. Interacting starts a light
+    # burst — rays and gathering motes build up, then the screen whites out
+    # and fades (white, not black) straight into a wild Lv 40 battle.
+    # Catching or defeating it sets celestreeyl_done; running or blacking out
+    # leaves it standing there to try again.
+    CELES_LEVEL = 40
+    CELES_CHARGE = 1.8    # rays + motes build up, screen shakes
+    CELES_FLASH = 0.5     # bright burst grows to a full white-out
+    CELES_HOLD = 0.25     # hold on white before the battle loads
+    CELES_RAY_COLS = ((255, 236, 160), (255, 255, 255), (170, 255, 170), (200, 190, 255))
+
+    def _interact_celestreeyl(self, npc):
+        if self.cutscene or self.fading:
+            return
+        self.player.freeze_in_place()
+        self.screen_shake = self.CELES_CHARGE + self.CELES_FLASH
+        self.cutscene = {'phase': 'celestreeyl_awaken', 'npc': npc, 't': 0.0}
+
+    def _update_celestreeyl_awaken(self, dt):
+        c = self.cutscene
+        c['t'] += dt
+        if c['t'] < self.CELES_CHARGE + self.CELES_FLASH + self.CELES_HOLD:
+            return
+        self.cutscene = None
+        self._celestreeyl_battle = c['npc']
+        self._wild_caught = False
+        self.fade_color = (255, 255, 255)
+        self.trigger_encounter(forced_dino='Celestreeyl', forced_level=self.CELES_LEVEL)
+        self.fade_alpha = 255   # already white — go straight into the battle
+
+    def _check_celestreeyl_battle_result(self):
+        """Same timing trick as _check_cobaltion_battle_result."""
+        if self._celestreeyl_battle is None or self.fading or self.state != 'world':
+            return
+        npc, self._celestreeyl_battle = self._celestreeyl_battle, None
+        won = self._wild_caught or (self.enemy_dino and self.enemy_dino.get('hp', 1) <= 0)
+        if not won:
+            return
+        self.story_flags['celestreeyl_done'] = True
+        self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+        if npc in self.npcs:
+            self.npcs.remove(npc)
+
+    def _draw_celestreeyl_awaken(self, screen):
+        c = self.cutscene
+        npc, t = c['npc'], c['t']
+        W, H = config.WIDTH, config.HEIGHT
+        scale = W / self.render_surface.get_width()
+        img = npc._current_image()
+        cx = (npc.rect.centerx - self.camera_x) * scale
+        cy = (npc.rect.bottom - img.get_height() * 0.55 - self.camera_y) * scale
+        charge = min(1.0, t / self.CELES_CHARGE)
+        flash = max(0.0, min(1.0, (t - self.CELES_CHARGE) / self.CELES_FLASH))
+        grow = charge * charge * (3 - 2 * charge)
+
+        # the cave darkens as the light gathers, so the rays read even on snow
+        dim = self.__dict__.get('_celes_dim')
+        if dim is None or dim.get_size() != (W, H):
+            dim = self._celes_dim = pygame.Surface((W, H))
+            dim.fill((6, 4, 18))
+        dim.set_alpha(int(190 * grow))
+        screen.blit(dim, (0, 0))
+
+        fx = self.__dict__.get('_celes_fx')
+        if fx is None or fx.get_size() != (W, H):
+            fx = self._celes_fx = pygame.Surface((W, H))
+        fx.fill((0, 0, 0))
+
+        def add(col, k):
+            return tuple(min(255, int(v * k)) for v in col)
+
+        # light rays fanning out and slowly turning
+        n = 16
+        length = (60 + 560 * grow + 400 * flash) * scale / 2
+        for i in range(n):
+            a = i * math.tau / n + t * 0.6 + (0.12 * math.sin(t * 3 + i) if i % 2 else 0)
+            half = 0.05 + 0.04 * (i % 3) + 0.1 * flash
+            k = (0.2 + 0.5 * grow + 0.3 * flash) * (0.7 + 0.3 * math.sin(t * 9 + i * 1.7))
+            col = self.CELES_RAY_COLS[i % len(self.CELES_RAY_COLS)]
+            for w, kk in ((1.0, 0.35), (0.4, 0.75)):   # soft wide beam, bright narrow core
+                pts = [(cx, cy),
+                       (cx + math.cos(a - half * w) * length, cy + math.sin(a - half * w) * length),
+                       (cx + math.cos(a + half * w) * length, cy + math.sin(a + half * w) * length)]
+                pygame.draw.polygon(fx, add(col, k * kk), pts)
+
+        # motes of light streaming inward to the tree
+        rng = random.Random(1234)
+        for _ in range(42):
+            ang = rng.uniform(0, math.tau)
+            q = (t * rng.uniform(0.6, 1.1) + rng.random()) % 1.0
+            d = (1 - q) * rng.uniform(140, 260) * scale
+            x, y = cx + math.cos(ang) * d, cy + math.sin(ang) * d
+            pygame.draw.circle(fx, add(rng.choice(self.CELES_RAY_COLS), grow * (0.4 + q)),
+                               (int(x), int(y)), max(1, int((1 + 2 * q) * scale)))
+
+        # pulsing rings and a swelling core of light
+        for k in range(3):
+            q = (t * 1.6 + k / 3) % 1.0
+            r = int((10 + 120 * q) * scale)
+            pygame.draw.circle(fx, add((255, 245, 200), grow * (1 - q)), (int(cx), int(cy)), r, max(1, int(2 * scale)))
+        core = (14 + 40 * grow + 600 * flash * flash) * scale
+        for k in range(16, 0, -1):
+            f = k / 16
+            pygame.draw.circle(fx, add((255, 250, 225), (0.15 + 0.85 * grow) * (1 - f) ** 1.5 * 1.6),
+                               (int(cx), int(cy)), max(1, int(core * f)))
+        screen.blit(fx, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+        # white-out: ramps in during the burst and holds until the battle loads
+        if flash > 0:
+            white = self.__dict__.get('_celes_white')
+            if white is None or white.get_size() != (W, H):
+                white = self._celes_white = pygame.Surface((W, H))
+                white.fill((255, 255, 255))
+            white.set_alpha(int(255 * flash ** 1.5))
+            screen.blit(white, (0, 0))
+
+    # --- Quest: Horizon Cave guardian ---
+    # Josh stands at (9,3) in HORIZON_CAVE1, right in front of the "cele"
+    # entrance to HORIZON_CAVE.world. Until JOSH_UNLOCK_FLAG is set he only
+    # turns the player away; after it he battles (TRAINER_DATA['josh']), and
+    # on a win walks out of the cave and is gone for good. Flag: josh_defeated.
+    JOSH_UNLOCK_FLAG = 'gym3_leader_defeated'   # TODO: move to the end-game flag later
+    JOSH_EXIT_TILE = (9, 14)                    # HORIZON_CAVE1's exit tile
+
+    def _interact_josh(self, npc):
+        dialog = TRAINER_DATA['josh']['dialog']
+        npc.face_toward_player(self.player)
+        if not self.story_flags.get(self.JOSH_UNLOCK_FLAG):
+            self.message_box.queue_messages(
+                self._split_dialogue(*dialog['locked'], name='Josh'), wait_for_input=True)
+            return
+        self.message_box.queue_messages(
+            self._split_dialogue(*dialog['default'], name='Josh'),
+            wait_for_input=True, on_complete=lambda: self.start_trainer_battle(npc))
+
+    def _on_josh_battle_won(self, npc):
+        msgs = self._split_dialogue(*TRAINER_DATA['josh']['dialog']['defeated'], name='Josh')
+        ex, ey = self.JOSH_EXIT_TILE
+        px = self.player.rect.x // config.TILE_SIZE
+        # The player is usually standing right below him; sidestep down a
+        # neighbouring column so the scripted walk never passes through them.
+        lane = npc.tile_x - 1 if px == npc.tile_x else npc.tile_x
+        path = [(lane, npc.tile_y), (lane, ey - 1), (ex, ey - 1), (ex, ey)]
+
+        def start_walk_away():
+            self.cutscene = {'phase': 'josh_walking_away', 'npc': npc, 'path': path}
+        self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=start_walk_away)
+
+    # --- Side quest: Pectura trade ---
+    # A collector from Skelig Town (SIERRA_HOUSE2.tmx) wants a Pectura. If one
+    # is in the party he offers a yes/no trade for a Lv 10 Rhysnow, which takes
+    # the Pectura's party slot. Flag: collector_traded.
+    TRADE_WANT = 'Pectura'
+    TRADE_GIVE = ('Rhysnow', 10)
+
+    def _interact_trade_collector(self, npc):
+        if self.story_flags.get('collector_traded'):
+            lines = ["Pectura and I are getting along great!",
+                     "Good luck against Skyy... and remember, you didn't hear it from me."]
+            self.message_box.queue_messages(self._split_dialogue(*lines, name='Collector'), wait_for_input=True)
+            return
+        lines = ["Hey I love to collect rare dinos, and I can never seem to find Pectura, the magma and flying type!",
+                 "I am visiting from Skelig Town up north and only see cold dinos you see",
+                 "If you can find me a Pectura to trade I would happily give you something you cannot find around here!"]
+        offer = next((d for d in self.player_dinos if d['name'] == self.TRADE_WANT), None)
+        on_complete = None
+        if offer:
+            def ask():
+                self.yes_no_prompt = YesNoPrompt(
+                    f"Trade your Lv {offer['level']} {offer['name']} for a {self.TRADE_GIVE[0]}?",
+                    self.fonts, config.WIDTH, config.HEIGHT)
+                self.yes_no_callback = lambda: self._do_collector_trade(offer)
+            on_complete = ask
+        self.message_box.queue_messages(self._split_dialogue(*lines, name='Collector'),
+                                        wait_for_input=True, on_complete=on_complete)
+
+    def _do_collector_trade(self, offer):
+        if offer not in self.player_dinos:
+            return
+        name, level = self.TRADE_GIVE
+        received = self.create_dino(name, level)
+        self.player_dinos[self.player_dinos.index(offer)] = received
+        self.dinos_seen.add(name)
+        self.story_flags['collector_traded'] = True
+        lines = ["You are the best! Here as promised a Rhysnow!",
+                 "This should help with the flying gym leader Skyy, don't tell him I gave you this..."]
+        self.message_box.queue_messages(
+            [f"{config.PLAYER_NAME} traded {offer['name']} for {name}!",
+             *self._split_dialogue(*lines, name='Collector')],
+            wait_for_input=True)
 
     def _lantern_glow(self, r):
         cache = self.__dict__.setdefault('_lantern_glow_cache', {})
@@ -7222,6 +7509,9 @@ class Game:
             else:
                 self.encounter_ui.update(dt, active, self.enemy_dino)
 
+        if self.battle_transition is not None and self.battle_transition.done:
+            self.battle_transition = None
+
         # Encounter intro animation completion — kept here so draw() never triggers game logic
         if 'encounter' in self.state_stack and self.encounter_anim is not None:
             now = pygame.time.get_ticks()
@@ -7290,12 +7580,24 @@ class Game:
                     if self.cutscene and npc is self.cutscene.get('npc'):
                         continue
                     npc.update(dt, self.player, self)
+            elif self.fade_alpha >= 255:
+                # Already covered by a scripted white-out (e.g. Celestreeyl) —
+                # straight into the battle, no standard transition.
+                self.fading = False
+                self.fade_color = (0, 0, 0)   # a white-out transition only lasts one fade
+                self.push_state('encounter')
             else:
-                self.fade_alpha += 10
-                if self.fade_alpha >= 255:
-                    self.fade_alpha = 255
+                if self.battle_transition is None:
+                    self.battle_transition = BattleTransition()
+                if self.battle_transition.covered:
                     self.fading = False
                     self.push_state('encounter')
+                    # The intro (enemy frames + "A wild X appeared!") was timed
+                    # from the trigger; restart it so it plays once visible.
+                    if self.encounter_anim is not None:
+                        now = pygame.time.get_ticks()
+                        self.encounter_anim['start_time'] = now
+                        self.encounter_anim['last_switch'] = now
 
             self.check_story_events()
             self._check_amber_blocker()
@@ -7322,6 +7624,7 @@ class Game:
             self._check_shadow_confrontation_trigger()
             self._check_mom_greeting()
             self._check_cobaltion_battle_result()
+            self._check_celestreeyl_battle_result()
             self._check_lantern_battle_result()
             self._check_lantern_wisps()
             self._maybe_add_shadowhq_npcs()
@@ -7359,6 +7662,9 @@ class Game:
         current_state = self.state
 
         if background_state == 'world':
+            if self.current_world_file in self.AETHER_WORLDS:
+                self.aether_bg.draw(self.render_surface, self.camera_x, self.camera_y,
+                                    pygame.time.get_ticks() / 1000.0)
             self.draw_map_below(self.render_surface)
             self.env_fx.draw_ground(self.render_surface, self.camera_x, self.camera_y)  # ENV FX
             ts = config.TILE_SIZE
@@ -7395,6 +7701,8 @@ class Game:
             if self.event_overlay_active:
                 self.screen.blit(self._event_overlay, (0, 0))
             self._draw_lantern_wisps(self.screen)   # after the night overlay so they glow
+            if self.cutscene and self.cutscene.get('phase') == 'celestreeyl_awaken':
+                self._draw_celestreeyl_awaken(self.screen)
             if self.sandbox:
                 tag = self.fonts['XS'].render("SANDBOX MODE", True, (255, 80, 80))
                 self.screen.blit(tag, (config.WIDTH - tag.get_width() - 6, 6))
@@ -7559,10 +7867,12 @@ class Game:
             elif current_state == 'quest_debug':
                 self.quest_debug_screen.draw(self.screen)
 
-        if self.fading or self.entrance_fade_state is not None:
+        if self.battle_transition is not None:
+            self.battle_transition.draw(self.screen)
+        elif self.fading or self.entrance_fade_state is not None:
             fade_surface = pygame.Surface((config.WIDTH, config.HEIGHT))
             fade_surface.set_alpha(self.fade_alpha)
-            fade_surface.fill((0, 0, 0))
+            fade_surface.fill(self.fade_color)
             self.screen.blit(fade_surface, (0, 0))
 
         if self.message_box.visible and self.state != 'encounter':
@@ -7660,6 +7970,9 @@ class Game:
             if wmap['x'] < view_right and wmap['x'] + wmap['width'] > view_left
             and wmap['y'] < view_bottom and wmap['y'] + wmap['height'] > view_top
         ]
+
+    # Worlds whose off-map void shows the aether_bg starfield instead of black.
+    AETHER_WORLDS = ('HORIZON_CAVE.world',)
 
     def draw_map_below(self, surface):
         ts = config.TILE_SIZE

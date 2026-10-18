@@ -325,11 +325,27 @@ if __name__ == '__main__':
 #Surf Shack Preparation
 #Eternal Darkness/Infinite Light 
 
-# add buildings  
-# add more lore
-# add electric cloud, pre evo to shark, lavaleo, orange/red pectura flying fire
+#10/16
+# Stormulus & Lavaleo
+# Abby and Gray House
+# Lantern Side Quest in Corn Maze/Elder Town - for solar flare TM
 
-#need to add curfue, skyy, abby, cade in surf shack to discuss the meaning of what happened at cobalt cave
+#10/17
+# Pectura 
+# Lanterns - 5 -> 3 instead
+# ALL buildings created
+# Debby Package to Mom side quest - Leaf Ultima
+# Sierra Town Pectura -> Rhysnow Trade
+# Ghoslink
+# HORIZON_CAVE -> spawns and Josh Battle, and Celestreeyl encounter
+# Battle transition for wild encounters and battles 
+
+#add one more TM quest
+# 
+
+# add more lore
+#SOUND FX - entry, interact, selecting wasd, grass rustle, collision, save confirmation, EVENTS (legendary, cinematic)
+# MUSIC - routes, battle, DC, boss battle, legendary?
 
 
 #THEN - sound effects, route music and event music, nuzlocke/randomizer/speed run modes

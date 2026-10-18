@@ -154,6 +154,10 @@ ENCOUNTER_DINOS_PATHS = {
     'Stormulus2':       os.path.join(DINOS_FRONT, 'Stormulus.png'),
     'Lavaleo':          os.path.join(DINOS_FRONT, 'Lavaleo.png'),
     'Lavaleo2':         os.path.join(DINOS_FRONT, 'Lavaleo.png'),
+    'Pectura':          os.path.join(DINOS_FRONT, 'Pectura.png'),
+    'Pectura2':         os.path.join(DINOS_FRONT, 'Pectura.png'),
+    'Ghoslink':         os.path.join(DINOS_FRONT, 'Ghoslink.png'),
+    'Ghoslink2':        os.path.join(DINOS_FRONT, 'Ghoslink.png'),
 }
 
 NPC_SHEETS = {
@@ -182,12 +186,16 @@ NPC_SHEETS = {
     'barley':             os.path.join('assets', 'NPC', 'Volkit_overworld.png'),
     'cade':               os.path.join('assets', 'NPC', 'cade.png'),
     'farmer':             os.path.join('assets', 'NPC', 'farmer.png'),
+    'debby':              os.path.join('assets', 'NPC', 'Blue_G.png'),
+    'josh':               os.path.join('assets', 'NPC', 'Josh.png'),
+    'celestreeyl':        os.path.join('assets', 'NPC', 'Celestreeyl_overworld.png'),
 }
 
 # Static (non-4x4-sheet) NPC images scaled down to fit inside this (w, h)
 # box, aspect ratio kept and transparent padding trimmed. Keyed by NPC_SHEETS key.
 NPC_STATIC_FIT = {
     'barley': (32, 32),
+    'celestreeyl': (48, 80),   # 1254px source art, ~2.5 tiles tall in the overworld
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
@@ -226,6 +234,7 @@ NPC_SPRITE_KEY = {
     'vanessa_hq':    'vanessa',
     'gray_home':     'gray',
     'abby_home':     'abby',
+    'collector':     'rocko',
 }
 
 # Dialogue-box speaker portraits: the display name used in a dialogue tag
@@ -245,6 +254,9 @@ DIALOGUE_PORTRAITS = {
     'Mom':     'mom',
     'Cade':    'cade',
     'Hollis':  'farmer',
+    'Debby':   'debby',
+    'Collector': 'rocko',
+    'Josh':    'josh',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -312,13 +324,25 @@ WORLD_NPCS = {
     ],
     # Silverleaf homes — present only early on (see Game._spawn_world_npcs)
     'GRAY_HOUSE.tmx': [
-        ('gray_home', 9, 8, 'down', 0, 'story'),   # gone once encounters_unlocked
+        ('gray_home', 4, 7, 'up', 0, 'story'),   # gone once encounters_unlocked
     ],
     'ABBY_HOUSE.tmx': [
-        ('abby_home', 9, 8, 'down', 0, 'story'),   # gone once gym1_leader_defeated
+        ('abby_home', 6, 5, 'down', 0, 'story'),   # gone once gym1_leader_defeated
     ],
     'ELDER_HOUSE.tmx': [
         ('farmer', 8, 8, 'down', 0, 'story'),   # Hollis — "Lanterns in the Corn" side quest
+    ],
+    'HORIZON_CAVE.world': [
+        ('celestreeyl', 40, -31, 'down', 0, 'story'),   # top of HORIZON_CAVE8 — light-flash legendary battle
+    ],
+    'HORIZON_CAVE1.tmx': [
+        ('josh', 9, 3, 'down', 0, 'story'),   # Horizon Cave guardian — gone once josh_defeated
+    ],
+    'SIERRA_HOUSE2.tmx': [
+        ('collector', 13, 8, 'down', 0, 'story'),   # Skelig Town visitor — Pectura -> Rhysnow trade
+    ],
+    'SIERRA_HOUSE3.tmx': [
+        ('debby', 8, 7, 'down', 0, 'story'),    # Mom's sister — "Deliver Package to Mom" side quest
     ],
     'HOME_JET.tmx': [
         ('mom',    6, 9, 'down', 0, 'story'),
@@ -396,6 +420,12 @@ ITEMS = {
         "icon": os.path.join(ITEMS_PATH, "tm_magma.png"),
         "description": "Teaches Solar Flare to a Magma-type Dino. Single use.",
         "tm_move": "Solar Flare",
+    },
+    "TM Leaf Ultima": {
+        "name": "TM Leaf Ultima",
+        "icon": os.path.join(ITEMS_PATH, "tm_earth.png"),
+        "description": "Teaches Leaf Ultima to an Earth-type Dino. Single use.",
+        "tm_move": "Leaf Ultima",
     },
 }
 
