@@ -34,6 +34,7 @@ VOLUMES = {
     'select': 0.6,
     'door': 0.9,
     'grass': 0.55,
+    'dark_pulse': 0.6,   # loops the whole time you're in Cobaltion's room
 }
 
 

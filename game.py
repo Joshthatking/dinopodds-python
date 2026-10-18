@@ -45,6 +45,14 @@ LAKE_MERIDIAN_PROPHECY_TILES = {
     (3, -100), (4, -100),
 }
 
+# LAKE_MERIDIAN8's 3x3 ruin (world tile coords) — tagged lore1 in the tileset,
+# so it's checked before lore_tile_coords to give it its own text.
+LAKE_MERIDIAN_CELESTIAL_RUIN_TILES = {
+    (24, -111), (25, -111), (26, -111),
+    (24, -110), (25, -110), (26, -110),
+    (24, -109), (25, -109), (26, -109),
+}
+
 
 class Game:
     def __init__(self):
@@ -761,7 +769,7 @@ class Game:
         base_stats = DINO_DATA[name]['stats']
         max_hp  = HP_Base(base_stats["health"], level)
         attack  = Base_Stats(base_stats["attack"], level)
-        defense = Base_Stats(base_stats["defense"], level, p=0.9)
+        defense = Base_Stats(base_stats["defense"], level, p=DEFENSE_EXP)
         speed   = Base_Stats(base_stats["speed"], level)
 
         learned_moves = [m for _, m in sorted(DINO_DATA[name]['moves'].items()) if _ <= level]
@@ -823,7 +831,7 @@ class Game:
             dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
             dino['max_hp']  = HP_Base(base_stats["health"], dino['level'])
             dino['attack']  = Base_Stats(base_stats["attack"], dino['level'])
-            dino['defense'] = Base_Stats(base_stats["defense"], dino['level'], p=0.9)
+            dino['defense'] = Base_Stats(base_stats["defense"], dino['level'], p=DEFENSE_EXP)
             dino['speed']   = Base_Stats(base_stats["speed"], dino['level'])
             dino['base_attack']  = dino['attack']
             dino['base_defense'] = dino['defense']
@@ -862,7 +870,7 @@ class Game:
                 dino['xp_to_next'] = LevelXP(dino['level'] + 1) - LevelXP(dino['level'])
                 dino['max_hp']  = HP_Base(base_stats['health'], dino['level'])
                 dino['attack']  = Base_Stats(base_stats['attack'], dino['level'])
-                dino['defense'] = Base_Stats(base_stats['defense'], dino['level'], p=0.9)
+                dino['defense'] = Base_Stats(base_stats['defense'], dino['level'], p=DEFENSE_EXP)
                 dino['speed']   = Base_Stats(base_stats['speed'], dino['level'])
                 dino['base_attack']  = dino['attack']
                 dino['base_defense'] = dino['defense']
@@ -1108,7 +1116,7 @@ class Game:
 
         dino['max_hp']  = HP_Base(base_stats['health'], level)
         dino['attack']  = Base_Stats(base_stats['attack'], level)
-        dino['defense'] = Base_Stats(base_stats['defense'], level, p=0.9)
+        dino['defense'] = Base_Stats(base_stats['defense'], level, p=DEFENSE_EXP)
         dino['speed']   = Base_Stats(base_stats['speed'], level)
         dino['base_attack']  = dino['attack']
         dino['base_defense'] = dino['defense']
@@ -3425,6 +3433,9 @@ class Game:
             return
         if c['phase'] == 'solar_shard_reveal':
             self._update_solar_shard_reveal(dt)
+            return
+        if c['phase'] == 'lunar_shard_reveal':
+            self._update_lunar_shard_reveal(dt)
             return
         if c['phase'] == 'grunts_walking':
             self._update_grunts_walking(dt)
@@ -5837,6 +5848,7 @@ class Game:
         self.screen_shake = self.COBALTION_COLLAPSE_DURATION
         self.cutscene = {'phase': 'cobaltion_collapse', 'npc1': npc,
                          'elapsed': 0.0, 'wave_t': wave_t, 'particles': None}
+        self.sfx.play('dark_collapse')
 
     def _update_cobaltion_collapse(self, dt):
         c = self.cutscene
@@ -5864,6 +5876,7 @@ class Game:
 
     def _cobaltion_cry(self, npc):
         self.cutscene = {'phase': 'shadowhq_wait'}
+        self.sfx.play('dark_roar')
         self.message_box.queue_messages(
             self._tag_dialogue('Cobaltion', ["aaaggyyuyu"]),
             wait_for_input=True,
@@ -5903,7 +5916,10 @@ class Game:
         self.day_night_timer = 0.0
         self.dn_transitioning = False
         self.dn_transition_timer = 0.0
-        self._maybe_place_twilight_shard()
+        self.player.freeze_in_place()
+        self.cutscene = {'phase': 'lunar_shard_reveal', 'tile': self.COBALTION_TILE,
+                         't': 0.0, 'landed': False}
+        self.sfx.play('lunar_descend')
         # Abby and Gray stop guarding Cobalt Cave — strip them from the
         # cave's saved NPC list so they're gone when the player walks back.
         for entry in self.world_stack:
@@ -5913,6 +5929,8 @@ class Game:
 
     def _maybe_place_twilight_shard(self):
         if self.current_world_file != 'SHADOWHQ1.tmx':
+            return
+        if self.cutscene and self.cutscene.get('phase') == 'lunar_shard_reveal':
             return
         tx, ty = self.COBALTION_TILE
         if (self.current_world_file, tx, ty) in self.picked_up_world_items:
@@ -5954,7 +5972,12 @@ class Game:
             return
         if not self.shadowhq_wave:
             self.shadowhq_wave = {'elapsed': 0.0}
+        before = int(self.shadowhq_wave['elapsed'] // self.SHADOWHQ_WAVE_INTERVAL)
         self.shadowhq_wave['elapsed'] += dt
+        after = int(self.shadowhq_wave['elapsed'] // self.SHADOWHQ_WAVE_INTERVAL)
+        # Throb on every other ring — every ring is too busy to listen to
+        if after != before and after % 2 == 0:
+            self.sfx.play('dark_pulse')
 
     def _cobaltion_center(self, cob):
         img = cob._current_image()
@@ -6772,6 +6795,14 @@ class Game:
                     "As darkness goes cold, infinite light lives on",
                 ], wait_for_input=True)
                 return True
+            if tile in LAKE_MERIDIAN_CELESTIAL_RUIN_TILES:
+                self.message_box.queue_messages([
+                    "The presence of celestials carries a large toll on the world",
+                    "Space-time, sun-moon, light-dark...",
+                    "The warping of reality is at risk",
+                    "Only balance can restore...",
+                ], wait_for_input=True)
+                return True
             if tile in self.lore_tile_coords:
                 self.message_box.queue_messages([
                     "A Tale of 2 Halves",
@@ -6799,11 +6830,13 @@ class Game:
             return
         tx, ty = GOURDECRUX_TOMB_CENTER
         self._start_orb_fx(tx, ty, on_complete=lambda: self._finish_gourdecrux_transform(target))
+        self.sfx.play('morph')
 
     def _finish_gourdecrux_transform(self, dino):
         old_name = dino['name']
         new_name = 'Gourdecrux' if old_name == 'Scarecrux' else 'Scarecrux'
         self._apply_form_swap(dino, new_name)
+        self.sfx.play('morph_done')
         self.message_box.queue_messages(
             [f"... Your {old_name} has morphed into {new_name}"],
             wait_for_input=True)
@@ -6830,7 +6863,7 @@ class Game:
 
         dino['max_hp']  = HP_Base(base_stats['health'], level)
         dino['attack']  = Base_Stats(base_stats['attack'], level)
-        dino['defense'] = Base_Stats(base_stats['defense'], level, p=0.9)
+        dino['defense'] = Base_Stats(base_stats['defense'], level, p=DEFENSE_EXP)
         dino['speed']   = Base_Stats(base_stats['speed'], level)
         dino['base_attack']  = dino['attack']
         dino['base_defense'] = dino['defense']
@@ -7294,6 +7327,7 @@ class Game:
                 wait_for_input=True)
         elif npc.trainer_id == 'scarecrux':
             if self.night_active:
+                self.sfx.play('eerie')
                 self.message_box.queue_messages(
                     ["The scarecrow has awoken in the night..."],
                     wait_for_input=True,
@@ -7515,6 +7549,7 @@ class Game:
         self.player.freeze_in_place()
         self.screen_shake = self.CELES_CHARGE + self.CELES_FLASH
         self.cutscene = {'phase': 'celestreeyl_awaken', 'npc': npc, 't': 0.0}
+        self.sfx.play('celes_awaken')
 
     def _update_celestreeyl_awaken(self, dt):
         c = self.cutscene
@@ -7543,6 +7578,7 @@ class Game:
         self.player.freeze_in_place()
         self.cutscene = {'phase': 'solar_shard_reveal', 'tile': (npc.tile_x, npc.tile_y),
                          't': 0.0, 'landed': False}
+        self.sfx.play('solar_shard')
 
     # --- Celestial Solar Shard reveal ---
     # Right after Celestreeyl is caught/defeated: the leftover light fades,
@@ -7563,6 +7599,7 @@ class Game:
         if not c['landed'] and c['t'] >= self.SOLAR_LAND:
             c['landed'] = True
             self.screen_shake = 0.25
+            self.sfx.play('shard_land')
         if c['t'] < self.SOLAR_END:
             return
         self.cutscene = None
@@ -7693,6 +7730,157 @@ class Game:
                 white.fill((255, 255, 255))
             white.set_alpha(int(white_a))
             screen.blit(white, (0, 0))
+
+    # --- Twilight Lunar Shard reveal ---
+    # Right after Cobaltion is caught/defeated: night settles over the HQ,
+    # a crescent moon rises over the spot, cold motes spiral in, the shard
+    # drifts down spinning, lands in a silver-violet burst, and is left as
+    # a pickup. Same beats as the solar reveal, in a moonlit palette.
+    LUNAR_FADE_IN       = 0.6    # night veil settles in
+    LUNAR_DESCEND_START = 0.9
+    LUNAR_LAND          = 2.7
+    LUNAR_END           = 3.7
+    LUNAR_DROP_TILES    = 3
+    LUNAR_COLS = ((150, 170, 255), (205, 215, 255), (120, 90, 220), (180, 140, 255),
+                  (235, 238, 255), (90, 120, 220), (160, 110, 240))
+
+    def _update_lunar_shard_reveal(self, dt):
+        c = self.cutscene
+        c['t'] += dt
+        if not c['landed'] and c['t'] >= self.LUNAR_LAND:
+            c['landed'] = True
+            self.screen_shake = 0.25
+            self.sfx.play('lunar_shard')
+        if c['t'] < self.LUNAR_END:
+            return
+        self.cutscene = None
+        self._maybe_place_twilight_shard()
+        self.message_box.queue_messages(
+            ['Cobaltion left something behind...',
+             f'A {self.TWILIGHT_SHARD_ITEM} shimmers where it stood!'],
+            wait_for_input=True)
+
+    def _draw_lunar_shard_reveal(self, screen):
+        c = self.cutscene
+        t = c['t']
+        W, H = config.WIDTH, config.HEIGHT
+        scale = W / self.render_surface.get_width()
+        ts = config.TILE_SIZE
+        tx, ty = c['tile']
+        cx = (tx * ts + ts / 2 - self.camera_x) * scale
+        cy = (ty * ts + ts / 2 - self.camera_y) * scale
+
+        def add(col, k):
+            return tuple(max(0, min(255, int(v * k))) for v in col)
+
+        build = max(0.0, min(1.0, (t - 0.3) / (self.LUNAR_LAND - 0.3)))
+        after = max(0.0, (t - self.LUNAR_LAND) / (self.LUNAR_END - self.LUNAR_LAND))
+        glow_k = build * (1 - after)
+
+        # a deep night-blue veil settles over the room
+        veil_k = min(1.0, t / self.LUNAR_FADE_IN) * (1 - after)
+        dim = self.__dict__.get('_lunar_dim')
+        if dim is None or dim.get_size() != (W, H):
+            dim = self._lunar_dim = pygame.Surface((W, H))
+            dim.fill((4, 6, 26))
+        dim.set_alpha(int(175 * veil_k))
+        screen.blit(dim, (0, 0))
+
+        fx = self.__dict__.get('_lunar_fx')
+        if fx is None or fx.get_size() != (W, H):
+            fx = self._lunar_fx = pygame.Surface((W, H))
+        fx.fill((0, 0, 0))
+
+        # a pale crescent moon rising above the spot
+        moon_r = 20 * scale
+        mx, my = cx, cy - (60 + 20 * build) * scale
+        for k in range(6, 0, -1):   # soft halo
+            f = k / 6
+            pygame.draw.circle(fx, add((120, 130, 230), glow_k * (1 - f) * 0.6),
+                               (int(mx), int(my)), int(moon_r * (1 + f)))
+        # crescent on its own layer (moon minus an offset disc), then added
+        # over the halo so the halo still shows through the hollow
+        side = int(moon_r * 2) + 4
+        moon = pygame.Surface((side, side))
+        m = side // 2
+        pygame.draw.circle(moon, add((225, 230, 255), glow_k), (m, m), int(moon_r))
+        pygame.draw.circle(moon, (0, 0, 0), (int(m + moon_r * 0.45), int(m - moon_r * 0.2)),
+                           int(moon_r * 0.9))
+        fx.blit(moon, (int(mx) - m, int(my) - m), special_flags=pygame.BLEND_RGB_ADD)
+
+        # slender silver-violet rays turning the opposite way to the sun's
+        n = 12
+        length = (30 + 80 * build) * scale
+        for i in range(n):
+            a = i * math.tau / n + t * 0.5
+            half = 0.03 + 0.02 * (i % 2)
+            k = glow_k * 0.4 * (0.7 + 0.3 * math.sin(t * 4 + i * 1.7))
+            pts = [(cx, cy),
+                   (cx + math.cos(a - half) * length, cy + math.sin(a - half) * length),
+                   (cx + math.cos(a + half) * length, cy + math.sin(a + half) * length)]
+            pygame.draw.polygon(fx, add(self.LUNAR_COLS[i % len(self.LUNAR_COLS)], k), pts)
+
+        # cold motes spiralling inward, twinkling as they go
+        rng = random.Random(8642)
+        for _ in range(40):
+            ang0 = rng.uniform(0, math.tau)
+            q = (t * rng.uniform(0.4, 0.8) + rng.random()) % 1.0
+            d = (1 - q) * rng.uniform(70, 160) * scale
+            ang = ang0 - q * 2.6
+            x, y = cx + math.cos(ang) * d, cy + math.sin(ang) * d
+            tw = 0.6 + 0.4 * math.sin(t * 9 + ang0 * 5)
+            pygame.draw.circle(fx, add(rng.choice(self.LUNAR_COLS), glow_k * (0.4 + q) * tw),
+                               (int(x), int(y)), max(1, int((1 + 1.5 * q) * scale)))
+
+        # moonlight pooling on the floor
+        core = (8 + 18 * build) * scale
+        for k in range(10, 0, -1):
+            f = k / 10
+            pygame.draw.circle(fx, add((170, 185, 255), glow_k * (1 - f) ** 1.5 * 1.3),
+                               (int(cx), int(cy)), max(1, int(core * f)))
+
+        # landing burst: silver-violet rings + four-point star glints
+        if c['landed']:
+            for j, col in enumerate(self.LUNAR_COLS):
+                r = (6 + 110 * after + j * 3) * scale
+                pygame.draw.circle(fx, add(col, 1.0 - after), (int(cx), int(cy)),
+                                   int(r), max(1, int(1.5 * scale)))
+            srng = random.Random(77)
+            for _ in range(14):
+                ang = srng.uniform(0, math.tau)
+                d = (10 + srng.uniform(30, 70) * (after ** 0.6)) * scale
+                x, y = cx + math.cos(ang) * d, cy + math.sin(ang) * d
+                s = (1 - after) * 4 * scale
+                col = add(srng.choice(self.LUNAR_COLS), 1.0 - after)
+                pygame.draw.line(fx, col, (x - s, y), (x + s, y), max(1, int(scale / 2)))
+                pygame.draw.line(fx, col, (x, y - s), (x, y + s), max(1, int(scale / 2)))
+        screen.blit(fx, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+        # the shard itself: drifts down spinning, then rests
+        icon = self.item_icons.get(self.TWILIGHT_SHARD_ITEM)
+        if icon is not None and t >= self.LUNAR_DESCEND_START:
+            tile_img = self._fit_icon_to_tile(icon)
+            size = int(ts * scale)
+            if c['landed']:
+                drop, spin = 0.0, 1.0
+            else:
+                p = (t - self.LUNAR_DESCEND_START) / (self.LUNAR_LAND - self.LUNAR_DESCEND_START)
+                ease = 1 - (1 - p) ** 2
+                drop = (1 - ease) * self.LUNAR_DROP_TILES * ts * scale + math.sin(t * 5) * 2 * scale * (1 - p)
+                spin = abs(math.cos((1 - ease) * math.tau * 2.5))
+            w = max(1, int(size * max(0.08, spin)))
+            img = pygame.transform.scale(tile_img, (w, size))
+            img.set_alpha(int(255 * min(1.0, (t - self.LUNAR_DESCEND_START) / 0.3)))
+            screen.blit(img, (int(cx - w / 2), int(cy - size / 2 - drop)))
+
+        # pale lavender flash on landing
+        if c['landed'] and after < 0.25:
+            flash = self.__dict__.get('_lunar_flash')
+            if flash is None or flash.get_size() != (W, H):
+                flash = self._lunar_flash = pygame.Surface((W, H))
+                flash.fill((210, 205, 255))
+            flash.set_alpha(int(140 * (1 - after / 0.25)))
+            screen.blit(flash, (0, 0))
 
     def _draw_celestreeyl_awaken(self, screen):
         c = self.cutscene
@@ -8353,6 +8541,8 @@ class Game:
                 self._draw_celestreeyl_awaken(self.screen)
             if self.cutscene and self.cutscene.get('phase') == 'solar_shard_reveal':
                 self._draw_solar_shard_reveal(self.screen)
+            if self.cutscene and self.cutscene.get('phase') == 'lunar_shard_reveal':
+                self._draw_lunar_shard_reveal(self.screen)
             if self.sandbox:
                 tag = self.fonts['XS'].render("SANDBOX MODE", True, (255, 80, 80))
                 self.screen.blit(tag, (config.WIDTH - tag.get_width() - 6, 6))

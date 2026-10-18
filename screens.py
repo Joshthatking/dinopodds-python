@@ -1989,8 +1989,23 @@ class ItemsScreen:
         self.font = fonts['BAG']
         self.desc_font = fonts['XS']
         self.selected_index = 0
-        self.visible_rows = 10
+        # However many full rows fit inside the list panel
+        self.visible_rows = (self.LIST_RECT.height - 3 - self.ROW_TOP - self.ROW_H) // self.ROW_STEP + 1
         self.scroll_offset = 0
+
+    LIST_RECT = pygame.Rect(340, 50, 280, 320)
+    ROW_TOP   = 15   # first row's highlight top, from the panel's top
+    ROW_H     = 30
+    ROW_STEP  = 35
+
+    def _clamp_scroll(self, n):
+        """Keep the selection in range (items can run out) and on screen."""
+        self.selected_index = max(0, min(self.selected_index, n - 1))
+        if self.selected_index < self.scroll_offset:
+            self.scroll_offset = self.selected_index
+        elif self.selected_index >= self.scroll_offset + self.visible_rows:
+            self.scroll_offset = self.selected_index - self.visible_rows + 1
+        self.scroll_offset = max(0, min(self.scroll_offset, max(0, n - self.visible_rows)))
 
     def get_filtered_inventory(self):
         return [(item, count) for item, count in self.inventory.items() if count > 0]
@@ -2005,7 +2020,7 @@ class ItemsScreen:
         """Item icon scaled (aspect kept, transparent padding trimmed) to fit ICON_BOX."""
         cache = self.__dict__.setdefault('_icon_cache', {})
         src = self.icons.get(item)
-        if cache.get(item, (None,))[0] is not src:
+        if item not in cache or cache[item][0] is not src:
             img = None
             if src is not None:
                 r = src.get_bounding_rect()
@@ -2031,7 +2046,7 @@ class ItemsScreen:
         return self.desc_font.render(text.rstrip() + "...", True, (0, 0, 0))
 
     def draw(self, surface):
-        right_rect = pygame.Rect(340, 50, 280, 320)
+        right_rect = self.LIST_RECT
         pygame.draw.rect(surface, (255, 255, 240), right_rect)
         pygame.draw.rect(surface, (0, 0, 0), right_rect, 3)
 
@@ -2043,9 +2058,10 @@ class ItemsScreen:
                          (right_rect.x + 20, right_rect.y + 40))
             return
 
-        row_h = 30
+        self._clamp_scroll(len(filtered))
+        row_h = self.ROW_H
         for i, (item, count) in enumerate(filtered[self.scroll_offset:self.scroll_offset + self.visible_rows]):
-            y = right_rect.y + 20 + i * 35
+            y = right_rect.y + self.ROW_TOP + 5 + i * self.ROW_STEP
             mid = y + 10
             if self.scroll_offset + i == self.selected_index:
                 pygame.draw.rect(surface, (200, 200, 255),
@@ -2059,6 +2075,15 @@ class ItemsScreen:
             name_x = right_rect.x + 18 + self.ICON_BOX
             name_surf = self._fit_name(item, count_x - 8 - name_x)
             surface.blit(name_surf, name_surf.get_rect(midleft=(name_x, mid)))
+
+        # Little arrows on the panel's border when there's more to scroll to
+        ax = right_rect.centerx
+        if self.scroll_offset > 0:
+            top = right_rect.top
+            pygame.draw.polygon(surface, (0, 0, 0), [(ax - 7, top + 4), (ax + 7, top + 4), (ax, top - 4)])
+        if self.scroll_offset + self.visible_rows < len(filtered):
+            bot = right_rect.bottom
+            pygame.draw.polygon(surface, (0, 0, 0), [(ax - 7, bot - 4), (ax + 7, bot - 4), (ax, bot + 4)])
 
         desc_rect = pygame.Rect(340, 380, 280, 70)
         pygame.draw.rect(surface, (240, 240, 240), desc_rect)
@@ -2081,6 +2106,7 @@ class ItemsScreen:
         if event.type != pygame.KEYDOWN:
             return None
 
+        self._clamp_scroll(len(filtered))
         if event.key == pygame.K_j:
             item_name, _ = filtered[self.selected_index]
             item_data = config.ITEMS.get(item_name, {})
@@ -2139,13 +2165,11 @@ class ItemsScreen:
         elif event.key == pygame.K_w:
             if self.selected_index > 0:
                 self.selected_index -= 1
-            if self.selected_index < self.scroll_offset:
-                self.scroll_offset -= 1
+            self._clamp_scroll(len(filtered))
         elif event.key == pygame.K_s:
             if self.selected_index < len(filtered) - 1:
                 self.selected_index += 1
-            if self.selected_index >= self.scroll_offset + self.visible_rows:
-                self.scroll_offset += 1
+            self._clamp_scroll(len(filtered))
         elif event.key == pygame.K_SPACE:
             if len(game.state_stack) >= 2 and game.state_stack[-2] == 'menu' and game.state_stack[0] == 'world':
                 game.pop_state()
@@ -2691,6 +2715,19 @@ class DialogueBox:
 # === Trainer Card Screen ===
 class TrainerCardScreen:
     NUM_BADGES = 8
+    # The 8 outlined slots along the bottom of Badge.png (after it's scaled
+    # to the screen): left edge of each, shared top, and outer size.
+    BADGE_SLOT_X    = (81, 144, 207, 269, 332, 394, 456, 519)
+    BADGE_SLOT_Y    = 398
+    BADGE_SLOT_SIZE = 42
+    BADGE_BG_SIZE   = 34   # black square inside the slot's outline
+    BADGE_SIZE      = 30
+    # (story flag, badge image) in slot order
+    BADGES = (
+        ('gym1_leader_defeated', 'flying_badge.png'),
+        ('gym2_leader_defeated', 'earth_badge.png'),
+        ('gym3_leader_defeated', 'aqua_badge.png'),
+    )
 
     def __init__(self, game):
         self.game      = game
@@ -2705,16 +2742,23 @@ class TrainerCardScreen:
             self._bg = pygame.transform.scale(raw, (config.WIDTH, config.HEIGHT))
         except Exception:
             self._bg = None
-        try:
-            badge_raw = pygame.image.load(os.path.join('assets', 'Badges', 'flying_badge.png')).convert_alpha()
-            self._flying_badge = pygame.transform.scale(badge_raw, (30, 30))
-        except Exception:
-            self._flying_badge = None
-        try:
-            earth_raw = pygame.image.load(os.path.join('assets', 'Badges', 'earth_badge.png')).convert_alpha()
-            self._earth_badge = pygame.transform.scale(earth_raw, (30, 30))
-        except Exception:
-            self._earth_badge = None
+        self._badge_imgs = []
+        for _, fname in self.BADGES:
+            try:
+                raw = pygame.image.load(os.path.join('assets', 'Badges', fname)).convert_alpha()
+                self._badge_imgs.append(self._fit_badge(raw))
+            except Exception:
+                self._badge_imgs.append(None)
+
+    def _fit_badge(self, img):
+        """Trim transparent padding, then scale to fit BADGE_SIZE keeping
+        the aspect ratio, so every badge sits the same size in its slot."""
+        r = img.get_bounding_rect()
+        if r.width and r.height:
+            img = img.subsurface(r)
+        w, h = img.get_size()
+        s = self.BADGE_SIZE / max(w, h)
+        return pygame.transform.smoothscale(img, (max(1, round(w * s)), max(1, round(h * s))))
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j, pygame.K_i):
@@ -2732,6 +2776,20 @@ class TrainerCardScreen:
         screen.blit(shadow, (x + 1, y + 1))
         screen.blit(font.render(text, True, color), (x, y))
 
+    def _draw_badges(self, screen):
+        half = self.BADGE_SLOT_SIZE // 2
+        cy = self.BADGE_SLOT_Y + half
+        for i, sx in enumerate(self.BADGE_SLOT_X):
+            cx = sx + half
+            bg = pygame.Rect(0, 0, self.BADGE_BG_SIZE, self.BADGE_BG_SIZE)
+            bg.center = (cx, cy)
+            pygame.draw.rect(screen, (0, 0, 0), bg, border_radius=3)
+            if i >= len(self.BADGES):
+                continue
+            img = self._badge_imgs[i]
+            if img and self.game.story_flags.get(self.BADGES[i][0]):
+                screen.blit(img, img.get_rect(center=(cx, cy)))
+
     def draw(self, screen):
         if self._bg:
             screen.blit(self._bg, (0, 0))
@@ -2745,10 +2803,7 @@ class TrainerCardScreen:
         self._blit_text(screen, self.font_md, self._fmt_time(),                    (255,255,255), 250, 270)  # Time
         self._blit_text(screen, self.font_md, self.game.adventure_start_date.strftime("%b %d, %Y"), (255,255,255), 170, 330)  # Started
 
-        if self._flying_badge and self.game.story_flags.get('gym1_leader_defeated'):
-            screen.blit(self._flying_badge, (22, 418))
-        if self._earth_badge and self.game.story_flags.get('gym2_leader_defeated'):
-            screen.blit(self._earth_badge, (62, 418))  # adjust x,y to the card's 2nd badge slot
+        self._draw_badges(screen)
 
         self._blit_text(screen, self.font_xs, "SPACE / J to close",
                         (180, 170, 150), 20, config.HEIGHT - 16)

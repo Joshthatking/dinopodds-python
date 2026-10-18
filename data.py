@@ -694,7 +694,7 @@ DINODEX_DATA = {
 DINO_DATA = {
     'Vusion': {
         'stats': {'type': ['dark'], 'health': 120, 'attack': 155, 'defense': 70, 'speed': 125},
-        'moves': {0: 'Force Shift', 1: 'Flash', 9: 'Fireball', 15: 'Shadow Veil', 17: 'Conduit Surge', 19: 'Distortion', 23: 'Flame Shatter', 27: 'Binding Curse',  30: 'Haunt',35: 'Void Collapse'},
+        'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Conduit Surge', 20: 'Distortion', 23: 'Flame Shatter', 27: 'Binding Curse',  30: 'Haunt',35: 'Void Collapse', 38: 'Spectral Overload'},
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 115, 'defense': 120, 'speed':80},
@@ -856,7 +856,7 @@ DINO_DATA = {
 
     'Typhoonray': {
         'stats': {'type': ['aqua', 'flying'], 'health': 92, 'attack': 108, 'defense': 123, 'speed': 129},
-        'moves': {0: 'Whirlpool+', 1: 'Air Strike', 8: 'Swift Sneak', 14: 'Wave Dash', 17: 'Quick Slash', 20: 'Mach Speed', 25: 'Turbo Booster', 28: 'Wind Fracture', 32: 'Hurricane', 38: 'Sky Scorch', 44: 'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Air Strike', 8: 'Swift Sneak', 14: 'Wave Dash', 17: 'Quick Slash', 20: 'Mach Speed', 25: 'Turbo Booster', 28: 'Wind Fracture', 32: 'Hurricane', 38: 'Sky Scorch', 44: 'Eternal Blue'},
         'evolve': None},
 
     'Stormulus': {
@@ -876,7 +876,7 @@ DINO_DATA = {
 
     'Ghoslink': {
         'stats': {'type': ['dark'], 'health': 106, 'attack': 117, 'defense': 142, 'speed': 85},
-        'moves': {0: 'Dark Energy', 1: 'Fear', 5: 'Chain Rip', 9: 'Binding Curse', 13: 'Shadow Veil', 17: 'Haunt', 21: 'Force Shift', 25: 'Velo Induction', 28: 'Distortion', 31: 'Leaf Ultima', 36: 'Void Collapse'},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 5: 'Binding Curse', 9: 'Chain Rip', 13: 'Shadow Veil', 17: 'Haunt', 21: 'Force Shift', 25: 'Velo Induction', 28: 'Distortion', 31: 'Leaf Ultima', 36: 'Void Collapse'},
         'evolve': None},
 
 }
@@ -1088,7 +1088,7 @@ MOVE_DATA = {
    'Vine Snare+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Dread Thorn': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Tree Spin': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'earth'},
-    'Leaf Ultima': {'target': 'opponent', 'damage': 100, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Leaf Ultima': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'earth'},
 
 
     
@@ -1113,7 +1113,7 @@ MOVE_DATA = {
 
     'Turbo Booster':   {'target': 'self', 'damage': 0, 'accuracy': 95, 'type': 'flying', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
-    'Sky Scorch':   {'target': 'opponent', 'damage': 120, 'accuracy': 90, 'type': 'flying',
+    'Sky Scorch':   {'target': 'opponent', 'damage': 115, 'accuracy': 90, 'type': 'flying',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'self', 'chance': 100}},
     #SPIKE MOVES
     'Lock Jaw': {'target': 'opponent', 'damage': 35, 'accuracy': 90, 'type': 'spike', 'priority':1,
@@ -1141,7 +1141,7 @@ MOVE_DATA = {
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 2, 'target': 'self', 'chance': 100}},             
     'Momentum':   {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
-    'Crash Impact': {'target': 'opponent', 'damage': 100, 'accuracy': 100, 'type': 'rock',
+    'Crash Impact': {'target': 'opponent', 'damage': 100, 'accuracy': 95, 'type': 'rock',
                      'ability': {'kind': 'recoil', 'percent': 15, 'chance': 100}},
     'Sand Storm': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'rock',
                    'ability': {'kind': 'dot', 'damage_percent': 8, 'turns': 2,
@@ -1172,15 +1172,15 @@ MOVE_DATA = {
 
     'Distortion':   {'target': 'opponent', 'damage': 5, 'accuracy': 100, 'type': 'dark', 'priority':1,
                      'ability': {'kind': 'field', 'effect': 'speed_swap', 'duration': 5, 'chance': 100}},
-    'Fear':   {'target': 'opponent', 'damage': 0, 'accuracy': 95, 'type': 'dark', 'priority':1,
+    'Fear':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'dark', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
-    'Haunt':   {'target': 'opponent', 'damage': 0, 'accuracy': 100, 'type': 'dark', 'priority':1,
+    'Haunt':   {'target': 'opponent', 'damage': 0, 'accuracy': 95, 'type': 'dark', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'opponent', 'chance': 100}},
     'Binding Curse': {'target': 'opponent', 'damage': 35, 'accuracy': 90, 'type': 'dark',
                       'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': -2, 'target': 'opponent', 'chance': 100}},
     'Shadow Veil':   {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'type': 'dark',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 1, 'target': 'self', 'chance': 100}},
-    'Eternal Darkness': {'target': 'opponent', 'damage': 150, 'accuracy': 80, 'type': 'dark',
+    'Eternal Darkness': {'target': 'opponent', 'damage': 130, 'accuracy': 80, 'type': 'dark',
                          'ability': {'kind': 'recharge', 'chance': 100}},
     #LIGHT MOVES
     'Prism Glare': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'light'},
@@ -1193,9 +1193,9 @@ MOVE_DATA = {
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'light', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
    'Gamma Wave':   {'target': 'opponent', 'damage': 80, 'accuracy': 90, 'type': 'light',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'opponent', 'chance': 100}},
-    'Ultra Violet': {'target': 'opponent', 'damage': 120, 'accuracy': 100, 'type': 'light',
+    'Ultra Violet': {'target': 'opponent', 'damage': 110, 'accuracy': 100, 'type': 'light',
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'self', 'chance': 100}},
-    'Infinite Light': {'target': 'opponent', 'damage': 150, 'accuracy': 80, 'type': 'light',
+    'Infinite Light': {'target': 'opponent', 'damage': 130, 'accuracy': 80, 'type': 'light',
                        'ability': {'kind': 'recharge', 'chance': 100}},
     #ICE MOVES
     'Snowfall': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'ice'},
@@ -1639,6 +1639,14 @@ ENCOUNTER_ZONES = {
 
     },
 
+                    "horizon_entrance": {
+        "encounter_rate": 0.1,
+        "dinos": ["Voltzbee", "Skolt", "Magnecrab", "Stormulus", "Bullicorn", "Teamtwood", "Cyflactus", "Typhoonray", "Chomper", "Auraliz", "Frostle", "Pectura", "Netyrant" ],
+        "level_range": (30, 35)
+
+    },
+
+
     ############# HORIZON CAVE ###############
                     "HC_green": {
         "encounter_rate": 0.1,
@@ -1717,6 +1725,8 @@ ZONE_REGIONS = [
     (-45,32,15,60, 'spawn_water'),
     (-9,-118,31,-84, 'lake_water1'),
     (-155,-58,-35,31, 'palm_water'),
+    (21,-113,30,-105, 'horizon_entrance'),
+
 
 
 
@@ -1871,6 +1881,10 @@ def HP_Base(base_hp,level, p=1.4):
 
 def Base_Stats(base, level, p=0.75):
     return round(base * (level / 50) ** p)
+
+# Defense grows faster with level than attack/speed (p=0.75) so late-game
+# battles last longer. Every defense calc uses this — change it here only.
+DEFENSE_EXP = 0.88
 
 
 ################## BATTLE MATHEMATICS #################

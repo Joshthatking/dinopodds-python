@@ -353,14 +353,14 @@ if __name__ == '__main__':
 # Randomizer MODE 
 # Nuzlocke MODE 
 # CREDIT SCENE - after picking up Celestial Solar Shard
-
-
+# RUIN lake meridian 
+# SOUND FX - events 
 # fix badges on the Trainer Card
+# DEFENSE scale level^.9 to level^.88
 
 
 #multiple save files? (3)
-
-# add more lore
+# Need to finish Browler, Gartunis/Relucturen, Stagnetic, Panthyr/Vlyth, Prowscar evo, Brishton
 #SOUND FX - entry, interact, selecting wasd, grass rustle, collision, save confirmation, EVENTS (legendary, cinematic)
 # MUSIC - routes, battle, DC, boss battle, legendary?
 
