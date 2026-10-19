@@ -71,7 +71,7 @@
 </data>
  </layer>
  <group id="5" name="top3"/>
- <layer id="8" name="Tile Layer 4" width="20" height="15" visible="0">
+ <layer id="8" name="Tile Layer 4" width="20" height="15">
   <data encoding="csv">
 86,273,274,275,276,277,0,0,0,0,0,0,0,273,274,275,276,277,0,86,
 86,278,279,280,281,282,0,0,0,0,0,0,0,278,279,280,281,282,0,86,

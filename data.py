@@ -800,7 +800,7 @@ DINO_DATA = {
         'evolve': None},
     'Voltzbee': {
         'stats': {'type': ['lightning'], 'health': 77, 'attack': 113, 'defense': 88, 'speed': 142},
-        'moves': {0: 'Shock', 4: 'Stinger Shock', 8: 'Air Strike', 11: 'Thunder Blitz', 14: 'Swift Sneak', 18: 'Mach Speed', 22: 'Piercing Light', 26: 'Lightning Bolt', 29:'Quantum Flux', 32: 'Volt Storm'},
+        'moves': {0: 'Shock', 4: 'Stinger Shock', 8: 'Air Strike', 11: 'Thunder Blitz', 14: 'Swift Sneak',16: 'Prism Glare', 18: 'Mach Speed', 22: 'Piercing Light', 26: 'Lightning Bolt', 29:'Quantum Flux', 32: 'Volt Storm'},
         'evolve': None},
     'Teamtwood': {
         'stats': {'type': ['earth'], 'health': 88, 'attack': 102, 'defense': 128, 'speed': 107},
@@ -1117,7 +1117,7 @@ MOVE_DATA = {
     'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
    'Vine Snare+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Dread Thorn': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'earth'},
-    'Tree Spin': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Tree Spin': {'target': 'opponent', 'damage': 75, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Leaf Ultima': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'earth'},
 
 

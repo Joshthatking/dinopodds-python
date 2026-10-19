@@ -445,6 +445,12 @@ ITEMS = {
         "description": "Teaches Leaf Ultima to an Earth-type Dino. Single use.",
         "tm_move": "Leaf Ultima",
     },
+    "TM Tree Spin": {
+        "name": "TM Tree Spin",
+        "icon": os.path.join(ITEMS_PATH, "tm_earth.png"),
+        "description": "Teaches Tree Spin to an Earth-type Dino. Single use.",
+        "tm_move": "Tree Spin",
+    },
     "TM Eternal Blue": {
         "name": "TM Eternal Blue",
         "icon": os.path.join(ITEMS_PATH, "tm_aqua.png"),
@@ -459,6 +465,7 @@ ITEMS = {
 SCRIPTED_WORLD_ITEMS = {
     'LOST_REGION.world': [
         (2, -104, "TM Eternal Blue"),
+        (-30, 10, "TM Leaf Ultima"),
     ],
 }
 

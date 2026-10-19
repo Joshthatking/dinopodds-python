@@ -365,6 +365,9 @@ if __name__ == '__main__':
 # build moat area north of corn maze
 
 
+# DINODEX REORDER
+# 1: Floravel 2: Palidian 3: Volkit 4: Tygraflare 5: Corlave 6: Anemamace 7:Bullicorn 8:Voltzbee 9:Teamtwood 10:Creuw 11:Luna 12:Pectura 13:Browler 14:Netaslam 15:Netyrant 16:Chomper 17:Sortle 18:Frostle 19:Prickly 20:Cyflactus 21:Ghoslink 22:Prowscar 23: Scarlish 24: Ghoulflame 25:Typhoonray 26:Stormulus 27:Roxer 28: Rockull 29:Bouldava 30:Auraliz 31:Rhysnow 32:Rhinecicle 33:Magnecrab 34:Skolt 35:Lavaleo 36:Sharka 37:Sharktastrophe 38: Scarecrux 39:Gourdecrux 40:Vusion 41:Drafyton 42:Cobaltion 43:Celestreeyl 44:Deimo 45:VY 
+
 
 # Add songs to certain parts of game
 # End credits, Routes, corn maze, cave, horizon cave, boss battles, battles, legendary

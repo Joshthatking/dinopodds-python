@@ -7490,7 +7490,7 @@ class Game:
     # Debby (SIERRA_HOUSE3.tmx, Mom's sister) hands the player a gift for Mom.
     # Talking to Mom while it's active delivers it and gives the TM.
     # Flags: package_started, package_delivered. No main-story flag is touched.
-    PACKAGE_REWARD = 'TM Leaf Ultima'
+    PACKAGE_REWARD = 'TM Tree Spin'
 
     def _interact_package_debby(self, npc):
         f = self.story_flags
