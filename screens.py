@@ -3681,6 +3681,11 @@ class DinodexScreen:
         row_h = 36
         return (config.HEIGHT - self.HEADER_H) // row_h
 
+    def _known(self, name):
+        """Sandbox shows the whole dex; every other mode only reveals dinos
+        the player has seen in battle or owned (game.dinos_seen)."""
+        return self.game.sandbox or name in self.game.dinos_seen
+
     def _type_matchups(self, types):
         """Returns (weaknesses, resistances) dicts of type -> multiplier for the given type list."""
         result = {}
@@ -3697,6 +3702,28 @@ class DinodexScreen:
         weak   = {t: m for t, m in result.items() if m > 1.0}
         resist = {t: m for t, m in result.items() if m < 1.0}
         return weak, resist
+
+    def _draw_unknown(self, screen, panel_x, number):
+        """Detail panel for a dino the player hasn't met yet: just its number."""
+        num_surf  = self.name_font.render(f"#{number:03d}", True, (120, 180, 255))
+        name_surf = self.name_font.render("???", True, (150, 150, 170))
+        screen.blit(num_surf, (panel_x, self.HEADER_H + 8))
+        screen.blit(name_surf, (panel_x + num_surf.get_width() + 12, self.HEADER_H + 8))
+
+        img_y = self.HEADER_H + 68
+        box = pygame.Rect(config.WIDTH - self.IMG_SIZE - 10, img_y, self.IMG_SIZE, self.IMG_SIZE)
+        pygame.draw.rect(screen, (30, 30, 48), box, border_radius=8)
+        pygame.draw.rect(screen, (70, 70, 100), box, 2, border_radius=8)
+        q = self.title_font.render("?", True, (110, 110, 140))
+        q = pygame.transform.scale(q, (q.get_width() * 3, q.get_height() * 3))
+        screen.blit(q, (box.centerx - q.get_width() // 2, box.centery - q.get_height() // 2))
+
+        desc_max_w = (config.WIDTH - self.IMG_SIZE - 30) - panel_x
+        lines = wrap_text("A mystery... Encounter this dino in the wild or in battle "
+                          "to record its data.", self.small_font, desc_max_w)
+        for i, line in enumerate(lines):
+            screen.blit(self.small_font.render(line, True, (150, 150, 170)),
+                        (panel_x, img_y + i * 24))
 
     def handle_event(self, event, game):
         if event.type != pygame.KEYDOWN:
@@ -3729,6 +3756,9 @@ class DinodexScreen:
                     (10, self.HEADER_H // 2 - 13))
         hint = self.tiny_font.render("W/S = scroll   SPACE = back", True, (120, 120, 140))
         screen.blit(hint, (config.WIDTH - hint.get_width() - 10, self.HEADER_H // 2 - hint.get_height() // 2))
+        seen_count = sum(1 for name, _ in self.entries if self._known(name))
+        seen_surf = self.tiny_font.render(f"Seen: {seen_count} / {len(self.entries)}", True, (170, 200, 240))
+        screen.blit(seen_surf, (150, self.HEADER_H // 2 - seen_surf.get_height() // 2))
 
         # Divider between list and detail
         pygame.draw.line(screen, (60, 60, 90), (self.LIST_W, self.HEADER_H), (self.LIST_W, config.HEIGHT), 2)
@@ -3750,11 +3780,15 @@ class DinodexScreen:
             num_surf = self.tiny_font.render(num_str, True, (160, 200, 255) if is_sel else (100, 120, 160))
             screen.blit(num_surf, (8, y + row_h // 2 - num_surf.get_height() // 2))
 
-            name_surf = self.small_font.render(name, True, (255, 255, 255) if is_sel else (200, 200, 210))
+            known = self._known(name)
+            if known:
+                name_surf = self.small_font.render(name, True, (255, 255, 255) if is_sel else (200, 200, 210))
+            else:
+                name_surf = self.small_font.render("???", True, (170, 170, 190) if is_sel else (95, 95, 115))
             name_x = 52
             screen.blit(name_surf, (name_x, y + row_h // 2 - name_surf.get_height() // 2))
 
-            if name in caught_names and self.pod_icon:
+            if known and name in caught_names and self.pod_icon:
                 icon_x = name_x + name_surf.get_width() + 5
                 screen.blit(self.pod_icon, (icon_x, y + row_h // 2 - 9))
 
@@ -3776,6 +3810,10 @@ class DinodexScreen:
 
         panel_x = self.LIST_W + 10
         panel_w = config.WIDTH - self.LIST_W - 10
+
+        if not self._known(sel_name):
+            self._draw_unknown(screen, panel_x, number)
+            return
 
         # Dino name + number
         num_surf  = self.name_font.render(f"#{number:03d}", True, (120, 180, 255))

@@ -73,7 +73,7 @@ HORIZON_ENCOUNTER_BG_PATH = os.path.join('assets', 'SCREENS', 'horizon_encounter
 WATER_ENCOUNTER_BG_PATH = os.path.join('assets', 'SCREENS', 'water_encounter.png')
 ENCOUNTER_DINOS_PATHS = {
     'Vusion':     os.path.join(DINOS_FRONT, 'Vusion.png'),
-    'Vusion2':    os.path.join(DINOS_FRONT, 'Vusion2.png'),
+    'Vusion2':    os.path.join(DINOS_FRONT, 'Vusion.png'),
     'Anemamace':  os.path.join(DINOS_FRONT, 'Anemamace.png'),
     'Anemamace2': os.path.join(DINOS_FRONT, 'Anemamace2.png'),
     'Corlave':    os.path.join(DINOS_FRONT, 'Corlave.png'),
@@ -162,6 +162,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Ghoslink2':        os.path.join(DINOS_FRONT, 'Ghoslink.png'),
     'Browler':          os.path.join(DINOS_FRONT, 'Browler.png'),
     'Browler2':         os.path.join(DINOS_FRONT, 'Browler.png'),
+    'Scarlust':         os.path.join(DINOS_FRONT, 'Scarlust.png'),
+    'Scarlust2':        os.path.join(DINOS_FRONT, 'Scarlust.png'),
 }
 
 NPC_SHEETS = {

@@ -372,9 +372,12 @@ if __name__ == '__main__':
 # write outside horizon cave spawns to force it to work
 # add controls mapping for both regular and sandbox in options
 # add random overlay of iridescent faint lights that appear around the water and horizon cave in Lake Meridian
-
+# Browler + Scarlust
 # DINODEX REORDER
-# 1: Floravel 2: Palidian 3: Volkit 4: Tygraflare 5: Corlave 6: Anemamace 7:Bullicorn 8:Voltzbee 9:Teamtwood 10:Creuw 11:Luna 12:Pectura 13:Browler 14:Netaslam 15:Netyrant 16:Chomper 17:Sortle 18:Frostle 19:Prickly 20:Cyflactus 21:Ghoslink 22:Prowscar 23: Scarlish 24: Ghoulflame 25:Typhoonray 26:Stormulus 27:Roxer 28: Rockull 29:Bouldava 30:Auraliz 31:Rhysnow 32:Rhinecicle 33:Magnecrab 34:Skolt 35:Lavaleo 36:Sharka 37:Sharktastrophe 38: Scarecrux 39:Gourdecrux 40:Vusion 41:Drafyton 42:Cobaltion 43:Celestreeyl 44:Deimo 45:VY 
+# 1: Floravel 2: Palidian 3: Volkit 4: Tygraflare 5: Corlave 6: Anemamace 7:Bullicorn 8:Voltzbee 9:Teamtwood 10:Creuw 11:Luna 12:Pectura 13:Browler 14:Netaslam 15:Netyrant 16:Chomper 17:Sortle 18:Frostle 19:Prickly 20:Cyflactus 21:Ghoslink 22:Prowscar 23: Scarlust 24: Ghoulflame 25:Typhoonray 26:Stormulus 27:Roxer 28: Rockull 29:Bouldava 30:Auraliz 31:Rhysnow 32:Rhinecicle 33:Magnecrab 34:Skolt 35:Seasoo 36:Sharka 37:Sharktastrophe 38:Lavaleo 39: Scarecrux 40:Gourdecrux 41:Vusion 42:Drafyton 43:Cobaltion 44:Celestreeyl 45:Deimo 46:VY 
+
+
+# 1: Floravel 2: Palidian 3: Volkit 4: Tygraflare 5: Corlave 6: Anemamace 7:Bullicorn 8:Voltzbee 9:Teamtwood 10:Creuw 11:Luna 12:Pectura 13:Browler 14:Netaslam 15:Netyrant 16:Chomper 17:Sortle 18:Frostle 19:Prickly 20:Cyflactus 21:Ghoslink 22:Prowscar 23: Scarlust 24: Ghoulflame 25:Typhoonray 26:Stormulus 27:Roxer 28: Rockull 29:Bouldava 30:Auraliz 31:Rhysnow 32:Rhinecicle 33:Magnecrab 34:Skolt 35:Seasoo 36:Sharka 37:Sharktastrophe 38:Lavaleo 39: Scarecrux 40:Gourdecrux 41:Vusion 42:Drafyton 43:Cobaltion 44:Celestreeyl 45:Deimo 46:VY 
 
 
 # Add songs to certain parts of game

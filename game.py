@@ -101,7 +101,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus", "Lavaleo", "Pectura", "Ghoslink", "Browler"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus", "Lavaleo", "Pectura", "Ghoslink", "Browler", "Scarlust"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -1322,6 +1322,23 @@ class Game:
                 and self.enemy_dino and self.enemy_dino.get('hp', 1) <= 0):
             cap, _ = self._nuzlocke_cap_info(skip_key=key)
         return cap
+
+    def _track_dex_seen(self):
+        """Dinodex: register every species the player has met — any dino
+        on the field in a wild/trainer/double battle, plus anything they own
+        (starters, gifts, trades and evolutions arrive without a battle)."""
+        seen = self.dinos_seen
+        if 'encounter' in self.state_stack:
+            foes = [getattr(self, 'enemy_dino', None)]
+            if getattr(self, 'is_double_battle', False):   # enemy_dino2 can be stale otherwise
+                foes.append(getattr(self, 'enemy_dino2', None))
+            for d in foes:
+                if d:
+                    seen.add(d['name'])
+        for d in self.player_dinos:
+            seen.add(d['name'])
+        for d in self.box_dinos:
+            seen.add(d['name'])
 
     def _nuzlocke_owned_species(self):
         return ({d['name'] for d in self.player_dinos + self.box_dinos}
@@ -8432,6 +8449,7 @@ class Game:
             self.catch_anim.update(dt)
         self.env_fx.update(dt)  # ENV FX
         self.lake_aurora.update(dt)  # LAKE AURORA
+        self._track_dex_seen()
         if self.screen_shake > 0:
             self.screen_shake = max(0.0, self.screen_shake - dt)
         self.message_box.update(dt)
