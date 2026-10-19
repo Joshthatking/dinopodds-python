@@ -3,7 +3,7 @@ import re
 import pygame
 import config
 from data import *
-from story import QUEST_STEPS
+from story import QUEST_STEPS, QUEST_LOG
 from ANIM.title_anim import TitleBackdrop, TitleLogo
 
 
@@ -2868,23 +2868,102 @@ class TrainerCardScreen:
 
 # === Objectives Screen ===
 class ObjectivesScreen:
-    """Notepad of milestone battles (data.OBJECTIVES) with the play time
-    each was beaten at. Times come from Game.objective_times."""
+    """Notepad with two tabs (A/D to switch):
+      * Objectives — milestone battles (data.OBJECTIVES) with the play time
+        each was beaten at. Times come from Game.objective_times.
+      * Quests — main and side quest progress (story.QUEST_LOG): a % bar
+        per group, finished quests ticked, the rest hidden as "???".
+        W/S scrolls."""
     PAPER  = (252, 248, 226)
     RULE   = (160, 195, 230)
     MARGIN = (220, 90, 90)
     INK    = (40, 40, 70)
     FADED  = (150, 150, 160)
+    TICK   = (60, 150, 80)
+    TABS   = ("Objectives", "Quests")
+    QUEST_ROW_H = 28
 
     def __init__(self, game):
         self.game = game
         self.font_title = game.fonts['BATTLE']
         self.font_row   = game.fonts['BAG']
         self.font_xs    = game.fonts['XS']
+        self.tab = 0
+        self.scroll = 0
 
     def handle_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_j, pygame.K_i, pygame.K_ESCAPE):
+        if event.type != pygame.KEYDOWN:
+            return
+        k = event.key
+        if k in (pygame.K_a, pygame.K_d):
+            self.tab = (self.tab + (1 if k == pygame.K_d else -1)) % len(self.TABS)
+            self.scroll = 0
+        elif k == pygame.K_w:
+            self.scroll = max(0, self.scroll - 1)
+        elif k == pygame.K_s:
+            self.scroll += 1   # clamped in draw, once the line count is known
+        elif k in (pygame.K_SPACE, pygame.K_j, pygame.K_i, pygame.K_ESCAPE):
             self.game.pop_state()
+
+    def _quest_lines(self):
+        """[(kind, ...)] for the Quests tab: per group a 'head' (title, %),
+        a 'bar' (fraction), then one 'quest' (label, done) per quest."""
+        flags = self.game.story_flags
+        lines = []
+        for key, title in (('main', "Main Quests"), ('side', "Side Quests")):
+            quests = QUEST_LOG[key]
+            done = [any(flags.get(f) for f in fl) for _, fl in quests]
+            frac = sum(done) / len(quests) if quests else 0.0
+            if lines:
+                lines.append(('gap',))
+            lines.append(('head', title, frac))
+            lines.append(('bar', frac))
+            lines += [('quest', label, d) for (label, _), d in zip(quests, done)]
+        return lines
+
+    def _draw_quests(self, screen, pad, top):
+        row_h = self.QUEST_ROW_H
+        area = pygame.Rect(pad.x + 8, top, pad.width - 16, pad.bottom - 30 - top)
+        lines = self._quest_lines()
+        visible = area.height // row_h
+        self.scroll = max(0, min(self.scroll, len(lines) - visible))
+        left_x, right_x = pad.x + 24, pad.right - 24
+        for i, line in enumerate(lines[self.scroll:self.scroll + visible]):
+            y = area.y + i * row_h
+            kind = line[0]
+            if kind == 'head':
+                _, title, frac = line
+                head = self.font_row.render(title, True, self.MARGIN)
+                screen.blit(head, (left_x, y + row_h - head.get_height() - 2))
+                pct = self.font_row.render(f"{round(frac * 100)}%", True, self.INK)
+                screen.blit(pct, (right_x - pct.get_width(), y + row_h - pct.get_height() - 2))
+            elif kind == 'bar':
+                bar = pygame.Rect(left_x, y + 7, right_x - left_x, 14)
+                pygame.draw.rect(screen, (225, 220, 200), bar, border_radius=7)
+                if frac := line[1]:
+                    fill = bar.copy()
+                    fill.width = max(14, int(bar.width * frac))
+                    pygame.draw.rect(screen, self.TICK, fill, border_radius=7)
+                pygame.draw.rect(screen, self.INK, bar, 1, border_radius=7)
+            elif kind == 'quest':
+                _, label, done = line
+                box = pygame.Rect(left_x, y + 7, 14, 14)
+                pygame.draw.rect(screen, self.INK if done else self.FADED, box, 2)
+                if done:
+                    pygame.draw.lines(screen, self.TICK, False,
+                                      [(box.x + 2, box.y + 7), (box.x + 6, box.y + 11), (box.x + 15, box.y - 2)], 3)
+                text = self.font_row.render(label if done else "???", True, self.INK if done else self.FADED)
+                screen.blit(text, (box.right + 12, y + row_h // 2 - text.get_height() // 2))
+            if kind in ('quest', 'bar'):
+                pygame.draw.line(screen, self.RULE, (area.x, y + row_h), (area.right, y + row_h), 1)
+
+        # scroll arrows
+        if self.scroll > 0:
+            pygame.draw.polygon(screen, self.FADED, [(pad.right - 16, top + 2), (pad.right - 22, top + 10), (pad.right - 10, top + 10)])
+        if self.scroll + visible < len(lines):
+            yb = area.y + visible * row_h
+            pygame.draw.polygon(screen, self.FADED, [(pad.right - 16, yb), (pad.right - 22, yb - 8), (pad.right - 10, yb - 8)])
+        return len(lines) > visible
 
     @staticmethod
     def fmt_time(seconds):
@@ -2911,8 +2990,24 @@ class ObjectivesScreen:
             pygame.draw.circle(screen, self.PAPER, (x, strip.bottom - 6), 4)
             pygame.draw.rect(screen, (190, 190, 200), (x - 2, strip.y - 8, 4, 18), border_radius=2)
 
-        title = self.font_title.render("Objectives", True, self.INK)
-        screen.blit(title, (pad.centerx - title.get_width() // 2, strip.bottom + 8))
+        # tab titles — the active one in ink and underlined
+        tab_surfs = [self.font_title.render(t, True, self.INK if i == self.tab else self.FADED)
+                     for i, t in enumerate(self.TABS)]
+        gap = 34
+        tx = pad.centerx - (sum(s.get_width() for s in tab_surfs) + gap) // 2
+        for i, s in enumerate(tab_surfs):
+            screen.blit(s, (tx, strip.bottom + 8))
+            if i == self.tab:
+                uy = strip.bottom + 8 + s.get_height() + 1
+                pygame.draw.line(screen, self.MARGIN, (tx, uy), (tx + s.get_width(), uy), 3)
+            tx += s.get_width() + gap
+
+        if self.tab == 1:
+            scrollable = self._draw_quests(screen, pad, strip.bottom + 50)
+            hint = "A/D tab   W/S scroll   SPACE close" if scrollable else "A/D tab   SPACE / J close"
+            h = self.font_xs.render(hint, True, self.FADED)
+            screen.blit(h, (pad.centerx - h.get_width() // 2, pad.bottom - 22))
+            return
 
         # ruled lines + red margin
         top = strip.bottom + 56
@@ -2948,7 +3043,7 @@ class ObjectivesScreen:
                 pygame.draw.lines(screen, (60, 150, 80), False,
                                   [(margin_x + 10, cy), (margin_x + 15, cy + 5), (margin_x + 24, cy - 6)], 3)
 
-        hint = self.font_xs.render("SPACE / J to close", True, self.FADED)
+        hint = self.font_xs.render("A/D tab   SPACE / J to close", True, self.FADED)
         screen.blit(hint, (pad.centerx - hint.get_width() // 2, pad.bottom - 22))
 
 
@@ -3107,6 +3202,9 @@ class ControlsScreen:
         ("Ctrl + N",    "Toggle night / day"),
         ("Ctrl + E",    "Toggle eclipse"),
         ("Ctrl + L",    "Show the Lake Meridian lights"),
+        ("Ctrl + M",    "Warp to / from the Lunar Planet"),
+        ("Ctrl + U",    "Warp to / from the Solar Planet"),
+        ("Ctrl + P",    "Move the celestial portals"),
         ("Z",           "Print tile + zone (console)"),
         ("ESC",         "Cancel teleport / dino picker"),
     ])
@@ -3653,9 +3751,17 @@ class TitleScreen:
 
 
 class DinodexScreen:
+    """W/S scroll the list, A/D pick what it's sorted by (dex number or a
+    base stat), J flips greatest-first / least-first. Outside Sandbox only
+    seen dinos are revealed; unseen ones always sit at the bottom of a stat
+    sort, in dex order, so sorting never gives away their stats."""
     LIST_W   = 195
     IMG_SIZE = 160
     HEADER_H = 38
+    SORT_H   = 26     # sort tabs above the list
+    ROW_H    = 36
+    SORTS = [('number', '#'), ('health', 'HP'), ('attack', 'ATK'),
+             ('defense', 'DEF'), ('speed', 'SPD'), ('total', 'BST')]
 
     def __init__(self, game):
         self.game         = game
@@ -3667,9 +3773,13 @@ class DinodexScreen:
         self.micro_font   = pygame.font.SysFont('Arial', 12)
 
         # Build sorted entry list from DINODEX_DATA
-        self.entries = sorted(DINODEX_DATA.items(), key=lambda kv: kv[1]['number'])
+        self.by_number = sorted(DINODEX_DATA.items(), key=lambda kv: kv[1]['number'])
+        self.entries = list(self.by_number)
         self.selected = 0
         self.scroll   = 0
+        self.sort_idx = 0          # index into SORTS
+        self.descending = False    # dex # starts low-to-high; stats start high-to-low
+        self._sorted_for = None    # what self.entries was last sorted against
 
         try:
             raw = pygame.image.load(os.path.join('assets', 'Items', 'dinopod.png')).convert_alpha()
@@ -3677,9 +3787,45 @@ class DinodexScreen:
         except Exception:
             self.pod_icon = None
 
+    def _list_top(self):
+        return self.HEADER_H + self.SORT_H
+
     def _visible_rows(self):
-        row_h = 36
-        return (config.HEIGHT - self.HEADER_H) // row_h
+        return (config.HEIGHT - self._list_top()) // self.ROW_H
+
+    @staticmethod
+    def _stat(name, key):
+        stats = DINO_DATA.get(name, {}).get('stats', {})
+        if key == 'total':
+            return sum(stats.get(k, 0) for k in ('health', 'attack', 'defense', 'speed'))
+        return stats.get(key, 0)
+
+    def _resort(self, keep_selected=True):
+        """Re-order self.entries for the current sort, keeping the same dino
+        selected (and on screen)."""
+        sel_name = self.entries[self.selected][0] if keep_selected and self.entries else None
+        key = self.SORTS[self.sort_idx][0]
+        if key == 'number':
+            entries = list(self.by_number)
+            if self.descending:
+                entries.reverse()
+        else:
+            known = [e for e in self.by_number if self._known(e[0])]
+            unknown = [e for e in self.by_number if not self._known(e[0])]
+            # stable sort: ties stay in dex order
+            known.sort(key=lambda e: self._stat(e[0], key), reverse=self.descending)
+            entries = known + unknown
+        self.entries = entries
+        self._sorted_for = self._sort_signature()
+        if sel_name is not None:
+            self.selected = next(i for i, e in enumerate(entries) if e[0] == sel_name)
+            vis = self._visible_rows()
+            if not (self.scroll <= self.selected < self.scroll + vis):
+                self.scroll = max(0, min(self.selected - vis // 2, len(entries) - vis))
+
+    def _sort_signature(self):
+        # seen dinos change which entries are "known", which changes stat order
+        return (self.sort_idx, self.descending, self.game.sandbox, len(self.game.dinos_seen))
 
     def _known(self, name):
         """Sandbox shows the whole dex; every other mode only reveals dinos
@@ -3742,19 +3888,48 @@ class DinodexScreen:
                 self.scroll = self.selected - vis + 1
             elif self.selected == 0:
                 self.scroll = 0
+        elif event.key in (pygame.K_a, pygame.K_d, pygame.K_LEFT, pygame.K_RIGHT):
+            step = -1 if event.key in (pygame.K_a, pygame.K_LEFT) else 1
+            self.sort_idx = (self.sort_idx + step) % len(self.SORTS)
+            # stats default to greatest first, dex number to #001 first
+            self.descending = self.SORTS[self.sort_idx][0] != 'number'
+            self._resort()
+        elif event.key == pygame.K_j:
+            self.descending = not self.descending
+            self._resort()
         elif event.key in (pygame.K_SPACE, pygame.K_ESCAPE):
             return 'back'
         return None
 
+    def _draw_sort_tabs(self, screen):
+        top = self.HEADER_H + 2
+        pygame.draw.rect(screen, (24, 24, 40), (0, top, self.LIST_W, self.SORT_H - 2))
+        arrow = "▼" if self.descending else "▲"
+        labels = [(lbl + (arrow if i == self.sort_idx else ""), i == self.sort_idx)
+                  for i, (_, lbl) in enumerate(self.SORTS)]
+        surfs = [self.micro_font.render(t, True, (255, 255, 255) if on else (120, 130, 160))
+                 for t, on in labels]
+        pad = 5
+        gap = (self.LIST_W - 8 - sum(s.get_width() + pad * 2 for s in surfs)) / (len(surfs) - 1)
+        x = 4
+        for s, (_, on) in zip(surfs, labels):
+            w = s.get_width() + pad * 2
+            if on:
+                pygame.draw.rect(screen, (50, 80, 140), (x, top + 3, w, self.SORT_H - 8), border_radius=4)
+            screen.blit(s, (x + pad, top + (self.SORT_H - 2) // 2 - s.get_height() // 2))
+            x += w + gap
+
     def draw(self, screen):
         screen.fill((18, 18, 28))
+        if self._sorted_for != self._sort_signature():
+            self._resort(keep_selected=False)
 
         # Header bar
         pygame.draw.rect(screen, (30, 30, 50), (0, 0, config.WIDTH, self.HEADER_H))
         pygame.draw.line(screen, (80, 80, 120), (0, self.HEADER_H), (config.WIDTH, self.HEADER_H), 2)
         screen.blit(self.title_font.render("DINODEX", True, (120, 220, 255)),
                     (10, self.HEADER_H // 2 - 13))
-        hint = self.tiny_font.render("W/S = scroll   SPACE = back", True, (120, 120, 140))
+        hint = self.tiny_font.render("W/S scroll   A/D sort   J flip   SPACE back", True, (120, 120, 140))
         screen.blit(hint, (config.WIDTH - hint.get_width() - 10, self.HEADER_H // 2 - hint.get_height() // 2))
         seen_count = sum(1 for name, _ in self.entries if self._known(name))
         seen_surf = self.tiny_font.render(f"Seen: {seen_count} / {len(self.entries)}", True, (170, 200, 240))
@@ -3763,24 +3938,33 @@ class DinodexScreen:
         # Divider between list and detail
         pygame.draw.line(screen, (60, 60, 90), (self.LIST_W, self.HEADER_H), (self.LIST_W, config.HEIGHT), 2)
 
-        # Left list
+        # Sort tabs + left list
+        self._draw_sort_tabs(screen)
+        sort_key = self.SORTS[self.sort_idx][0]
         caught_names = {d['name'] for d in self.game.player_dinos + self.game.box_dinos}
-        row_h   = 36
+        row_h   = self.ROW_H
+        list_top = self._list_top()
         vis     = self._visible_rows()
         scroll  = max(0, min(self.scroll, max(0, len(self.entries) - vis)))
         for slot, idx in enumerate(range(scroll, min(scroll + vis, len(self.entries)))):
             name, data = self.entries[idx]
-            y = self.HEADER_H + slot * row_h
+            y = list_top + slot * row_h
             is_sel = (idx == self.selected)
 
             bg = (50, 80, 140) if is_sel else ((30, 30, 48) if slot % 2 == 0 else (24, 24, 40))
             pygame.draw.rect(screen, bg, (0, y, self.LIST_W, row_h))
 
-            num_str = f"#{data['number']:03d}"
-            num_surf = self.tiny_font.render(num_str, True, (160, 200, 255) if is_sel else (100, 120, 160))
+            known = self._known(name)
+            # left column: dex number, or the sorted stat's value when sorting by a stat
+            if sort_key == 'number' or not known:
+                num_str = f"#{data['number']:03d}" if sort_key == 'number' else "---"
+                num_col = (160, 200, 255) if is_sel else (100, 120, 160)
+            else:
+                num_str = str(self._stat(name, sort_key))
+                num_col = (255, 230, 140) if is_sel else (220, 190, 110)
+            num_surf = self.tiny_font.render(num_str, True, num_col)
             screen.blit(num_surf, (8, y + row_h // 2 - num_surf.get_height() // 2))
 
-            known = self._known(name)
             if known:
                 name_surf = self.small_font.render(name, True, (255, 255, 255) if is_sel else (200, 200, 210))
             else:
@@ -3794,10 +3978,10 @@ class DinodexScreen:
 
         # Scroll indicators for list
         if scroll > 0:
-            screen.blit(self.tiny_font.render("▲", True, (160, 160, 180)), (self.LIST_W // 2 - 6, self.HEADER_H + 2))
+            screen.blit(self.tiny_font.render("▲", True, (160, 160, 180)), (self.LIST_W - 16, list_top + 2))
         if scroll + vis < len(self.entries):
             screen.blit(self.tiny_font.render("▼", True, (160, 160, 180)),
-                        (self.LIST_W // 2 - 6, config.HEIGHT - 18))
+                        (self.LIST_W - 16, config.HEIGHT - 18))
 
         # Right detail panel
         if not self.entries:
@@ -3859,7 +4043,8 @@ class DinodexScreen:
         stats   = dino_data.get('stats', {})
         stat_keys = [('health', 'HP'), ('attack', 'ATK'), ('defense', 'DEF'), ('speed', 'SPD')]
         bst = sum(stats.get(k, 0) for k, _ in stat_keys)
-        bst_surf = self.small_font.render(f"Base Stat Total:  {bst}", True, (200, 220, 255))
+        bst_surf = self.small_font.render(f"Base Stat Total:  {bst}", True,
+                                          (255, 230, 140) if sort_key == 'total' else (200, 220, 255))
         screen.blit(bst_surf, (panel_x, stats_y))
         stats_y += bst_surf.get_height() + 6
         bar_x  = panel_x
@@ -3870,6 +4055,8 @@ class DinodexScreen:
             fill_w = min(bar_w, int(bar_w * val / 200))
             bar_color = (80, 200, 80) if val >= 100 else (220, 180, 0) if val >= 60 else (200, 80, 80)
             pygame.draw.rect(screen, bar_color, (bar_x, stats_y, fill_w, 18), border_radius=3)
+            if stat_key == sort_key:   # the stat the list is sorted by
+                pygame.draw.rect(screen, (255, 230, 140), (bar_x - 2, stats_y - 2, bar_w + 4, 22), 2, border_radius=4)
             lbl = self.tiny_font.render(f"{label}  {val}", True, (230, 230, 230))
             screen.blit(lbl, (bar_x + 6, stats_y + 1))
             stats_y += 24

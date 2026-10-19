@@ -725,8 +725,8 @@ DINODEX_DATA = {
 
 DINO_DATA = {
     'Vusion': {
-        'stats': {'type': ['dark'], 'health': 120, 'attack': 155, 'defense': 70, 'speed': 125},
-        'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Thunder Blitz', 20: 'Distortion', 23: 'Lava Burst', 27: 'Binding Curse', 30: 'Haunt',35: 'Void Collapse', 38: 'Spectral Overload'},
+        'stats': {'type': ['dark'], 'health': 113, 'attack': 155, 'defense': 77, 'speed': 125},
+        'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Thunder Blitz', 20: 'Distortion', 23: 'Lava Burst', 27: 'Binding Curse', 30: 'Haunt',35: 'Void Collapse', 38: 'Spectral Overload', 42: 'Ultra Violet'},
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 115, 'defense': 120, 'speed':80},
@@ -749,8 +749,8 @@ DINO_DATA = {
         'moves': {0: 'Bitemark', 1: 'Fear', 8: 'Dark Energy', 12: 'Lock Jaw', 15: 'Rushdown', 18: 'Double Jab', 21: 'Shadow Veil', 25: 'Haunt'},
         'evolve': {24: 'Scarlust'}},
     'Scarlust': {
-        'stats': {'type': ['dark', 'spike'], 'health': 90, 'attack': 140, 'defense': 115, 'speed': 115},
-        'moves': {0: 'Bitemark', 1: 'Fear', 8: 'Dark Energy', 12: 'Lock Jaw', 15: 'Rushdown', 18: 'Double Jab', 21: 'Shadow Veil', 24: 'Ripping Impact', 25: 'Haunt', 28: 'Binding Curse', 31: 'Dread Thorn', 33: 'Lava Burst', 35: 'Void Collapse', 37: 'Archaic Aura', 39: 'Spike Storm'},
+        'stats': {'type': ['dark', 'spike'], 'health': 97, 'attack': 140, 'defense': 108, 'speed': 115},
+        'moves': {0: 'Bitemark', 1: 'Fear', 8: 'Dark Energy', 12: 'Lock Jaw', 15: 'Rushdown', 18: 'Double Jab', 21: 'Shadow Veil', 24: 'Ripping Impact', 25: 'Haunt', 28: 'Binding Curse', 31: 'Dread Thorn', 33: 'Lava Burst', 35: 'Void Collapse', 37: 'Archaic Aura', 39: 'Spike Storm', 42: 'Ultra Violet'},
         'evolve': None},
     'Floravel': {
         'stats': {'type': ['earth'], 'health': 70, 'attack': 95, 'defense': 95, 'speed': 60},
@@ -765,7 +765,7 @@ DINO_DATA = {
         'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 21: 'Mach Speed', 25: 'Ripping Impact'},
         'evolve': {22: 'Netyrant'}},
     'Netyrant': {
-        'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 145, 'defense': 75, 'speed': 125},
+        'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 143, 'defense': 75, 'speed': 122},
         'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 20: 'Mach Speed', 22: 'Ripping Impact', 26: 'Wind Fracture', 30: 'Sword Slash', 33: 'Turbo Booster', 37: 'Spike Storm', 40: 'Sky Scorch'},
         'evolve': None},
     'Sortle': {
@@ -773,7 +773,7 @@ DINO_DATA = {
         'moves': {0: 'Dust Beam', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Boulder Smash', 22:'Sand Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Wind Fracture', 33: 'Crusher', 36 :'Crash Impact'},
         'evolve': None},
     'Sharktastrophe': {
-        'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 120, 'defense': 115, 'speed': 125},
+        'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 119, 'defense': 114, 'speed': 122},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21:'Haunt', 25: 'Primal Rage', 28: 'Ripping Impact', 31: 'Hurricane', 35: 'Sword Slash', 37: 'Eternal Blue'},
         'evolve': None},
     'Deimo': {
@@ -821,7 +821,7 @@ DINO_DATA = {
         'moves': {0: "Boulder Smash", 1: 'Sand Kick', 12: 'Flame Shatter', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 39:'Crash Impact', 40: 'Ultra Violet' },
         'evolve': None},
     'Ghoulflame': {
-        'stats': {'type': ['dark', 'magma'], 'health': 106, 'attack': 116, 'defense': 94, 'speed': 114},
+        'stats': {'type': ['dark', 'magma'], 'health': 106, 'attack': 114, 'defense': 94, 'speed': 116},
         'moves': {0: 'Fireball', 1: 'Fear', 9: 'Dark Energy', 12: 'Binding Curse', 15: 'Prism Glare', 18: 'Magma Boost', 21: 'Flame Shatter', 24: 'Distortion', 26: 'Force Shift', 28: 'Haunt', 32: 'Lava Burst', 37: 'Void Collapse'},
         'evolve': None},
     'Scarecrux': {
@@ -886,7 +886,7 @@ DINO_DATA = {
         'evolve': None},
 
     'Frostle': {
-        'stats': {'type': ['ice'], 'health': 125, 'attack': 125, 'defense': 90, 'speed': 90},
+        'stats': {'type': ['ice'], 'health': 121, 'attack': 118, 'defense': 97, 'speed': 94},
         'moves': {0: 'Snowfall', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Deep Freeze', 22: 'Hail Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Frozen Aura', 33: 'Hyperfrost', 36: 'Freeze Blast'},
         'evolve': None},
 
@@ -911,7 +911,7 @@ DINO_DATA = {
         'evolve': {15: 'Browler'}},
 
     'Browler': {
-        'stats': {'type': ['magma', 'flying'], 'health': 95, 'attack': 120, 'defense': 115, 'speed': 110},
+        'stats': {'type': ['magma', 'flying'], 'health': 95, 'attack': 117, 'defense': 115, 'speed': 113},
         'moves': {0: 'Fireball', 1: 'Air Strike', 5: 'Flash', 9: 'Swift Sneak', 13: 'Bitemark', 15: 'Flame Shatter', 20: 'Mach Speed', 23: 'Magma Boost', 25: 'Double Jab' , 27: 'Wind Fracture', 30: 'Lava Burst', 33: 'Turbo Booster', 36: 'Solar Flare', 40: 'Sky Scorch'},
         'evolve': None},
 
@@ -1336,6 +1336,11 @@ ENTRANCE_DATA = {
     # LAKE_MERIDIAN8 cave mouth (object entrance_id "horizon") -> HORIZON_CAVE1.
     # Its exit tile (9,14) pops back out to Lake Meridian.
     'horizon':      {'world': 'HORIZON_CAVE1.tmx',    'spawn': (9, 13)},
+    # Celestial planets (tools/make_planets.py) — reached by the sandbox
+    # Ctrl+M / Ctrl+U warps for now; give a door/portal tile one of these ids
+    # to link them into the story.
+    'lunar_planet': {'world': 'LUNAR_PLANET.tmx',     'spawn': (16, 17)},
+    'solar_planet': {'world': 'SOLAR_PLANET.tmx',     'spawn': (16, 17)},
     # HORIZON_CAVE1 (object entrance_id "cele") -> HORIZON_CAVE.world, landing
     # just above HORIZON_CAVE2's exit tile (world 39,41), which pops back to CAVE1.
     'cele':         {'world': 'HORIZON_CAVE.world',   'spawn': (39, 40)},
@@ -1844,6 +1849,42 @@ for _entry in ZONE_BANNER_TRANSITIONS:
     for _tile in _entry['tiles']:
         ZONE_BANNER_LOOKUP[_tile] = _entry
 
+# ── Celestial portals (post-credits) ───────────────────────────────
+# After the end credits a lunar and a solar portal appear at two of these
+# spots, each moving to a new random spot every 60s (ANIM/celestial_portals.py).
+# (world, tile_x, tile_y, area). Picked from the real map data: reachable,
+# open ground, clear of doors / arrival points / area-crossing lines.
+PORTAL_SPOTS = [
+    ('LOST_REGION.world', 6, 27, 'route1'),
+    ('LOST_REGION.world', -1, -10, 'route1'),
+    ('LOST_REGION.world', -3, 10, 'route1'),
+    ('LOST_REGION.world', -18, 43, 'start_coast'),
+    ('LOST_REGION.world', 1, 41, 'start_coast'),
+    ('LOST_REGION.world', -29, 30, 'start_coast'),
+    ('LOST_REGION.world', 56, -41, 'route2'),
+    ('LOST_REGION.world', 19, -34, 'route2'),
+    ('LOST_REGION.world', 82, -53, 'route2'),
+    ('LOST_REGION.world', 140, -54, 'corn_maze'),
+    ('LOST_REGION.world', 100, -70, 'corn_maze'),
+    ('LOST_REGION.world', 115, -49, 'corn_maze'),
+    ('LOST_REGION.world', 97, -79, 'chateau'),      # Episc Chateau grounds
+    ('LOST_REGION.world', 47, -91, 'lake_meridian'),
+    ('LOST_REGION.world', 2, -86, 'lake_meridian'),
+    ('LOST_REGION.world', 40, -115, 'lake_meridian'),
+    ('LOST_REGION.world', 32, -69, 'route3'),
+    ('LOST_REGION.world', -18, -61, 'route3'),
+    ('LOST_REGION.world', 7, -64, 'route3'),
+    ('COBALT_CAVE.world', 9, 30, 'cobalt_cave'),
+    ('COBALT_CAVE.world', -36, 20, 'cobalt_cave'),
+    ('COBALT_CAVE.world', -7, 4, 'cobalt_cave'),
+]
+# The way back: one fixed portal on each planet, just north of where you land.
+PLANET_RETURN_PORTALS = {
+    'LUNAR_PLANET.tmx': ('lunar', 16, 14),
+    'SOLAR_PLANET.tmx': ('solar', 16, 14),
+}
+
+
 # ── Cave/HQ crossings ──────────────────────────────────────────────
 # Entering/exiting a cave is a discrete entrance_id teleport (see
 # ENTRANCE_DATA), not a walk across an adjacent tile the way the overworld
@@ -1858,6 +1899,8 @@ ENTRANCE_BANNER_NAMES = {
     'shadowhq1':    'Shadow HQ',    # Cobalt Cave  -> Shadow HQ
     'cobalt':       'Cobalt Cave',  # Shadow HQ    -> Cobalt Cave
     'horizon':      'Horizon Cave', # Lake Meridian -> Horizon Cave
+    'lunar_planet': 'Lunar Planet',
+    'solar_planet': 'Solar Planet',
 }
 
 # entrance_id used to get IN (world_stack[-1]['entrance_id']) -> banner name

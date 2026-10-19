@@ -375,9 +375,11 @@ if __name__ == '__main__':
 # Browler + Scarlust
 # DINODEX REORDER
 # 1: Floravel 2: Palidian 3: Volkit 4: Tygraflare 5: Corlave 6: Anemamace 7:Bullicorn 8:Voltzbee 9:Teamtwood 10:Creuw 11:Luna 12:Pectura 13:Browler 14:Netaslam 15:Netyrant 16:Chomper 17:Sortle 18:Frostle 19:Prickly 20:Cyflactus 21:Ghoslink 22:Prowscar 23: Scarlust 24: Ghoulflame 25:Typhoonray 26:Stormulus 27:Roxer 28: Rockull 29:Bouldava 30:Auraliz 31:Rhysnow 32:Rhinecicle 33:Magnecrab 34:Skolt 35:Seasoo 36:Sharka 37:Sharktastrophe 38:Lavaleo 39: Scarecrux 40:Gourdecrux 41:Vusion 42:Drafyton 43:Cobaltion 44:Celestreeyl 45:Deimo 46:VY 
+# Quests tab for progression
+# Lunar and Solar Planet
+# VY/Deimo Event post credits - portals spawn 25 tile sound cue
+# Dinodex stat filters to check stats
 
-
-# 1: Floravel 2: Palidian 3: Volkit 4: Tygraflare 5: Corlave 6: Anemamace 7:Bullicorn 8:Voltzbee 9:Teamtwood 10:Creuw 11:Luna 12:Pectura 13:Browler 14:Netaslam 15:Netyrant 16:Chomper 17:Sortle 18:Frostle 19:Prickly 20:Cyflactus 21:Ghoslink 22:Prowscar 23: Scarlust 24: Ghoulflame 25:Typhoonray 26:Stormulus 27:Roxer 28: Rockull 29:Bouldava 30:Auraliz 31:Rhysnow 32:Rhinecicle 33:Magnecrab 34:Skolt 35:Seasoo 36:Sharka 37:Sharktastrophe 38:Lavaleo 39: Scarecrux 40:Gourdecrux 41:Vusion 42:Drafyton 43:Cobaltion 44:Celestreeyl 45:Deimo 46:VY 
 
 
 # Add songs to certain parts of game

@@ -70,6 +70,8 @@ TILE_PATHS = {
 ENCOUNTER_BG_PATH = os.path.join(ASSETS_PATH, 'Grass_Encounter.png')
 CAVE_ENCOUNTER_BG_PATH = os.path.join('assets', 'SCREENS', 'cave_encounter.png')
 HORIZON_ENCOUNTER_BG_PATH = os.path.join('assets', 'SCREENS', 'horizon_encounter.png')
+LUNAR_ENCOUNTER_BG_PATH = os.path.join('assets', 'SCREENS', 'lunar_encounter.png')   # tools/make_planets.py
+SOLAR_ENCOUNTER_BG_PATH = os.path.join('assets', 'SCREENS', 'solar_encounter.png')
 WATER_ENCOUNTER_BG_PATH = os.path.join('assets', 'SCREENS', 'water_encounter.png')
 ENCOUNTER_DINOS_PATHS = {
     'Vusion':     os.path.join(DINOS_FRONT, 'Vusion.png'),
@@ -197,6 +199,8 @@ NPC_SHEETS = {
     'celestreeyl':        os.path.join('assets', 'NPC', 'Celestreeyl_overworld.png'),
     'sparky':             os.path.join('assets', 'NPC', 'sparky_overworld.png'),
     'carrie':             os.path.join('assets', 'NPC', 'lady2.png'),
+    'deimo':              os.path.join('assets', 'NPC', 'Deimo_overworld.png'),
+    'vy':                 os.path.join('assets', 'NPC', 'VY_overworld.png'),
 }
 
 # Static (non-4x4-sheet) NPC images scaled down to fit inside this (w, h)
@@ -204,6 +208,8 @@ NPC_SHEETS = {
 NPC_STATIC_FIT = {
     'barley': (32, 32),
     'celestreeyl': (48, 80),   # 1254px source art, ~2.5 tiles tall in the overworld
+    'deimo': (56, 64),         # planet legendaries, ~2 tiles tall
+    'vy':    (60, 60),
 }
 
 # Maps trainer_id -> NPC_SHEETS key for trainers that share a sprite.
@@ -385,6 +391,13 @@ WORLD_NPCS = {
     ],
     'ELDER_HOUSE.tmx': [
         ('farmer', 8, 8, 'down', 0, 'story'),   # Hollis — "Lanterns in the Corn" side quest
+    ],
+    # Celestial planets — Lv 50 legendaries (Game.LEGENDS); gone once beaten/caught
+    'LUNAR_PLANET.tmx': [
+        ('deimo', 17, 4, 'down', 0, 'story'),
+    ],
+    'SOLAR_PLANET.tmx': [
+        ('vy', 25, 7, 'down', 0, 'story'),
     ],
     'HORIZON_CAVE.world': [
         ('celestreeyl', 40, -31, 'down', 0, 'story'),   # top of HORIZON_CAVE8 — light-flash legendary battle

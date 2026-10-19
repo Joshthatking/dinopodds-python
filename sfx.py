@@ -35,6 +35,8 @@ VOLUMES = {
     'door': 0.9,
     'grass': 0.55,
     'dark_pulse': 0.6,   # loops the whole time you're in Cobaltion's room
+    'portal_lunar': 1.0,  # repeats while you're near a celestial portal (scaled by distance)
+    'portal_solar': 1.0,
 }
 
 
@@ -98,9 +100,10 @@ class SFX:
 
     # ── playback ──────────────────────────────────────────────────────────
 
-    def play(self, name, cooldown=0.0):
+    def play(self, name, cooldown=0.0, volume=None):
         """Play `name`; with a cooldown, skip it if it played less than
-        that many seconds ago (e.g. bumping into a wall while holding a key)."""
+        that many seconds ago (e.g. bumping into a wall while holding a key).
+        `volume` (0-1) scales just this playback, e.g. by distance."""
         if not self.settings['sfx_on']:
             return
         snd = self.sounds.get(name)
@@ -110,4 +113,6 @@ class SFX:
         if cooldown and now - self._last.get(name, -99) < cooldown:
             return
         self._last[name] = now
-        snd.play()
+        channel = snd.play()
+        if channel is not None and volume is not None:
+            channel.set_volume(max(0.0, min(1.0, volume)))

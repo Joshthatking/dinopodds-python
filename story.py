@@ -161,6 +161,48 @@ STORY_EVENTS = [
 
 
 # ══════════════════════════════════════════════════════════════════
+# QUEST_LOG — the player-facing quest list (i menu -> Objectives ->
+# Quests tab). Each entry is (label shown once done, story flags); a
+# quest counts as complete when any of its flags is True. Unfinished
+# quests show as "???", so labels only appear after they're earned.
+# ══════════════════════════════════════════════════════════════════
+QUEST_LOG = {
+    'main': [
+        ("Begin your journey",                 ('amber_intro_done',)),
+        ("Find the 3 missing dinos",           ('encounters_unlocked',)),
+        ("Return the dinos to Amber",          ('amber_lab_done',)),
+        ("Battle Gray on Route 1",             ('gray_route1_done',)),
+        ("Defeat Gym Leader Skyy",             ('gym1_leader_defeated',)),
+        ("Uncover the Corn Maze secret",       ('gym2_corn_maze_reveal_done',)),
+        ("Escort Abby through Route 2",        ('route26_abby_escort_done',)),
+        ("Investigate the solar panels",       ('vanessa_shadow_event_done',)),
+        ("Defeat Gym Leader Log",              ('gym2_leader_defeated',)),
+        ("Learn to Surf from Sam",             ('sam_surf_intro_done',)),
+        ("Battle Gray on Route 3",             ('gray_route3_done',)),
+        ("Take down the Power Plant",          ('pp_eclipse_reveal_done',)),
+        ("Confront the Shadow Group",          ('shadow_confrontation_done',)),
+        ("Raid the Shadow HQ",                 ('shadowhq_event_done',)),
+        ("Prepare at the Surf Shack",          ('surf_shack_prep_done',)),
+        ("Defeat Gym Leader Sam",              ('gym3_leader_defeated',)),
+        ("Win the Skyy rematch",               ('gym1_rematch_defeated',)),
+        ("Win the Log rematch",                ('gym2_rematch_defeated',)),
+        ("Win the Sam rematch",                ('gym3_rematch_defeated',)),
+        ("Defeat Horizon Cave's guardian",     ('josh_battle_won', 'josh_defeated')),
+        ("Claim the Celestial Solar Shard",    ('celestreeyl_done',)),
+    ],
+    'side': [
+        ("Get Repels from Carrie",             ('carrie_repels_given',)),
+        ("Wake the Corn Maze scarecrow",       ('scarecrux_awakened',)),
+        ("The Lanterns in the Corn",           ('lanterns_rewarded',)),
+        ("Deliver Debby's package to Mom",     ('package_delivered',)),
+        ("Trade with the Collector",           ('collector_traded',)),
+        ("Face Deimo on the Lunar Planet",     ('deimo_done',)),
+        ("Face VY on the Solar Planet",        ('vy_done',)),
+    ],
+}
+
+
+# ══════════════════════════════════════════════════════════════════
 # QUEST_STEPS — ordered milestones for the Sandbox quest-debug menu
 # (Ctrl+Q). Selecting a step sets its flag (and every earlier step's
 # flag) True and every later step's flag False, so it can jump either
@@ -294,5 +336,19 @@ QUEST_STEPS = [
         "label": "16. Defeated Josh (Horizon Cave Guardian)",
         "flag": "josh_defeated",
         "defeated_trainers": ["josh"],
+    },
+    {
+        "id": "celestreeyl_done",
+        "label": "17. Celestreeyl - Celestial Solar Shard",
+        "flag": "celestreeyl_done",
+    },
+    {
+        # Picking up the shard rolls the credits; jumping here also marks the
+        # shard collected (see Game.apply_quest_step). Turns on the
+        # post-credits celestial portals.
+        "id": "credits_done",
+        "label": "18. End Credits - Celestial Portals",
+        "flag": "credits_done",
+        "extra_flags": ["credits_wakeup_done", "mom_ending_done"],
     },
 ]

@@ -346,6 +346,128 @@ def make_eerie():
     save('eerie', crush(lowpass(x, 0.35), 20), peak=0.5)
 
 
+def _shimmer(base_notes, dur, seed, density, decay):
+    """Cloud of soft little bell twinkles drawn from base_notes."""
+    r = np.random.default_rng(seed)
+    x = np.zeros(int(RATE * dur))
+    t = 0.0
+    while t < dur - 0.25:
+        f = r.choice(base_notes) * r.choice((1, 2))
+        place(x, bell(f, 0.4, 0.35, decay) * r.uniform(0.35, 0.8), t)
+        t += r.uniform(*density)
+    swell = np.sin(np.pi * np.clip(t_axis(dur) / dur, 0, 1))
+    return x * swell
+
+
+def make_portal_lunar():
+    # Near the lunar portal: a dark shimmer — low hollow hum under minor,
+    # glassy twinkles. Plays every ~1.2s, louder the closer you stand.
+    dur = 1.2
+    t = t_axis(dur)
+    hum = (sine(110 * (1 + 0.01 * np.sin(2 * np.pi * 3 * t)), dur) + sine(165, dur) * 0.4) * 0.5
+    sparkle = _shimmer((622, 740, 932, 1109), dur, 31, (0.06, 0.12), 8.0)
+    x = (hum + sparkle) * np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 0.8
+    save('portal_lunar', crush(lowpass(x, 0.45), 24), peak=0.45)
+
+
+def make_portal_solar():
+    # Near the solar portal: a bright shining shimmer — major-key sparkles
+    # glinting over a warm high pad.
+    dur = 1.2
+    t = t_axis(dur)
+    pad = (sine(784, dur) + sine(988, dur) * 0.7 + sine(1175, dur) * 0.5) * 0.18
+    sparkle = _shimmer((1319, 1568, 1976, 2349), dur, 47, (0.04, 0.09), 9.0)
+    x = (pad + sparkle) * np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 0.8
+    save('portal_solar', crush(x, 24), peak=0.45)
+
+
+def make_warp_lunar():
+    # Pulled into the lunar portal: a swirling whoosh sucking inward and
+    # dropping in pitch, then a deep hollow boom as the dark closes.
+    pull, total = 1.3, 2.0
+    n = int(RATE * total)
+    x = np.zeros(n)
+    pn = int(RATE * pull)
+    tp = t_axis(pull)
+    swirl = lowpass_sweep(noise(pull), 0.05 + 0.25 * np.abs(np.sin(2 * np.pi * 2.5 * tp)) * tp / pull)
+    swirl *= np.linspace(0.2, 1, pn) ** 1.5 * 1.6
+    fall = triangle(np.linspace(440, 70, pn), pull) * np.linspace(0, 1, pn) ** 2 * 0.5
+    x[:pn] += swirl + fall
+    bd = total - pull
+    boom = sine(np.linspace(60, 34, int(RATE * bd)), bd) * env(int(RATE * bd), 0.005, 1.4) * 1.4
+    chime = sum(bell(f, bd, 0.5, 3.0) for f in (311, 466, 622)) * 0.4
+    place(x, boom + chime, pull)
+    save('warp_lunar', crush(lowpass(x, 0.4), 20), peak=0.6)
+
+
+def make_warp_solar():
+    # Lifted into the solar portal: a bright rising sweep and quickening
+    # sparkles, then a radiant major-chord burst as the light whites out.
+    rise, total = 1.2, 2.1
+    n = int(RATE * total)
+    x = np.zeros(n)
+    rn = int(RATE * rise)
+    sweep = (square(np.linspace(300, 1600, rn), rise, 0.25) * 0.25 + triangle(np.linspace(600, 3200, rn), rise))
+    sweep *= np.linspace(0, 1, rn) ** 2 * 0.5
+    air = lowpass_sweep(noise(rise), np.linspace(0.05, 0.6, rn)) * np.linspace(0, 1, rn) ** 2
+    x[:rn] += sweep + air
+    t, step = 0.1, 0.14
+    notes = (1047, 1319, 1568, 2093)
+    i = 0
+    while t < rise:
+        place(x, bell(notes[i % 4] * (2 if t > rise * 0.6 else 1), 0.2, 0.4, 10.0) * 0.6, t)
+        t += step; step = max(0.04, step * 0.85); i += 1
+    bd = total - rise
+    burst = sum(bell(f, bd, 0.9, 2.2) for f in (1047, 1319, 1568, 2093)) * 0.6
+    burst += highpass(noise(bd), 0.2) * env(int(RATE * bd), 0.002, 3.0) * 0.8
+    place(x, burst, rise)
+    save('warp_solar', crush(x, 24), peak=0.6)
+
+
+def make_deimo_awaken():
+    # Deimo, marionette of darkness (2.75s): an uneasy detuned drone swells
+    # while puppet strings are plucked one by one, falling in pitch; they
+    # snap with a sharp twang, then a deep hollow boom as the crescent falls.
+    dur = 2.75
+    n = int(RATE * dur)
+    t = t_axis(dur)
+    drone = (square(55, dur, 0.3) * 0.25 + triangle(58.3, dur) + triangle(82, dur) * 0.5)
+    drone = lowpass(drone, 0.12) * np.clip(t / 1.9, 0, 1) ** 1.5
+    x = drone * 0.9
+    for i in range(8):   # plucked strings, each one lower and more sour
+        f = 880 * 2 ** (-i / 7) * (1.03 if i % 2 else 1.0)
+        pluck = (triangle(f, 0.5) + square(f * 2.01, 0.5, 0.15) * 0.25) * env(int(RATE * 0.5), 0.002, 3.0)
+        place(x, pluck * 0.55, 0.05 + i * 0.16)
+    snap = highpass(noise(0.18), 0.3) * env(int(RATE * 0.18), 0.001, 4.0) * 1.2
+    snap += square(np.linspace(1400, 300, int(RATE * 0.18)), 0.18, 0.2) * env(int(RATE * 0.18), 0.001, 2.0) * 0.5
+    place(x, snap, 1.9)
+    bd = dur - 2.15
+    boom = sine(np.linspace(58, 30, int(RATE * bd)), bd) * env(int(RATE * bd), 0.005, 1.2) * 1.6
+    place(x, boom + lowpass(noise(bd), 0.05) * env(int(RATE * bd), 0.01, 1.5), 2.15)
+    save('deimo_awaken', crush(lowpass(x, 0.4), 20), peak=0.6)
+
+
+def make_vy_awaken():
+    # VY, the solar celestial (2.7s): a roaring blaze swells as wings of
+    # flame open, a bright major chord climbs, then the supernova bursts.
+    dur = 2.7
+    n = int(RATE * dur)
+    t = t_axis(dur)
+    build = 1.9
+    roar = lowpass_sweep(noise(dur), 0.04 + 0.3 * np.clip(t / build, 0, 1) ** 2)
+    roar *= np.clip(t / build, 0, 1) ** 1.2 * 1.4
+    roar[int(RATE * build):] *= np.linspace(1, 0.2, n - int(RATE * build))
+    x = roar
+    for k, f in enumerate((392, 494, 587, 784, 988, 1175)):   # G major climbing
+        place(x, (triangle(f, 0.9) + square(f, 0.9, 0.25) * 0.2) * env(int(RATE * 0.9), 0.05, 1.5) * 0.45,
+              0.15 + k * 0.28)
+    bd = dur - build
+    burst = sum(bell(f, bd, 0.9, 2.0) for f in (784, 988, 1175, 1568, 1976)) * 0.6
+    burst += highpass(noise(bd), 0.2) * env(int(RATE * bd), 0.002, 2.2)
+    place(x, burst, build)
+    save('vy_awaken', crush(x, 24), peak=0.6)
+
+
 if __name__ == '__main__':
     make_bump()
     make_click()
@@ -363,3 +485,9 @@ if __name__ == '__main__':
     make_morph()
     make_morph_done()
     make_eerie()
+    make_portal_lunar()
+    make_portal_solar()
+    make_warp_lunar()
+    make_warp_solar()
+    make_deimo_awaken()
+    make_vy_awaken()

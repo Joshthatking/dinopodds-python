@@ -10,6 +10,9 @@ from ANIM.surf import Surf  # SURF (testing)
 from ANIM.environment_fx import EnvironmentFX  # ENV FX
 from ANIM.aether_bg import AetherBackground
 from ANIM.lake_aurora import LakeAurora  # LAKE AURORA
+from ANIM.space_bg import LunarBackground, SolarBackground
+from ANIM.celestial_portals import CelestialPortals  # PORTALS
+from ANIM.legend_awaken import DeimoAwaken, VYAwaken
 from ANIM.battle_transition import BattleTransition
 from moves import MoveAnimation
 from ANIM.catch_anim import CatchAnimation
@@ -93,6 +96,8 @@ class Game:
         self.env_fx = EnvironmentFX(self)  # ENV FX
         self.aether_bg = AetherBackground()  # void backdrop for AETHER_WORLDS
         self.lake_aurora = LakeAurora(self)  # LAKE AURORA
+        self._space_bgs = {}   # SPACE_WORLDS file -> backdrop, built on first visit
+        self.portals = CelestialPortals(self)  # PORTALS — post-credits lunar/solar portals
 
         self.fade_alpha = 0
         self.fade_color = (0, 0, 0)   # set white for one fade by a light-burst encounter
@@ -203,6 +208,7 @@ class Game:
         self._surf_shack_prep_active = False  # True while the Surf Shack Preparation scene plays
         self._lantern_battle = None     # wisp index whose Ghoulflame battle is in progress (side quest)
         self._celestreeyl_battle = None  # the Celestreeyl NPC while its Horizon Cave battle runs
+        self._legend_battle = None       # (npc, LEGENDS key) while a planet legendary's battle runs
         self._wild_caught = False       # set by attempt_catch on a successful catch
         self.screen_shake = 0.0         # seconds of screenshake left
         self.abby_follower = None
@@ -1212,6 +1218,10 @@ class Game:
             return config.CAVE_ENCOUNTER_BG_PATH
         if self.current_world_file == 'HORIZON_CAVE.world':
             return config.HORIZON_ENCOUNTER_BG_PATH
+        if self.current_world_file == 'LUNAR_PLANET.tmx':
+            return config.LUNAR_ENCOUNTER_BG_PATH
+        if self.current_world_file == 'SOLAR_PLANET.tmx':
+            return config.SOLAR_ENCOUNTER_BG_PATH
         if self.current_world_file == 'LOST_REGION.world':
             ts = config.TILE_SIZE
             tile = (self.player.rect.x // ts, self.player.rect.y // ts)
@@ -3487,6 +3497,9 @@ class Game:
         if c['phase'] == 'celestreeyl_awaken':
             self._update_celestreeyl_awaken(dt)
             return
+        if c['phase'] == 'legend_awaken':
+            self._update_legend_awaken(dt)
+            return
         if c['phase'] == 'solar_shard_reveal':
             self._update_solar_shard_reveal(dt)
             return
@@ -4169,6 +4182,14 @@ class Game:
                 npc.defeated = npc.trainer_id in should_defeat
         # Gym NPCs battle under '<id>_rematch' keys while a rematch is up.
         self._refresh_gym_trainers_defeated()
+        # Past the credits the Solar Shard is already collected (picking it up
+        # would roll the credits again); before them it's back on the ground.
+        shard = ('HORIZON_CAVE.world', *self.CELES_TILE)
+        if self.story_flags.get('credits_done'):
+            self.picked_up_world_items.add(shard)
+            self.inventory[self.SOLAR_SHARD_ITEM] = max(1, self.inventory.get(self.SOLAR_SHARD_ITEM, 0))
+        else:
+            self.picked_up_world_items.discard(shard)
 
     def _maybe_add_skyy(self):
         if not self.story_flags.get('amber_lab_done'):
@@ -7006,6 +7027,8 @@ class Game:
     def handle_world_event(self, event):
         if event.type != pygame.KEYDOWN:
             return
+        if self.portals.warp:  # PORTALS — no menus mid-warp
+            return
         trainer_approaching = any(
             npc.npc_type == 'trainer' and npc.state in ('spotted', 'walking', 'done') and not npc.defeated
             for npc in self.npcs
@@ -7049,6 +7072,26 @@ class Game:
             self.dino_spawn_picker = {'filter': '', 'index': 0}
         elif event.key == pygame.K_l and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
             self.lake_aurora.trigger()  # LAKE AURORA — show the lake lights now
+        elif event.key == pygame.K_p and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
+            # PORTALS — move both celestial portals to new random spots now
+            if self.portals.active():
+                self.portals.relocate_all()
+                print("[DEBUG] portals ->", self.portals.describe())
+                self.message_box.queue_messages(
+                    [f"[SANDBOX] Portals moved - {self.portals.describe()}"], wait_for_input=True)
+            else:
+                self.message_box.queue_messages(
+                    ["[SANDBOX] The portals appear after the credits.",
+                     "Use Ctrl+Q and jump to 18. End Credits first."], wait_for_input=True)
+        elif (event.key in (pygame.K_m, pygame.K_u) and (event.mod & pygame.KMOD_CTRL) and self.sandbox
+                and not self.fading and self.entrance_fade_state is None and not cutscene_locking):
+            # Sandbox: warp to the lunar (M) / solar (U) planet; same key again returns
+            entrance_id = 'lunar_planet' if event.key == pygame.K_m else 'solar_planet'
+            if self.current_world_file == ENTRANCE_DATA[entrance_id]['world']:
+                self.trigger_exit()
+            else:
+                ts = config.TILE_SIZE
+                self.trigger_entrance(entrance_id, self.player.rect.x // ts, self.player.rect.y // ts)
         elif (event.key == pygame.K_j and not self.orb_fx
                 and not self.fading and self.entrance_fade_state is None):
             if (self.check_type_chart_interact()
@@ -7213,6 +7256,8 @@ class Game:
             if trainer_id == 'josh' and self.story_flags.get('josh_defeated'):
                 continue
             if trainer_id == 'celestreeyl' and self.story_flags.get('celestreeyl_done'):
+                continue
+            if trainer_id in self.LEGENDS and self.story_flags.get(self.LEGENDS[trainer_id]['flag']):
                 continue
             npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
                       facing=facing, sight_range=sight, npc_type=npc_type)
@@ -7431,6 +7476,8 @@ class Game:
             self._interact_josh(npc)
         elif npc.trainer_id == 'celestreeyl':
             self._interact_celestreeyl(npc)
+        elif npc.trainer_id in self.LEGENDS:
+            self._start_legend_awaken(npc)
         elif npc.trainer_id == 'gray_home':
             self.message_box.queue_messages(
                 self._tag_dialogue('Gray', [
@@ -7702,6 +7749,79 @@ class Game:
         self.fade_color = (255, 255, 255)
         self.trigger_encounter(forced_dino='Celestreeyl', forced_level=self.CELES_LEVEL)
         self.fade_alpha = 255   # already white — go straight into the battle
+
+    # --- Planet legendaries: Deimo (Lunar Planet) and VY (Solar Planet) ---
+    # Each stands on its planet (config.WORLD_NPCS). Interacting plays its
+    # awakening (ANIM/legend_awaken.py), which ends fully covered and fades
+    # straight into a wild Lv 50 battle. Catching or defeating it sets its
+    # flag and it's gone for good; running or blacking out leaves it there.
+    LEGENDS = {
+        'deimo': {'dino': 'Deimo', 'level': 50, 'flag': 'deimo_done', 'fx': DeimoAwaken,
+                  'sound': 'deimo_awaken', 'shake': ((1.9, 0.35),),
+                  'after': ["The strings fall slack...", "The lunar sky grows still once more."]},
+        'vy':    {'dino': 'VY', 'level': 50, 'flag': 'vy_done', 'fx': VYAwaken,
+                  'sound': 'vy_awaken', 'shake': ((1.0, 1.4),),
+                  'after': ["VY's blaze settles into a gentle glow...", "The solar winds grow calm."]},
+    }
+
+    def _start_legend_awaken(self, npc):
+        if self.cutscene or self.fading:
+            return
+        legend = self.LEGENDS[npc.trainer_id]
+        self.player.freeze_in_place()
+        self.cutscene = {'phase': 'legend_awaken', 'npc': npc, 't': 0.0, 'fx': legend['fx'](),
+                         'shakes': list(legend['shake'])}
+        self.sfx.play(legend['sound'])
+
+    def _update_legend_awaken(self, dt):
+        c = self.cutscene
+        c['t'] += dt
+        while c['shakes'] and c['t'] >= c['shakes'][0][0]:
+            self.screen_shake = max(self.screen_shake, c['shakes'].pop(0)[1])
+        if c['t'] < c['fx'].DURATION:
+            return
+        npc = c['npc']
+        legend = self.LEGENDS[npc.trainer_id]
+        self.cutscene = None
+        self._legend_battle = (npc, npc.trainer_id)
+        self._wild_caught = False
+        self.fade_color = c['fx'].END_COLOR
+        self.trigger_encounter(forced_dino=legend['dino'], forced_level=legend['level'])
+        self.fade_alpha = 255   # already covered by the awakening — straight into the battle
+
+    def _draw_legend_awaken(self, screen):
+        c = self.cutscene
+        npc = c['npc']
+        scale = config.WIDTH / self.render_surface.get_width()
+        img = npc._current_image()
+        legend_xy = ((npc.rect.centerx - self.camera_x) * scale,
+                     (npc.rect.bottom - img.get_height() * 0.55 - self.camera_y) * scale)
+        player_xy = ((self.player.rect.centerx - self.camera_x) * scale,
+                     (self.player.rect.centery - self.camera_y) * scale)
+        # the legendary's own sprite, placed exactly as NPC.draw puts it
+        if c.get('sprite_src') is not img:
+            c['sprite_src'] = img
+            c['sprite_img'] = pygame.transform.scale(
+                img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+        ts = config.TILE_SIZE
+        topleft = ((npc.rect.x - self.camera_x - (img.get_width() - ts) // 2) * scale,
+                   (npc.rect.y - self.camera_y - (img.get_height() - ts)) * scale)
+        c['fx'].draw(screen, legend_xy, player_xy, c['t'], sprite=(c['sprite_img'], topleft))
+
+    def _check_legend_battle_result(self):
+        """Same timing trick as _check_celestreeyl_battle_result."""
+        if self._legend_battle is None or self.fading or self.state != 'world':
+            return
+        (npc, key), self._legend_battle = self._legend_battle, None
+        won = self._wild_caught or (self.enemy_dino and self.enemy_dino.get('hp', 1) <= 0)
+        if not won:
+            return
+        legend = self.LEGENDS[key]
+        self.story_flags[legend['flag']] = True
+        self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+        if npc in self.npcs:
+            self.npcs.remove(npc)
+        self.message_box.queue_messages(legend['after'], wait_for_input=True)
 
     def _check_celestreeyl_battle_result(self):
         """Same timing trick as _check_cobaltion_battle_result."""
@@ -8449,6 +8569,7 @@ class Game:
             self.catch_anim.update(dt)
         self.env_fx.update(dt)  # ENV FX
         self.lake_aurora.update(dt)  # LAKE AURORA
+        self.portals.update(dt)  # PORTALS
         self._track_dex_seen()
         if self.screen_shake > 0:
             self.screen_shake = max(0.0, self.screen_shake - dt)
@@ -8512,7 +8633,9 @@ class Game:
                 self._player_recharge_turn(active)
 
         if self.state == 'world':
-            if self.entrance_fade_state == 'out':
+            if self.portals.warp:  # PORTALS — warp transition; the player stays frozen
+                self.portals.update_warp(dt)
+            elif self.entrance_fade_state == 'out':
                 self.fade_alpha = min(255, self.fade_alpha + 10)
                 if self.fade_alpha >= 255:
                     if self.entrance_pending == '__exit__':
@@ -8596,6 +8719,7 @@ class Game:
             self._check_mom_ending()
             self._check_cobaltion_battle_result()
             self._check_celestreeyl_battle_result()
+            self._check_legend_battle_result()
             self._nuzlocke_retire_fainted()
             self._maybe_place_solar_shard()
             self._check_lantern_battle_result()
@@ -8640,9 +8764,13 @@ class Game:
         current_state = self.state
 
         if background_state == 'world':
+            space = self.current_world_file in self.SPACE_WORLDS
             if self.current_world_file in self.AETHER_WORLDS:
                 self.aether_bg.draw(self.render_surface, self.camera_x, self.camera_y,
                                     pygame.time.get_ticks() / 1000.0)
+            elif space:
+                self._space_bg().draw(self.render_surface, self.camera_x, self.camera_y,
+                                      pygame.time.get_ticks() / 1000.0)
             self.draw_map_below(self.render_surface)
             self.env_fx.draw_ground(self.render_surface, self.camera_x, self.camera_y)  # ENV FX
             ts = config.TILE_SIZE
@@ -8651,6 +8779,7 @@ class Game:
                     self.render_surface.blit(img, (tx * ts - self.camera_x, ty * ts - self.camera_y))
             for npc in self.npcs:
                 npc.draw(self.render_surface, self.camera_x, self.camera_y)
+            self.portals.draw_world(self.render_surface, self.camera_x, self.camera_y)  # PORTALS
             if self.shadowhq_wave:
                 self._draw_shadowhq_wave(self.render_surface)
             if self.cutscene and self.cutscene.get('phase') == 'cobaltion_collapse':
@@ -8674,14 +8803,18 @@ class Game:
                 self.screen.fill(config.BLACK)
             self.screen.blit(scaled_surface, shake)
 
-            if self.night_active:
+            # out in space there's no day/night or eclipse sky over the planet
+            if self.night_active and not space:
                 self.screen.blit(self._night_overlay, (0, 0))
-            if self.event_overlay_active:
+            if self.event_overlay_active and not space:
                 self.screen.blit(self._event_overlay, (0, 0))
             self._draw_lantern_wisps(self.screen)   # after the night overlay so they glow
             self.lake_aurora.draw(self.screen)  # LAKE AURORA
+            self.portals.draw_glow(self.screen)  # PORTALS
             if self.cutscene and self.cutscene.get('phase') == 'celestreeyl_awaken':
                 self._draw_celestreeyl_awaken(self.screen)
+            if self.cutscene and self.cutscene.get('phase') == 'legend_awaken':
+                self._draw_legend_awaken(self.screen)
             if self.cutscene and self.cutscene.get('phase') == 'solar_shard_reveal':
                 self._draw_solar_shard_reveal(self.screen)
             if self.cutscene and self.cutscene.get('phase') == 'lunar_shard_reveal':
@@ -8689,6 +8822,7 @@ class Game:
             if self.sandbox:
                 tag = self.fonts['XS'].render("SANDBOX MODE", True, (255, 80, 80))
                 self.screen.blit(tag, (config.WIDTH - tag.get_width() - 6, 6))
+            self.portals.draw_warp(self.screen)  # PORTALS — warp covers the world, not the banner
             self.route_banner.draw(self.screen)
             if self.cutscene_flash and self.cutscene_flash['alpha'] > 0:
                 _flash = pygame.Surface((config.WIDTH, config.HEIGHT))
@@ -8995,6 +9129,19 @@ class Game:
 
     # Worlds whose off-map void shows the aether_bg starfield instead of black.
     AETHER_WORLDS = ('HORIZON_CAVE.world',)
+
+    # Standalone celestial planet maps (tools/make_planets.py) and the space
+    # backdrop each one floats in. Separate from LOST_REGION.world.
+    SPACE_WORLDS = {
+        'LUNAR_PLANET.tmx': LunarBackground,
+        'SOLAR_PLANET.tmx': SolarBackground,
+    }
+
+    def _space_bg(self):
+        world = self.current_world_file
+        if world not in self._space_bgs:
+            self._space_bgs[world] = self.SPACE_WORLDS[world]()
+        return self._space_bgs[world]
 
     def draw_map_below(self, surface):
         ts = config.TILE_SIZE
