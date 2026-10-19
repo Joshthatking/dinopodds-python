@@ -1097,16 +1097,16 @@ MOVE_DATA = {
     'Whirlpool': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
     'Whirlpool+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
 
-    'Hurricane': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
-    'Eternal Blue': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
+    'Hurricane': {'target': 'opponent', 'damage': 65, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
+    'Eternal Blue': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
 
     'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 95, 'type': 'aqua', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
     #MAGMA MOVES
     'Fireball': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'magma'},
     'Fireball+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'magma'},
-    'Lava Burst': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'magma'},
-    'Solar Flare': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'magma'},
+    'Lava Burst': {'target': 'opponent', 'damage': 65, 'accuracy': 100, 'ability': None, 'type': 'magma'},
+    'Solar Flare': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'magma'},
 
     'Flame Shatter':   {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'type': 'magma',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
@@ -1117,8 +1117,8 @@ MOVE_DATA = {
     'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
    'Vine Snare+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Dread Thorn': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'earth'},
-    'Tree Spin': {'target': 'opponent', 'damage': 75, 'accuracy': 100, 'ability': None, 'type': 'earth'},
-    'Leaf Ultima': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Tree Spin': {'target': 'opponent', 'damage': 70, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Leaf Ultima': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'earth'},
 
 
     
@@ -1143,7 +1143,7 @@ MOVE_DATA = {
 
     'Turbo Booster':   {'target': 'self', 'damage': 0, 'accuracy': 95, 'type': 'flying', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
-    'Sky Scorch':   {'target': 'opponent', 'damage': 115, 'accuracy': 90, 'type': 'flying',
+    'Sky Scorch':   {'target': 'opponent', 'damage': 110, 'accuracy': 90, 'type': 'flying',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'self', 'chance': 100}},
     #SPIKE MOVES
     'Lock Jaw': {'target': 'opponent', 'damage': 35, 'accuracy': 90, 'type': 'spike', 'priority':1,
@@ -1155,7 +1155,7 @@ MOVE_DATA = {
     'Sword Slash': {'target': 'opponent', 'damage': 70, 'accuracy': 100, 'ability': None, 'type': 'spike'},
     'Quick Slash': {'target': 'opponent', 'damage': 40, 'accuracy': 95, 'ability': None, 'type': 'spike', 'priority': 1},
 
-    'Spike Storm': {'target': 'opponent', 'damage': 110, 'accuracy': 95, 'type': 'spike',
+    'Spike Storm': {'target': 'opponent', 'damage': 100, 'accuracy': 95, 'type': 'spike',
                     'ability': {'kind': 'recoil', 'percent': 25, 'chance': 100}},
 
     #ROCK MOVES
@@ -1184,7 +1184,7 @@ MOVE_DATA = {
     'Lightning Bolt': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'ability': None, 'type': 'lightning',
                         'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 50},
 },
-    'Volt Storm': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+    'Volt Storm': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
 
 
     'Conduit Surge':  {'target': 'opponent', 'damage': 50, 'accuracy': 90,  'type': 'lightning',
@@ -1197,7 +1197,7 @@ MOVE_DATA = {
     #DARK MOVES
     'Force Shift': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None,'type': 'dark'},
     'Dark Energy': {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'ability': None, 'type': 'dark'},
-    'Void Collapse': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'dark', 'pierces_defend': True},
+    'Void Collapse': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'dark', 'pierces_defend': True},
     'Bitemark': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'dark'},
 
     'Distortion':   {'target': 'opponent', 'damage': 5, 'accuracy': 100, 'type': 'dark', 'priority':1,
@@ -1210,26 +1210,26 @@ MOVE_DATA = {
                       'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': -2, 'target': 'opponent', 'chance': 100}},
     'Shadow Veil':   {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'type': 'dark',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 1, 'target': 'self', 'chance': 100}},
-    'Eternal Darkness': {'target': 'opponent', 'damage': 130, 'accuracy': 80, 'type': 'dark',
+    'Eternal Darkness': {'target': 'opponent', 'damage': 120, 'accuracy': 80, 'type': 'dark',
                          'ability': {'kind': 'recharge', 'chance': 100}},
     #LIGHT MOVES
     'Prism Glare': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'light'},
     'Piercing Light': {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'ability': None, 'type': 'light', 'pierces_defend': True},
-    'Spectral Overload': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'light'},
+    'Spectral Overload': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'light'},
 
     'Flash':   {'target': 'opponent', 'damage': 0, 'accuracy': 95, 'type': 'light',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
     'Refraction':  {'target': 'self',     'damage': 0,  'accuracy': 100, 'type': 'light', 'priority':1,
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'light', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
-   'Gamma Wave':   {'target': 'opponent', 'damage': 80, 'accuracy': 90, 'type': 'light',
+   'Gamma Wave':   {'target': 'opponent', 'damage': 70, 'accuracy': 90, 'type': 'light',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'opponent', 'chance': 100}},
-    'Ultra Violet': {'target': 'opponent', 'damage': 110, 'accuracy': 100, 'type': 'light',
+    'Ultra Violet': {'target': 'opponent', 'damage': 100, 'accuracy': 100, 'type': 'light',
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'self', 'chance': 100}},
-    'Infinite Light': {'target': 'opponent', 'damage': 130, 'accuracy': 80, 'type': 'light',
+    'Infinite Light': {'target': 'opponent', 'damage': 120, 'accuracy': 80, 'type': 'light',
                        'ability': {'kind': 'recharge', 'chance': 100}},
     #ICE MOVES
     'Snowfall': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'ice'},
-    'Freeze Blast': {'target': 'opponent', 'damage': 90, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+    'Freeze Blast': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'ice'},
     'Hyperfrost': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'ice', 'pierces_defend': True},
 
     'Hail Storm': {'target': 'opponent', 'damage': 25, 'accuracy': 90, 'type': 'ice',

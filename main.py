@@ -361,8 +361,11 @@ if __name__ == '__main__':
 # NEW battles in Palm Port
 # Repel gift in corn maze house
 # haunted mansion in Elder Town ???
-
 # build moat area north of corn maze
+# Fix type chart
+# Aether background encounter for Horizon Cave
+# REWORK INFINTE LIGHT ANIM
+# NERF MOVES only like 5 moves above 100, most are capped at 80
 
 
 # DINODEX REORDER
@@ -403,3 +406,8 @@ if __name__ == '__main__':
 # "But it is not all dark, as Infinite Light exists..."
 # "One day when the cycle repeats, those brave enough will take on the burden to shatter this veil"
 # "With the power of Infinite Light, life lives on"
+# (later version, replaced by "Light can always overcome darkness")
+# "Eternal Darkness and Infinite Light"
+# "One destroys while the other saves"
+# "One day the cycle will repeat and those brave enough will take on the burden to break it"
+# "As darkness goes cold, infinite light lives on"

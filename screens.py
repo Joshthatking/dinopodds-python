@@ -194,6 +194,65 @@ def _draw_move_info_panel(surface, move_name, act_rect, small_font, smaller_font
 
 
 # === Double Battle UI ===
+# === Battle status badges (shared by the single and double battle HUDs) ===
+BADGE_H = 15
+BADGE_ROW_STEP = 17
+
+
+def status_badges(dino, field_effects=None):
+    """Every status currently on `dino` as (label, colour) badges: stat
+    stages, storm (dot), move lock, recharge, Defend — plus the field
+    effects when given (they're shared, so only one box passes them)."""
+    badges = []
+    for stat, label in (('attack', 'ATK'), ('defense', 'DEF'), ('speed', 'SPD')):
+        val = dino.get('stat_stages', {}).get(stat, 0)
+        if val:
+            badges.append((f"{label}{'+' if val > 0 else ''}{val}",
+                           (150, 215, 150) if val > 0 else (215, 150, 150)))
+    dot = dino.get('dot')
+    if dot:
+        badges.append((f"STORM {dot.get('turns_left', '')}".strip(), (215, 190, 130)))
+    if dino.get('locked_move'):
+        badges.append((f"LOCK {dino.get('lock_turns_left', '')}".strip(), (195, 170, 225)))
+    if dino.get('must_recharge'):
+        badges.append(("RECHARGE", (235, 205, 110)))
+    if dino.get('defending'):
+        badges.append(("GUARD", (150, 195, 235)))
+    for fx in field_effects or ():
+        turns = fx.get('turns_left', '')
+        if fx['effect'] == 'speed_swap':
+            badges.append((f"TIME {turns}", (210, 210, 130)))
+        elif fx['effect'] == 'type_power':
+            badges.append((f"{fx.get('boost_type', '')[:3].upper()}+ {turns}", (215, 185, 130)))
+    return badges
+
+
+def badge_rows(badges, font, max_w):
+    """Wrap badges into rows no wider than max_w (never drops any)."""
+    rows, row, w = [], [], 0
+    for text, bg in badges:
+        bw = font.size(text)[0] + 6
+        if row and w + bw > max_w:
+            rows.append(row)
+            row, w = [], 0
+        row.append((text, bg, bw))
+        w += bw + 3
+    if row:
+        rows.append(row)
+    return rows
+
+
+def draw_badge_rows(surface, font, x, y, rows):
+    for r, row in enumerate(rows):
+        bx, by = x, y + r * BADGE_ROW_STEP
+        for text, bg, bw in row:
+            th = font.size(text)[1]
+            pygame.draw.rect(surface, bg, (bx, by, bw, BADGE_H), border_radius=3)
+            pygame.draw.rect(surface, (70, 70, 70), (bx, by, bw, BADGE_H), 1, border_radius=3)
+            surface.blit(font.render(text, True, (30, 30, 30)), (bx + 3, by + (BADGE_H - th) // 2))
+            bx += bw + 3
+
+
 class DoubleBattleUI:
     """HUD for 2v2 trainer battles: compact info boxes, no XP bar."""
 
@@ -306,7 +365,7 @@ class DoubleBattleUI:
              show_actions=True, msg_awaiting_input=False,
              p1_visible=True, p2_visible=True,
              e1_visible=True, e2_visible=True,
-             active_dino=None):
+             active_dino=None, field_effects=None):
 
         sw, sh = surface.get_size()
 
@@ -327,54 +386,9 @@ class DoubleBattleUI:
         sf  = self.small_font
         SLANT = 18
 
-        # ── Enemy stat boxes — top-left, stacked, slanted bottom-right
-        # en1: base box; en2: slightly wider
-        en1_x, en1_y, en1_w, en1_h = 4, 26,  215, 46
-        en2_x, en2_y, en2_w, en2_h = 4, 78,  235, 46
-
-        self._draw_slanted_panel(surface, en1_x, en1_y, en1_w, en1_h, SLANT, slant_side='right')
-        if e2:
-            self._draw_slanted_panel(surface, en2_x, en2_y, en2_w, en2_h, SLANT, slant_side='right')
-
-        def draw_enemy_stat(d, pct, bx, by, bw, ko):
-            if ko:
-                surface.blit(sf.render("KO", True, (160, 0, 0)), (bx + 8, by + 14))
-                return
-            name = self._fit_name(d['name'], sf, bw - 70)
-            surface.blit(sf.render(name,             True, (0, 0, 0)), (bx + 8,      by + 6))
-            surface.blit(sf.render(f"Lv{d['level']}", True, (0, 0, 0)), (bx + bw - 55, by + 6))
-            self._draw_hp_bar(surface, bx + 8, by + 28, bw - SLANT - 12, 10, pct)
-
-        draw_enemy_stat(e1, ep1, en1_x, en1_y, en1_w, ep1 <= 0.01)
-        if e2:
-            draw_enemy_stat(e2, ep2, en2_x, en2_y, en2_w, ep2 <= 0.01)
-
-        # ── Player stat boxes — right side, stacked, slanted bottom-left
+        # ── Player back sprites — only the sprite blinks on hit flash.
+        # Drawn before the stat boxes so status badges are never covered.
         text_top = text_rect.top
-        pl_w  = 210
-        pl_h  = 46
-        pl_x  = sw - pl_w - 4   # flush right with small margin
-        pl1_y = text_top - pl_h - 8         # just above dialogue box
-        pl2_y = pl1_y - pl_h - 6            # stacked above pl1
-
-        def draw_player_stat(d, pct, bx, by, bw, ko):
-            if ko:
-                surface.blit(sf.render("KO", True, (160, 0, 0)), (bx + SLANT + 6, by + 14))
-                return
-            # left side is slanted at bottom only; text starts after slant offset at top (safe)
-            name = self._fit_name(d['name'], sf, bw - 70)
-            surface.blit(sf.render(name,              True, (0, 0, 0)), (bx + 8,      by + 6))
-            surface.blit(sf.render(f"Lv{d['level']}", True, (0, 0, 0)), (bx + bw - 55, by + 6))
-            self._draw_hp_bar(surface, bx + SLANT + 4, by + 28, bw - SLANT - 12, 10, pct)
-
-        # Stat boxes always visible (matching single-battle behaviour — only the sprite blinks)
-        self._draw_slanted_panel(surface, pl_x, pl1_y, pl_w, pl_h, SLANT, slant_side='left')
-        draw_player_stat(p1, pp1, pl_x, pl1_y, pl_w, pp1 <= 0.01)
-        if p2:
-            self._draw_slanted_panel(surface, pl_x, pl2_y, pl_w, pl_h, SLANT, slant_side='left')
-            draw_player_stat(p2, pp2, pl_x, pl2_y, pl_w, pp2 <= 0.01)
-
-        # ── Player back sprites — only the sprite blinks on hit flash ─
         if p1_visible and pp1 > 0.01:
             img = pygame.transform.scale(p1['image'], (170, 170))
             r   = img.get_rect(centerx=text_rect.x + 85, bottom=text_top)
@@ -383,6 +397,72 @@ class DoubleBattleUI:
             img = pygame.transform.scale(p2['image'], (170, 170))
             r   = img.get_rect(centerx=text_rect.x + 235, bottom=text_top)
             surface.blit(img, r)
+
+        xs = self.smaller_font
+        BASE_H = 46
+
+        def rows_for(d, pct, bw, fx=None):
+            """Status badge rows for a box (none once the dino is KO'd)."""
+            if not d or pct <= 0.01:
+                return []
+            return badge_rows(status_badges(d, fx), xs, bw - SLANT - 12)
+
+        # ── Enemy stat boxes — top-left, stacked, slanted bottom-right
+        # en1: base box; en2: slightly wider. Each grows a row per badge row.
+        en1_x, en1_y, en1_w = 4, 26, 215
+        en2_x, en2_w = 4, 235
+        en1_rows = rows_for(e1, ep1, en1_w, field_effects)
+        en2_rows = rows_for(e2, ep2, en2_w)
+        en1_h = BASE_H + BADGE_ROW_STEP * len(en1_rows)
+        en2_h = BASE_H + BADGE_ROW_STEP * len(en2_rows)
+        en2_y = en1_y + en1_h + 6
+
+        self._draw_slanted_panel(surface, en1_x, en1_y, en1_w, en1_h, SLANT, slant_side='right')
+        if e2:
+            self._draw_slanted_panel(surface, en2_x, en2_y, en2_w, en2_h, SLANT, slant_side='right')
+
+        def draw_enemy_stat(d, pct, bx, by, bw, ko, rows):
+            if ko:
+                surface.blit(sf.render("KO", True, (160, 0, 0)), (bx + 8, by + 14))
+                return
+            name = self._fit_name(d['name'], sf, bw - 70)
+            surface.blit(sf.render(name,             True, (0, 0, 0)), (bx + 8,      by + 6))
+            surface.blit(sf.render(f"Lv{d['level']}", True, (0, 0, 0)), (bx + bw - 55, by + 6))
+            self._draw_hp_bar(surface, bx + 8, by + 28, bw - SLANT - 12, 10, pct)
+            draw_badge_rows(surface, xs, bx + 8, by + 43, rows)
+
+        draw_enemy_stat(e1, ep1, en1_x, en1_y, en1_w, ep1 <= 0.01, en1_rows)
+        if e2:
+            draw_enemy_stat(e2, ep2, en2_x, en2_y, en2_w, ep2 <= 0.01, en2_rows)
+
+        # ── Player stat boxes — right side, stacked, slanted bottom-left
+        text_top = text_rect.top
+        pl_w  = 210
+        pl_x  = sw - pl_w - 4   # flush right with small margin
+        pl1_rows = rows_for(p1, pp1, pl_w)
+        pl2_rows = rows_for(p2, pp2, pl_w)
+        pl1_h = BASE_H + BADGE_ROW_STEP * len(pl1_rows)
+        pl2_h = BASE_H + BADGE_ROW_STEP * len(pl2_rows)
+        pl1_y = text_top - pl1_h - 8        # just above dialogue box
+        pl2_y = pl1_y - pl2_h - 6           # stacked above pl1
+
+        def draw_player_stat(d, pct, bx, by, bw, ko, rows):
+            if ko:
+                surface.blit(sf.render("KO", True, (160, 0, 0)), (bx + SLANT + 6, by + 14))
+                return
+            # left side is slanted at bottom only; text starts after slant offset at top (safe)
+            name = self._fit_name(d['name'], sf, bw - 70)
+            surface.blit(sf.render(name,              True, (0, 0, 0)), (bx + 8,      by + 6))
+            surface.blit(sf.render(f"Lv{d['level']}", True, (0, 0, 0)), (bx + bw - 55, by + 6))
+            self._draw_hp_bar(surface, bx + SLANT + 4, by + 28, bw - SLANT - 12, 10, pct)
+            draw_badge_rows(surface, xs, bx + SLANT + 4, by + 43, rows)
+
+        # Stat boxes always visible (matching single-battle behaviour — only the sprite blinks)
+        self._draw_slanted_panel(surface, pl_x, pl1_y, pl_w, pl1_h, SLANT, slant_side='left')
+        draw_player_stat(p1, pp1, pl_x, pl1_y, pl_w, pp1 <= 0.01, pl1_rows)
+        if p2:
+            self._draw_slanted_panel(surface, pl_x, pl2_y, pl_w, pl2_h, SLANT, slant_side='left')
+            draw_player_stat(p2, pp2, pl_x, pl2_y, pl_w, pp2 <= 0.01, pl2_rows)
 
         # ── Level-up popup ─────────────────────────────────────────
         if self.level_up_popup and self.level_up_popup.active:
@@ -613,35 +693,6 @@ class EncounterUI:
         pygame.draw.rect(surface, back_color, (x, y, width, height))
         pygame.draw.rect(surface, front_color, (x, y, int(width * max(0, min(1, percent))), height))
 
-    def _draw_badges(self, surface, x, y, dino, field_effects=None, show_field=False):
-        font = self.smaller_font
-        badges = []
-        abbr = {'attack': 'ATK', 'defense': 'DEF', 'speed': 'SPD'}
-        for stat, label in abbr.items():
-            val = dino.get('stat_stages', {}).get(stat, 0)
-            if val != 0:
-                sign = '+' if val > 0 else ''
-                bg = (150, 215, 150) if val > 0 else (215, 150, 150)
-                badges.append((f"{label}{sign}{val}", bg))
-        if show_field and field_effects:
-            for fx in field_effects:
-                if fx['effect'] == 'speed_swap':
-                    badges.append(("TIME", (210, 210, 130)))
-                elif fx['effect'] == 'type_power':
-                    bt = fx.get('boost_type', '')
-                    badges.append((f"{bt[:3].upper()}+", (215, 185, 130)))
-        bx = x
-        for text, bg in badges:
-            tw, th = font.size(text)
-            pad = 3
-            bw = tw + pad * 2
-            bh = 15
-            if bx + bw > x + 205:
-                break
-            pygame.draw.rect(surface, bg,         (bx, y, bw, bh), border_radius=3)
-            pygame.draw.rect(surface, (70, 70, 70), (bx, y, bw, bh), 1, border_radius=3)
-            surface.blit(font.render(text, True, (30, 30, 30)), (bx + pad, y + (bh - th) // 2))
-            bx += bw + 3
 
     @staticmethod
     def player_sprite_rect(screen_w, screen_h):
@@ -659,10 +710,17 @@ class EncounterUI:
             self.show_move_info = False
         screen_w, screen_h = surface.get_size()
 
+        # Status badges wrap onto extra rows rather than being cut off; the
+        # enemy box grows down and the player box grows up to fit them.
+        enemy_rows  = badge_rows(status_badges(enemy_dino, field_effects), self.smaller_font, 200)
+        player_rows = badge_rows(status_badges(player_dino), self.smaller_font, 202)
+        enemy_extra  = BADGE_ROW_STEP * max(0, len(enemy_rows) - 1)
+        player_extra = BADGE_ROW_STEP * max(0, len(player_rows) - 1)
+
         text_box_rect   = pygame.Rect(9, screen_h - 120, screen_w - 325, 115)
         actions_rect    = pygame.Rect(screen_w - 300, screen_h - 120, 287, 115)
-        enemy_info_rect = pygame.Rect(-1, 30, 220, 82)
-        player_info_rect= pygame.Rect(screen_w - 220, screen_h - 242, 220, 100)
+        enemy_info_rect = pygame.Rect(-1, 30, 220, 82 + enemy_extra)
+        player_info_rect= pygame.Rect(screen_w - 220, screen_h - 242 - player_extra, 220, 100 + player_extra)
 
         self.draw_panel(surface, text_box_rect)
         self.draw_panel(surface, actions_rect)
@@ -696,8 +754,7 @@ class EncounterUI:
         lv_surf = self.small_font.render(f"Lv{enemy_dino['level']}", True, (0, 0, 0))
         surface.blit(lv_surf, (enemy_info_rect.x + enemy_info_rect.width - lv_surf.get_width() - 8, enemy_info_rect.y + 12))
         self.draw_hp_bar(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 40, 200, 15, ep)
-        self._draw_badges(surface, enemy_info_rect.x + 10, enemy_info_rect.y + 60,
-                          enemy_dino, field_effects, show_field=True)
+        draw_badge_rows(surface, self.smaller_font, enemy_info_rect.x + 10, enemy_info_rect.y + 60, enemy_rows)
 
         # Player info
         # row 0 — name + level  (y+8)
@@ -712,12 +769,12 @@ class EncounterUI:
             self.smaller_font.render(f"HP  {player_dino['hp']}/{player_dino['max_hp']}", True, (0, 0, 0)),
             (player_info_rect.x + 8, player_info_rect.y + 41)
         )
-        # row 3 — stat badges (y+57)
-        self._draw_badges(surface, player_info_rect.x + 8, player_info_rect.y + 57, player_dino)
+        # row 3 — status badges (y+57, extra rows push the XP bar down)
+        draw_badge_rows(surface, self.smaller_font, player_info_rect.x + 8, player_info_rect.y + 57, player_rows)
 
         # XP bar (y+88) + XP label in XS font (y+75)
         xp_progress = self.xp_display if self.xp_display is not None else player_dino['xp'] / max(1, player_dino['xp_to_next'])
-        xp_bar_rect = pygame.Rect(player_info_rect.x + 8, player_info_rect.y + 88, 202, 8)
+        xp_bar_rect = pygame.Rect(player_info_rect.x + 8, player_info_rect.y + 88 + player_extra, 202, 8)
         pygame.draw.rect(surface, (255, 255, 255), xp_bar_rect)
         pygame.draw.rect(surface, (0, 0, 255),
                          (xp_bar_rect.x, xp_bar_rect.y, int(xp_bar_rect.width * xp_progress), xp_bar_rect.height))

@@ -25,7 +25,7 @@ DURATION = 1.0
 DURATIONS = {                       # signature moves that run longer than DURATION
     'Ultra Violet': 2.2,
     'Eternal Darkness': 2.6,
-    'Infinite Light': 2.6,
+    'Infinite Light': 3.4,
     'Leaf Ultima': 1.4,
 }
 STRONG_POWER = 70
@@ -2352,10 +2352,11 @@ def anim_eternal_darkness(a):
 
 # ── Infinite Light (signature, recharge move — see DURATIONS) ──────────────
 # A hush falls -> a sacred halo spins up around the attacker -> it traces an
-# infinity sign in light that flies over the target -> a ring of light spears
-# forms and plunges in -> a prismatic pillar of light crashes down from the
-# infinity sign -> supernova whiteout -> feathers of light drift down while
-# the attacker's halo cracks and fades (it must recharge).
+# infinity sign that soars over the target and blazes god rays -> a ring of
+# light spears plunges in -> a prismatic pillar of judgement crashes down ->
+# a sphere of light erupts and swallows the whole screen -> total whiteout,
+# where only gold/rainbow rings, a vast infinity sign and a blooming star show
+# -> the light recedes as feathers drift down and the attacker's halo cracks.
 
 IL_GOLD = (255, 205, 80)
 IL_PALE = (255, 246, 210)
@@ -2408,125 +2409,173 @@ def _il_halo(a, x, y, r, k, t):
         a.glow(x + math.cos(ang) * r, y + math.sin(ang) * r, 14 * a.s, IL_GOLD, 0.6 * k)
 
 
+def _il_rays(a, cx, cy, n, length, rot, col, alpha, spread=0.06, inner=0.0):
+    """God rays: n thin light wedges fanning out from (cx, cy)."""
+    if alpha <= 2 or length < 4:
+        return
+    for i in range(n):
+        ang = rot + i * TAU / n
+        wob = 1 + 0.25 * math.sin(i * 2.7 + rot * 3)
+        L = length * wob
+        r0 = inner * L
+        a.poly([(cx + math.cos(ang) * r0, cy + math.sin(ang) * r0),
+                (cx + math.cos(ang - spread) * L, cy + math.sin(ang - spread) * L),
+                (cx + math.cos(ang + spread) * L, cy + math.sin(ang + spread) * L)],
+               col, alpha)
+
+
 def anim_infinite_light(a):
     t, s = a.t, a.s
+    W, H = a.W, a.H
     ix, iy = a.tx, max(56.0, a.ty - 120 * s)   # where the infinity sign hovers
+    diag = math.hypot(W, H)
 
-    # A hush first (so the light reads), then everything gives way to light
-    hush = min(1.0, t / 0.08) * (1.0 if t < 0.6 else max(0.0, (0.7 - t) / 0.1))
-    a.tint(IL_HUSH, 150 * hush)
-    _vignette(a, 0.7 * hush, IL_HUSH)
-    p = seg(t, 0.6, 0.82)
+    # ── Screen mood: the hush, then the light breaks through, then WHITE ──
+    hush = min(1.0, t / 0.06) * (1.0 if t < 0.42 else max(0.0, (0.5 - t) / 0.08))
+    a.tint(IL_HUSH, 175 * hush)
+    _vignette(a, 0.85 * hush, IL_HUSH)
+    p = seg(t, 0.44, 0.56)
     if p is not None:
-        a.tint(IL_PALE, 120 * ease_in(p))
+        a.tint(IL_PALE, 170 * ease_in(p))                       # dawn creeping in
+    if 0.56 <= t <= 0.80:
+        a.tint(WHITE, 255)                                      # total whiteout
+    p = seg(t, 0.80, 1.0)
+    if p is not None:
+        a.tint(WHITE, 255 * (1 - p) ** 1.4)                     # light recedes
 
-    # 1. Sacred halo spins up around the attacker; motes of light gather
-    p = seg(t, 0.0, 0.5)
+    # 1. Sacred halo spins up around the attacker; motes of light gather in
+    p = seg(t, 0.0, 0.34)
     if p is not None:
         k = ease_out(min(1.0, p / 0.35)) * (1.0 if p < 0.8 else max(0.0, (1 - p) / 0.2))
-        _il_halo(a, a.sx, a.sy, 52 * s * (0.6 + 0.4 * ease_out(min(1.0, p / 0.35))), k, t * 3)
-        a.implode(a.sx, a.sy, min(1.0, p * 1.3), 36, 160 * s, IL_PALE, 2.4 * s, glow=0.35, swirl=3, key='ilin')
-        a.glow(a.sx, a.sy, 40 * s * k, IL_GOLD, 1.0 * k)
-        a.circle(a.sx, a.sy, 8 * s * k, WHITE, 255 * k)
+        _il_halo(a, a.sx, a.sy, 52 * s * (0.6 + 0.4 * ease_out(min(1.0, p / 0.35))), k, t * 5)
+        a.implode(a.sx, a.sy, min(1.0, p * 1.3), 44, 190 * s, IL_PALE, 2.4 * s, glow=0.35, swirl=3, key='ilin')
+        a.implode(a.sx, a.sy, min(1.0, p * 1.1), 20, 230 * s, IL_GOLD, 1.8 * s, swirl=-4, key='ilin2')
+        _il_rays(a, a.sx, a.sy, 10, 70 * s * k, t * 4, IL_PALE, 90 * k, spread=0.05)
+        a.glow(a.sx, a.sy, 44 * s * k, IL_GOLD, 1.1 * k)
+        a.circle(a.sx, a.sy, (6 + 3 * math.sin(t * 70)) * s * k, WHITE, 255 * k)
 
     # 2. The infinity sign is traced around the attacker...
-    p = seg(t, 0.14, 0.36)
+    p = seg(t, 0.1, 0.26)
     if p is not None:
         _il_infinity(a, a.sx, a.sy - 8 * s, 62 * s, 1.0, t, TAU * ease_in_out(p))
         hx, hy = _lemniscate(a.sx, a.sy - 8 * s, 62 * s, TAU * ease_in_out(p))
         a.star(hx, hy, 14 * s, WHITE, 255, points=4, rot=t * 10)
         a.glow(hx, hy, 34 * s, IL_GOLD, 1.3)
 
-    # ...then rises and flies over the target, growing, and hovers there
-    p = seg(t, 0.36, 0.86)
+    # ...then soars over the target, swelling, and blazes god rays across the field
+    p = seg(t, 0.26, 0.58)
     if p is not None:
-        fly = ease_in_out(min(1.0, p / 0.3))
+        fly = ease_in_out(min(1.0, p / 0.35))
         cx = lerp(a.sx, ix, fly)
-        cy = lerp(a.sy - 8 * s, iy, fly) - 60 * s * math.sin(math.pi * fly)
-        w = lerp(62, 92, fly) * s * (1 + 0.06 * math.sin(t * 40))
-        fade = 1.0 if p < 0.8 else max(0.0, (1 - p) / 0.2)
-        _il_infinity(a, cx, cy, w, fade, t)
-        a.glow(cx, cy, 60 * s, IL_PALE, 0.8 * fade)
+        cy = lerp(a.sy - 8 * s, iy, fly) - 70 * s * math.sin(math.pi * fly)
+        w = lerp(62, 100, fly) * s * (1 + 0.06 * math.sin(t * 40))
+        if fly >= 1:
+            rk = ease_out(min(1.0, (p - 0.35) / 0.4))
+            _il_rays(a, cx, cy, 16, diag * rk, t * 1.6, IL_PALE, 70 * rk, spread=0.045, inner=0.1)
+            _il_rays(a, cx, cy, 8, diag * 0.6 * rk, -t * 2.2, IL_GOLD, 60 * rk, spread=0.03, inner=0.15)
+        _il_infinity(a, cx, cy, w, 1.0, t)
+        a.glow(cx, cy, 64 * s, IL_PALE, 0.9)
 
     # 3. A ring of light spears forms around the target and plunges in, one by one
-    p = seg(t, 0.44, 0.7)
+    p = seg(t, 0.32, 0.52)
     if p is not None:
         n = 12
         for i in range(n):
             ang = i * TAU / n + t * 2
             form = ease_out(min(1.0, p / 0.35))
-            start = 0.45 + i * 0.03
+            start = 0.4 + i * 0.035
             dive = ease_in(max(0.0, min(1.0, (p - start) / 0.12)))
             if dive >= 1:
                 continue
-            rr = lerp(118 * s, 6 * s, dive)
+            rr = lerp(124 * s, 6 * s, dive)
             x, y = a.tx + math.cos(ang) * rr, a.ty + math.sin(ang) * rr * 0.75
-            a.shard(x, y, 20 * s * form, ang + math.pi, IL_GOLD, 240 * form, thin=0.22)
-            a.shard(x, y, 13 * s * form, ang + math.pi, WHITE, 255 * form, thin=0.18)
+            a.shard(x, y, 22 * s * form, ang + math.pi, IL_GOLD, 240 * form, thin=0.22)
+            a.shard(x, y, 14 * s * form, ang + math.pi, WHITE, 255 * form, thin=0.18)
             a.glow(x, y, 16 * s, IL_GOLD, 0.6 * form)
         for i in range(n):
-            q = seg(p, 0.45 + i * 0.03 + 0.12, 0.45 + i * 0.03 + 0.3)
+            q = seg(p, 0.4 + i * 0.035 + 0.12, 0.4 + i * 0.035 + 0.3)
             if q is not None:
                 ang = i * TAU / n
                 a.star(a.tx + math.cos(ang) * 8 * s, a.ty + math.sin(ang) * 6 * s,
                        26 * s * (1 - q), WHITE, 255 * (1 - q), points=4, rot=ang)
                 a.shake(3)
 
-    # 4. Prismatic pillar of light crashes down from the infinity sign
-    p = seg(t, 0.64, 0.88)
+    # 4. Judgement: a prismatic pillar crashes down from the sign onto the target
+    p = seg(t, 0.46, 0.57)
     if p is not None:
-        reach = ease_in(min(1.0, p / 0.18))
-        fade = 1.0 if p < 0.7 else max(0.0, (1 - p) / 0.3)
+        reach = ease_in(min(1.0, p / 0.3))
         bottom = lerp(iy, a.ty + 40 * s, reach)
-        throb = 0.9 + 0.1 * math.sin(t * 110)
-        for w, col, al in ((92, IL_GOLD, 120), (64, IL_PALE, 170), (40, (255, 255, 235), 230), (16, WHITE, 255)):
-            width = w * s * fade * throb
-            a.line(ix, iy, ix, bottom, col, al * fade, width)
+        throb = 0.9 + 0.1 * math.sin(t * 140)
+        grow = 1 + 1.4 * ease_in(p)
+        for w, col, al in ((100, IL_GOLD, 130), (70, IL_PALE, 180), (44, (255, 255, 235), 235), (18, WHITE, 255)):
+            a.line(ix, 0, ix, bottom, col, al, w * s * throb * grow)
         for side in (-1, 1):
             for ci, col in enumerate(RAINBOW):
-                xo = side * (48 + ci * 3.2) * s * fade * throb
-                a.line(ix + xo, iy, ix + xo, bottom, col, 170 * fade, 2)
+                xo = side * (52 + ci * 3.4) * s * throb * grow
+                a.line(ix + xo, 0, ix + xo, bottom, col, 180, 2)
         for i in range(8):
-            a.glow(ix, lerp(iy, bottom, i / 7), 46 * s, IL_PALE, 0.9 * fade)
-        a.rain(p, 24, WHITE, ix - 40 * s, ix + 40 * s, iy, bottom, length=18 * s, width=2,
-               alpha=220 * fade, key='ilfall', speed=1.6)
-        # Ground rings where the pillar lands
+            a.glow(ix, lerp(0, bottom, i / 7), 50 * s, IL_PALE, 1.0)
+        a.rain(p, 26, WHITE, ix - 44 * s, ix + 44 * s, 0, bottom, length=20 * s, width=2,
+               alpha=230, key='ilfall', speed=1.8)
         if reach >= 1:
             for kk in range(3):
-                q = (p * 3 + kk / 3) % 1.0
-                a.ellipse(a.tx, a.ty + 40 * s, 30 * s + 200 * s * q, (10 + 50 * q) * s, IL_GOLD, 220 * (1 - q) * fade, 3)
-            a.shake(9 * fade)
+                q = (p * 4 + kk / 3) % 1.0
+                a.ellipse(a.tx, a.ty + 40 * s, 30 * s + 220 * s * q, (10 + 55 * q) * s, IL_GOLD, 230 * (1 - q), 3)
+            a.glow(a.tx, a.ty, 90 * s, IL_PALE, 1.6)
+            a.shake(6 + 8 * p)
 
-    # 5. Supernova: whiteout, rainbow shockwaves, star burst
-    p = seg(t, 0.8, 0.97)
+    # 5. The flash: a sphere of pure light erupts from the target and swallows the screen
+    p = seg(t, 0.52, 0.58)
     if p is not None:
-        a.tint(WHITE, 250 * (1 - p) ** 2)
-        for kk, col in enumerate(RAINBOW):
-            q = seg(p, kk * 0.04, 0.55 + kk * 0.04)
-            if q is not None:
-                a.ring(a.tx, a.ty, 18 * s + 230 * s * ease_out(q), col, 230 * (1 - q), 5)
-        star = ease_out(min(1.0, p * 2.5))
-        a.star(a.tx, a.ty, 175 * s * star, IL_GOLD, 230 * (1 - p), points=8, rot=-p, inner=0.12)
-        a.star(a.tx, a.ty, 130 * s * star, WHITE, 255 * (1 - p), points=8, rot=p + 0.2, inner=0.14)
-        a.burst(a.tx, a.ty, p, 24, 200 * s, IL_PALE, 4 * s, shape='star', glow=0.6, key='ilstar')
-        a.burst(a.tx, a.ty, p, 18, 170 * s, IL_GOLD, 3 * s, shape='streak', glow=0.4, key='ilstreak')
-        a.glow(a.tx, a.ty, 140 * s, IL_PALE, 2.0 * (1 - p))
-        if p < 0.5:
-            a.shake(13 * (1 - p / 0.5))
+        e = ease_in(p)
+        r = 20 * s + diag * e
+        a.circle(a.tx, a.ty, r + 30 * s, IL_PALE, 200)
+        a.circle(a.tx, a.ty, r, WHITE, 255)
+        a.ring(a.tx, a.ty, r + 30 * s, IL_GOLD, 220, max(3, int(8 * s)))
+        a.shake(14)
 
-    # 6. Feathers of light drift down; the attacker's halo cracks and fades
-    p = seg(t, 0.84, 1.0)
+    # 6. Whiteout. Only the light's own shape shows: gold and rainbow rings
+    #    pulse outward, a vast infinity sign burns in, and a star blooms
+    p = seg(t, 0.56, 0.86)
+    if p is not None:
+        fade_in = ease_out(min(1.0, p / 0.2))
+        fade = fade_in * (1.0 if p < 0.7 else max(0.0, (1 - p) / 0.3))
+        cx, cy = W / 2, H / 2
+        _il_rays(a, cx, cy, 24, diag * 0.75, t * 0.8, (255, 238, 190), 120 * fade, spread=0.035, inner=0.08)
+        for kk, col in enumerate(RAINBOW):
+            q = (p * 1.4 + kk / len(RAINBOW)) % 1.0
+            a.ring(cx, cy, 10 * s + diag * 0.55 * ease_out(q), col, 150 * (1 - q) * fade, 3)
+        for kk in range(3):
+            q = (p * 2 + kk / 3) % 1.0
+            a.ring(cx, cy, 20 * s + diag * 0.5 * q, IL_GOLD, 200 * (1 - q) * fade, max(2, int(6 * s * (1 - q))))
+        w = (150 + 30 * p) * s
+        n = 64
+        pts = [_lemniscate(cx, cy, w, TAU * i / n) for i in range(n + 1)]
+        a.lines(pts, IL_GOLD, 230 * fade, max(4, int(12 * s)))
+        a.lines(pts, (255, 228, 150), 255 * fade, max(2, int(6 * s)))
+        bloom = ease_out(min(1.0, p / 0.35))
+        a.star(cx, cy, 90 * s * bloom, IL_GOLD, 220 * fade, points=8, rot=-t * 2, inner=0.14)
+        a.star(cx, cy, 60 * s * bloom, (255, 238, 190), 255 * fade, points=8, rot=t * 2 + 0.2, inner=0.16)
+        a.circle(cx, cy, 10 * s * bloom, WHITE, 255 * fade)
+        a.burst(cx, cy, p, 30, diag * 0.5, IL_GOLD, 4 * s, alpha=230 * fade, shape='star', key='ilwstar')
+        if p < 0.4:
+            a.shake(10 * (1 - p / 0.4))
+
+    # 7. The light recedes: feathers of light drift down through the clearing
+    #    glare, and the attacker's halo cracks and falls (it must recharge)
+    p = seg(t, 0.8, 1.0)
     if p is not None:
         rng = a.rng('ilfeather')
-        for i in range(14):
-            x0 = a.tx + rng.uniform(-110, 110) * s
+        for i in range(18):
+            x0 = a.tx + rng.uniform(-150, 150) * s
             delay = rng.uniform(0, 0.4)
             q = (p - delay) / 0.6
             if 0 <= q <= 1:
                 x = x0 + math.sin(q * 6 + i) * 14 * s
-                y = lerp(a.ty - 120 * s, a.ty + 50 * s, q)
-                a.leaf(x, y, 7 * s, math.sin(q * 5 + i) * 0.8 + math.pi / 2, IL_PALE, 230 * (1 - q))
-                a.glow(x, y, 12 * s, IL_GOLD, 0.4 * (1 - q))
+                y = lerp(a.ty - 140 * s, a.ty + 50 * s, q)
+                a.leaf(x, y, 7 * s, math.sin(q * 5 + i) * 0.8 + math.pi / 2, IL_GOLD, 230 * (1 - q))
+                a.glow(x, y, 12 * s, IL_GOLD, 0.5 * (1 - q))
+        a.glow(a.tx, a.ty, 110 * s, IL_PALE, 1.4 * (1 - p))
         for i in range(6):
             ang = i * TAU / 6 + 0.3
             d = 40 * s + 30 * s * ease_in(p)

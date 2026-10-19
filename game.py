@@ -38,11 +38,12 @@ GOURDECRUX_TOMB_TILES = {
 }
 GOURDECRUX_TOMB_CENTER = (125, -67)
 
-# LAKE_MERIDIAN7's statue (world tile coords) — the interactable monument
-# tiles are Base1.tsx ids 209/210/217/218, tagged interact=true.
+# LAKE_MERIDIAN7's 3x3 ruin (world tile coords) — tagged lore1 in the
+# tileset, so it's checked before lore_tile_coords to give it its own text.
 LAKE_MERIDIAN_PROPHECY_TILES = {
-    (3, -101), (4, -101),
-    (3, -100), (4, -100),
+    (3, -102), (4, -102), (5, -102),
+    (3, -101), (4, -101), (5, -101),
+    (3, -100), (4, -100), (5, -100),
 }
 
 # LAKE_MERIDIAN8's 3x3 ruin (world tile coords) — tagged lore1 in the tileset,
@@ -148,7 +149,7 @@ class Game:
         self.box_screen = BoxScreen(self)
         self.type_chart_tile_coords = set()
         self.lore_tile_coords = set()
-        self.type_chart_image = pygame.image.load('assets/SCREENS/TYPE_CHARv2.png').convert_alpha()
+        self.type_chart_image = self._build_type_chart_image()
 
         # Items
         self.item_image = pygame.image.load(config.ITEMS["DinoPod"]['icon']).convert_alpha()
@@ -1171,13 +1172,48 @@ class Game:
         replacement" prompt the player never gets to bypass."""
         return next((i for i, d in enumerate(self.player_dinos) if d.get('hp', 0) > 0), 0)
 
+    # TYPE_CHARv2.png grid: row/column order and the grid-line pixel
+    # positions (the art's cells aren't evenly sized). Each cell is
+    # repainted from TYPE_CHART_VAL so the chart can't drift from the data.
+    TYPE_CHART_ORDER = ('magma', 'aqua', 'earth', 'ice', 'spike', 'lightning',
+                        'flying', 'rock', 'dark', 'light', 'ancient')
+    TYPE_CHART_COL_LINES = (249, 356, 466, 580, 692, 806, 945, 1059, 1171, 1285, 1396, 1509)
+    TYPE_CHART_ROW_LINES = (163, 231, 300, 369, 439, 508, 577, 646, 715, 784, 853, 925)
+    TYPE_CHART_COLORS = {20: (37, 150, 24), 5: (214, 8, 9), 10: (251, 251, 251)}
+
+    def _build_type_chart_image(self):
+        img = pygame.image.load('assets/SCREENS/TYPE_CHARv2.png').convert_alpha()
+        cols, rows = self.TYPE_CHART_COL_LINES, self.TYPE_CHART_ROW_LINES
+        for r, atk in enumerate(self.TYPE_CHART_ORDER):
+            for c, dfn in enumerate(self.TYPE_CHART_ORDER):
+                val = TYPE_CHART_VAL.get(atk, {}).get(dfn, 10)
+                x0, x1 = cols[c] + 2, cols[c + 1]
+                y0, y1 = rows[r] + 2, rows[r + 1]
+                img.fill(self.TYPE_CHART_COLORS.get(val, self.TYPE_CHART_COLORS[10]),
+                         (x0, y0, x1 - x0, y1 - y0))
+        # Redraw the inner grid lines over the fills (the art has gaps in a few).
+        line_col = (86, 92, 92)
+        for x in cols[1:-1]:
+            img.fill(line_col, (x, rows[0], 2, rows[-1] - rows[0]))
+        for y in rows[1:-1]:
+            img.fill(line_col, (cols[0], y, cols[-1] - cols[0], 2))
+        return img
+
     def _battle_bg_override(self):
         """Cobalt Cave gets its own encounter/battle background instead of
         the default grass art, for every wild and trainer battle fought
         anywhere inside it (COBALT_CAVE.world covers the whole cave, every
-        sub-room included)."""
+        sub-room included). Horizon Cave (past Josh) gets the aether one,
+        and battles fought while surfing in the overworld get the water one."""
         if self.current_world_file == 'COBALT_CAVE.world':
             return config.CAVE_ENCOUNTER_BG_PATH
+        if self.current_world_file == 'HORIZON_CAVE.world':
+            return config.HORIZON_ENCOUNTER_BG_PATH
+        if self.current_world_file == 'LOST_REGION.world':
+            ts = config.TILE_SIZE
+            tile = (self.player.rect.x // ts, self.player.rect.y // ts)
+            if self.surf.active or self.surf.is_water(tile):
+                return config.WATER_ENCOUNTER_BG_PATH
         return None
 
     def get_player_zone(self, player_x, player_y):
@@ -4096,6 +4132,8 @@ class Game:
         should_have_badge = set()
         for i, step in enumerate(steps):
             self.story_flags[step['flag']] = (i <= index)
+            for flag in step.get('extra_flags', []):
+                self.story_flags[flag] = (i <= index)
             if i <= index:
                 should_defeat.update(step.get('defeated_trainers', []))
                 should_have_badge.update(step.get('badges', []))
@@ -4109,6 +4147,8 @@ class Game:
         for npc in self.npcs:
             if getattr(npc, 'trainer_id', None) in tracked_trainers:
                 npc.defeated = npc.trainer_id in should_defeat
+        # Gym NPCs battle under '<id>_rematch' keys while a rematch is up.
+        self._refresh_gym_trainers_defeated()
 
     def _maybe_add_skyy(self):
         if not self.story_flags.get('amber_lab_done'):
@@ -6789,10 +6829,9 @@ class Game:
                 return True
             if tile in LAKE_MERIDIAN_PROPHECY_TILES:
                 self.message_box.queue_messages([
-                    "Eternal Darkness and Infinite Light",
-                    "One destroys while the other saves",
-                    "One day the cycle will repeat and those brave enough will take on the burden to break it",
-                    "As darkness goes cold, infinite light lives on",
+                    "Light can always overcome darkness",
+                    "Even on the darkest day...",
+                    "Light finds a way to overwhelm",
                 ], wait_for_input=True)
                 return True
             if tile in LAKE_MERIDIAN_CELESTIAL_RUIN_TILES:
@@ -8645,6 +8684,7 @@ class Game:
                     p2_visible=_player2_vis,
                     e1_visible=e1_show,
                     e2_visible=e2_show,
+                    field_effects=self.field_effects,
                 )
             else:
                 # Single battle draw path

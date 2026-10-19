@@ -164,8 +164,8 @@ STORY_EVENTS = [
 # QUEST_STEPS — ordered milestones for the Sandbox quest-debug menu
 # (Ctrl+Q). Selecting a step sets its flag (and every earlier step's
 # flag) True and every later step's flag False, so it can jump either
-# direction. "defeated_trainers"/"badges" are applied cumulatively the
-# same way. See the CODED STORY SEQUENCE comment above for context.
+# direction. "defeated_trainers"/"badges"/"extra_flags" are applied
+# cumulatively the same way. See the CODED STORY SEQUENCE comment above for context.
 # ══════════════════════════════════════════════════════════════════
 QUEST_STEPS = [
     {
@@ -268,6 +268,26 @@ QUEST_STEPS = [
         "flag": "gym3_leader_defeated",
         "defeated_trainers": ["sam"],
         "badges": ["aqua"],
+        "extra_flags": ["gym_rematches_unlocked"],
+    },
+    {
+        "id": "gym1_rematch_defeated",
+        "label": "15b. Gym 1 Rematch - Defeated Skyy",
+        "flag": "gym1_rematch_defeated",
+        "defeated_trainers": ["skyy_rematch", "gym_trainer_a_rematch", "gym_trainer_b_rematch"],
+    },
+    {
+        "id": "gym2_rematch_defeated",
+        "label": "15c. Gym 2 Rematch - Defeated Log",
+        "flag": "gym2_rematch_defeated",
+        "defeated_trainers": ["log_rematch", "gym2_trainer_a_rematch", "gym2_trainer_b_rematch",
+                              "gym2_trainer_c_rematch", "gym2_trainer_d_rematch"],
+    },
+    {
+        "id": "gym3_rematch_defeated",
+        "label": "15d. Gym 3 Rematch - Defeated Sam",
+        "flag": "gym3_rematch_defeated",
+        "defeated_trainers": ["sam_rematch", "gym3_trainer_a_rematch", "gym3_trainer_b_rematch"],
     },
     {
         "id": "josh_defeated",
