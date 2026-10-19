@@ -718,13 +718,14 @@ DINODEX_DATA = {
     'Lavaleo':    {'number': 42, 'desc': "Its obsidian hide is split by rivers of living magma. It prowls deep cave tunnels on four clawed legs, and the rock it walks on glows for hours after it passes."},
     'Pectura':    {'number': 43, 'desc': "A fiery owl that hunts by night, its ember-tipped wings leaving trails of sparks across the sky. Its blazing eyes can spot prey from miles away, and its cry is said to rekindle dying campfires."},
     'Ghoslink':   {'number': 44, 'desc': "A restless spirit that drifts through the Corn Maze after dark, dragging a rattling chain behind it and a vacuum. Farmers say the clinking of its links is the first sign a ghost is near."},
+    'Browler':    {'number': 45, 'desc': "Pectura's evolved form, its feathers burn like a living sunrise. It is rumored to be a long descendant of the solar celestial."},
 
 }
 
 DINO_DATA = {
     'Vusion': {
         'stats': {'type': ['dark'], 'health': 120, 'attack': 155, 'defense': 70, 'speed': 125},
-        'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Conduit Surge', 20: 'Distortion', 23: 'Flame Shatter', 27: 'Binding Curse',  30: 'Haunt',35: 'Void Collapse', 38: 'Spectral Overload'},
+        'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Thunder Blitz', 20: 'Distortion', 23: 'Lava Burst', 27: 'Binding Curse', 30: 'Haunt',35: 'Void Collapse', 38: 'Spectral Overload'},
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 115, 'defense': 120, 'speed':80},
@@ -735,8 +736,8 @@ DINO_DATA = {
         'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab'},
         'evolve': {19: 'Anemamace'}},
     'Creuw': {
-        'stats': {'type': ['flying'], 'health': 60, 'attack': 75, 'defense': 50, 'speed':75},
-        'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 26: 'Mach Speed', 29: 'Shadow Veil', 34: 'Wind Fracture', 38: 'Void Collapse', 43: 'Sky Scorch' },
+        'stats': {'type': ['flying'], 'health': 80, 'attack': 75, 'defense': 60, 'speed':75},
+        'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 26: 'Mach Speed', 29: 'Shadow Veil', 32: 'Wind Fracture', 36: 'Void Collapse', 40: 'Sky Scorch' },
         'evolve': {15: 'Luna'}},
     'Luna': {
         'stats': {'type': ['flying', 'dark'], 'health': 105, 'attack': 120, 'defense': 80, 'speed':135},
@@ -755,7 +756,7 @@ DINO_DATA = {
         'moves': {0: 'Arise', 4: 'Horn Tackle', 7: 'Sand Kick', 10: 'Static Graze', 12: 'Boulder Smash', 15: 'Double Jab', 18: 'Snowfall', 21:'Rushdown', 24: 'Quick Slash', 26: 'Ripping Impact', 28:'Crusher', 32:'Spike Storm' },
         'evolve': None},
     'Netaslam': {
-        'stats': {'type': ['flying', 'spike'], 'health': 60, 'attack': 80, 'defense': 50, 'speed': 70},
+        'stats': {'type': ['flying', 'spike'], 'health': 80, 'attack': 80, 'defense': 60, 'speed': 70},
         'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 21: 'Mach Speed', 25: 'Ripping Impact'},
         'evolve': {22: 'Netyrant'}},
     'Netyrant': {
@@ -800,7 +801,7 @@ DINO_DATA = {
         'evolve': None},
     'Voltzbee': {
         'stats': {'type': ['lightning'], 'health': 77, 'attack': 113, 'defense': 88, 'speed': 142},
-        'moves': {0: 'Shock', 4: 'Stinger Shock', 8: 'Air Strike', 11: 'Thunder Blitz', 14: 'Swift Sneak',16: 'Prism Glare', 18: 'Mach Speed', 22: 'Piercing Light', 26: 'Lightning Bolt', 29:'Quantum Flux', 32: 'Volt Storm'},
+        'moves': {0: 'Shock', 4: 'Stinger Shock', 8: 'Air Strike', 11: 'Thunder Blitz', 14: 'Swift Sneak',16: 'Prism Glare', 18: 'Mach Speed', 22: 'Piercing Light', 26: 'Lightning Bolt', 29: 'Dread Thorn', 32:'Quantum Flux', 34: 'Volt Storm'},
         'evolve': None},
     'Teamtwood': {
         'stats': {'type': ['earth'], 'health': 88, 'attack': 102, 'defense': 128, 'speed': 107},
@@ -896,11 +897,16 @@ DINO_DATA = {
 
     'Lavaleo': {
         'stats': {'type': ['magma'], 'health': 110, 'attack': 112, 'defense': 126, 'speed': 98},
-        'moves': {0: 'Fireball', 1: 'Dust Beam', 5: 'Sand Kick', 9: 'Prism Glare', 13: 'Venom Decay', 16: 'Flame Shatter', 20: 'Lava Burst', 23: 'Piercing Light', 26: 'Iron Core', 29: 'Quick Slash', 32: 'Magma Boost', 35: 'Solar Flare', 39: 'Spectral Overload'},
+        'moves': {0: 'Fireball', 1: 'Dust Beam', 5: 'Sand Kick', 9: 'Prism Glare', 13: 'Venom Decay', 16: 'Flame Shatter', 20: 'Lava Burst', 23: 'Piercing Light', 26: 'Iron Core', 29: 'Quick Slash', 32: 'Magma Boost', 36: 'Solar Flare', 39: 'Spectral Overload'},
         'evolve': None},
 
     'Pectura': {
-        'stats': {'type': ['magma', 'flying'], 'health': 70, 'attack': 90, 'defense': 85, 'speed': 75},
+        'stats': {'type': ['magma', 'flying'], 'health': 70, 'attack': 80, 'defense': 75, 'speed': 65},
+        'moves': {0: 'Fireball', 1: 'Air Strike', 5: 'Flash', 9: 'Swift Sneak', 13: 'Bitemark', 15: 'Flame Shatter', 20: 'Mach Speed', 23: 'Magma Boost', 25: 'Double Jab' , 27: 'Wind Fracture', 30: 'Lava Burst', 33: 'Turbo Booster', 36: 'Solar Flare', 40: 'Sky Scorch'},
+        'evolve': {15: 'Browler'}},
+
+    'Browler': {
+        'stats': {'type': ['magma', 'flying'], 'health': 95, 'attack': 120, 'defense': 115, 'speed': 110},
         'moves': {0: 'Fireball', 1: 'Air Strike', 5: 'Flash', 9: 'Swift Sneak', 13: 'Bitemark', 15: 'Flame Shatter', 20: 'Mach Speed', 23: 'Magma Boost', 25: 'Double Jab' , 27: 'Wind Fracture', 30: 'Lava Burst', 33: 'Turbo Booster', 36: 'Solar Flare', 40: 'Sky Scorch'},
         'evolve': None},
 
@@ -930,8 +936,7 @@ GYM_GUARD_REMATCH_GAP = 4   # gym trainers rematch this many levels below the le
 
 TRAINER_DATA['skyy_rematch'] = {
     **TRAINER_DATA['skyy'],
-    # Pectura is a stand-in for Browler (its evolution, not in the game yet)
-    'dinos': {0: ('Typhoonray', 29), 1: ('Pectura', 30), 2: ('Netyrant', 31), 3: ('Luna', 32)},
+    'dinos': {0: ('Typhoonray', 29), 1: ('Browler', 30), 2: ('Netyrant', 31), 3: ('Luna', 32)},
     'dialog': {
         'default': ["Jet! Sam told me you'd be coming back around.",
                     "My team has grown a lot since our last battle. Let's see how far you've flown!"],
@@ -1100,7 +1105,7 @@ MOVE_DATA = {
     'Hurricane': {'target': 'opponent', 'damage': 65, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
     'Eternal Blue': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'aqua'},
 
-    'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 95, 'type': 'aqua', 'priority':1,
+    'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 90, 'type': 'aqua', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
     #MAGMA MOVES
     'Fireball': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'magma'},
@@ -1143,7 +1148,7 @@ MOVE_DATA = {
 
     'Turbo Booster':   {'target': 'self', 'damage': 0, 'accuracy': 95, 'type': 'flying', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 2, 'target': 'self', 'chance': 100}},
-    'Sky Scorch':   {'target': 'opponent', 'damage': 110, 'accuracy': 90, 'type': 'flying',
+    'Sky Scorch':   {'target': 'opponent', 'damage': 105, 'accuracy': 90, 'type': 'flying',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'self', 'chance': 100}},
     #SPIKE MOVES
     'Lock Jaw': {'target': 'opponent', 'damage': 35, 'accuracy': 90, 'type': 'spike', 'priority':1,
@@ -1171,7 +1176,7 @@ MOVE_DATA = {
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 2, 'target': 'self', 'chance': 100}},             
     'Momentum':   {'target': 'opponent', 'damage': 40, 'accuracy': 90, 'type': 'rock',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 100}},
-    'Crash Impact': {'target': 'opponent', 'damage': 100, 'accuracy': 95, 'type': 'rock',
+    'Crash Impact': {'target': 'opponent', 'damage': 90, 'accuracy': 95, 'type': 'rock',
                      'ability': {'kind': 'recoil', 'percent': 15, 'chance': 100}},
     'Sand Storm': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'rock',
                    'ability': {'kind': 'dot', 'damage_percent': 8, 'turns': 2,
@@ -1180,7 +1185,7 @@ MOVE_DATA = {
     #LIGHTNING MOVES
     'Stinger Shock': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Static Graze': {'target': 'opponent', 'damage': 25, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
-    'Thunder Blitz': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
+    'Thunder Blitz': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning','priority': 1},
     'Lightning Bolt': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'ability': None, 'type': 'lightning',
                         'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 50},
 },
@@ -1223,7 +1228,7 @@ MOVE_DATA = {
                      'ability': {'kind': 'field', 'effect': 'type_power', 'boost_type': 'light', 'multiplier': 1.5, 'duration': 4, 'chance': 100}},
    'Gamma Wave':   {'target': 'opponent', 'damage': 70, 'accuracy': 90, 'type': 'light',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'opponent', 'chance': 100}},
-    'Ultra Violet': {'target': 'opponent', 'damage': 100, 'accuracy': 100, 'type': 'light',
+    'Ultra Violet': {'target': 'opponent', 'damage': 100, 'accuracy': 95, 'type': 'light',
                      'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -2, 'target': 'self', 'chance': 100}},
     'Infinite Light': {'target': 'opponent', 'damage': 120, 'accuracy': 80, 'type': 'light',
                        'ability': {'kind': 'recharge', 'chance': 100}},
@@ -1376,7 +1381,7 @@ ENCOUNTER_ZONES = {
     # },
 
     "route1_grass": {
-        "dinos": ["Bullicorn", "Voltzbee"],
+        "dinos": ["Bullicorn", "Voltzbee", "Teamtwood"],
         "level_range": (2,4)
     },
 
@@ -1461,6 +1466,7 @@ ENCOUNTER_ZONES = {
 
             {"name": "Ghoslink",  "weight": 0.05, "time": "night"},
 
+
         ],
         "level_range": (7, 10)
 
@@ -1487,9 +1493,11 @@ ENCOUNTER_ZONES = {
             {"name": "Ghoslink",  "weight": 0.05, "time": "day"},
 
             {"name": "Prickly",  "weight": 0.35, "time": "day"},
-            {"name": "Prowscar", "weight": 0.55, "time": "night"},
+
+            {"name": "Prowscar", "weight": 0.1, "time": "day"},
+            {"name": "Prowscar", "weight": 0.3, "time": "night"},
             {"name": "Creuw", "weight": 0.6, "time": "day"},
-            {"name": "Vusion",   "weight": 0.05, "time": "night"},
+            {"name": "Vusion",   "weight": 0.01, "time": "night"},
         ],
         "level_range": (8, 12)
 
@@ -1671,8 +1679,8 @@ ENCOUNTER_ZONES = {
 
                     "horizon_entrance": {
         "encounter_rate": 0.1,
-        "dinos": ["Voltzbee", "Skolt", "Magnecrab", "Stormulus", "Bullicorn", "Teamtwood", "Cyflactus", "Typhoonray", "Chomper", "Auraliz", "Frostle", "Pectura", "Netyrant" ],
-        "level_range": (30, 35)
+        "dinos": ["Voltzbee", "Skolt", "Magnecrab", "Stormulus", "Bullicorn", "Teamtwood", "Cyflactus", "Typhoonray", "Chomper", "Auraliz", "Frostle", "Browler", "Netyrant", "Drafyton", "Seasoo", "Rhinecicle" ],
+        "level_range": (27, 32)
 
     },
 
@@ -1696,7 +1704,7 @@ ENCOUNTER_ZONES = {
 
                         "HC_red": {
         "encounter_rate": 0.1,
-        "dinos": ["Lavaleo", "Bouldava", "Rockull", "Sortle", "Ghoulflame", "Ghoslink", "Pectura", "Tygraflare"],
+        "dinos": ["Lavaleo", "Bouldava", "Rockull", "Sortle", "Ghoulflame", "Ghoslink", "Browler", "Tygraflare"],
         "level_range": (34, 38)
 
     },
@@ -1753,9 +1761,10 @@ ZONE_REGIONS = [
     (41,-102,46,-81, 'lake1R'),
     (-13,-57,11,-48, 'powerplant_outside'),
     (-45,32,15,60, 'spawn_water'),
+    # Must stay above lake_water1, which fully contains it (first match wins).
+    (21,-113,30,-105, 'horizon_entrance'),
     (-9,-118,31,-84, 'lake_water1'),
     (-155,-58,-35,31, 'palm_water'),
-    (21,-113,30,-105, 'horizon_entrance'),
 
 
 

@@ -160,6 +160,8 @@ ENCOUNTER_DINOS_PATHS = {
     'Pectura2':         os.path.join(DINOS_FRONT, 'Pectura.png'),
     'Ghoslink':         os.path.join(DINOS_FRONT, 'Ghoslink.png'),
     'Ghoslink2':        os.path.join(DINOS_FRONT, 'Ghoslink.png'),
+    'Browler':          os.path.join(DINOS_FRONT, 'Browler.png'),
+    'Browler2':         os.path.join(DINOS_FRONT, 'Browler.png'),
 }
 
 NPC_SHEETS = {
@@ -240,6 +242,13 @@ NPC_SPRITE_KEY = {
     'abby_home':     'abby',
     'collector':     'rocko',
     'jill':          'carrie',   # lady2.png
+    'solar_lady':    'carrie',   # lady2.png
+    'horizon_beard': 'rocko',    # Beard.png
+    'dawson':        'farmer',   # farmer.png
+    'nick':          'farmer',   # farmer.png
+    'hannah':        'basic_trainer_girl',
+    'tommy':         'basic_trainer',
+    'gracie':        'carrie',   # lady2.png
     'becca':         'debby',    # Blue_G.png
 }
 
@@ -264,6 +273,13 @@ DIALOGUE_PORTRAITS = {
     'Collector': 'rocko',
     'Josh':    'josh',
     'Carrie':  'carrie',
+    'Kayla':   'carrie',   # lady2.png
+    'Brady':   'rocko',    # Beard.png
+    'Dawson':  'farmer',   # farmer.png
+    'Nick':    'farmer',   # farmer.png
+    'Hannah':  'basic_trainer_girl',
+    'Tommy':   'basic_trainer',
+    'Gracie':  'carrie',   # lady2.png
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -299,6 +315,27 @@ WORLD_NPCS = {
         # CORN_MAZE3 lore prop
         ('scarecrux', 145, -53, 'down', 0, 'story'),
         ('sparky', 101, -71, 'down', 0, 'story'),
+
+        # Lore NPC — worried about the solar panels' damage
+        ('solar_lady', 33, -17, 'down', 0, 'story'),
+
+        # Lore NPC — rumors of Horizon Cave to the north
+        ('horizon_beard', 88, -66, 'down', 0, 'story'),
+
+        # Lore NPC — Dawson, wary of the activists at the power plant
+        ('dawson', 60, -63, 'right', 0, 'story'),
+
+        # Lore NPC — Nick, a farmer whose crops suffer from the solar panels
+        ('nick', 82, -72, 'down', 0, 'story'),
+
+        # Lore NPC — Hannah, watches for the lights over Lake Meridian
+        ('hannah', 37, -91, 'up', 0, 'story'),
+
+        # Lore NPC — Tommy, blames the solar panels for the flares/eclipses
+        ('tommy', 27, -8, 'left', 0, 'story'),
+
+        # Lore NPC — Gracie, hints at the corn maze's night-only rare dino
+        ('gracie', 80, -58, 'down', 0, 'story'),
 
         # ROUTE4_2 / PALM_PORT9 single battles
         ('jill', -72, -41, 'down', 5, 'trainer'),
@@ -459,6 +496,12 @@ ITEMS = {
         "description": "Teaches Eternal Blue to an Aqua-type Dino. Single use.",
         "tm_move": "Eternal Blue",
     },
+    "TM Shadow Veil": {
+        "name": "TM Shadow Veil",
+        "icon": os.path.join(ITEMS_PATH, "tm_dark.png"),
+        "description": "Teaches Shadow Veil to a Dark-type Dino. Single use.",
+        "tm_move": "Shadow Veil",
+    },
 }
 
 # Items placed in a world from code rather than from the map's TMX objects.
@@ -468,6 +511,7 @@ SCRIPTED_WORLD_ITEMS = {
     'LOST_REGION.world': [
         (2, -104, "TM Eternal Blue"),
         (-30, 10, "TM Leaf Ultima"),
+        (96, -75, "TM Shadow Veil"),
     ],
 }
 

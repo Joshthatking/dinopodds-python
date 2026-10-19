@@ -9,6 +9,7 @@ from npc import NPC
 from ANIM.surf import Surf  # SURF (testing)
 from ANIM.environment_fx import EnvironmentFX  # ENV FX
 from ANIM.aether_bg import AetherBackground
+from ANIM.lake_aurora import LakeAurora  # LAKE AURORA
 from ANIM.battle_transition import BattleTransition
 from moves import MoveAnimation
 from ANIM.catch_anim import CatchAnimation
@@ -91,6 +92,7 @@ class Game:
         self.surf = Surf(self)  # SURF (testing)
         self.env_fx = EnvironmentFX(self)  # ENV FX
         self.aether_bg = AetherBackground()  # void backdrop for AETHER_WORLDS
+        self.lake_aurora = LakeAurora(self)  # LAKE AURORA
 
         self.fade_alpha = 0
         self.fade_color = (0, 0, 0)   # set white for one fade by a light-burst encounter
@@ -99,7 +101,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus", "Lavaleo", "Pectura", "Ghoslink"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus", "Lavaleo", "Pectura", "Ghoslink", "Browler"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -145,6 +147,7 @@ class Game:
         self.objectives_screen = ObjectivesScreen(self)
         self.options_screen = OptionsScreen(self)
         self.rules_screen = RulesScreen(self)
+        self.controls_screen = ControlsScreen(self)
         self.box_tile_coords = set()
         self.box_screen = BoxScreen(self)
         self.type_chart_tile_coords = set()
@@ -6697,6 +6700,9 @@ class Game:
             elif self.state == 'rules':
                 self.rules_screen.handle_event(event)
 
+            elif self.state == 'controls':
+                self.controls_screen.handle_event(event)
+
             elif self.state == 'badge_earned':
                 if getattr(self, 'badge_earned_screen', None):
                     self.badge_earned_screen.handle_event(event)
@@ -7024,6 +7030,8 @@ class Game:
         elif (event.key == pygame.K_d and (event.mod & pygame.KMOD_CTRL) and self.sandbox
                 and not self.fading and self.entrance_fade_state is None and not cutscene_locking):
             self.dino_spawn_picker = {'filter': '', 'index': 0}
+        elif event.key == pygame.K_l and (event.mod & pygame.KMOD_CTRL) and self.sandbox:
+            self.lake_aurora.trigger()  # LAKE AURORA — show the lake lights now
         elif (event.key == pygame.K_j and not self.orb_fx
                 and not self.fading and self.entrance_fade_state is None):
             if (self.check_type_chart_interact()
@@ -7339,6 +7347,57 @@ class Game:
             self._interact_mom(npc)
         elif npc.trainer_id == 'barley':
             self.message_box.queue_messages(self._tag_dialogue('Barley', ["Meeooww"]), wait_for_input=True)
+        elif npc.trainer_id == 'solar_lady':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Kayla', [
+                    "Have you seen the damage the solar panels have caused our area?",
+                    "Just east of my backyard I can see dead trees from all the energy the panels produce, its quite sad",
+                ]),
+                wait_for_input=True)
+        elif npc.trainer_id == 'horizon_beard':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Brady', [
+                    "I've heard of a place only few select trainers ever get to see...",
+                    "They say its a myth but it has to be real, Horizon Cave, just north of here",
+                    "I know it exists but the stories they tell from it are out of this world",
+                ]),
+                wait_for_input=True)
+        elif npc.trainer_id == 'dawson':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Dawson', [
+                    "Been noticing more and more of the nature activists gathering around the power plant",
+                    "I wonder what stunt they are trying to pull this time",
+                ]),
+                wait_for_input=True)
+        elif npc.trainer_id == 'nick':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Nick', [
+                    "We were better off before the solar panels...",
+                    "Our crops have suffered ever since they got installed",
+                ]),
+                wait_for_input=True)
+        elif npc.trainer_id == 'hannah':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Hannah', [
+                    "There is always mystical activity surrounding this lake",
+                    "I come here all the time to see the iridescent lights that emit from it occasionally",
+                ]),
+                wait_for_input=True,
+                # turn back to watching the lake once she's done talking
+                on_complete=lambda n=npc: setattr(n, 'facing', n.home_facing))
+        elif npc.trainer_id == 'tommy':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Tommy', [
+                    "All these solar flares and eclipses began shortly after they installed the solar panels just east of here!",
+                ]),
+                wait_for_input=True)
+        elif npc.trainer_id == 'gracie':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Gracie', [
+                    "Apparently a rare dino lurks in the corn maze only at night",
+                    "We only know because one strong lady trainer has it",
+                ]),
+                wait_for_input=True)
         elif npc.trainer_id == 'carrie':
             self._interact_carrie(npc)
         elif npc.trainer_id == 'vanessa_hq':
@@ -8372,6 +8431,7 @@ class Game:
         if self.catch_anim:
             self.catch_anim.update(dt)
         self.env_fx.update(dt)  # ENV FX
+        self.lake_aurora.update(dt)  # LAKE AURORA
         if self.screen_shake > 0:
             self.screen_shake = max(0.0, self.screen_shake - dt)
         self.message_box.update(dt)
@@ -8601,6 +8661,7 @@ class Game:
             if self.event_overlay_active:
                 self.screen.blit(self._event_overlay, (0, 0))
             self._draw_lantern_wisps(self.screen)   # after the night overlay so they glow
+            self.lake_aurora.draw(self.screen)  # LAKE AURORA
             if self.cutscene and self.cutscene.get('phase') == 'celestreeyl_awaken':
                 self._draw_celestreeyl_awaken(self.screen)
             if self.cutscene and self.cutscene.get('phase') == 'solar_shard_reveal':
@@ -8771,6 +8832,9 @@ class Game:
 
         elif current_state == 'rules':
             self.rules_screen.draw(self.screen)
+
+        elif current_state == 'controls':
+            self.controls_screen.draw(self.screen)
 
         elif current_state == 'badge_earned':
             self.screen.fill((0, 0, 0))

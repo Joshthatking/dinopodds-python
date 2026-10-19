@@ -278,7 +278,7 @@ if __name__ == '__main__':
 
 #8/26
 # PALM PORT COMPLETE
-# MAP WAS LAGGING -> Added chunk loadingsi
+# MAP WAS LAGGING -> Added chunk loading
 
 # NEED - fix entering cobalt cave from route 4 spawn
 # NEED - add spawns and levels for all grass, figure out water surfing
@@ -363,10 +363,15 @@ if __name__ == '__main__':
 # haunted mansion in Elder Town ???
 # build moat area north of corn maze
 # Fix type chart
-# Aether background encounter for Horizon Cave
+# Aether background encounter for Horizon Cave/water background for water
 # REWORK INFINTE LIGHT ANIM
 # NERF MOVES only like 5 moves above 100, most are capped at 80
 
+#10/19
+# NPCs in towns for extra Lore
+# write outside horizon cave spawns to force it to work
+# add controls mapping for both regular and sandbox in options
+# add random overlay of iridescent faint lights that appear around the water and horizon cave in Lake Meridian
 
 # DINODEX REORDER
 # 1: Floravel 2: Palidian 3: Volkit 4: Tygraflare 5: Corlave 6: Anemamace 7:Bullicorn 8:Voltzbee 9:Teamtwood 10:Creuw 11:Luna 12:Pectura 13:Browler 14:Netaslam 15:Netyrant 16:Chomper 17:Sortle 18:Frostle 19:Prickly 20:Cyflactus 21:Ghoslink 22:Prowscar 23: Scarlish 24: Ghoulflame 25:Typhoonray 26:Stormulus 27:Roxer 28: Rockull 29:Bouldava 30:Auraliz 31:Rhysnow 32:Rhinecicle 33:Magnecrab 34:Skolt 35:Lavaleo 36:Sharka 37:Sharktastrophe 38: Scarecrux 39:Gourdecrux 40:Vusion 41:Drafyton 42:Cobaltion 43:Celestreeyl 44:Deimo 45:VY 

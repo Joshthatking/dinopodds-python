@@ -2962,6 +2962,7 @@ class OptionsScreen:
         ('SFX Volume',    'sfx_level'),
         ('Music',         'music_on'),
         ('Music Volume',  'music_level'),
+        ('Controls',      'controls'),
         ('Back',          None),
     ]
     PANEL  = (255, 255, 240)
@@ -2997,11 +2998,14 @@ class OptionsScreen:
             self.selected = (self.selected - 1) % len(self.ROWS)
         elif k == pygame.K_s:
             self.selected = (self.selected + 1) % len(self.ROWS)
-        elif k in (pygame.K_a, pygame.K_d) and key:
+        elif k in (pygame.K_a, pygame.K_d) and key and key != 'controls':
             self._change(key, -1 if k == pygame.K_a else 1)
         elif k == pygame.K_j:
             if key is None:
                 self.game.pop_state()
+            elif key == 'controls':
+                self.game.controls_screen.reset()
+                self.game.push_state('controls')
             elif isinstance(self.game.sfx.settings[key], bool):
                 self._change(key, 0)
         elif k in (pygame.K_SPACE, pygame.K_i, pygame.K_ESCAPE):
@@ -3021,7 +3025,7 @@ class OptionsScreen:
         dim.fill((0, 0, 0, 140))
         screen.blit(dim, (0, 0))
 
-        panel = pygame.Rect(0, 0, 420, 330)
+        panel = pygame.Rect(0, 0, 420, 376)
         panel.center = (W // 2, H // 2)
         pygame.draw.rect(screen, self.PANEL, panel)
         pygame.draw.rect(screen, self.INK, panel, 3)
@@ -3040,7 +3044,7 @@ class OptionsScreen:
             col = self.INK if enabled else self.FADED
             surf = self.font_row.render(label, True, col)
             screen.blit(surf, (panel.x + 22, y))
-            if key is None:
+            if key is None or key == 'controls':
                 continue
             right = panel.right - 22
             val = s[key]
@@ -3063,6 +3067,118 @@ class OptionsScreen:
 
         hint = self.font_xs.render("W/S choose   A/D adjust   J toggle   SPACE close", True, (110, 110, 110))
         screen.blit(hint, (panel.centerx - hint.get_width() // 2, panel.bottom - 22))
+
+
+# === Controls Screen ===
+class ControlsScreen:
+    """i menu -> Options -> Controls: what each key does, as a scrollable
+    two-column list. Sandbox runs get an extra section for the debug keys.
+    W/S scroll, Space/J/I/Esc close."""
+    PAPER = (252, 248, 226)
+    INK   = (40, 40, 70)
+    HEAD  = (200, 70, 70)
+    KEY   = (60, 110, 160)
+    FADED = (150, 150, 160)
+
+    SECTIONS = [
+        ("Overworld", [
+            ("W A S D",     "Walk"),
+            ("Hold SPACE",  "Run"),
+            ("J",           "Talk / interact / pick up / surf"),
+            ("I",           "Open the menu"),
+            ("+ / -",       "Zoom in / out"),
+        ]),
+        ("Menus & Dialogue", [
+            ("W A S D",     "Move the cursor"),
+            ("J",           "Confirm / advance text"),
+            ("SPACE",       "Back / close"),
+        ]),
+        ("Battle", [
+            ("W A S D",     "Pick Fight, Bag, Party, Run or Defend"),
+            ("J",           "Confirm / use move"),
+            ("I",           "Move info (in the Fight menu)"),
+            ("SPACE",       "Leave the Fight menu"),
+        ]),
+    ]
+    SANDBOX_SECTION = ("Sandbox", [
+        ("Ctrl + Z",    "Teleport: type x y, ENTER to go"),
+        ("Ctrl + D",    "Add any dino to your party"),
+        ("Ctrl + Q",    "Quest debug: jump to a quest"),
+        ("Ctrl + N",    "Toggle night / day"),
+        ("Ctrl + E",    "Toggle eclipse"),
+        ("Ctrl + L",    "Show the Lake Meridian lights"),
+        ("Z",           "Print tile + zone (console)"),
+        ("ESC",         "Cancel teleport / dino picker"),
+    ])
+
+    def __init__(self, game):
+        self.game = game
+        self.font_title = game.fonts['BATTLE']
+        self.font_row   = game.fonts['BAG']
+        self.font_xs    = game.fonts['XS']
+        self.scroll = 0
+
+    def reset(self):
+        self.scroll = 0
+
+    def _lines(self):
+        """[(kind, key, action)] where kind is 'head', 'row' or 'gap'."""
+        sections = list(self.SECTIONS)
+        if self.game.sandbox:
+            sections.append(self.SANDBOX_SECTION)
+        lines = []
+        for head, rows in sections:
+            if lines:
+                lines.append(('gap', '', ''))
+            lines.append(('head', head, ''))
+            lines += [('row', k, a) for k, a in rows]
+        return lines
+
+    def handle_event(self, event):
+        if event.type != pygame.KEYDOWN:
+            return
+        if event.key == pygame.K_w:
+            self.scroll = max(0, self.scroll - 1)
+        elif event.key == pygame.K_s:
+            self.scroll += 1   # clamped in draw, once the line count is known
+        elif event.key in (pygame.K_SPACE, pygame.K_j, pygame.K_i, pygame.K_ESCAPE):
+            self.game.pop_state()
+
+    def draw(self, screen):
+        W, H = screen.get_size()
+        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        dim.fill((0, 0, 0, 140))
+        screen.blit(dim, (0, 0))
+
+        pad = pygame.Rect(0, 0, 560, 430)
+        pad.center = (W // 2, H // 2)
+        pygame.draw.rect(screen, (60, 50, 40), pad.move(5, 5), border_radius=6)
+        pygame.draw.rect(screen, self.PAPER, pad, border_radius=6)
+        strip = pygame.Rect(pad.x, pad.y, pad.width, 24)
+        pygame.draw.rect(screen, (60, 90, 150), strip, border_top_left_radius=6, border_top_right_radius=6)
+
+        title = self.font_title.render("Controls", True, self.INK)
+        screen.blit(title, (pad.centerx - title.get_width() // 2, strip.bottom + 6))
+
+        lines = self._lines()
+        line_h = 20
+        top = strip.bottom + 46
+        key_x = pad.x + 28
+        act_x = pad.x + 170
+        visible = (pad.bottom - 30 - top) // line_h
+        self.scroll = max(0, min(self.scroll, len(lines) - visible))
+        for i, (kind, key, action) in enumerate(lines[self.scroll:self.scroll + visible]):
+            y = top + i * line_h
+            if kind == 'head':
+                screen.blit(self.font_row.render(key, True, self.HEAD), (pad.x + 20, y))
+            elif kind == 'row':
+                screen.blit(self.font_row.render(key, True, self.KEY), (key_x, y))
+                screen.blit(self.font_row.render(action, True, self.INK), (act_x, y))
+
+        more = len(lines) > visible
+        hint = "W/S scroll   SPACE / J close" if more else "SPACE / J to close"
+        h = self.font_xs.render(hint, True, self.FADED)
+        screen.blit(h, (pad.centerx - h.get_width() // 2, pad.bottom - 22))
 
 
 # === Rules Screen ===
