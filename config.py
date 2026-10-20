@@ -260,6 +260,9 @@ NPC_SPRITE_KEY = {
     'becca':         'debby',    # Blue_G.png
     'kate':          'basic_trainer_girl',
     'grayson':       'basic_trainer2',
+    'lilly':         'basic_trainer_girl',
+    'kylie':         'basic_trainer_girl',
+    'tucker':        'basic_trainer',
 }
 
 # Dialogue-box speaker portraits: the display name used in a dialogue tag
@@ -332,6 +335,9 @@ WORLD_NPCS = {
         # Lore NPC — rumors of Horizon Cave to the north
         ('horizon_beard', 88, -66, 'down', 0, 'story'),
 
+        # Sierra Town — Lilly hands out 5 DinoPods once (flag: lilly_gift_done)
+        ('lilly', 33, 5, 'down', 0, 'story'),
+
         # Lore NPC — Dawson, wary of the activists at the power plant
         ('dawson', 60, -63, 'right', 0, 'story'),
 
@@ -350,6 +356,8 @@ WORLD_NPCS = {
         # ROUTE4_2 / PALM_PORT9 single battles
         ('jill', -72, -41, 'down', 5, 'trainer'),
         ('becca', -49, 3, 'right', 5, 'trainer'),
+        ('kylie', -40, 7, 'left', 5, 'trainer'),
+        ('tucker', -37, 12, 'up', 5, 'trainer'),
 
         # ROUTE3_4 / ROUTE3_2 single battles
         ('kate', -13, -71, 'down', 5, 'trainer'),
@@ -435,8 +443,21 @@ WORLD_NPCS = {
 ENCOUNTER_BASE_SIZE = 150
 ENCOUNTER_DINO_SIZES = {
     # Scale multipliers relative to ENCOUNTER_BASE_SIZE (1.0 = 150x150)
-    'Creuw': 0.70,
-    'Luna':  1.35,
+    'Creuw':    0.70,
+    'Luna':     1.35,
+    'Ghoslink': 1.25,
+}
+
+# Player-side (back) battle sprite tweaks: name -> (scale, dy).
+# scale multiplies the normal sprite box; dy shifts it in pixels at the
+# single-battle size (+ = down, - = up). The sprite stays centered and
+# bottom-anchored on the text box, so scaling grows/shrinks it upward.
+BACK_SPRITE_TWEAKS = {
+    'Rhysnow':    (0.82, 0),
+    'Tygraflare': (1.3, 8),
+    'Prowscar':   (1.0, 14),
+    'Vusion':     (1.0, -14),
+    'Rhinecicle': (1.15, 14),
 }
 
 
@@ -533,6 +554,18 @@ SCRIPTED_WORLD_ITEMS = {
         (2, -104, "TM Eternal Blue"),
         (-30, 10, "TM Leaf Ultima"),
         (96, -75, "TM Shadow Veil"),
+        (16, -33, "DinoPod"),
+        (53, -42, "DinoPod"),
+        (93, -32, "DinoPod"),
+        (58, -52, "DinoPod"),
+        (91, -72, "Whitepod"),
+        (1, -48, "Whitepod"),
+        (47, -85, "DinoPod"),
+        (32, -115, "DinoPod"),
+    ],
+    'COBALT_CAVE.world': [
+        (17, 26, "Whitepod"),
+        (-21, 18, "Whitepod"),
     ],
 }
 

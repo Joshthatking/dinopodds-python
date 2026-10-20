@@ -27,6 +27,7 @@ DURATIONS = {                       # signature moves that run longer than DURAT
     'Eternal Darkness': 2.6,
     'Infinite Light': 3.4,
     'Leaf Ultima': 1.4,
+    'Crusher': 1.3,
 }
 STRONG_POWER = 70
 TAU = math.pi * 2
@@ -1314,23 +1315,129 @@ def anim_boulder_smash(a):
             a.shake(4)
 
 
+def _crusher_slab(a, sgn, cx, ground, h, w, lean):
+    """One jagged stone slab. sgn=-1 is the left slab (its toothed inner
+    edge faces right), +1 the right one. Returns (outline, inner_x)."""
+    s = a.s
+    inner = cx - sgn * w / 2
+    outer = cx + sgn * w / 2
+    top = ground - h
+    pts = [(outer, ground), (outer + sgn * 4 * s, lerp(ground, top, 0.55)),
+           (outer - sgn * 6 * s, top + 14 * s), (cx + sgn * 6 * s, top), (inner + sgn * 8 * s, top + 10 * s)]
+    for k in range(1, 6):                 # toothed inner edge, top -> bottom
+        y = lerp(top + 10 * s, ground, k / 6)
+        pts.append((inner - sgn * (9 * s if k % 2 else 0), y))
+    pts.append((inner, ground))
+    # lean: tip the slab toward / away from the target around its base
+    return [(x + lean * (ground - y), y) for x, y in pts], inner
+
+
 def anim_crusher(a):
-    t = a.t
-    p = seg(t, 0.0, 0.4)
-    gap = 90 * a.s * (1 - ease_in(p)) if p is not None else 0
-    if t < 0.75:
-        al = 255 * fade_late(t / 0.75, 0.7)
+    """Two stone slabs erupt either side of the target, wind back, then
+    slam shut on it — heavy flash, shake, shockwave and radiating ground
+    cracks — before cracking apart and crumbling away in a dust cloud."""
+    t, s = a.t, a.s
+    tx, ty = a.tx, a.ty
+    ground = ty + 62 * s
+    H, W = 128 * s, 56 * s
+    rise  = seg(t, 0.0, 0.28)
+    wind  = seg(t, 0.28, 0.42)
+    slam  = seg(t, 0.42, 0.5)
+    IMPACT = 0.5
+    hit   = seg(t, IMPACT, 1.0)
+    crumb = seg(t, 0.7, 1.0)
+
+    # Ground: a fissure opens under the target as the slabs rise
+    open_p = ease_out(min(1.0, t / 0.3))
+    a.ellipse(tx, ground + 4 * s, 230 * s * open_p, 26 * s * open_p, ROCK[2], 120 * (1 - (crumb or 0)))
+    a.lines([(tx - 100 * s * open_p, ground + 2 * s), (tx - 40 * s * open_p, ground + 6 * s),
+             (tx + 10 * s * open_p, ground), (tx + 60 * s * open_p, ground + 5 * s),
+             (tx + 100 * s * open_p, ground + 1 * s)], (40, 28, 18), 200 * (1 - (crumb or 0)), max(2, int(3 * s)))
+
+    # Slab placement: rise from the ground, pull back, then slam together
+    rise_e = ease_out(rise) if rise is not None else 1.0
+    gap = 70 * s
+    if wind is not None:
+        gap += 16 * s * ease_out(wind)
+    elif slam is not None:
+        gap = lerp(86 * s, W / 2 + 2 * s, ease_in(slam))
+    elif t >= IMPACT:
+        gap = W / 2 + 2 * s + math.sin(t * 90) * 2 * s * (1 - (hit or 1))   # pressing shudder
+    lean = (-0.12 * ease_out(wind) if wind is not None else 0.0) + (0.1 * (1 - ease_in(slam)) if slam is not None else 0.0)
+    h = H * rise_e
+
+    if rise is not None:
+        a.shake(2 * hump(rise))
+        rng = a.rng('pebbles')                 # pebbles shaken loose from the rising slabs
+        for _ in range(12):
+            sgn = rng.choice((-1, 1))
+            px = tx + sgn * (gap + rng.uniform(-W / 2, W / 2))
+            q = (rise + rng.uniform(0, 0.6)) % 1
+            a.circle(px, ground - h * (1 - q), rng.uniform(1.5, 3.5) * s, ROCK[1], 220 * (1 - q))
+
+    if crumb is None and h > 4 * s:
         for sgn in (-1, 1):
-            x = a.tx + sgn * (gap + 25 * a.s)
-            a.poly([(x - 22 * a.s, a.ty - 50 * a.s), (x + 22 * a.s, a.ty - 45 * a.s),
-                    (x + 20 * a.s, a.ty + 50 * a.s), (x - 24 * a.s, a.ty + 45 * a.s)], ROCK[0], al)
-            a.line(x - 8 * a.s, a.ty - 30 * a.s, x + 6 * a.s, a.ty + 20 * a.s, ROCK[2], al, 2)
-    p = seg(t, 0.38, 1.0)
-    if p is not None:
-        a.burst(a.tx, a.ty, p, 18, 80 * a.s, ROCK[1], 6 * a.s, spread=(-math.pi * 0.7, -math.pi * 0.3))
-        a.burst(a.tx, a.ty, p, 18, 80 * a.s, ROCK[1], 6 * a.s, spread=(math.pi * 0.3, math.pi * 0.7), key=1)
-        if p < 0.3:
-            a.shake(5)
+            cx = tx + sgn * (gap + W / 2 - 4 * s)
+            pts, inner = _crusher_slab(a, sgn, cx, ground, h, W, -sgn * lean)
+            a.poly(pts, ROCK[0], 255)
+            # shaded outer half (solid — alpha replaces on the move layer)
+            shade = [(lerp(x, cx + sgn * W / 2, 0.55), y) for x, y in pts]
+            a.poly(shade, _mix(ROCK[0], ROCK[2], 0.6), 255)
+            # rock strata
+            for k in range(1, 5):
+                sy = ground - h * k / 5
+                a.line(cx - W * 0.42, sy + sgn * 3 * s, cx + W * 0.42, sy - sgn * 3 * s,
+                       _mix(ROCK[0], ROCK[2], 0.85), 255, max(1, int(2 * s)))
+            a.lines(pts, (45, 32, 22), 255, max(2, int(3 * s)), closed=True)
+            a.line(inner - sgn * 2 * s, ground - h * 0.85, inner - sgn * 2 * s, ground - 6 * s,
+                   ROCK[1], 200, max(1, int(2 * s)))
+            # cracks spread over the slabs once they've hit
+            if hit is not None:
+                c = ease_out(min(1.0, hit / 0.4))
+                ox, oy = inner, ground - h * 0.5
+                for k, (dx, dy) in enumerate(((1, -1.2), (1.3, 0.2), (0.9, 1.1))):
+                    a.lines([(ox, oy),
+                             (ox + sgn * dx * 18 * s * c, oy + dy * 14 * s * c),
+                             (ox + sgn * dx * 34 * s * c, oy + dy * 30 * s * c + (k - 1) * 6 * s * c)],
+                            (40, 28, 18), 255, max(1, int(2 * s)))
+
+    # Impact: flash, heavy shake, shockwave, ground cracks, shards
+    if hit is not None:
+        _strong_finish(a, hit, ROCK, flash_alpha=170, shake=11)
+        a.glow(tx, ty, 90 * s * (1 - hit * 0.5), ROCK[1], 1.4 * (1 - hit))
+        a.glow(tx, ty, 40 * s, WHITE, 1.0 * max(0.0, 1 - hit * 3))
+        a.ring(tx, ground - 10 * s, 20 * s + 150 * s * ease_out(hit), ROCK[1], 230 * (1 - hit), max(2, int(5 * s)))
+        rc = ease_out(min(1.0, hit / 0.35))
+        rng = a.rng('cracks')
+        for i in range(8):                    # cracks racing out along the ground
+            ang = math.pi * (0.05 + 0.9 * i / 7)
+            ln = (70 + rng.uniform(0, 50)) * s * rc
+            mx, my = tx + math.cos(ang) * ln * 0.5, ground + math.sin(ang) * ln * 0.12
+            a.lines([(tx, ground), (mx + rng.uniform(-6, 6) * s, my),
+                     (tx + math.cos(ang) * ln, ground + math.sin(ang) * ln * 0.25)],
+                    (40, 28, 18), 230 * fade_late(hit, 0.6), max(2, int(3 * s)))
+        a.burst(tx, ty - 10 * s, hit, 16, 120 * s, ROCK[0], 7 * s, gravity=160 * s,
+                spread=(-math.pi * 0.95, -math.pi * 0.05), shape='square')
+        a.burst(tx, ty, hit, 14, 90 * s, ROCK[1], 5 * s, gravity=120 * s, shape='shard', key=1)
+        for k in range(7):                    # billowing dust cloud
+            d = ease_out(hit)
+            a.circle(tx + (k - 3) * 30 * s * d, ground - 10 * s - 14 * s * d * (k % 2),
+                     (16 + 30 * d) * s, (190, 165, 125), 170 * (1 - hit) ** 0.7)
+
+    # Crumble: the slabs break into chunks that tumble away
+    if crumb is not None:
+        rng = a.rng('crumble')
+        for sgn in (-1, 1):
+            cx = tx + sgn * (W / 2 + 2 * s + W / 2 - 4 * s)
+            for i in range(9):
+                ox = cx + rng.uniform(-W / 2, W / 2)
+                oy = ground - rng.uniform(0.1, 0.95) * H
+                vx = sgn * rng.uniform(20, 70) * s
+                q = crumb
+                x = ox + vx * q
+                y = oy - 30 * s * q + 260 * s * q * q
+                r = rng.uniform(8, 15) * s * (1 - 0.3 * q)
+                a.poly(_rock_poly(x, y, r, q * 3 + i), ROCK[0] if i % 3 else ROCK[2], 255 * (1 - q * q))
 
 
 def anim_sand_kick(a):
@@ -1680,13 +1787,77 @@ def anim_shock(a):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def anim_force_shift(a):
-    t = a.t
-    for k in range(4):
-        q = seg(t, k * 0.12, 0.55 + k * 0.12)
-        if q is not None:
-            shift = math.sin(q * math.pi * 3) * 18 * a.s
-            a.ellipse(a.tx + shift, a.ty, (30 + 110 * q) * a.s, (20 + 70 * q) * a.s, DARK[1], 220 * (1 - q), 3)
-    a.glow(a.tx, a.ty, 50 * a.s, DARK[0], 0.7 * hump(t))
+    """A crushing telekinetic shove: darkness collapses into a black core at
+    the attacker, three dark pressure waves surge across, then the target's
+    space is wrenched sideways — displaced slices, shove streaks, a black
+    burst and a hard shake."""
+    t, s = a.t, a.s
+    shade = (12, 3, 22)
+    violet = DARK[0]
+    ang = a.angle_to_target()
+    ux, uy = math.cos(ang), math.sin(ang)          # along the shove
+    nx, ny = -uy, ux                               # across it
+
+    # 1) Charge: darkness collapses into a black core at the attacker
+    p = seg(t, 0.0, 0.3)
+    if p is not None:
+        a.tint(shade, 70 * ease_in(p))
+        a.implode(a.sx, a.sy, p, 28, 120 * s, violet, size=4 * s, key='fs', swirl=2.0)
+        a.implode(a.sx, a.sy, p, 16, 90 * s, shade, size=5 * s, key='fs2', swirl=-1.5)
+        core = (10 + 22 * ease_out(p)) * s
+        a.circle(a.sx, a.sy, core, shade, 255)
+        a.ring(a.sx, a.sy, core + (3 + 2 * math.sin(t * 60)) * s, violet, 230, max(2, int(3 * s)))
+        a.glow(a.sx, a.sy, core * 2.6, violet, 0.6 * p)
+
+    # 2) Three pressure waves (dark crescents) surge to the target
+    for k in range(3):
+        q = seg(t, 0.22 + k * 0.07, 0.5 + k * 0.07)
+        if q is None:
+            continue
+        e = ease_in(q)
+        cx, cy = a.travel(e)
+        half = (34 + 60 * e) * s
+        bow = (14 + 24 * e) * s
+        arc = []
+        for j in range(9):
+            v = j / 8 * 2 - 1
+            off = (1 - v * v) * bow                # bulges forward in the middle
+            arc.append((cx + nx * half * v + ux * off, cy + ny * half * v + uy * off))
+        al = 255 * (0.6 + 0.4 * e)
+        a.lines(arc, shade, al, max(4, int((15 - k * 3) * s)))
+        a.lines(arc, violet, al * 0.85, max(2, int(3 * s)))
+        a.glow(cx, cy, half * 0.8, violet, 0.35 * e)
+        # trailing distortion streaks behind each wave
+        for j in (-1, 0, 1):
+            bx = cx + nx * half * 0.5 * j - ux * 26 * s
+            by = cy + ny * half * 0.5 * j - uy * 26 * s
+            a.line(bx, by, bx - ux * 30 * s * e, by - uy * 30 * s * e, shade, 160 * e, max(1, int(2 * s)))
+
+    # 3) Impact: space around the target is wrenched sideways
+    hit = seg(t, 0.5, 1.0)
+    if hit is not None:
+        h = hump(min(1.0, hit * 1.6))
+        a.tint(shade, 140 * (1 - hit) ** 1.5)
+        if hit < 0.5:
+            a.shake(10 * (1 - hit / 0.5))
+        # black burst core
+        a.circle(a.tx, a.ty, (20 + 60 * ease_out(hit)) * s, shade, 230 * (1 - hit))
+        a.ring(a.tx, a.ty, (30 + 110 * ease_out(hit)) * s, violet, 230 * (1 - hit), max(2, int(5 * s)))
+        a.ring(a.tx, a.ty, (18 + 70 * ease_out(hit)) * s, shade, 200 * (1 - hit), max(2, int(4 * s)))
+        # displaced slices: horizontal bands torn out of place, shoved along
+        rng = a.rng('slices')
+        for i in range(8):
+            yy = a.ty - 80 * s + i * 21 * s + rng.uniform(-4, 4) * s
+            push = (rng.uniform(24, 60) * s) * h * (1 if i % 2 else -0.6)
+            w = rng.uniform(90, 160) * s
+            x0 = a.tx - w / 2 + ux * push
+            a.poly([(x0, yy), (x0 + w, yy), (x0 + w, yy + 10 * s), (x0, yy + 10 * s)], shade, 225 * h)
+            a.line(x0, yy, x0 + w, yy, violet, 200 * h, max(1, int(2 * s)))
+        # shove streaks blasting out the far side
+        a.burst(a.tx, a.ty, hit, 16, 130 * s, violet, 4 * s, shape='streak',
+                spread=(ang - 0.6, ang + 0.6), key='push')
+        a.burst(a.tx, a.ty, hit, 12, 90 * s, shade, 6 * s, key='shards')
+        a.glow(a.tx, a.ty, 70 * s, violet, 0.8 * (1 - hit))
 
 
 def anim_dark_energy(a):
@@ -1826,20 +1997,103 @@ def anim_binding_curse(a):
 
 
 def anim_shadow_veil(a):
-    t = a.t
+    """A shadow is cast over the target: a sheet of darkness gathers above
+    it, drapes down over it like a cloak (rippling hem, shadow pooling on the
+    ground), cinches tight with a dark pulse, then dissolves into smoke."""
+    t, s = a.t, a.s
+    tx, ty = a.tx, a.ty
     rng = a.rng('veil')
-    for i in range(10):  # smoke tendrils rise and curl around the target
-        x0 = a.tx + (i - 4.5) * 14 * a.s
-        ph = rng.uniform(0, TAU)
-        grow = ease_out(min(1, t / 0.6))
-        pts = []
-        for k in range(12):
-            u = k / 11 * grow
-            pts.append((x0 + math.sin(u * 6 + ph + t * 4) * 18 * a.s, a.ty + 60 * a.s - u * 130 * a.s))
-        a.lines(pts, DARK[2], 220 * fade_late(t, 0.7), int(7 * a.s))
-        a.lines(pts, DARK[0], 200 * fade_late(t, 0.7), int(3 * a.s))
-    a.ellipse(a.tx, a.ty, 160 * a.s, 140 * a.s, DARK[2], 60 * hump(t))
-    _impact(a, seg(t, 0.55, 1.0), DARK, 0.8)
+    gather = seg(t, 0.0, 0.28)        # sheet forms above the target
+    drape  = seg(t, 0.18, 0.62)       # falls over it
+    cinch  = seg(t, 0.58, 0.8)        # tightens + pulse
+    melt   = seg(t, 0.74, 1.0)        # dissolves into smoke
+
+    fade = 1.0 if melt is None else 1 - ease_in(melt)
+    base_w = 88 * s
+    if cinch is not None:
+        base_w *= 1 - 0.12 * hump(cinch)
+    elif melt is not None:
+        base_w *= 1 - 0.06 * (1 - melt)
+
+    shade = (14, 4, 26)        # near-black violet — the shadow itself
+    edge  = (38, 10, 58)       # faint violet rim / folds (reads lighter on the move layer)
+
+    # Shadow pooling on the ground beneath the target
+    pool = ease_out(min(1, t / 0.6))
+    a.ellipse(tx, ty + 70 * s, 200 * s * pool, 36 * s * pool, shade, 170 * pool * fade)
+
+    # The veil: a narrow hood that flares out into a cloak with a ragged,
+    # rippling hem — it falls over the target from above.
+    top_y = lerp(ty - 165 * s, ty - 100 * s, ease_out(gather if gather is not None else 1.0))
+    widen = ease_out(gather) if gather is not None else 1.0
+    w = base_w * (0.3 + 0.7 * widen)
+    drop = ease_in_out(drape) if drape is not None else (0.0 if t < 0.18 else 1.0)
+    hood_w, dome = w * 0.62, 30 * s
+    hem_y = lerp(top_y + dome + 8 * s, ty + 64 * s, drop)
+    hem_w = lerp(hood_w * 1.1, w * 1.25, drop)
+
+    def side(sign):
+        """Hood edge down to the hem corner, bowing outward."""
+        x0, y0 = tx + sign * hood_w, top_y + dome
+        x1, y1 = tx + sign * hem_w, hem_y
+        out = []
+        for k in range(1, 8):
+            v = k / 8
+            bow = math.sin(v * math.pi) * 12 * s * drop
+            sway = math.sin(t * 7 + v * 3 + sign) * 3 * s * drop
+            out.append((lerp(x0, x1, v) + sign * bow + sway, lerp(y0, y1, v)))
+        return out
+
+    pts = []
+    for k in range(11):                      # hood, left -> right
+        ang = math.pi - math.pi * k / 10
+        pts.append((tx + math.cos(ang) * hood_w, top_y + dome * (1 - math.sin(ang))))
+    pts += side(1)
+    for k in range(21):                      # ragged hem, right -> left
+        u = k / 20
+        x = lerp(tx + hem_w, tx - hem_w, u)
+        wave = math.sin(u * 8 + t * 15) * 6 * s
+        tongue = (10 * s if k % 2 else 0) * (0.6 + 0.4 * math.sin(t * 11 + k))
+        pts.append((x, hem_y + (wave + tongue) * (0.3 + 0.7 * drop)))
+    pts += side(-1)[::-1]
+
+    # Feathered edge (a slightly larger, fainter copy) then the body
+    feather = [(tx + (x - tx) * 1.06, y + (3 * s if y > top_y + dome else -3 * s)) for x, y in pts]
+    a.poly(feather, shade, 110 * fade)
+    a.poly(pts, shade, 235 * fade)
+    a.lines(pts, edge, 140 * fade, max(1, int(2 * s)), closed=True)
+
+    # Soft folds running down the cloak
+    for i in (-2, -1, 1, 2):
+        f = i / 2.6
+        fold = [(lerp(tx + f * hood_w, tx + f * hem_w, v) + math.sin(v * 5 + t * 9 + i) * 4 * s,
+                 lerp(top_y + dome, hem_y, v)) for v in (0.1, 0.4, 0.7, 0.95)]
+        a.lines(fold, edge, 90 * fade * drop, max(1, int(2 * s)))
+
+    # Wisps of shadow trailing off the hem as it falls
+    if drop > 0.05:
+        for i in range(8):
+            x0 = lerp(tx - hem_w, tx + hem_w, (i + 0.5) / 8)
+            ph = rng.uniform(0, TAU)
+            ln = (12 + 9 * math.sin(t * 9 + ph)) * s
+            a.lines([(x0, hem_y + 4 * s), (x0 + math.sin(t * 12 + ph) * 6 * s, hem_y + ln * 0.6),
+                     (x0 + math.sin(t * 12 + ph + 1) * 9 * s, hem_y + ln * 1.2)],
+                    shade, 170 * fade * drop, max(2, int(3 * s)))
+
+    # Cinch: the shadow clamps down — dark pulse, screen dims, a little shake
+    if cinch is not None:
+        h = hump(cinch)
+        a.ring(tx, ty, (55 + 75 * cinch) * s, DARK[0], 180 * (1 - cinch), max(2, int(3 * s)))
+        a.tint(shade, 80 * h)
+        a.shake(3 * h)
+
+    # Dissolve: the cloak breaks into dark smoke that drifts upward
+    if melt is not None:
+        for i in range(18):
+            px = tx + rng.uniform(-1, 1) * base_w * 1.1 + math.sin(melt * 4 + i) * 6 * s
+            py = lerp(ty + 60 * s, ty - 95 * s, rng.random()) - melt * rng.uniform(35, 85) * s
+            r = (6 + 9 * melt) * s * rng.uniform(0.6, 1.2)
+            a.circle(px, py, r, shade, 200 * (1 - melt))
 
 
 # ─────────────────────────────────────────────────────────────────────────────

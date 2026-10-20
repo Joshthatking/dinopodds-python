@@ -1,5 +1,7 @@
 import os
 import re
+import math
+import random
 import pygame
 import config
 from data import *
@@ -130,7 +132,10 @@ def _describe_move_effect(md):
         elif kind == 'recharge':
             lines.append("User must recharge next turn")
         elif kind == 'dot':
-            lines.append(f"{ab['damage_percent']}% dmg/turn for {ab['turns']} turns")
+            if 'damage_flat' in ab:
+                lines.append(f"{ab['damage_flat']} HP/turn for {ab['turns']} turns")
+            else:
+                lines.append(f"{ab['damage_percent']}% dmg/turn for {ab['turns']} turns")
         elif kind == 'heal':
             lines.append(f"Restores {ab['percent']}% HP")
         elif kind == 'field':
@@ -211,7 +216,9 @@ def status_badges(dino, field_effects=None):
                            (150, 215, 150) if val > 0 else (215, 150, 150)))
     dot = dino.get('dot')
     if dot:
-        badges.append((f"STORM {dot.get('turns_left', '')}".strip(), (215, 190, 130)))
+        label = dot.get('badge', 'STORM')
+        color = (190, 150, 225) if label == 'CURSE' else (215, 190, 130)
+        badges.append((f"{label} {dot.get('turns_left', '')}".strip(), color))
     if dino.get('locked_move'):
         badges.append((f"LOCK {dino.get('lock_turns_left', '')}".strip(), (195, 170, 225)))
     if dino.get('must_recharge'):
@@ -253,6 +260,16 @@ def draw_badge_rows(surface, font, x, y, rows):
             bx += bw + 3
 
 
+def double_back_sprite_rect(dino_name, centerx, bottom, base=170):
+    """Double-battle player sprite box, with config.BACK_SPRITE_TWEAKS
+    applied (dy is scaled down from the 230px single-battle size)."""
+    scale, dy = config.BACK_SPRITE_TWEAKS.get(dino_name, (1.0, 0))
+    side = int(base * scale)
+    rect = pygame.Rect(0, 0, side, side)
+    rect.midbottom = (centerx, bottom + int(dy * base / 230))
+    return rect
+
+
 class DoubleBattleUI:
     """HUD for 2v2 trainer battles: compact info boxes, no XP bar."""
 
@@ -277,6 +294,7 @@ class DoubleBattleUI:
         # Stored so is_hp_animating can check all four
         self._last_p2 = None
         self._last_e2 = None
+        self._slot_ids = None   # (p1, p2, e1, e2) identities from the last update
 
         # Double battle input phase state
         self.in_target_menu      = False
@@ -309,6 +327,16 @@ class DoubleBattleUI:
         tp2 = p2['hp'] / max(1, p2['max_hp']) if p2 else 0.0
         te1 = e1['hp'] / max(1, e1['max_hp'])
         te2 = e2['hp'] / max(1, e2['max_hp']) if e2 else 0.0
+        # A different dino took over a slot (switch, faint replacement, boss
+        # refill) — reset that bar instead of sliding from the old dino's HP,
+        # which left the new sprite hidden / boxed as "KO" until it caught up.
+        slots = (id(p1), id(p2), id(e1), id(e2))
+        prev  = self._slot_ids or slots
+        self._slot_ids = slots
+        if slots[0] != prev[0]: self.player1_hp_display = None
+        if slots[1] != prev[1]: self.player2_hp_display = None
+        if slots[2] != prev[2]: self.enemy1_hp_display  = None
+        if slots[3] != prev[3]: self.enemy2_hp_display  = None
         if self.player1_hp_display is None: self.player1_hp_display = tp1
         if self.player2_hp_display is None: self.player2_hp_display = tp2
         if self.enemy1_hp_display  is None: self.enemy1_hp_display  = te1
@@ -390,13 +418,11 @@ class DoubleBattleUI:
         # Drawn before the stat boxes so status badges are never covered.
         text_top = text_rect.top
         if p1_visible and pp1 > 0.01:
-            img = pygame.transform.scale(p1['image'], (170, 170))
-            r   = img.get_rect(centerx=text_rect.x + 85, bottom=text_top)
-            surface.blit(img, r)
+            r = double_back_sprite_rect(p1['name'], text_rect.x + 85, text_top)
+            surface.blit(pygame.transform.scale(p1['image'], r.size), r)
         if p2 and p2_visible and pp2 > 0.01:
-            img = pygame.transform.scale(p2['image'], (170, 170))
-            r   = img.get_rect(centerx=text_rect.x + 235, bottom=text_top)
-            surface.blit(img, r)
+            r = double_back_sprite_rect(p2['name'], text_rect.x + 235, text_top)
+            surface.blit(pygame.transform.scale(p2['image'], r.size), r)
 
         xs = self.smaller_font
         BASE_H = 46
@@ -695,13 +721,16 @@ class EncounterUI:
 
 
     @staticmethod
-    def player_sprite_rect(screen_w, screen_h):
+    def player_sprite_rect(screen_w, screen_h, dino_name=None):
         """Where the player's dino stands: 230px, directly on top of the
-        left text box. Shared with the send-out intro animation."""
+        left text box, adjusted per dino by config.BACK_SPRITE_TWEAKS.
+        Shared with the send-out intro animation."""
         text_box_rect = pygame.Rect(9, screen_h - 120, screen_w - 325, 115)
-        rect = pygame.Rect(0, 0, 230, 230)
+        scale, dy = config.BACK_SPRITE_TWEAKS.get(dino_name, (1.0, 0))
+        side = int(230 * scale)
+        rect = pygame.Rect(0, 0, side, side)
         rect.centerx = text_box_rect.centerx
-        rect.bottom = text_box_rect.top
+        rect.bottom = text_box_rect.top + dy
         return rect
 
     def draw(self, surface, player_dino, enemy_dino, encounter_text, show_actions=True, trainer_total=0, trainer_defeated=0, pod_icon=None, msg_awaiting_input=False, player_visible=True, field_effects=None):
@@ -787,7 +816,7 @@ class EncounterUI:
 
         # Player dino sprite — sits directly on top of the left text box
         if player_visible:
-            sprite_rect = self.player_sprite_rect(screen_w, screen_h)
+            sprite_rect = self.player_sprite_rect(screen_w, screen_h, player_dino['name'])
             surface.blit(pygame.transform.scale(player_dino['image'], sprite_rect.size), sprite_rect)
 
         # Level-up popup overlay
@@ -1322,16 +1351,42 @@ class PartyScreen:
         self.font         = game.fonts['BATTLE2']
         self.small_font   = pygame.font.SysFont('Arial', 22)
         self.smaller_font = pygame.font.SysFont('Arial', 20)
+        self.tiny_font    = pygame.font.SysFont('Arial', 15, bold=True)
         self.selected_index  = 0
         self.picking_index   = None   # index of dino being repositioned
         self.preview_frame        = 0
         self.preview_last_switch  = 0
         self.preview_selected_id  = None
         self.preview_interval_ms  = 250
+        # id(dino) -> moves whose NEW MOVE badge was cleared by hovering this
+        # visit, so the preview can still say what's new while it's selected.
+        self._fresh_moves = {}
 
     def reset(self):
         self.selected_index = 0
         self.picking_index  = None
+        self._fresh_moves   = {}
+
+    # ── NEW MOVE notifications ─────────────────────────────────────
+    @staticmethod
+    def unseen_moves(dino):
+        """Known-but-not-equipped moves the player hasn't looked at yet."""
+        seen     = dino.setdefault('seen_moves', list(dino.get('moves', [])))
+        equipped = {m['name'] for m in dino.get('moveset', [])}
+        return [m for m in dino.get('moves', []) if m not in seen and m not in equipped]
+
+    def _mark_seen(self, dino):
+        new = self.unseen_moves(dino)
+        if new:
+            self._fresh_moves[id(dino)] = new
+        dino['seen_moves'] = list(dino.get('moves', []))
+
+    # ── Layout ──────────────────────────────────────────────────────
+    CARD_X, CARD_Y, CARD_W, CARD_H, CARD_GAP = 12, 12, 212, 68, 6
+    PANEL_X, PANEL_W = 236, 392
+    PREVIEW_Y, PREVIEW_H = 12, 196
+    STATS_Y, STATS_H = 216, 220
+    FOOTER_Y = 444
 
     def handle_event(self, event, game):
         if event.type != pygame.KEYDOWN:
@@ -1351,6 +1406,12 @@ class PartyScreen:
             self.selected_index = (self.selected_index + 1) % list_length
             return None
 
+        # Move List — read-only, so it's fine from any party-screen mode
+        if event.key == pygame.K_l:
+            game.move_list_screen.open()
+            game.push_state('move_list')
+            return None
+
         # ── Double battle forced replacement ──────────────────────
         double_slot = getattr(game, 'double_replace_slot', None)
         if double_slot is not None and in_encounter and event.key == pygame.K_j:
@@ -1361,8 +1422,10 @@ class PartyScreen:
                 game.message_box.queue_messages(
                     [f"{chosen['name']} has no HP! Choose another."], wait_for_input=True)
                 return None
-            other_slot = 1 - double_slot
-            if self.selected_index == other_slot:
+            # With an ally (Abby/Skyy) only slot 0 is the player's — slot 1
+            # is a bench dino, not "already in battle".
+            in_battle = game._double_player_slots()
+            if self.selected_index in in_battle and self.selected_index != double_slot:
                 game.message_box.queue_messages(
                     ["That dino is already in battle!"], wait_for_input=True)
                 return None
@@ -1409,7 +1472,7 @@ class PartyScreen:
         # just repointing an index the double-battle code never reads.
         if in_encounter and not awaiting and event.key == pygame.K_j and getattr(game, 'is_double_battle', False):
             slot = 0 if game.double_phase == 'p1' else 1
-            other_slot = 1 - slot
+            in_battle = game._double_player_slots()
             active = game.player_dinos[slot] if slot < list_length else None
             if active and active.get('lock_turns_left', 0) > 0:
                 game.message_box.queue_messages(
@@ -1420,7 +1483,7 @@ class PartyScreen:
                 game.message_box.queue_messages(
                     [f"{chosen['name']} is already out!"], wait_for_input=True)
                 return None
-            if chosen and self.selected_index == other_slot:
+            if chosen and self.selected_index in in_battle:
                 game.message_box.queue_messages(
                     ["That dino is already in battle!"], wait_for_input=True)
                 return None
@@ -1587,64 +1650,129 @@ class PartyScreen:
             screen.blit(self.font.render("No dinos in party", True, (255, 255, 255)), (20, 20))
             return
 
-        if self.game.awaiting_switch:
-            screen.blit(self.small_font.render("Choose replacement  (J=confirm)",
-                                               True, (255, 200, 0)), (230, 2))
-        elif getattr(self.game, 'item_target_mode', None) == 'Revival Gem':
-            screen.blit(self.small_font.render("Choose a fainted Dino to revive  (J=confirm)",
-                                               True, (255, 200, 0)), (230, 2))
-        elif getattr(self.game, 'item_target_mode', None) == 'Mega Spray':
-            screen.blit(self.small_font.render("Choose a Dino to heal  (J=confirm)",
-                                               True, (255, 200, 0)), (230, 2))
-        elif config.ITEMS.get(getattr(self.game, 'item_target_mode', None) or '', {}).get('tm_move'):
-            move = config.ITEMS[self.game.item_target_mode]['tm_move']
-            screen.blit(self.small_font.render(f"Teach {move} to which Dino?  (J=confirm)",
-                                               True, (255, 200, 0)), (230, 2))
-
-        box_w, box_h = 200, 70
-        for i, dino in enumerate(dinos):
-            rect = pygame.Rect(20, 20 + i * (box_h + 10), box_w, box_h)
-            if dino.get('hp', 0) <= 0:
-                color = (30, 30, 30)
-            elif i == self.picking_index:
-                color = (100, 200, 255)
-            elif i == self.selected_index:
-                color = (0, 150, 255)
-            else:
-                color = (70, 70, 70)
-            pygame.draw.rect(screen, color, rect)
-            pygame.draw.rect(screen, (0, 0, 0), rect, 2)
-            screen.blit(self.font.render(dino['name'], True, (255, 255, 255)), (rect.x + 10, rect.y + 5))
-            screen.blit(self.font.render(f"Lv{dino['level']}", True, (255, 255, 255)), (rect.x + 10, rect.y + 25))
-            icon_scaled = pygame.transform.scale(dino.get('front_image', dino['image']), (50, 50))
-            screen.blit(icon_scaled, (rect.x + 140, rect.y + 5))
-            max_hp = max(1, dino.get('max_hp', 1))
-            pct    = dino.get('hp', 0) / max_hp
-            bar_x, bar_y, bar_w, bar_h = rect.x + 10, rect.y + 48, 120, 8
-            pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_w, bar_h))
-            bar_color = (80, 200, 80) if pct > 0.5 else (220, 180, 0) if pct > 0.2 else (200, 60, 60)
-            pygame.draw.rect(screen, bar_color, (bar_x, bar_y, int(bar_w * pct), bar_h))
-            pygame.draw.rect(screen, (0, 0, 0), (bar_x, bar_y, bar_w, bar_h), 1)
-            if dino.get('hp', 0) <= 0:
-                faint_text = self.small_font.render("Fainted", True, (255, 255, 255))
-                screen.blit(faint_text, faint_text.get_rect(center=rect.center))
-
         self.selected_index = min(self.selected_index, len(dinos) - 1)
-        self.draw_preview(screen, dinos[self.selected_index])
+        # Hovering a dino is what clears its NEW MOVE badge.
+        self._mark_seen(dinos[self.selected_index])
 
-        in_encounter = 'encounter' in self.game.state_stack
-        if not in_encounter and not self.game.awaiting_switch and not getattr(self.game, 'item_target_mode', None):
-            screen.blit(self.small_font.render("J=reorder  O=send to Box  SPACE=back",
-                                               True, (180, 180, 180)),
-                        (230, self.height - 24))
-        elif not in_encounter and getattr(self.game, 'item_target_mode', None):
-            screen.blit(self.small_font.render("J=select  SPACE=cancel",
-                                               True, (180, 180, 180)),
-                        (230, self.height - 24))
+        for i, dino in enumerate(dinos):
+            self._draw_card(screen, i, dino)
+
+        self.draw_preview(screen, dinos[self.selected_index])
+        self._draw_footer(screen)
+
+    def _draw_card(self, screen, i, dino):
+        rect = pygame.Rect(self.CARD_X, self.CARD_Y + i * (self.CARD_H + self.CARD_GAP),
+                           self.CARD_W, self.CARD_H)
+        fainted  = dino.get('hp', 0) <= 0
+        selected = i == self.selected_index
+        if i == self.picking_index:
+            color = (60, 150, 200)
+        elif selected:
+            color = (0, 110, 200)
+        elif fainted:
+            color = (42, 32, 32)
+        else:
+            color = (58, 58, 64)
+        pygame.draw.rect(screen, color, rect, border_radius=6)
+        pygame.draw.rect(screen, (255, 255, 255) if selected else (15, 15, 15), rect, 2, border_radius=6)
+
+        icon = dino.get('front_image') or dino['image']
+        icon = pygame.transform.scale(icon, (52, 52))
+        if fainted:
+            icon = icon.copy()
+            icon.set_alpha(110)
+        screen.blit(icon, (rect.x + 6, rect.y + (rect.height - 52) // 2))
+
+        text_x = rect.x + 64
+        name_c = (170, 170, 170) if fainted else (255, 255, 255)
+        name = dino['name']
+        while len(name) > 1 and self.smaller_font.size(name)[0] > 92:
+            name = name[:-1]
+        screen.blit(self.smaller_font.render(name, True, name_c), (text_x, rect.y + 5))
+        lv = self.smaller_font.render(f"Lv{dino['level']}", True, name_c)
+        screen.blit(lv, (rect.right - lv.get_width() - 8, rect.y + 5))
+
+        max_hp = max(1, dino.get('max_hp', 1))
+        pct    = max(0.0, min(1.0, dino.get('hp', 0) / max_hp))
+        bar = pygame.Rect(text_x, rect.y + 34, rect.right - 8 - text_x, 8)
+        pygame.draw.rect(screen, (35, 35, 35), bar)
+        bar_color = (80, 200, 80) if pct > 0.5 else (220, 180, 0) if pct > 0.2 else (200, 60, 60)
+        pygame.draw.rect(screen, bar_color, (bar.x, bar.y, int(bar.w * pct), bar.h))
+        pygame.draw.rect(screen, (0, 0, 0), bar, 1)
+
+        if fainted:
+            status = self.tiny_font.render("FAINTED", True, (235, 110, 110))
+        elif i == self.picking_index:
+            status = self.tiny_font.render("MOVING...", True, (255, 255, 255))
+        else:
+            status = self.tiny_font.render(f"{dino.get('hp', 0)}/{dino['max_hp']}", True, (210, 210, 210))
+        screen.blit(status, (text_x, rect.y + 46))
+
+        if self.unseen_moves(dino):
+            self._draw_new_badge(screen, rect.right - 6, rect.y + 46)
+            # Small pulsing yellow "!" on the icon's top-right corner
+            pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() / 180)
+            center = (rect.x + 54, rect.y + 12)
+            pygame.draw.circle(screen, (255, int(205 + 40 * pulse), 40), center, 8)
+            pygame.draw.circle(screen, (40, 30, 0), center, 8, 1)
+            bang = self.tiny_font.render("!", True, (40, 30, 0))
+            screen.blit(bang, bang.get_rect(center=(center[0], center[1] + 1)))
+
+    def _draw_new_badge(self, screen, right, top):
+        """Pulsing yellow NEW MOVE pill, right-aligned at (right, top)."""
+        pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() / 180)
+        label = self.tiny_font.render("NEW MOVE", True, (40, 30, 0))
+        pill = pygame.Rect(0, 0, label.get_width() + 12, label.get_height() + 2)
+        pill.topright = (right, top - 2)
+        pygame.draw.rect(screen, (255, int(205 + 40 * pulse), 60), pill, border_radius=8)
+        pygame.draw.rect(screen, (40, 30, 0), pill, 1, border_radius=8)
+        screen.blit(label, label.get_rect(center=pill.center))
+
+    def _footer_hints(self):
+        """(prompt, [(key, label), ...]) for the current party-screen mode."""
+        g = self.game
+        item_mode = getattr(g, 'item_target_mode', None)
+        if 'encounter' in g.state_stack:
+            if g.awaiting_switch or getattr(g, 'double_replace_slot', None) is not None:
+                return "Choose a replacement", [("J", "Send out"), ("I", "Moves"), ("L", "Move List")]
+            return None, [("J", "Switch in"), ("I", "Moves"), ("L", "Move List"), ("SPACE", "Back")]
+        if item_mode == 'Revival Gem':
+            return "Revive which Dino?", [("J", "Select"), ("SPACE", "Cancel")]
+        if item_mode == 'Mega Spray':
+            return "Heal which Dino?", [("J", "Select"), ("SPACE", "Cancel")]
+        if config.ITEMS.get(item_mode or '', {}).get('tm_move'):
+            return f"Teach {config.ITEMS[item_mode]['tm_move']}?", [("J", "Select"), ("SPACE", "Cancel")]
+        if self.picking_index is not None:
+            return "Pick a spot", [("J", "Place"), ("SPACE", "Back")]
+        return None, [("J", "Reorder"), ("O", "Box"), ("I", "Moves"), ("L", "Move List"), ("SPACE", "Back")]
+
+    def _draw_footer(self, screen):
+        bar = pygame.Rect(0, self.FOOTER_Y, config.WIDTH, config.HEIGHT - self.FOOTER_Y)
+        pygame.draw.rect(screen, (18, 18, 22), bar)
+        pygame.draw.line(screen, (70, 70, 80), bar.topleft, bar.topright, 2)
+        prompt, hints = self._footer_hints()
+        if prompt:
+            p = self.smaller_font.render(prompt, True, (255, 200, 0))
+            screen.blit(p, (self.CARD_X, bar.centery - p.get_height() // 2))
+        # Key chips, right-aligned
+        parts = []
+        for key, label in hints:
+            k = self.tiny_font.render(key, True, (20, 20, 20))
+            t = self.tiny_font.render(label, True, (200, 200, 200))
+            parts.append((k, t))
+        total = sum(k.get_width() + 10 + 5 + t.get_width() for k, t in parts) + 14 * (len(parts) - 1)
+        x = config.WIDTH - 12 - total
+        for k, t in parts:
+            chip = pygame.Rect(x, 0, k.get_width() + 10, k.get_height() + 4)
+            chip.centery = bar.centery
+            pygame.draw.rect(screen, (220, 220, 225), chip, border_radius=4)
+            screen.blit(k, k.get_rect(center=chip.center))
+            x = chip.right + 5
+            screen.blit(t, (x, bar.centery - t.get_height() // 2))
+            x += t.get_width() + 14
 
     def draw_preview(self, screen, dino):
-        preview_rect = pygame.Rect(240, 20, 380, 200)
-        pygame.draw.rect(screen, (0, 0, 0), preview_rect, 3)
+        preview_rect = pygame.Rect(self.PANEL_X, self.PREVIEW_Y, self.PANEL_W, self.PREVIEW_H)
 
         types = dino['type'] if isinstance(dino['type'], list) else [dino['type']]
         colors = [TYPE_DATA.get(t, {}).get("color", (100, 200, 230)) for t in types]
@@ -1654,28 +1782,45 @@ class PartyScreen:
             half = preview_rect.height // 2
             pygame.draw.rect(screen, colors[0], pygame.Rect(preview_rect.x, preview_rect.y, preview_rect.width, half))
             pygame.draw.rect(screen, colors[1], pygame.Rect(preview_rect.x, preview_rect.y + half, preview_rect.width, half))
+        pygame.draw.rect(screen, (0, 0, 0), preview_rect, 3)
 
-        screen.blit(self.font.render(dino['name'], True, (255, 255, 255)), (preview_rect.left + 10, preview_rect.top + 10))
+        def shadowed(font, text, color, pos):
+            screen.blit(font.render(text, True, (0, 0, 0)), (pos[0] + 1, pos[1] + 1))
+            screen.blit(font.render(text, True, color), pos)
+
+        left, top = preview_rect.left + 12, preview_rect.top + 10
+        shadowed(self.font, dino['name'], (255, 255, 255), (left, top))
+        shadowed(self.smaller_font, f"Lv {dino['level']}", (255, 255, 255), (left, top + 24))
         nature = dino.get("nature", "")
         if nature:
-            screen.blit(self.smaller_font.render(f"{nature} Nature", True, (255, 230, 100)), (preview_rect.left + 10, preview_rect.top + 32))
-        hp_text = self.small_font.render(f"HP: {dino['hp']}/{dino['max_hp']}", True, (255, 255, 255))
-        screen.blit(hp_text, (preview_rect.right - hp_text.get_width() - 10, preview_rect.top + 10))
-        type_str = "/".join(types)
-        type_text = self.small_font.render(type_str, True, (255, 255, 255))
-        screen.blit(type_text, (preview_rect.right - type_text.get_width() - 10, preview_rect.bottom - type_text.get_height() - 10))
+            shadowed(self.smaller_font, f"{nature} Nature", (255, 230, 100), (left, top + 46))
 
-        # XP bar
+        hp_text = self.smaller_font.render(f"HP {dino['hp']}/{dino['max_hp']}", True, (255, 255, 255))
+        shadowed(self.smaller_font, f"HP {dino['hp']}/{dino['max_hp']}", (255, 255, 255),
+                 (preview_rect.right - hp_text.get_width() - 12, top))
+
+        # Type chips, bottom-right
+        cx = preview_rect.right - 10
+        for t, c in reversed(list(zip(types, colors))):
+            lbl = self.tiny_font.render(t.upper(), True, (255, 255, 255))
+            chip = pygame.Rect(0, 0, lbl.get_width() + 12, lbl.get_height() + 4)
+            chip.bottomright = (cx, preview_rect.bottom - 10)
+            pc = pygame.Color(c)   # TYPE_DATA colors may be tuples or hex strings
+            pygame.draw.rect(screen, (max(0, pc.r - 50), max(0, pc.g - 50), max(0, pc.b - 50)),
+                             chip, border_radius=4)
+            pygame.draw.rect(screen, (0, 0, 0), chip, 1, border_radius=4)
+            screen.blit(lbl, lbl.get_rect(center=chip.center))
+            cx = chip.left - 6
+
+        # XP bar, bottom-left
         current_xp = dino.get("xp", 0)
         xp_to_next = max(1, dino.get("xp_to_next", 1))
-        xp_bar_w = preview_rect.width - 250
-        xp_bar_x = preview_rect.x + 5
-        xp_bar_y = preview_rect.bottom - 18
-        xp_text = self.smaller_font.render(f"XP: {int(current_xp)}/{int(xp_to_next)}", True, (255, 255, 255))
-        screen.blit(xp_text, (xp_bar_x + 2, xp_bar_y - 23))
-        pygame.draw.rect(screen, (255, 255, 255), (xp_bar_x, xp_bar_y, xp_bar_w, 15))
-        pygame.draw.rect(screen, (0, 100, 255), (xp_bar_x, xp_bar_y, int(xp_bar_w * min(current_xp / xp_to_next, 1)), 15))
-        pygame.draw.rect(screen, (0, 0, 0), (xp_bar_x, xp_bar_y, xp_bar_w, 15), 2)
+        xp_bar = pygame.Rect(preview_rect.x + 12, preview_rect.bottom - 22, 130, 12)
+        shadowed(self.tiny_font, f"XP {int(current_xp)}/{int(xp_to_next)}", (255, 255, 255),
+                 (xp_bar.x, xp_bar.y - 18))
+        pygame.draw.rect(screen, (255, 255, 255), xp_bar)
+        pygame.draw.rect(screen, (0, 100, 255), (xp_bar.x, xp_bar.y, int(xp_bar.w * min(current_xp / xp_to_next, 1)), xp_bar.h))
+        pygame.draw.rect(screen, (0, 0, 0), xp_bar, 2)
 
         # Animated dino preview
         now = pygame.time.get_ticks()
@@ -1693,48 +1838,285 @@ class PartyScreen:
         else:
             frame_img = dino.get("image")
 
-        screen.blit(pygame.transform.scale(frame_img, (150, 150)),
-                    (preview_rect.centerx - 50, preview_rect.centery - 70))
+        img = pygame.transform.scale(frame_img, (150, 150))
+        screen.blit(img, img.get_rect(center=(preview_rect.centerx + 40, preview_rect.centery + 4)))
 
-        # Stats box
-        stats_rect = pygame.Rect(240, 230, 380, 240)
-        pygame.draw.rect(screen, (50, 50, 50), stats_rect)
-        pygame.draw.rect(screen, (0, 0, 0), stats_rect, 3)
+        # Stats (left column) + moves (right column)
+        stats_rect = pygame.Rect(self.PANEL_X, self.STATS_Y, self.PANEL_W, self.STATS_H)
+        pygame.draw.rect(screen, (50, 50, 56), stats_rect, border_radius=6)
+        pygame.draw.rect(screen, (0, 0, 0), stats_rect, 3, border_radius=6)
+        heading_c = (150, 170, 210)
+        col1_x = stats_rect.x + 12
+        col2_x = stats_rect.x + 178
+        screen.blit(self.tiny_font.render("STATS", True, heading_c), (col1_x, stats_rect.y + 8))
+        screen.blit(self.tiny_font.render("MOVES", True, heading_c), (col2_x, stats_rect.y + 8))
+
         nature_boosts = NATURE_BOOSTS.get(dino.get("nature", ""), {})
-        stat_rows = [
-            ("hp",      f"HP: {dino['max_hp']}"),
-            ("attack",  f"Attack: {dino['attack']}"),
-            ("defense", f"Defense: {dino['defense']}"),
-            ("speed",   f"Speed: {dino['speed']}"),
-        ]
-        for i, (stat_key, line) in enumerate(stat_rows):
-            pct = nature_boosts.get(stat_key)
-            if pct:
-                label = f"{line}  (+{int(pct * 100)}%)"
+        stat_rows = [("hp", "HP", dino['max_hp']), ("attack", "Attack", dino['attack']),
+                     ("defense", "Defense", dino['defense']), ("speed", "Speed", dino['speed'])]
+        for i, (stat_key, name, val) in enumerate(stat_rows):
+            y = stats_rect.y + 30 + i * 36
+            boost = nature_boosts.get(stat_key)
+            # Same as the original stats box: boosted stat in green with
+            # the "(+N%)" on the same line.
+            if boost:
+                label = f"{name}: {val} (+{int(boost * 100)}%)"
                 color = (160, 255, 140)
             else:
-                label = line
+                label = f"{name}: {val}"
                 color = (255, 255, 255)
-            screen.blit(self.small_font.render(label, True, color),
-                        (stats_rect.x + 10, stats_rect.y + 10 + i * 25))
+            screen.blit(self.smaller_font.render(label, True, color), (col1_x, y))
 
-        # Moves
-        move_w = stats_rect.width - 200
-        move_h = 25
-        move_x = stats_rect.x + 10
-        move_y = stats_rect.y + 120
+        move_w, move_h = stats_rect.right - 12 - col2_x, 30
         for i, move in enumerate(dino['moveset']):
             move_color = TYPE_DATA.get(move['type'], {}).get("color", (200, 200, 200))
-            move_rect = pygame.Rect(move_x, move_y + i * (move_h + 5), move_w, move_h)
-            pygame.draw.rect(screen, move_color, move_rect)
-            pygame.draw.rect(screen, (0, 0, 0), move_rect, 2)
-            screen.blit(self.smaller_font.render(move['name'], True, (255, 255, 255)), (move_rect.x + 8, move_rect.y))
-            screen.blit(self.smaller_font.render(f"{move['damage']}/{move['accuracy']}", True, (255, 255, 255)),
-                        (move_rect.x + 125, move_rect.y))
+            move_rect = pygame.Rect(col2_x, stats_rect.y + 28 + i * (move_h + 6), move_w, move_h)
+            pygame.draw.rect(screen, move_color, move_rect, border_radius=4)
+            pygame.draw.rect(screen, (0, 0, 0), move_rect, 2, border_radius=4)
+            mc = pygame.Color(move_color)
+            # Dark text on light type colors (e.g. Flash, Static Graze)
+            text_c = (25, 25, 25) if (0.299 * mc.r + 0.587 * mc.g + 0.114 * mc.b) > 170 else (255, 255, 255)
+            name_s = self.smaller_font.render(move['name'], True, text_c)
+            screen.blit(name_s, (move_rect.x + 8, move_rect.centery - name_s.get_height() // 2))
+            pa = self.tiny_font.render(f"{move['damage']}/{move['accuracy']}", True, text_c)
+            screen.blit(pa, (move_rect.right - pa.get_width() - 8, move_rect.centery - pa.get_height() // 2))
 
-        if not self.game.awaiting_switch:
-            hint = self.smaller_font.render("I for moves", True, (160, 200, 255))
-            screen.blit(hint, (config.WIDTH - hint.get_width() - 10, config.HEIGHT - hint.get_height() - 6))
+        # NEW MOVE notice for the hovered dino (its card badge just cleared)
+        fresh = self._fresh_moves.get(id(dino))
+        if fresh:
+            text = f"New: {', '.join(fresh)}  - press I to equip"
+            while len(text) > 4 and self.tiny_font.size(text)[0] > stats_rect.w - 24 - 80:
+                text = text[:-4] + "..."
+            notice_y = stats_rect.bottom - 30
+            self._draw_new_badge(screen, col1_x + 76, notice_y + 4)
+            screen.blit(self.tiny_font.render(text, True, (255, 225, 110)), (col1_x + 84, notice_y + 2))
+
+
+# === Move List (party menu, L) ===
+class MoveListScreen:
+    """Every move the player has unlocked, one tab per type, strongest
+    first. A move only appears once some dino in the party or Box has
+    learned it; the rest of the type is just a "N still undiscovered"
+    count so the list doubles as a collection tracker without spoiling it."""
+    TYPE_ORDER = ('magma', 'aqua', 'earth', 'ice', 'spike', 'lightning',
+                  'flying', 'rock', 'dark', 'light', 'ancient')
+    TYPE_ABBR  = {'lightning': 'VOLT', 'flying': 'FLY', 'ancient': 'ANCNT'}
+    TOP        = 12
+    TABS_Y     = 46
+    TAB_H      = 36
+    PANEL_Y    = 92
+    PANEL_H    = 344
+    ROW_H      = 30
+    FOOTER_Y   = 444
+
+    def __init__(self, game):
+        self.game       = game
+        self.title_font = game.fonts['BATTLE2']
+        self.font       = pygame.font.SysFont('Arial', 20)
+        self.small_font = pygame.font.SysFont('Arial', 17)
+        self.tiny_font  = pygame.font.SysFont('Arial', 13, bold=True)
+        self.types      = [t for t in self.TYPE_ORDER if t in TYPE_DATA] + \
+                          [t for t in TYPE_DATA if t not in self.TYPE_ORDER]
+        self.type_idx   = 0
+        self.cursor     = {}   # type -> selected row
+        self.scroll     = {}   # type -> first visible row
+
+    # ── Data ────────────────────────────────────────────────────────
+    def _owners(self):
+        """move name -> [(dino name, equipped?)] across party and Box."""
+        owners = {}
+        for d in list(self.game.player_dinos) + list(self.game.box_dinos):
+            equipped = {m['name'] for m in d.get('moveset', [])}
+            for name in set(d.get('moves', [])) | equipped:
+                owners.setdefault(name, []).append((d['name'], name in equipped))
+        return owners
+
+    def _moves_of(self, mtype, owners):
+        """(unlocked moves sorted by power desc, total moves of this type)."""
+        all_moves = [n for n, md in MOVE_DATA.items() if md.get('type') == mtype]
+        unlocked  = [n for n in all_moves if n in owners]
+        unlocked.sort(key=lambda n: (-MOVE_DATA[n].get('damage', 0), n))
+        return unlocked, len(all_moves)
+
+    def _rgb(self, mtype):
+        return pygame.Color(TYPE_DATA.get(mtype, {}).get('color', (150, 150, 150)))
+
+    def open(self):
+        """Start on the first type the player actually has moves in."""
+        owners = self._owners()
+        if not self._moves_of(self.types[self.type_idx], owners)[0]:
+            for i, t in enumerate(self.types):
+                if self._moves_of(t, owners)[0]:
+                    self.type_idx = i
+                    break
+
+    # ── Input ───────────────────────────────────────────────────────
+    def _visible_rows(self):
+        return (self.PANEL_H - 40) // self.ROW_H
+
+    def handle_event(self, event, game):
+        if event.type != pygame.KEYDOWN:
+            return None
+        if event.key in (pygame.K_SPACE, pygame.K_ESCAPE, pygame.K_l):
+            return 'back'
+        if event.key in (pygame.K_a, pygame.K_LEFT):
+            self.type_idx = (self.type_idx - 1) % len(self.types)
+        elif event.key in (pygame.K_d, pygame.K_RIGHT):
+            self.type_idx = (self.type_idx + 1) % len(self.types)
+        elif event.key in (pygame.K_w, pygame.K_UP, pygame.K_s, pygame.K_DOWN):
+            t = self.types[self.type_idx]
+            n = len(self._moves_of(t, self._owners())[0])
+            if n:
+                step = -1 if event.key in (pygame.K_w, pygame.K_UP) else 1
+                cur = (self.cursor.get(t, 0) + step) % n
+                self.cursor[t] = cur
+                top, vis = self.scroll.get(t, 0), self._visible_rows()
+                if cur < top:
+                    top = cur
+                elif cur >= top + vis:
+                    top = cur - vis + 1
+                self.scroll[t] = top
+        return None
+
+    # ── Drawing ─────────────────────────────────────────────────────
+    def draw(self, screen):
+        screen.fill((30, 30, 34))
+        owners = self._owners()
+        mtype  = self.types[self.type_idx]
+        moves, total_type = self._moves_of(mtype, owners)
+
+        # Header
+        screen.blit(self.title_font.render("MOVE LIST", True, (255, 255, 255)), (12, self.TOP))
+        found = sum(1 for n in MOVE_DATA if n in owners)
+        count = self.small_font.render(f"Discovered {found}/{len(MOVE_DATA)}", True, (200, 200, 210))
+        screen.blit(count, (config.WIDTH - count.get_width() - 12, self.TOP + 2))
+
+        # Type tabs
+        tab_w = (config.WIDTH - 24 - 2 * (len(self.types) - 1)) // len(self.types)
+        for i, t in enumerate(self.types):
+            rect = pygame.Rect(12 + i * (tab_w + 2), self.TABS_Y, tab_w, self.TAB_H)
+            c = self._rgb(t)
+            got, tot = self._moves_of(t, owners)
+            active = i == self.type_idx
+            fill = c if active else (c.r // 3 + 20, c.g // 3 + 20, c.b // 3 + 20)
+            pygame.draw.rect(screen, fill, rect, border_radius=5)
+            pygame.draw.rect(screen, (255, 255, 255) if active else (10, 10, 10), rect, 2, border_radius=5)
+            text_c = self._text_on(fill)
+            lbl = self.tiny_font.render(self.TYPE_ABBR.get(t, t.upper()), True, text_c)
+            screen.blit(lbl, lbl.get_rect(centerx=rect.centerx, top=rect.y + 3))
+            cnt = self.tiny_font.render(f"{len(got)}/{tot}", True, text_c)
+            screen.blit(cnt, cnt.get_rect(centerx=rect.centerx, bottom=rect.bottom - 3))
+
+        # Move list panel
+        lp = pygame.Rect(12, self.PANEL_Y, 300, self.PANEL_H)
+        pygame.draw.rect(screen, (48, 48, 54), lp, border_radius=6)
+        pygame.draw.rect(screen, (0, 0, 0), lp, 3, border_radius=6)
+        tc = self._rgb(mtype)
+        screen.blit(self.font.render(f"{mtype.capitalize()} moves", True, tc), (lp.x + 12, lp.y + 8))
+        hdr = self.tiny_font.render("POW   ACC", True, (150, 150, 165))
+        screen.blit(hdr, (lp.right - hdr.get_width() - 14, lp.y + 13))
+
+        sel_name = None
+        if not moves:
+            msg = "No moves of this type discovered yet."
+            for j, line in enumerate(wrap_text(msg, self.small_font, lp.w - 28)):
+                screen.blit(self.small_font.render(line, True, (170, 170, 180)),
+                            (lp.x + 14, lp.y + 50 + j * 22))
+        else:
+            cur = min(self.cursor.get(mtype, 0), len(moves) - 1)
+            top = self.scroll.get(mtype, 0)
+            vis = self._visible_rows()
+            sel_name = moves[cur]
+            for row, name in enumerate(moves[top:top + vis]):
+                idx = top + row
+                r = pygame.Rect(lp.x + 6, lp.y + 36 + row * self.ROW_H, lp.w - 12, self.ROW_H - 3)
+                if idx == cur:
+                    pygame.draw.rect(screen, (0, 110, 200), r, border_radius=4)
+                    pygame.draw.rect(screen, (255, 255, 255), r, 1, border_radius=4)
+                md = MOVE_DATA[name]
+                pygame.draw.rect(screen, tc, (r.x + 4, r.y + 6, 5, r.h - 12))
+                screen.blit(self.small_font.render(name, True, (255, 255, 255)), (r.x + 16, r.y + 4))
+                pow_s = str(md.get('damage', 0)) if md.get('damage', 0) > 0 else "-"
+                p = self.small_font.render(pow_s, True, (255, 230, 150))
+                a = self.small_font.render(str(md.get('accuracy', 100)), True, (200, 220, 255))
+                screen.blit(a, (r.right - a.get_width() - 8, r.y + 4))
+                screen.blit(p, (r.right - 46 - p.get_width(), r.y + 4))
+            # Scroll arrows
+            if top > 0:
+                pygame.draw.polygon(screen, (220, 220, 220), [(lp.centerx - 6, lp.y + 34), (lp.centerx + 6, lp.y + 34), (lp.centerx, lp.y + 28)])
+            if top + vis < len(moves):
+                by = lp.bottom - 8
+                pygame.draw.polygon(screen, (220, 220, 220), [(lp.centerx - 6, by - 6), (lp.centerx + 6, by - 6), (lp.centerx, by)])
+
+        hidden = total_type - len(moves)
+        if hidden:
+            h = self.tiny_font.render(f"{hidden} still undiscovered", True, (130, 130, 145))
+            screen.blit(h, (lp.x + 14, lp.bottom - 22))
+
+        # Detail panel
+        dp = pygame.Rect(324, self.PANEL_Y, config.WIDTH - 324 - 12, self.PANEL_H)
+        pygame.draw.rect(screen, (48, 48, 54), dp, border_radius=6)
+        pygame.draw.rect(screen, (0, 0, 0), dp, 3, border_radius=6)
+        if sel_name:
+            self._draw_detail(screen, dp, sel_name, owners.get(sel_name, []))
+        else:
+            hint = f"Teach a dino a {mtype.capitalize()} move to unlock its entry here."
+            for j, line in enumerate(wrap_text(hint, self.small_font, dp.w - 28)):
+                screen.blit(self.small_font.render(line, True, (150, 150, 165)),
+                            (dp.x + 14, dp.y + 14 + j * 22))
+
+        self._draw_footer(screen)
+
+    @staticmethod
+    def _text_on(color):
+        c = pygame.Color(color)
+        return (25, 25, 25) if (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) > 170 else (255, 255, 255)
+
+    def _draw_detail(self, screen, dp, name, owners):
+        md = MOVE_DATA[name]
+        x, y = dp.x + 14, dp.y + 12
+        screen.blit(self.title_font.render(name, True, (255, 255, 255)), (x, y))
+        y += 30
+        c = self._rgb(md.get('type', ''))
+        lbl = self.tiny_font.render(md.get('type', '').upper(), True, self._text_on(c))
+        chip = pygame.Rect(x, y, lbl.get_width() + 14, lbl.get_height() + 6)
+        pygame.draw.rect(screen, c, chip, border_radius=4)
+        pygame.draw.rect(screen, (0, 0, 0), chip, 1, border_radius=4)
+        screen.blit(lbl, lbl.get_rect(center=chip.center))
+        dmg = md.get('damage', 0)
+        stats = f"Power {dmg if dmg > 0 else '-'}    Acc {md.get('accuracy', 100)}%"
+        screen.blit(self.small_font.render(stats, True, (230, 230, 200)), (chip.right + 12, y))
+        y += 30
+        pygame.draw.line(screen, (90, 90, 110), (dp.x + 10, y), (dp.right - 10, y))
+        y += 8
+
+        for line in wrap_text(generate_move_desc(name), self.small_font, dp.w - 28)[:8]:
+            screen.blit(self.small_font.render(line, True, (235, 235, 235)), (x, y))
+            y += 21
+
+        # Who knows it (★ = in its 4 battle moves)
+        y = max(y + 6, dp.bottom - 96)
+        pygame.draw.line(screen, (90, 90, 110), (dp.x + 10, y), (dp.right - 10, y))
+        screen.blit(self.tiny_font.render("KNOWN BY   (* = equipped)", True, (150, 170, 210)), (x, y + 6))
+        names = [f"{n}{'*' if eq else ''}" for n, eq in owners]
+        for j, line in enumerate(wrap_text(", ".join(names), self.small_font, dp.w - 28)[:3]):
+            screen.blit(self.small_font.render(line, True, (255, 255, 255)), (x, y + 24 + j * 20))
+
+    def _draw_footer(self, screen):
+        bar = pygame.Rect(0, self.FOOTER_Y, config.WIDTH, config.HEIGHT - self.FOOTER_Y)
+        pygame.draw.rect(screen, (18, 18, 22), bar)
+        pygame.draw.line(screen, (70, 70, 80), bar.topleft, bar.topright, 2)
+        x = config.WIDTH - 12
+        for key, label in reversed([("A/D", "Type"), ("W/S", "Move"), ("SPACE", "Back")]):
+            t = self.tiny_font.render(label, True, (200, 200, 200))
+            k = self.tiny_font.render(key, True, (20, 20, 20))
+            x -= t.get_width()
+            screen.blit(t, (x, bar.centery - t.get_height() // 2))
+            chip = pygame.Rect(0, 0, k.get_width() + 10, k.get_height() + 4)
+            chip.right, chip.centery = x - 5, bar.centery
+            pygame.draw.rect(screen, (220, 220, 225), chip, border_radius=4)
+            screen.blit(k, k.get_rect(center=chip.center))
+            x = chip.left - 14
 
 
 # === Move Info Screen ===
@@ -1787,7 +2169,10 @@ def generate_move_desc(move_name):
             elif eff == 'speed_swap':
                 parts.append(f"Swaps both sides' speed for {ability.get('duration', 5)} turns.")
         elif kind == 'dot':
-            parts.append(f"Deals {ability.get('damage_percent', 0)}% damage per turn for {ability.get('turns', 2)} turns.")
+            if 'damage_flat' in ability:
+                parts.append(f"Deals {ability['damage_flat']} damage at the end of each turn for {ability.get('turns', 3)} turns.")
+            else:
+                parts.append(f"Deals {ability.get('damage_percent', 0)}% damage per turn for {ability.get('turns', 2)} turns.")
     if not parts:
         parts.append("No additional effects.")
     return " ".join(parts)
@@ -2475,10 +2860,12 @@ class RouteBanner:
         progress = max(0.0, min(1.0, progress))
 
         y = -self.HEIGHT + int(self.HEIGHT * progress)
-        box = pygame.Rect(0, y, self.WIDTH, self.HEIGHT)
+        label = self.font.render(self.text, True, (0, 0, 0))
+        # Widen for long names (e.g. "Silverleaf Town") so the text never
+        # runs past the border; WIDTH is just the minimum.
+        box = pygame.Rect(0, y, max(self.WIDTH, label.get_width() + 28), self.HEIGHT)
         pygame.draw.rect(surface, (255, 255, 255), box)
         pygame.draw.rect(surface, (0, 0, 0), box, 3)
-        label = self.font.render(self.text, True, (0, 0, 0))
         surface.blit(label, (box.x + 14, box.y + (box.height - label.get_height()) // 2))
 
 
@@ -3453,6 +3840,142 @@ class BadgeEarnedScreen:
         elif self._timer > self.FADE_IN_SEC:
             wait_hint = self._font_sm.render("...", True, (160, 160, 160))
             screen.blit(wait_hint, (cx - wait_hint.get_width() // 2, cy + self.BADGE_SIZE // 2 + 26))
+
+
+# === Evolution Screen ===
+class EvolutionScreen:
+    """Full-screen evolution sequence, DURATION seconds long and not
+    skippable: fade in on the old form, flicker between old/new white
+    silhouettes (speeding up), a white flash, then the new form revealed.
+    The evolution itself is applied when the sequence ends, so quitting
+    mid-animation never leaves a half-evolved dino. Pushes its own
+    'evolution' state when constructed, like BadgeEarnedScreen."""
+    DURATION    = 8.0
+    FADE_IN     = 0.8    # old form fades in
+    MORPH_END   = 5.6    # flicker phase runs FADE_IN → MORPH_END
+    FLASH_PEAK  = 6.2    # screen whites out MORPH_END → FLASH_PEAK
+    REVEAL_END  = 6.9    # white fades off the new form FLASH_PEAK → REVEAL_END
+    SPRITE_SIZE = 170
+    BG          = (14, 16, 34)
+
+    def __init__(self, game, dino, target, on_done=None):
+        self.game     = game
+        self.dino     = dino
+        self.target   = target
+        self.old_name = dino['name']
+        self.on_done  = on_done
+        self.timer    = 0.0
+        self._done    = False
+        self._font    = game.fonts['DIALOGUE']
+        self._font_sm = game.fonts['BATTLE2']
+
+        old_img = dino.get('front_image') or dino.get('image')
+        new_img = (game.player_dino_front_images.get(target)
+                   or game.player_dino_images.get(target) or old_img)
+        size = (self.SPRITE_SIZE, self.SPRITE_SIZE)
+        self.old_img = pygame.transform.scale(old_img, size) if old_img else None
+        self.new_img = pygame.transform.scale(new_img, size) if new_img else None
+        self.old_sil = self._silhouette(self.old_img)
+        self.new_sil = self._silhouette(self.new_img)
+        # Sparkles drifting up through the morph: (x, start_y, speed, phase)
+        self._sparkles = [(random.uniform(0.2, 0.8) * config.WIDTH,
+                           random.uniform(0.3, 0.75) * config.HEIGHT,
+                           random.uniform(25, 60), random.uniform(0, 6.28))
+                          for _ in range(28)]
+        game.push_state('evolution')
+
+    @staticmethod
+    def _silhouette(img):
+        if img is None:
+            return None
+        return pygame.mask.from_surface(img).to_surface(
+            setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
+
+    def update(self, dt):
+        if self._done:
+            return
+        self.timer += dt
+        if self.timer >= self.DURATION:
+            self._done = True
+            self.game.do_evolution(self.dino, self.target)
+            self.game.pop_state()
+            if self.on_done:
+                self.on_done()
+
+    def _morph_showing_new(self):
+        """During the flicker phase: whether the new silhouette is up. The
+        swap rate ramps from ~2/s to ~12/s, and the new form holds the
+        screen for a larger share of each cycle as the phase goes on."""
+        p = (self.timer - self.FADE_IN) / (self.MORPH_END - self.FADE_IN)
+        p = max(0.0, min(1.0, p))
+        # integral of a linearly rising frequency (2 → 12 Hz) = cycles so far
+        span = self.MORPH_END - self.FADE_IN
+        cycles = span * (2.0 * p + 5.0 * p * p)
+        return (cycles % 1.0) < (0.25 + 0.5 * p)
+
+    def draw(self, screen):
+        t  = self.timer
+        cx = config.WIDTH // 2
+        cy = config.HEIGHT // 2 - 30
+        screen.fill(self.BG)
+
+        # Soft pulsing glow behind the sprite while it morphs
+        if self.FADE_IN <= t < self.FLASH_PEAK:
+            glow = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
+            pulse = 0.5 + 0.5 * math.sin(t * 6.0)
+            for r, a in ((150, 26), (115, 40), (85, 60)):
+                pygame.draw.circle(glow, (170, 200, 255, int(a * (0.6 + 0.4 * pulse))), (cx, cy), r)
+            screen.blit(glow, (0, 0))
+            for x, y0, speed, phase in self._sparkles:
+                y = y0 - (t - self.FADE_IN) * speed
+                if 40 < y < config.HEIGHT - 120:
+                    tw = 0.5 + 0.5 * math.sin(t * 8 + phase)
+                    pygame.draw.circle(screen, (255, 255, int(180 + 75 * tw)), (int(x), int(y)), 1 + int(2 * tw))
+
+        def blit_center(img, alpha=255):
+            if img is None:
+                return
+            if alpha < 255:
+                img = img.copy()
+                img.set_alpha(alpha)
+            screen.blit(img, img.get_rect(center=(cx, cy)))
+
+        if t < self.FADE_IN:
+            blit_center(self.old_img, int(255 * t / self.FADE_IN))
+        elif t < self.MORPH_END:
+            blit_center(self.new_sil if self._morph_showing_new() else self.old_sil)
+        elif t < self.REVEAL_END:
+            blit_center(self.new_img)
+        else:
+            # Gentle bob on the finished form
+            bob = int(4 * math.sin((t - self.REVEAL_END) * 4))
+            img = self.new_img
+            if img is not None:
+                screen.blit(img, img.get_rect(center=(cx, cy + bob)))
+
+        # White-out flash and fade back
+        flash = 0
+        if self.MORPH_END <= t < self.FLASH_PEAK:
+            flash = 255 * (t - self.MORPH_END) / (self.FLASH_PEAK - self.MORPH_END)
+        elif self.FLASH_PEAK <= t < self.REVEAL_END:
+            flash = 255 * (1 - (t - self.FLASH_PEAK) / (self.REVEAL_END - self.FLASH_PEAK))
+        if flash > 0:
+            white = pygame.Surface((config.WIDTH, config.HEIGHT))
+            white.fill((255, 255, 255))
+            white.set_alpha(int(flash))
+            screen.blit(white, (0, 0))
+
+        # Caption panel
+        panel = pygame.Rect(40, config.HEIGHT - 110, config.WIDTH - 80, 80)
+        pygame.draw.rect(screen, (245, 245, 245), panel)
+        pygame.draw.rect(screen, (0, 0, 0), panel, 3)
+        if t < self.REVEAL_END:
+            lines = [f"What? {self.old_name} is evolving!"]
+        else:
+            lines = ["Congratulations!", f"Your {self.old_name} evolved into {self.target}!"]
+        for i, line in enumerate(lines):
+            surf = self._font_sm.render(line, True, (0, 0, 0))
+            screen.blit(surf, (panel.x + 18, panel.y + 14 + i * 28))
 
 
 # === Intro Cutscene ===

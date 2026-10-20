@@ -186,6 +186,7 @@ class Game:
         self.menu = Menu(self)
         self.quest_debug_screen = QuestDebugScreen(self)
         self.party_screen = PartyScreen(self)
+        self.move_list_screen = MoveListScreen(self)
         self.party_screen.reset()
         self.move_info_screen = None
         self.dinodex_screen = DinodexScreen(self)
@@ -280,11 +281,16 @@ class Game:
 
         # Hit flash state
         self.hit_flash = None   # None | {'target':'player'|'enemy','timer':0,'duration':1.5,'interval':0.08}
+        self.dot_flash = None   # None | {'slot': battle slot, ...} — storm tick black flash
+        self._storms_ticked = False   # see Game._end_turn / _storm_ko
+        self._enemy_defend_rolled = False   # see use_player_move / _enemy_turn
         self.move_anim = None   # moves.MoveAnimation currently playing in battle
         self.catch_anim = None  # catch_anim.CatchAnimation for a thrown pod
         self._post_xp_callback = None
         self._post_trainer_battle_cb = None
         self.badge_earned_screen = None
+        self.evolution_screen = None
+        self.pending_evolutions = []   # dinos waiting to play EvolutionScreen
 
         # Battle state
         self.awaiting_switch = False
@@ -344,7 +350,7 @@ class Game:
 
         # Day/Night Cycle
         self.day_night_timer = 0.0
-        self.CYCLE_DURATION = 15 * 60.0  # 900 seconds per phase
+        self.CYCLE_DURATION = 10 * 60.0  # 600 seconds of play time per phase
         self.is_night = False
 
 ################ FORCE DAY NIGHT #############
@@ -403,6 +409,7 @@ class Game:
         self.item_target_mode = None
         self.fading = False
         self.catch_anim = None
+        self._storms_ticked = False
 
     def trigger_blackout(self):
         lost_npc = self.current_trainer_npc
@@ -529,6 +536,8 @@ class Game:
         self.objective_times = {}
         self.adventure_start_date = datetime.date.today()
         self.world_stack = []
+        self.pending_evolutions = []
+        self.evolution_screen = None
 
         # A brand new game must never carry over runtime state left behind by
         # a previous playthrough (trainers marked defeated, picked-up ground
@@ -787,12 +796,22 @@ class Game:
             'world': self.current_world_file,
             'player_x': self.player.rect.x,
             'player_y': self.player.rect.y,
+            'facing': self.player.facing,
+            # The doors walked through to get here, so exits still lead back
+            # out after a reload (NPC objects are rebuilt on load, not saved).
+            'world_stack': [{k: v for k, v in entry.items() if k != 'npcs'}
+                            for entry in self.world_stack],
+            'last_dinocenter_world': self.last_dinocenter_world,
+            'last_dinocenter_tile': (list(self.last_dinocenter_tile)
+                                     if self.last_dinocenter_tile is not None else None),
             'party': [self._dino_to_dict(d) for d in self.player_dinos],
             'box': [self._dino_to_dict(d) for d in self.box_dinos],
             'story_flags': self.story_flags,
             'sandbox': self.sandbox,
             'badges': self.badges_earned,
             'play_time': self.play_time_seconds,
+            'is_night': self.is_night,
+            'day_night_timer': self.day_night_timer,
             'objective_times': self.objective_times,
             'game_mode': self.game_mode,
             'randomizer': self.randomizer.to_dict() if self.randomizer else None,
@@ -821,8 +840,9 @@ class Game:
         self.inventory = {**{item: 0 for item in config.ITEMS.keys()}, **data.get('inventory', {})}
         self.items_screen.inventory = self.inventory
         self.story_flags = data.get('story_flags', {})
-        self.day_night_timer    = 0.0
-        self.is_night           = False
+        # Time of day carries over from the save (older saves start at day)
+        self.day_night_timer    = float(data.get('day_night_timer', 0.0))
+        self.is_night           = bool(data.get('is_night', False))
         self.dn_transitioning   = False
         self.dn_transition_timer = 0.0
         self.sky_transition     = None
@@ -862,19 +882,82 @@ class Game:
         self.stats_enemies_defeated = s.get('enemies_defeated', 0)
         self.player_dinos = [self._dict_to_dino(d) for d in data.get('party', [])]
         self.box_dinos = [self._dict_to_dino(d) for d in data.get('box', [])]
+        self.pending_evolutions = []
+        self.evolution_screen = None
+        tile = data.get('last_dinocenter_tile')
+        self.last_dinocenter_tile  = tuple(tile) if tile else None
+        self.last_dinocenter_world = data.get('last_dinocenter_world')
         px = data.get('player_x', config.SPAWN_POINTS['home'][0])
         py = data.get('player_y', config.SPAWN_POINTS['home'][1])
-        self.player.rect.topleft = (px, py)
-        self.player.pos_x = float(px)
-        self.player.pos_y = float(py)
-        self.player.target_x = px
-        self.player.target_y = py
+        self._restore_saved_world(data, px, py)
         self.state_stack = ['world']
         self._maybe_add_gym_blocker()
         self._maybe_add_gym2_blocker()
         self._maybe_add_horizon_blockers()
         self._maybe_add_route2_blocker()
         self._maybe_add_skyy()
+        self._maybe_add_gray_rival()
+        self._maybe_add_grunts_vanessa()
+        self._maybe_add_gym1_skyy()
+
+    def _restore_saved_world(self, data, px, py):
+        """Load the map the save was made on, rebuilding the world_stack of
+        doors behind it so its exits still lead back out. Previously the
+        saved 'world' was ignored and interior coordinates were applied to
+        whatever map happened to be loaded (the overworld on a fresh launch)."""
+        world = data.get('world', 'LOST_REGION.world')
+        stack = data.get('world_stack')
+        if stack is None:
+            stack = self._legacy_world_stack(world)
+        if stack is None:
+            # Can't work out how this interior was reached — fall back to the
+            # overworld home spawn rather than strand the player somewhere
+            # with no way out.
+            world, stack = 'LOST_REGION.world', []
+            px, py = config.SPAWN_POINTS['home']
+
+        self.world_stack = []
+        for entry in stack:
+            # Each level's NPC list is rebuilt now so _do_exit_teleport can
+            # restore it; the map itself is loaded again on exit anyway.
+            self.current_world_file = entry['file']
+            self._spawn_world_npcs(entry['file'])
+            self.world_stack.append({**entry, 'npcs': self.npcs})
+
+        self._load_world_data(world)
+        self._spawn_world_npcs(world)
+        self.player.rect.topleft = (px, py)
+        self.player.pos_x = float(px)
+        self.player.pos_y = float(py)
+        self.player.target_x = px
+        self.player.target_y = py
+        self.player.moving = False
+        facing = data.get('facing')
+        if facing:
+            self.player.direction = self.player.facing = facing
+            self.player.image = self.player.animations[facing][0]
+        self.update_camera()
+
+    def _legacy_world_stack(self, world):
+        """Saves made before world_stack was stored: assume the interior was
+        entered straight from the overworld and find its door there. Returns
+        None when that guess doesn't hold (e.g. a nested interior)."""
+        if world in ('LOST_REGION.world', 'HOME_JET.tmx', 'HOME_JET2.tmx'):
+            return []
+        eids = {eid for eid, dest in ENTRANCE_DATA.items() if dest['world'] == world}
+        if not eids:
+            return None
+        if self.current_world_file == 'LOST_REGION.world':
+            entrances = self.entrance_tile_coords
+        else:
+            entrances = self.load_world('LOST_REGION.world')[4]
+        door = next((tile_eid for tile_eid in entrances.items() if tile_eid[1] in eids), None)
+        if door is None:
+            return None
+        (tx, ty), eid = door
+        return [{'file': 'LOST_REGION.world', 'entrance_id': eid,
+                 'entrance_tile_x': tx, 'entrance_tile_y': ty,
+                 'entrance_facing': 'up'}]
 
     def _dino_to_dict(self, dino):
         return {k: v for k, v in dino.items() if k not in ('image', 'front_image', 'frames')}
@@ -885,6 +968,10 @@ class Game:
         data['image'] = self.player_dino_images.get(name)
         data['front_image'] = self.player_dino_front_images.get(name)
         data['frames'] = self.dino_frames.get(name)
+        # Saves from before NEW MOVE badges: treat everything as already seen.
+        data.setdefault('seen_moves', list(data.get('moves', [])))
+        # Saved moveset entries are snapshots — refresh them to current MOVE_DATA
+        data['moveset'] = [self._live_move(m) for m in data.get('moveset', [])]
         return data
 
     # --- Story Events ---
@@ -991,6 +1078,10 @@ class Game:
             "defending": False,
             "moveset": moveset,
             "moves": learned_moves,
+            # Moves the player has already been shown in the Party screen —
+            # anything in "moves" that isn't here (and isn't equipped) gets
+            # a NEW MOVE badge there. A new dino starts with nothing to flag.
+            "seen_moves": list(learned_moves),
             "image": self.player_dino_images[name],
             "front_image": self.player_dino_front_images[name],
             "frames": self.dino_frames.get(name),
@@ -1029,7 +1120,8 @@ class Game:
             self.apply_nature_boost(dino)
             dino['hp'] += dino['max_hp'] - prev_max_hp
             self.message_box.queue_messages(
-                [f"{dino['name']} grew to Lv {dino['level']}!"], wait_for_input=True
+                [f"{dino['name']} grew to Lv {dino['level']}!"]
+                + self._learn_level_moves(dino), wait_for_input=True
             )
             evo_target = self.check_evolution(dino)
             if evo_target:
@@ -1068,29 +1160,37 @@ class Game:
                 self.apply_nature_boost(dino)
                 dino['hp'] = dino['hp'] + (dino['max_hp'] - prev_max_hp)
                 msgs.append(f"{dino['name']} grew to Lv {dino['level']}!")
-
-                # Check for newly learned moves at this level
-                for learn_lvl, move_name in DINO_DATA[dino['name']]['moves'].items():
-                    if learn_lvl == dino['level'] and move_name not in dino.get('moves', []):
-                        dino.setdefault('moves', []).append(move_name)
-                        if len(dino.get('moveset', [])) < 4:
-                            m = MOVE_DATA.get(move_name, {})
-                            dino.setdefault('moveset', []).append({
-                                "name":     move_name,
-                                "type":     m.get("type", "normal"),
-                                "damage":   m.get("damage", 0),
-                                "accuracy": m.get("accuracy", 100),
-                                "ability":  m.get("ability", None),
-                            })
-                            msgs.append(f"{dino['name']} learned {move_name}!")
-                        else:
-                            # Its 4 active slots are already full — the move is
-                            # known but not battle-ready. Easy to miss as just
-                            # another line of level-up text, so give it its
-                            # own emphatic, separately-dismissed message.
-                            msgs.append(f">> {dino['name']} can learn {move_name}! <<")
-                            msgs.append(f"It already knows 4 moves - visit the Party screen to swap {move_name} in.")
+                msgs.extend(self._learn_level_moves(dino))
             self._clamp_xp_to_cap(dino, cap)
+        return msgs
+
+    def _learn_level_moves(self, dino):
+        """Teach whatever `dino` learns at exactly its current level. A move
+        goes straight into an empty battle slot; otherwise it's added to the
+        known pool and the Party screen flags the dino with a NEW MOVE badge
+        (see PartyScreen / dino['seen_moves']) until the player looks at it."""
+        msgs = []
+        for learn_lvl, move_name in DINO_DATA[dino['name']]['moves'].items():
+            if learn_lvl != dino['level'] or move_name in dino.get('moves', []):
+                continue
+            dino.setdefault('moves', []).append(move_name)
+            if len(dino.get('moveset', [])) < 4:
+                m = MOVE_DATA.get(move_name, {})
+                dino.setdefault('moveset', []).append({
+                    "name":     move_name,
+                    "type":     m.get("type", "normal"),
+                    "damage":   m.get("damage", 0),
+                    "accuracy": m.get("accuracy", 100),
+                    "ability":  m.get("ability", None),
+                })
+                msgs.append(f"{dino['name']} learned {move_name}!")
+            else:
+                # Its 4 active slots are already full — the move is
+                # known but not battle-ready. Easy to miss as just
+                # another line of level-up text, so give it its
+                # own emphatic, separately-dismissed message.
+                msgs.append(f">> {dino['name']} can learn {move_name}! <<")
+                msgs.append(f"It already knows 4 moves - visit the Party screen to swap {move_name} in.")
         return msgs
 
     # --- Battle helpers: effective stats / move abilities / field effects ---
@@ -1101,6 +1201,22 @@ class Game:
         base  = dino.get(f'base_{stat}', dino.get(stat, 1))
         return max(1, round(base * mult))
 
+    @staticmethod
+    def _live_move(move):
+        """Moveset entries are snapshots taken when the move was learned (and
+        saved with the dino), so balance changes and newly added abilities
+        never reached them — and pierces_defend was never copied at all.
+        Battle code reads a move through this so MOVE_DATA is the truth."""
+        md = MOVE_DATA.get(move.get('name'))
+        if not md:
+            return move
+        return {**move,
+                'type':           md.get('type', move.get('type', 'normal')),
+                'damage':         md.get('damage', 0),
+                'accuracy':       md.get('accuracy', 100),
+                'ability':        md.get('ability'),
+                'pierces_defend': md.get('pierces_defend', False)}
+
     def _apply_move_ability(self, ability, user, target, dmg=0):
         if not ability:
             return []
@@ -1108,6 +1224,8 @@ class Game:
             return []
         msgs = []
         if ability['kind'] == 'recoil':
+            if dmg <= 0:   # blocked by Defend (or no damage) — nothing to recoil from
+                return msgs
             recoil_amt = max(1, int(dmg * ability['percent'] / 100))
             user['hp'] = max(0, user['hp'] - recoil_amt)
             msgs.append(f"{user['name']} took {recoil_amt} recoil damage!")
@@ -1149,11 +1267,14 @@ class Game:
             msgs.append(f"{user['name']} restored {heal_amount} HP!")
         elif ability['kind'] == 'dot':
             target['dot'] = {
-                'damage_percent': ability['damage_percent'],
+                'damage_flat':    ability.get('damage_flat'),
+                'damage_percent': ability.get('damage_percent', 0),
                 'turns_left':     ability['turns'],
                 'tick_msg':       ability.get('tick_msg', 'hurt by the lingering storm'),
+                'clear_msg':      ability.get('clear_msg', 'The storm around {name} cleared!'),
+                'badge':          ability.get('badge', 'STORM'),
             }
-            msgs.append(f"A storm surrounds {target['name']}!")
+            msgs.append(ability.get('apply_msg', 'A storm surrounds {name}!').format(name=target['name']))
         elif ability['kind'] == 'lock':
             last = target.get('last_move_used')
             if last is None:
@@ -1200,24 +1321,96 @@ class Game:
         self.field_effects = [fx for fx in self.field_effects if fx['turns_left'] > 0]
         return msgs
 
-    def _tick_dino_effects(self):
-        msgs = []
-        targets = [
-            self.player_dinos[self.active_dino_index],
-            self.enemy_dino,
-        ]
-        for dino in targets:
-            dot = dino.get('dot')
-            if not dot or dino.get('hp', 0) <= 0:
-                continue
-            dmg = max(1, int(dino['max_hp'] * dot['damage_percent'] / 100))
-            dino['hp'] = max(1, dino['hp'] - dmg)
-            msgs.append(f"{dino['name']} is {dot['tick_msg']}! (-{dmg} HP)")
+    def _storm_targets(self):
+        """(dino, battle slot) for every on-field dino with a storm (dot) on it."""
+        if self.is_double_battle:
+            slots = [(self.player_dinos[0] if self.player_dinos else None, 'player1'),
+                     (self._double_battle_p2(), 'player2'),
+                     (self.enemy_dino, 'enemy1'),
+                     (self.enemy_dino2, 'enemy2')]
+        else:
+            slots = [(self.player_dinos[self.active_dino_index], 'player'),
+                     (self.enemy_dino, 'enemy')]
+        return [(d, s) for d, s in slots if d and d.get('dot') and d.get('hp', 0) > 0]
+
+    def _end_turn(self, msgs=()):
+        """Close out a battle turn: show `msgs`, tick field effects, then
+        play each storm (Hail/Sand Storm) tick as its own beat — damage lands
+        and the hit dino flashes black when its message appears, rather than
+        all HP being deducted up front — and finally prompt for the next turn.
+        A storm tick can KO; that hands off to the normal faint flow and any
+        storms not yet ticked this turn wait for the next one."""
+        msgs = list(msgs) + list(self._tick_field_effects())
+        self._clear_defending_flags()
+        self._enemy_defend_rolled = False
+        # A double-battle storm KO re-runs _double_turn_end, which lands back
+        # here — this turn's storms have already been played by then.
+        ticks = [] if self._storms_ticked else self._storm_targets()
+        self._storms_ticked = False
+        double_ko = []   # double battles: play every tick, then resolve faints once
+
+        def tick(i):
+            if i >= len(ticks):
+                if double_ko:
+                    # _double_turn_end handles wins, boss refills, ally swaps
+                    # and replacement prompts, then lands back in _end_turn —
+                    # skip re-ticking storms there.
+                    self._storms_ticked = True
+                    self._double_turn_end()
+                    return
+                self.message_box.queue_messages(["What will you do?"], wait_for_input=True)
+                return
+            dino, slot = ticks[i]
+            if dino.get('hp', 0) <= 0 or not dino.get('dot'):
+                tick(i + 1)
+                return
+            dot = dino['dot']
+            dmg = dot.get('damage_flat') or max(1, int(dino['max_hp'] * dot.get('damage_percent', 0) / 100))
+            dmg = min(dmg, dino['hp'])
+            dino['hp'] -= dmg
+            self.trigger_dot_flash(slot)
+            lines = [f"{dino['name']} is {dot['tick_msg']}! (-{dmg} HP)"]
             dot['turns_left'] -= 1
-            if dot['turns_left'] <= 0:
+            if dino['hp'] <= 0 or dot['turns_left'] <= 0:
                 dino.pop('dot', None)
-                msgs.append(f"The storm around {dino['name']} cleared!")
-        return msgs
+            if dino['hp'] > 0:
+                if dot['turns_left'] <= 0:
+                    lines.append(dot.get('clear_msg', 'The storm around {name} cleared!')
+                                 .format(name=dino['name']))
+                self.message_box.queue_messages(lines, wait_for_input=True,
+                                                on_complete=lambda: tick(i + 1))
+                return
+            if self.is_double_battle:
+                double_ko.append(dino)
+                lines.append(self._double_storm_faint(dino, slot))
+                self.message_box.queue_messages(lines, wait_for_input=True,
+                                                on_complete=lambda: tick(i + 1))
+                return
+            self._storm_ko(dino, slot, lines)
+
+        if msgs:
+            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=lambda: tick(0))
+        else:
+            tick(0)
+
+    def _storm_ko(self, dino, slot, lines):
+        """Single battle: a storm tick just knocked `dino` out — route it
+        through the same faint handling an attack KO uses."""
+        if slot == 'enemy':
+            self._handle_enemy_faint(dino, self.player_dinos[self.active_dino_index], lines)
+        else:
+            self._handle_player_faint(dino, lines)
+
+    def _double_storm_faint(self, dino, slot):
+        """Double battle: book-keep a storm KO and return its faint line."""
+        if slot.startswith('enemy'):
+            self.stats_enemies_defeated += 1
+            self.trainer_dinos_defeated += 1
+            tn = self._trainer_name2 if dino is self.enemy_dino2 else self._trainer_name
+            return f"{tn}'s {dino['name']} fainted!"
+        if dino in self.player_dinos:
+            self.stats_dinos_fainted += 1
+        return f"{dino['name']} fainted!"
 
     def _should_enemy_defend(self, rank):
         if not self.is_trainer_battle:
@@ -1225,6 +1418,10 @@ class Game:
         if rank == 'lowest':
             return False
         if self.enemy_dino.get('defending', False):
+            return False
+        # Same rule as the player: never Defend two turns in a row. The
+        # 'defending' flag alone can't enforce that — it's cleared every turn.
+        if self.enemy_dino.get('_prev_action_defend', False):
             return False
         if self.enemy_defend_uses_remaining <= 0:
             return False
@@ -1243,7 +1440,7 @@ class Game:
             self.enemy_dino2['defending'] = False
 
     def _pick_enemy_move(self, attacker, defender, rank):
-        moveset = attacker.get('moveset', [])
+        moveset = [self._live_move(m) for m in attacker.get('moveset', [])]
         if not moveset:
             return None
         if rank == 'lowest':
@@ -1343,12 +1540,29 @@ class Game:
         return old_name, new_name
 
     def start_evolution(self, dino, evo_target):
-        old_name = dino['name']
-        self.message_box.queue_messages(
-            [f"What? {old_name} is evolving!",
-             f"Congratulations! Your {old_name} evolved into {evo_target}!"],
-            on_complete=lambda: self.do_evolution(dino, evo_target)
-        )
+        """Queue an evolution; it plays as a full EvolutionScreen once the
+        player is back in the overworld with nothing else on screen (see
+        _maybe_start_evolution). Queuing instead of messaging directly keeps
+        it from clobbering whatever message_box is showing (level-ups, coin
+        rewards, another dino's evolution) — queue_messages replaces."""
+        if not any(d is dino for d in self.pending_evolutions):
+            self.pending_evolutions.append(dino)
+
+    def _maybe_start_evolution(self):
+        if not self.pending_evolutions or self.state != 'world':
+            return False
+        if (self.fading or self.entrance_fade_state is not None or self.battle_transition
+                or self.yes_no_prompt or self.heal_anim or self._story_scene_active()):
+            return False
+        while self.pending_evolutions:
+            dino = self.pending_evolutions.pop(0)
+            # Re-check now — it may have evolved already or left the party.
+            target = self.check_evolution(dino) if dino in self.player_dinos else None
+            if target:
+                self.player.freeze_in_place()
+                self.evolution_screen = EvolutionScreen(self, dino, target)
+                return True
+        return False
 
     # --- Encounter ---
 
@@ -1359,6 +1573,30 @@ class Game:
         opening on a dead dino and immediately forcing a "choose a
         replacement" prompt the player never gets to bypass."""
         return next((i for i, d in enumerate(self.player_dinos) if d.get('hp', 0) > 0), 0)
+
+    def _arrange_double_battle_party(self):
+        """Double battles always field player_dinos[0] and [1] (see
+        _double_battle_p2), so a fainted dino at the front of the party would
+        be sent out dead. Swap the first healthy bench dinos into any fainted
+        front slot before the fight opens. active_dino_index is pinned to 0
+        since slot 0 *is* the lead in a double battle."""
+        party = self.player_dinos
+        for slot in (0, 1):
+            if slot >= len(party) or party[slot].get('hp', 0) > 0:
+                continue
+            swap = next((i for i in range(slot + 1, len(party))
+                         if party[i].get('hp', 0) > 0), None)
+            if swap is not None:
+                party[slot], party[swap] = party[swap], party[slot]
+        self.active_dino_index = 0
+
+    def _hp_anim_player_dino(self):
+        """The player dino whose HP bar the battle HUD is animating: slot 0
+        in a double battle (that's what the double HUD draws as p1), the
+        active dino otherwise."""
+        if self.is_double_battle:
+            return self.player_dinos[0]
+        return self.player_dinos[self.active_dino_index]
 
     # TYPE_CHARv2.png grid: row/column order and the grid-line pixel
     # positions (the art's cells aren't evenly sized). Each cell is
@@ -1800,6 +2038,7 @@ class Game:
 
     def start_double_trainer_battle(self, npc1, npc2):
         self.player.freeze_in_place()
+        self._arrange_double_battle_party()
         self.fading = True
         self.fade_alpha = 0
         self.is_trainer_battle = True
@@ -1862,7 +2101,7 @@ class Game:
                 wait_for_input=True, on_complete=after)
             return
 
-        move      = random.choice(moveset)
+        move      = self._live_move(random.choice(moveset))
         move_name = move['name']
         power     = max(0, move.get('damage', 0))
         mtype     = move.get('type', 'normal')
@@ -1954,6 +2193,17 @@ class Game:
             return self.abby_dinos[0]
         return self.player_dinos[1] if len(self.player_dinos) > 1 else None
 
+    def _double_player_slots(self):
+        """Party indices of the player's own dinos on the field. With an ally
+        the second battler is the ally's dino, so only slot 0 is out and
+        player_dinos[1] is just a bench dino like any other."""
+        return (0,) if self._abby_is_ally() else (0, 1)
+
+    def _double_alive_bench(self):
+        out = self._double_player_slots()
+        return [i for i, d in enumerate(self.player_dinos)
+                if d.get('hp', 0) > 0 and i not in out]
+
     def _double_continue_turn(self):
         """Chain p2 auto → e1 auto → e2 auto → turn end after player's p1 action."""
         p1 = self.player_dinos[0] if self.player_dinos else None
@@ -1973,9 +2223,7 @@ class Game:
                     ["You blacked out!", "Be careful next time..."],
                     wait_for_input=True, on_complete=self.trigger_blackout)
                 return
-            msgs = list(self._tick_field_effects()) + list(self._tick_dino_effects())
-            msgs.append("What will you do?")
-            self.message_box.queue_messages(msgs, wait_for_input=True)
+            self._end_turn()
 
         def e2_attacks():
             if not e2 or e2.get('hp', 0) <= 0:
@@ -2080,7 +2328,12 @@ class Game:
         ui.move_selected    = 0
         ui.selecting_p2     = False
         p1 = self.player_dinos[0] if self.player_dinos else None
-        if p1 and p1.get('hp', 0) > 0 and p1.get('must_recharge'):
+        if not p1 or p1.get('hp', 0) <= 0:
+            # Fainted lead with no bench left to replace it — don't show
+            # its action menu, go straight to Dino 2's pick.
+            self.double_p1_queued = None
+            self._double_advance_to_p2()
+        elif p1.get('must_recharge'):
             self.double_p1_queued = {'action': 'recharge'}
             self._double_advance_to_p2()
 
@@ -2218,6 +2471,7 @@ class Game:
         if not move:
             if after: after()
             return
+        move           = self._live_move(move)
         power          = max(0, move.get('damage', 0))
         acc            = move.get('accuracy', 100)
         mtype          = move.get('type', 'normal')
@@ -2383,25 +2637,18 @@ class Game:
             fainted_slots.append(1)
 
         if fainted_slots:
-            alive_bench = [i for i, d in enumerate(self.player_dinos)
-                           if d.get('hp', 0) > 0 and i >= 2]
-            if alive_bench:
+            if self._double_alive_bench():
                 self.double_replace_queue = fainted_slots.copy()
                 self._double_next_replacement()
                 return
 
         # No replacements needed — start next turn
-        self._clear_defending_flags()
-        msgs = list(self._tick_field_effects())
-        msgs.append("What will you do?")
-        self.message_box.queue_messages(msgs, wait_for_input=True)
+        self._end_turn()
 
     def _double_next_replacement(self):
         while self.double_replace_queue:
             slot = self.double_replace_queue.pop(0)
-            alive_bench = [i for i, d in enumerate(self.player_dinos)
-                           if d.get('hp', 0) > 0 and i >= 2]
-            if alive_bench:
+            if self._double_alive_bench():
                 self.double_replace_slot = slot
                 dino_name = self.player_dinos[slot]['name']
                 self.message_box.queue_messages(
@@ -2415,10 +2662,7 @@ class Game:
         if self.double_replace_queue:
             self._double_next_replacement()
             return
-        self._clear_defending_flags()
-        msgs = list(self._tick_field_effects())
-        msgs.append("What will you do?")
-        self.message_box.queue_messages(msgs, wait_for_input=True)
+        self._end_turn()
 
     def _open_party_forced_double_swap(self):
         if self.state_stack[-1] != 'party':
@@ -3454,7 +3698,7 @@ class Game:
             return
         self.cutscene = None
         self.player.freeze_in_place()
-        self.active_dino_index = self._first_alive_dino_index()
+        self._arrange_double_battle_party()
         self.fading = True
         self.fade_alpha = 0
         self.is_trainer_battle = True
@@ -6067,6 +6311,17 @@ class Game:
             return
         self._shadowhq_face_each_other(curfeu)
         self.cutscene = {'phase': 'shadowhq_wait'}
+
+        def give_whitepod():
+            # Flagged so a replayed scene (e.g. reload mid-cutscene) can't hand out a second one
+            if self.story_flags.get('curfeu_whitepod_given'):
+                walk_off()
+                return
+            self.story_flags['curfeu_whitepod_given'] = True
+            self.inventory['Whitepod'] = self.inventory.get('Whitepod', 0) + 1
+            self.message_box.queue_messages(
+                ["You received a Whitepod!"], wait_for_input=True, on_complete=walk_off)
+
         self.message_box.queue_messages(
             self._tag_dialogue('Curfeu', [
                 "Thank you both for coming to help in such a dire time",
@@ -6074,9 +6329,10 @@ class Game:
                 "Jet, go stop the dark energy pulsing from that ancient creature",
                 "I can fill you in on whats going on after",
                 "Meet me in Palm Port after this is taken care of",
+                "oh... you might need this",
             ]),
             wait_for_input=True,
-            on_complete=walk_off
+            on_complete=give_whitepod
         )
 
     def _shadowhq_curfeu_gone(self):
@@ -6801,7 +7057,7 @@ class Game:
                     'encounter' in self.state_stack and
                     hasattr(self, 'encounter_ui') and
                     self.encounter_ui.is_hp_animating(
-                        self.player_dinos[self.active_dino_index], self.enemy_dino)
+                        self._hp_anim_player_dino(), self.enemy_dino)
                 )
                 if not hp_animating and self.move_anim is None:
                     self.message_box.handle_event(event)
@@ -6822,7 +7078,7 @@ class Game:
             # Block encounter actions while HP bars animate
             if ('encounter' in self.state_stack and hasattr(self, 'encounter_ui') and
                     self.encounter_ui.is_hp_animating(
-                        self.player_dinos[self.active_dino_index], self.enemy_dino)):
+                        self._hp_anim_player_dino(), self.enemy_dino)):
                 continue
 
             if self.state == 'world':
@@ -6854,6 +7110,10 @@ class Game:
             elif self.state == 'dinodex':
                 result = self.dinodex_screen.handle_event(event, self)
                 if result == 'back':
+                    self.pop_state()
+
+            elif self.state == 'move_list':
+                if self.move_list_screen.handle_event(event, self) == 'back':
                     self.pop_state()
 
             elif self.state == 'party':
@@ -7561,6 +7821,27 @@ class Game:
             return True
         return False
 
+    def _interact_lilly(self, npc):
+        """Sierra Town: Lilly gives the player 5 DinoPods, once."""
+        if self.story_flags.get('lilly_gift_done'):
+            self.message_box.queue_messages(
+                self._tag_dialogue('Lilly', ["Good luck out there! I hope those DinoPods catch you something great!"]),
+                wait_for_input=True)
+            return
+
+        def give():
+            self.inventory['DinoPod'] = self.inventory.get('DinoPod', 0) + 5
+            self.story_flags['lilly_gift_done'] = True
+            self.message_box.queue_messages(
+                ["You received 5 DinoPods!"], wait_for_input=True)
+
+        self.message_box.queue_messages(
+            self._tag_dialogue('Lilly', [
+                "Oh, a new trainer! Welcome to Sierra Town!",
+                "I've got more DinoPods than I'll ever use, here, take some!",
+            ]),
+            wait_for_input=True, on_complete=give)
+
     def _interact_story_npc(self, npc):
         if npc.trainer_id == 'amber':
             if (self.current_world_file == 'RESEARCH_LAB.tmx'
@@ -7627,6 +7908,8 @@ class Game:
                 wait_for_input=True,
                 # turn back to watching the lake once she's done talking
                 on_complete=lambda n=npc: setattr(n, 'facing', n.home_facing))
+        elif npc.trainer_id == 'lilly':
+            self._interact_lilly(npc)
         elif npc.trainer_id == 'tommy':
             self.message_box.queue_messages(
                 self._tag_dialogue('Tommy', [
@@ -7661,7 +7944,9 @@ class Game:
         elif npc.trainer_id == 'gray_home':
             self.message_box.queue_messages(
                 self._tag_dialogue('Gray', [
-                    f"Hey {config.PLAYER_NAME}, I can't wait to start our dino journey, you better be able to keep up with me"]),
+                    f"Hey {config.PLAYER_NAME}, I can't wait to start our dino journey, you better be able to keep up with me",
+                    "Hey quick tip, training your dinos when there are less in your party gives more xp, "
+                    "even better training with just one dino gives you maximum xp for it!"]),
                 wait_for_input=True)
         elif npc.trainer_id == 'abby_home':
             self.message_box.queue_messages(
@@ -8764,10 +9049,11 @@ class Game:
                 cb()
 
         if 'encounter' in self.state_stack and hasattr(self, 'encounter_ui'):
-            active = self.player_dinos[self.active_dino_index]
+            active = self._hp_anim_player_dino()
             if self.is_double_battle:
-                p2 = self._double_battle_p2() or active
-                self.encounter_ui.update(dt, active, p2,
+                # Same p1/p2/e2 the draw path hands DoubleBattleUI.draw, or
+                # the bars would slide toward a different dino's HP.
+                self.encounter_ui.update(dt, active, self._double_battle_p2(),
                                          self.enemy_dino,
                                          self.enemy_dino2 or self.enemy_dino)
             else:
@@ -8795,6 +9081,15 @@ class Game:
             return
 
         if self.coord_input_active or self.dino_spawn_picker:
+            return
+
+        if self.state == 'evolution':
+            if self.evolution_screen:
+                self.evolution_screen.update(dt)
+            if self.state != 'evolution':
+                self.evolution_screen = None
+            return
+        if self._maybe_start_evolution():
             return
 
         # After any message clears in double battle, auto-arm p1 selection for the new turn
@@ -8987,7 +9282,7 @@ class Game:
             # out in space there's no day/night or eclipse sky over the planet
             if self.night_active and not space:
                 self.screen.blit(self._night_overlay, (0, 0))
-            if self.event_overlay_active and not space:
+            if self.eclipse_overlay_visible and not space:
                 self.screen.blit(self._event_overlay, (0, 0))
             self._draw_lantern_wisps(self.screen)   # after the night overlay so they glow
             self.lake_aurora.draw(self.screen)  # LAKE AURORA
@@ -9107,7 +9402,7 @@ class Game:
                                                       self.ball_icons['DinoPod'])
                             send_out_fx = anim["send_out_fx"] = SendOutAnimation(
                                 pod, d['image'],
-                                EncounterUI.player_sprite_rect(config.WIDTH, config.HEIGHT),
+                                EncounterUI.player_sprite_rect(config.WIDTH, config.HEIGHT, d['name']),
                                 start_pos=(-30, config.HEIGHT - 80))
                     self.encounter.draw(self.screen, offset_x=offset_x)
                 else:
@@ -9141,13 +9436,14 @@ class Game:
 
             if self.move_anim and not self.encounter_anim:
                 self.move_anim.draw(self.screen)
+            self._draw_dot_flash(self.screen)
             if self.catch_anim and not self.is_double_battle:
                 self.catch_anim.draw(self.screen)
 
         if background_state == 'encounter' and current_state == 'encounter':
             if self.night_active:
                 self.screen.blit(self._night_overlay_battle, (0, 0))
-            if self.event_overlay_active:
+            if self.eclipse_overlay_visible:
                 self.screen.blit(self._event_overlay_battle, (0, 0))
 
         elif current_state == 'type_chart':
@@ -9174,6 +9470,10 @@ class Game:
             if getattr(self, 'badge_earned_screen', None):
                 self.badge_earned_screen.draw(self.screen)
 
+        elif current_state == 'evolution':
+            if self.evolution_screen:
+                self.evolution_screen.draw(self.screen)
+
         elif current_state == 'move_info':
             if self.move_info_screen:
                 self.move_info_screen.draw(self.screen)
@@ -9181,11 +9481,14 @@ class Game:
         elif current_state == 'dinodex':
             self.dinodex_screen.draw(self.screen)
 
+        elif current_state == 'move_list':
+            self.move_list_screen.draw(self.screen)
+
         elif current_state in ('menu', 'party', 'items', 'shop', 'box', 'dino_picker', 'quest_debug'):
             if background_state == 'encounter':
                 if self.night_active:
                     self.screen.blit(self._night_overlay_battle, (0, 0))
-                if self.event_overlay_active:
+                if self.eclipse_overlay_visible:
                     self.screen.blit(self._event_overlay_battle, (0, 0))
             elif background_state == 'world' and current_state not in ('shop', 'box', 'dino_picker'):
                 self.draw_overlay()
@@ -9249,6 +9552,14 @@ class Game:
             return self.force_night
         return self.is_night
 
+    @property
+    def eclipse_overlay_visible(self):
+        """Eclipse tint is a sky effect — underground (Cobalt Cave, Horizon
+        Cave and any future *CAVE* map) there's no sky to darken. The event
+        itself stays active; only the overlay is skipped, so it comes back
+        the moment the player walks out."""
+        return self.event_overlay_active and 'CAVE' not in self.current_world_file.upper()
+
     # --- Sky transition cards (day/night + eclipse) ---
 
     def start_sky_transition(self, kind, on_swap=None, on_done=None):
@@ -9256,6 +9567,8 @@ class Game:
         The world is paused and input ignored until it finishes; on_swap runs
         while the card fully covers the screen."""
         self.sky_transition = SkyTransition(kind, on_swap=on_swap, on_done=on_done)
+        if kind == 'eclipse':
+            self.sfx.play('eclipse')   # tools/make_sfx.py: make_eclipse, hits at the 3.0s swap
 
     def _enable_eclipse_overlay(self):
         self.event_overlay_active = True
@@ -9268,10 +9581,19 @@ class Game:
         self.day_night_timer = 0.0
 
     def update_day_night(self, dt):
-        if self.dn_transitioning or self.state != 'world':
+        """Day and night swap every CYCLE_DURATION seconds of play time —
+        battles, menus and dialogue all count. The swap itself waits until
+        the player is free in the overworld so the sky card never cuts into
+        a battle, cutscene or conversation. The timer is only reset by a
+        natural swap or a story event that forces day/night (and is saved)."""
+        if self.dn_transitioning:
             return
         self.day_night_timer += dt
         if self.day_night_timer < self.CYCLE_DURATION:
+            return
+        if (self.state != 'world' or self.message_box.visible or self.fading
+                or self.entrance_fade_state is not None or self.battle_transition
+                or self._story_scene_active()):
             return
         if self.event_overlay_active or self.force_night is not None:
             # Eclipse / forced night hides the cycle anyway — flip quietly
@@ -9380,11 +9702,54 @@ class Game:
         self.hit_flash = {'target': target, 'timer': 0.0, 'duration': 0.8, 'interval': 0.08}
 
     def update_hit_flash(self, dt):
+        if self.dot_flash:
+            self.dot_flash['timer'] += dt
+            if self.dot_flash['timer'] >= self.dot_flash['duration']:
+                self.dot_flash = None
         if not self.hit_flash:
             return
         self.hit_flash['timer'] += dt
         if self.hit_flash['timer'] >= self.hit_flash['duration']:
             self.hit_flash = None
+
+    def trigger_dot_flash(self, slot):
+        """Storm tick hit: the dino in `slot` flashes black a few times."""
+        self.dot_flash = {'slot': slot, 'timer': 0.0, 'duration': 0.9, 'interval': 0.1}
+
+    def _battle_sprite(self, slot):
+        """(surface, screen rect) of the sprite drawn in battle `slot`,
+        matching Encounter / EncounterUI / DoubleBattle* placement."""
+        W, H = config.WIDTH, config.HEIGHT
+        if self.is_double_battle:
+            if slot in ('enemy1', 'enemy2'):
+                surf = self.encounter.frame1 if slot == 'enemy1' else self.encounter.frame2
+                rect = pygame.Rect(0, 0, 120, 120)
+                rect.center = (W - 250 if slot == 'enemy1' else W - 120, 145)
+            else:
+                d = self.player_dinos[0] if slot == 'player1' else self._double_battle_p2()
+                surf = d.get('image') if d else None
+                rect = double_back_sprite_rect(d['name'] if d else None,
+                                               94 if slot == 'player1' else 244, H - 120)
+            return surf, rect
+        if slot == 'enemy':
+            enc = self.encounter
+            size = int(config.ENCOUNTER_BASE_SIZE * config.ENCOUNTER_DINO_SIZES.get(enc.dino_key, 1.0))
+            rect = pygame.Rect(0, 0, size, size)
+            rect.center = (W - 157, 155)
+            return enc.current_dino_surface, rect
+        d = self.player_dinos[self.active_dino_index]
+        return d.get('image'), self.encounter_ui.player_sprite_rect(W, H, d['name'])
+
+    def _draw_dot_flash(self, screen):
+        f = self.dot_flash
+        if not f or int(f['timer'] / f['interval']) % 2:
+            return
+        surf, rect = self._battle_sprite(f['slot'])
+        if surf is None:
+            return
+        sil = pygame.mask.from_surface(pygame.transform.scale(surf, rect.size)).to_surface(
+            setcolor=(0, 0, 0, 235), unsetcolor=(0, 0, 0, 0))
+        screen.blit(sil, rect)
 
     # Screen-space sprite centers + effect scale for each battle slot
     # (mirrors the sprite placement in screens.Encounter / EncounterUI / DoubleBattle*)
@@ -9529,26 +9894,10 @@ class Game:
                 if len(alive) > 1:
                     msgs.append(f"Each party dino gained {int(round(xp_gain * _ct_ben_m))} XP!")
 
-            def run_evolutions(i=0):
-                if i >= len(to_evolve):
-                    self.pop_to_world()
-                    return
-                dino, target = to_evolve[i]
-                old_name = dino['name']
-                def do_next():
-                    old_species, new_species = self.do_evolution(dino, target)
-                    self.message_box.queue_messages(
-                        [f"Congratulations! Your {old_species} evolved into {new_species}!"],
-                        wait_for_input=True,
-                        on_complete=lambda: run_evolutions(i + 1)
-                    )
-                self.message_box.queue_messages(
-                    [f"What? {old_name} is evolving!"],
-                    wait_for_input=True,
-                    on_complete=do_next
-                )
+            for dino, target in to_evolve:
+                self.start_evolution(dino, target)   # plays back in the overworld
 
-            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=lambda: run_evolutions(0))
+            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.pop_to_world)
             return
 
         self.message_box.queue_messages(
@@ -9572,7 +9921,7 @@ class Game:
         if move_index < 0 or move_index >= len(attacker['moveset']):
             return
 
-        move          = attacker['moveset'][move_index]
+        move          = self._live_move(attacker['moveset'][move_index])
         move_name     = move['name']
         power         = max(0, move.get('damage', 0))
         acc           = move.get('accuracy', 100)
@@ -9586,6 +9935,7 @@ class Game:
             locked_name = attacker.get('locked_move')
             forced = next((m for m in attacker['moveset'] if m['name'] == locked_name), None)
             if forced:
+                forced        = self._live_move(forced)
                 move          = forced
                 move_name     = forced['name']
                 power         = max(0, forced.get('damage', 0))
@@ -9607,20 +9957,14 @@ class Game:
             if self._should_enemy_defend(_rank):
                 self.enemy_defend_uses_remaining -= 1
                 self.enemy_dino['defending'] = True
+                self.enemy_dino['_prev_action_defend'] = True
                 n = self.enemy_defend_uses_remaining
                 _acc, _mn, _att, _def = acc, move_name, attacker, defender
                 _pwr, _mtype, _abl, _pd = power, mtype, ability, pierces_defend
                 def _after_announce():
-                    def _end_turn():
-                        self._clear_defending_flags()
-                        fe = list(self._tick_field_effects())
-                        fe.append("What will you do?")
-                        self.message_box.queue_messages(fe, wait_for_input=True)
+                    _end_turn = self._end_turn
                     if random.random() * 100 > _acc:
-                        self._clear_defending_flags()
-                        self.message_box.queue_messages(
-                            [f"{_att['name']} used {_mn}!", "But it missed!", "What will you do?"],
-                            wait_for_input=True)
+                        self._end_turn([f"{_att['name']} used {_mn}!", "But it missed!"])
                     else:
                         self._apply_player_attack(_att, _def, _mn, _pwr, _mtype, _abl,
                                                   pierces_defend=_pd, after=_end_turn)
@@ -9629,6 +9973,10 @@ class Game:
                      f"({n} Defend{'s' if n != 1 else ''} remaining)"],
                     wait_for_input=True, on_complete=_after_announce)
                 return
+            # This turn's Defend roll is spent — _enemy_turn mustn't re-roll it
+            # (that doubled the Defend rate and, when the enemy moved first,
+            # skipped the player's attack entirely).
+            self._enemy_defend_rolled = True
 
         speed_swap   = any(fx['effect'] == 'speed_swap' for fx in self.field_effects)
         p_spd        = self._get_effective_stat(attacker, 'speed')
@@ -9665,10 +10013,7 @@ class Game:
                 if p.get('hp', 0) <= 0:
                     return
                 if random.random() * 100 > acc:
-                    self._clear_defending_flags()
-                    self.message_box.queue_messages(
-                        [f"{p['name']} used {move_name}!", "But it missed!", "What will you do?"],
-                        wait_for_input=True)
+                    self._end_turn([f"{p['name']} used {move_name}!", "But it missed!"])
                     return
                 self._apply_player_attack(p, self.enemy_dino, move_name, power, mtype, ability,
                                           pierces_defend=pierces_defend, after=None)
@@ -9684,11 +10029,7 @@ class Game:
             if after:
                 self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
             else:
-                msgs.extend(self._tick_field_effects())
-                msgs.extend(self._tick_dino_effects())
-                self._clear_defending_flags()
-                msgs.append("What will you do?")
-                self.message_box.queue_messages(msgs, wait_for_input=True)
+                self._end_turn(msgs)
             return
 
         defender['defending'] = False
@@ -9725,97 +10066,96 @@ class Game:
         msgs.extend(self._apply_move_ability(ability, attacker, defender, dmg))
 
         if defender['hp'] <= 0:
-            self.stats_enemies_defeated += 1
-            self.encounter_ui.in_fight_menu = False
-            faint_prefix = f"{self._trainer_name}'s" if self.is_trainer_battle else "The wild"
-            faint_msg = f"{faint_prefix} {defender['name']} fainted!"
-            if self.is_trainer_battle:
-                t_data = TRAINER_DATA.get(self.current_trainer_npc.trainer_id, {}) if self.current_trainer_npc else {}
-                multiplier = 1.0 if is_boss_tier_trainer(t_data) else 0.9
-            else:
-                multiplier = 0.8
-            xp_gain = calculate_xp_gain(
-                player_level=attacker['level'],
-                opponent_level=defender['level'],
-                enemy_name=defender['name'],
-                state_multiplier=multiplier,
-            )
-            level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
-            _disp_alive = len([d for d in self.player_dinos if d.get('hp', 0) > 0])
-            _disp_act_m = ACTIVE_XP_MULT_SOLO if _disp_alive == 1 else ACTIVE_XP_MULT_PARTY
-            _disp_ben_m = BENCH_XP_MULT.get(_disp_alive, 1.0)
-            xp_msgs = [f"{attacker['name']} has gained {int(round(xp_gain * _disp_act_m))} XP!"]
-            if _disp_alive > 1:
-                xp_msgs.append(f"Each party dino gained {int(round(xp_gain * _disp_ben_m))} XP!")
-            xp_msgs.extend(level_up_msgs)
-
-            def handle_evolutions():
-                coin_reward = 0
-                if self.is_trainer_battle:
-                    self.trainer_dinos_defeated += 1
-                    if self.is_double_battle:
-                        # Let _double_turn_end decide when the battle is won
-                        if after:
-                            after()
-                        return
-                    if self.trainer_dino_queue:
-                        self._send_next_trainer_dino()
-                        return
-                    if self.current_trainer_npc:
-                        self.current_trainer_npc.defeated = True
-                        self.defeated_trainers.add(self._trainer_key(self.current_trainer_npc))
-                        coin_reward = self._trainer_data(self.current_trainer_npc).get('reward_coins', 0)
-                    self.is_trainer_battle = False
-
-                def finish_battle():
-                    for dino in self.player_dinos:
-                        dino['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
-                        dino['defending']   = False
-                    evolved = False
-                    for dino in self.player_dinos:
-                        evo_target = self.check_evolution(dino)
-                        if evo_target:
-                            evolved = True
-                            self.start_evolution(dino, evo_target)
-                            self.pop_to_world()
-                    if not evolved:
-                        self.pop_to_world()
-                    cb = self._post_trainer_battle_cb
-                    if cb:
-                        self._post_trainer_battle_cb = None
-                        cb()
-
-                if coin_reward > 0:
-                    self.coins += coin_reward
-                    self.message_box.queue_messages(
-                        [f"You received {coin_reward} coins!"],
-                        wait_for_input=True, on_complete=finish_battle)
-                else:
-                    finish_battle()
-
-            def show_xp():
-                if self.is_double_battle:
-                    # Skip XP animation mid-battle; award silently then continue turn
-                    handle_evolutions()
-                    return
-                self.encounter_ui.unfreeze_xp()
-                def after_xp_msgs():
-                    self._post_xp_callback = handle_evolutions
-                self.message_box.queue_messages(xp_msgs, wait_for_input=True, on_complete=after_xp_msgs)
-
-            def show_faint():
-                self.message_box.queue_messages([faint_msg], wait_for_input=True, on_complete=show_xp)
-
-            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=show_faint)
+            self._handle_enemy_faint(defender, attacker, msgs, after)
         else:
             if after:
                 self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
             else:
-                msgs.extend(self._tick_field_effects())
-                msgs.extend(self._tick_dino_effects())
-                self._clear_defending_flags()
-                msgs.append("What will you do?")
-                self.message_box.queue_messages(msgs, wait_for_input=True)
+                self._end_turn(msgs)
+
+    def _handle_enemy_faint(self, defender, attacker, msgs, after=None):
+        """An enemy dino just hit 0 HP (from an attack or a storm tick):
+        show `msgs` + the faint, award XP credited to `attacker`, then send
+        the trainer's next dino / end the battle — or, in a double battle,
+        hand back to `after` and let _double_turn_end decide."""
+        self.stats_enemies_defeated += 1
+        self.encounter_ui.in_fight_menu = False
+        faint_prefix = f"{self._trainer_name}'s" if self.is_trainer_battle else "The wild"
+        faint_msg = f"{faint_prefix} {defender['name']} fainted!"
+        if self.is_trainer_battle:
+            t_data = TRAINER_DATA.get(self.current_trainer_npc.trainer_id, {}) if self.current_trainer_npc else {}
+            multiplier = 1.0 if is_boss_tier_trainer(t_data) else 0.9
+        else:
+            multiplier = 0.8
+        xp_gain = calculate_xp_gain(
+            player_level=attacker['level'],
+            opponent_level=defender['level'],
+            enemy_name=defender['name'],
+            state_multiplier=multiplier,
+        )
+        level_up_msgs = self._grant_party_xp_and_level_ups(xp_gain)
+        _disp_alive = len([d for d in self.player_dinos if d.get('hp', 0) > 0])
+        _disp_act_m = ACTIVE_XP_MULT_SOLO if _disp_alive == 1 else ACTIVE_XP_MULT_PARTY
+        _disp_ben_m = BENCH_XP_MULT.get(_disp_alive, 1.0)
+        xp_msgs = [f"{attacker['name']} has gained {int(round(xp_gain * _disp_act_m))} XP!"]
+        if _disp_alive > 1:
+            xp_msgs.append(f"Each party dino gained {int(round(xp_gain * _disp_ben_m))} XP!")
+        xp_msgs.extend(level_up_msgs)
+
+        def handle_evolutions():
+            coin_reward = 0
+            if self.is_trainer_battle:
+                self.trainer_dinos_defeated += 1
+                if self.is_double_battle:
+                    # Let _double_turn_end decide when the battle is won
+                    if after:
+                        after()
+                    return
+                if self.trainer_dino_queue:
+                    self._send_next_trainer_dino()
+                    return
+                if self.current_trainer_npc:
+                    self.current_trainer_npc.defeated = True
+                    self.defeated_trainers.add(self._trainer_key(self.current_trainer_npc))
+                    coin_reward = self._trainer_data(self.current_trainer_npc).get('reward_coins', 0)
+                self.is_trainer_battle = False
+
+            def finish_battle():
+                for dino in self.player_dinos:
+                    dino['stat_stages'] = {"attack": 0, "defense": 0, "speed": 0}
+                    dino['defending']   = False
+                for dino in self.player_dinos:
+                    evo_target = self.check_evolution(dino)
+                    if evo_target:
+                        self.start_evolution(dino, evo_target)
+                self.pop_to_world()
+                cb = self._post_trainer_battle_cb
+                if cb:
+                    self._post_trainer_battle_cb = None
+                    cb()
+
+            if coin_reward > 0:
+                self.coins += coin_reward
+                self.message_box.queue_messages(
+                    [f"You received {coin_reward} coins!"],
+                    wait_for_input=True, on_complete=finish_battle)
+            else:
+                finish_battle()
+
+        def show_xp():
+            if self.is_double_battle:
+                # Skip XP animation mid-battle; award silently then continue turn
+                handle_evolutions()
+                return
+            self.encounter_ui.unfreeze_xp()
+            def after_xp_msgs():
+                self._post_xp_callback = handle_evolutions
+            self.message_box.queue_messages(xp_msgs, wait_for_input=True, on_complete=after_xp_msgs)
+
+        def show_faint():
+            self.message_box.queue_messages([faint_msg], wait_for_input=True, on_complete=show_xp)
+
+        self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=show_faint)
 
     def use_player_move_by_name(self, move_name):
         attacker = self.player_dinos[self.active_dino_index]
@@ -9888,11 +10228,7 @@ class Game:
             if after:
                 self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
             else:
-                msgs.extend(self._tick_field_effects())
-                msgs.extend(self._tick_dino_effects())
-                self._clear_defending_flags()
-                msgs.append("What will you do?")
-                self.message_box.queue_messages(msgs, wait_for_input=True)
+                self._end_turn(msgs)
             return
 
         # Get trainer rank for AI (wild dinos use lowest logic)
@@ -9901,21 +10237,27 @@ class Game:
             t_data = TRAINER_DATA.get(self.current_trainer_npc.trainer_id, {})
             rank = t_data.get('rank', 'lowest')
 
-        # Trainer AI: decide to defend? (checks current defending flag to block back-to-back)
-        if self._should_enemy_defend(rank):
+        # Trainer AI: decide to defend? Only when the player's move didn't
+        # already roll it this turn (use_player_move rolls Defend up front);
+        # this covers turns where the player switched, used an item or Defended.
+        rolled = self._enemy_defend_rolled
+        self._enemy_defend_rolled = False
+        if not rolled and self._should_enemy_defend(rank):
             self.enemy_defend_uses_remaining -= 1
             attacker['defending'] = True
+            attacker['_prev_action_defend'] = True
             n = self.enemy_defend_uses_remaining
             msgs = [f"{self._trainer_name}'s {attacker['name']} braced for impact!",
                     f"({n} Defend{'s' if n != 1 else ''} remaining)"]
-            msgs.extend(self._tick_field_effects())
-            self._clear_defending_flags()
-            msgs.append("What will you do?")
-            self.message_box.queue_messages(msgs, wait_for_input=True)
+            if after:
+                self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
+            else:
+                self._end_turn(msgs)
             return
 
-        # Taking an action — clear defending flag
+        # Taking an action — clear defending flags
         attacker['defending'] = False
+        attacker['_prev_action_defend'] = False
 
         # Pick move based on rank
         if self.is_trainer_battle:
@@ -9935,6 +10277,7 @@ class Game:
                 attacker.pop('locked_move', None)
 
         if move:
+            move = self._live_move(move)
             attacker['last_move_used'] = move['name']
 
         if move is None:
@@ -9971,11 +10314,7 @@ class Game:
             if after:
                 self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
             else:
-                msgs.extend(self._tick_field_effects())
-                msgs.extend(self._tick_dino_effects())
-                self._clear_defending_flags()
-                msgs.append("What will you do?")
-                self.message_box.queue_messages(msgs, wait_for_input=True)
+                self._end_turn(msgs)
             return
 
         STAB    = stab_multiplier(mtype, attacker['type'])
@@ -10001,27 +10340,30 @@ class Game:
         msgs.extend(self._apply_move_ability(ability, attacker, defender, dmg))
 
         if defender['hp'] <= 0:
-            self.stats_dinos_fainted += 1
-            alive = [d for d in self.player_dinos if d.get('hp', 0) > 0]
-            msgs.append(f"{defender['name']} fainted!")
-            if alive:
-                self.awaiting_switch = True
-                self.message_box.queue_messages(
-                    msgs, wait_for_input=True,
-                    on_complete=lambda: self.request_party_swap(defender['name'])
-                )
-            else:
-                msgs.extend(["You blacked out!", "Be careful next time..."])
-                self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.trigger_blackout)
+            self._handle_player_faint(defender, msgs)
             return
 
         if after:
             self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
         else:
-            msgs.extend(self._tick_field_effects())
-            self._clear_defending_flags()
-            msgs.append("What will you do?")
-            self.message_box.queue_messages(msgs, wait_for_input=True)
+            self._end_turn(msgs)
+
+    def _handle_player_faint(self, defender, msgs):
+        """Single battle: the player's active dino just hit 0 HP (attack or
+        storm tick) — force a switch, or black out if nobody's left."""
+        self.stats_dinos_fainted += 1
+        alive = [d for d in self.player_dinos if d.get('hp', 0) > 0]
+        msgs = list(msgs)
+        if alive:
+            # request_party_swap shows "<name> has fainted!" itself
+            self.awaiting_switch = True
+            self.message_box.queue_messages(
+                msgs, wait_for_input=True,
+                on_complete=lambda: self.request_party_swap(defender['name'])
+            )
+        else:
+            msgs.extend([f"{defender['name']} fainted!", "You blacked out!", "Be careful next time..."])
+            self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=self.trigger_blackout)
 
     def request_party_swap(self, fainted_name):
         self.awaiting_switch = True

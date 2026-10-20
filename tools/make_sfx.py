@@ -468,6 +468,42 @@ def make_vy_awaken():
     save('vy_awaken', crush(x, 24), peak=0.6)
 
 
+def make_eclipse():
+    # Eclipse sky card (4.5s, swap at 3.0s): a detuned low drone and cold
+    # wind swell while the moon slides over the sun, a ticking heartbeat
+    # quickens, then at totality (~2.9s) a deep boom and a sour minor chime
+    # ring out into a dark, hollow shimmer that fades with the card.
+    dur, hit = 4.4, 2.9
+    n = int(RATE * dur)
+    t = t_axis(dur)
+    x = np.zeros(n)
+    hn = int(RATE * hit)
+    build = np.clip(t / hit, 0, 1) ** 1.6
+    drone = (triangle(55, dur) + triangle(58.3, dur) * 0.9 + square(82.4, dur, 0.3) * 0.2)
+    drone = lowpass(drone, 0.1) * build
+    drone[hn:] *= np.linspace(1, 0.35, n - hn)
+    wind = lowpass_sweep(noise(dur), 0.02 + 0.12 * build) * build * 1.3
+    wind[hn:] *= np.linspace(1, 0.15, n - hn)
+    x += drone * 0.9 + wind
+    beat, step = 0.35, 0.5                       # heartbeat thumps speeding up
+    while beat < hit - 0.1:
+        d = 0.16
+        thump = sine(np.linspace(70, 40, int(RATE * d)), d) * env(int(RATE * d), 0.002, 2.5)
+        place(x, thump * (0.3 + 0.7 * beat / hit), beat)
+        beat += step
+        step = max(0.16, step * 0.82)
+    bd = dur - hit
+    bn = int(RATE * bd)
+    boom = sine(np.linspace(62, 28, bn), bd) * env(bn, 0.003, 1.3) * 1.6
+    crash = lowpass_sweep(noise(bd), np.linspace(0.35, 0.02, bn)) * env(bn, 0.002, 1.8) * 1.3
+    chime = (bell(311, bd, 0.7, 1.6) + bell(330, bd, 0.7, 1.6) * 0.8      # minor second, sour
+             + bell(466, bd, 0.5, 2.0) * 0.5 + bell(622, bd, 0.4, 2.4) * 0.35)
+    place(x, boom + crash + chime * 0.7, hit)
+    place(x, _shimmer((622, 740, 932), bd, 59, (0.09, 0.16), 7.0) * 0.5, hit + 0.15)
+    x[-int(RATE * 0.08):] *= np.linspace(1, 0, int(RATE * 0.08))
+    save('eclipse', crush(lowpass(x, 0.45), 20), peak=0.6)
+
+
 if __name__ == '__main__':
     make_bump()
     make_click()
@@ -491,3 +527,4 @@ if __name__ == '__main__':
     make_warp_solar()
     make_deimo_awaken()
     make_vy_awaken()
+    make_eclipse()

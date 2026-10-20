@@ -13,7 +13,7 @@ STAT_STAGE_MULT = {
 # on-screen "gained X XP" messages, so the two can't drift apart again.
 ACTIVE_XP_MULT_SOLO  = 2.0   # active dino's multiplier when it's the only one alive
 ACTIVE_XP_MULT_PARTY = 1.5   # active dino's multiplier when others are alive too
-BENCH_XP_MULT = {2: 1.2, 3: 1.0, 4: 0.8, 5: 0.6}
+BENCH_XP_MULT = {2: 1.0, 3: 0.9, 4: 0.7, 5: 0.5}
 
 # Objectives notepad (i menu -> Objectives). Each row is
 # (id, label before completion, label once completed, story flags).
@@ -208,7 +208,7 @@ TRAINER_DATA = {
         'defeated': False,
         'biome': 'forest',
         'reward_coins': 500,
-        'rank': 'rival',
+        'rank': 'lowest',   # eased for the first rival fight (was 'rival')
     },
     'gray2': {
         # Gray's rematch on Route 3, right after the Gym 2 badge. Same
@@ -372,7 +372,7 @@ TRAINER_DATA = {
         'defeated': False,
         'biome': 'gym',
         'reward_coins': 1000,
-        'rank': 'medium',
+        'rank': 'lowest',   # eased for the first gym (was 'medium')
     },
     'gym_trainer_a': {
         'name': 'Mike',
@@ -669,6 +669,34 @@ TRAINER_DATA = {
         'reward_coins': 500,
         'rank': 'lowest',
     },
+    'kylie': {
+        'name': 'Kylie',
+        'dinos': {0: ('Auraliz', 28), 1: ('Bullicorn', 29), 2: ('Netyrant', 30)},
+        'dialog': {
+            'default':  ["The sea breeze always gets my dinos fired up!", "Ready for a battle?"],
+            'defeated': ["Wow, you're strong! The waves weren't on my side today."]
+        },
+        'directions': ['left'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 800,
+        'rank': 'lowest',
+    },
+    'tucker': {
+        'name': 'Tucker',
+        'dinos': {0: ('Rockull', 29), 1: ('Rhinecicle', 30), 2: ('Chomper', 33)},
+        'dialog': {
+            'default':  ["Hey! My team's tough as rock.", "Think you can crack us?"],
+            'defeated': ["Cracked wide open... nice job."]
+        },
+        'directions': ['up'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 850,
+        'rank': 'lowest',
+    },
     # ROUTE3_4 (west, toward Cobalt Cave)
     'kate': {
         'name': 'Kate',
@@ -775,12 +803,12 @@ DINO_DATA = {
         'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 24: 'Velo Induction', 26: 'Mach Speed', 29: 'Shadow Veil', 34: 'Wind Fracture', 38: 'Void Collapse', 41: 'Sky Scorch' },
         'evolve': None},
     'Prowscar': {
-        'stats': {'type': ['dark'], 'health': 60, 'attack': 95, 'defense': 70, 'speed': 80},
-        'moves': {0: 'Bitemark', 1: 'Fear', 8: 'Dark Energy', 12: 'Lock Jaw', 15: 'Rushdown', 18: 'Double Jab', 21: 'Shadow Veil', 25: 'Haunt'},
+        'stats': {'type': ['dark'], 'health': 77, 'attack': 95, 'defense': 80, 'speed': 85},
+        'moves': {0: 'Bitemark', 1: 'Fear', 8: 'Dark Energy', 12: 'Double Jab', 15: 'Rushdown', 18: 'Force Shift', 20: 'Power Fang',23: 'Shadow Veil'},
         'evolve': {24: 'Scarlust'}},
     'Scarlust': {
         'stats': {'type': ['dark', 'spike'], 'health': 97, 'attack': 140, 'defense': 108, 'speed': 115},
-        'moves': {0: 'Bitemark', 1: 'Fear', 8: 'Dark Energy', 12: 'Lock Jaw', 15: 'Rushdown', 18: 'Double Jab', 21: 'Shadow Veil', 24: 'Ripping Impact', 25: 'Haunt', 28: 'Binding Curse', 31: 'Dread Thorn', 33: 'Lava Burst', 35: 'Void Collapse', 37: 'Archaic Aura', 39: 'Spike Storm', 42: 'Ultra Violet'},
+        'moves': {0: 'Bitemark', 1: 'Fear', 8: 'Dark Energy', 12: 'Double Jab', 15: 'Rushdown', 18: 'Force Shift', 20: 'Power Fang', 23: 'Shadow Veil', 25: 'Lava Burst', 27: 'Sword Slash', 29: 'Binding Curse', 32: 'Haunt', 34: 'Void Collapse', 37: 'Archaic Aura', 39: 'Spike Storm', 42: 'Ultra Violet'},
         'evolve': None},
     'Floravel': {
         'stats': {'type': ['earth'], 'health': 70, 'attack': 95, 'defense': 95, 'speed': 60},
@@ -800,7 +828,7 @@ DINO_DATA = {
         'evolve': None},
     'Sortle': {
         'stats': {'type': ['rock'], 'health': 120, 'attack': 110, 'defense': 140, 'speed': 60},
-        'moves': {0: 'Dust Beam', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Boulder Smash', 22:'Sand Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Wind Fracture', 33: 'Crusher', 36 :'Crash Impact'},
+        'moves': {0: 'Dust Beam', 1: 'Arise', 8: 'Sand Kick', 12: 'Air Strike', 15: 'Venom Decay', 17: 'Boulder Smash', 22:'Sand Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Wind Fracture', 33: 'Crusher', 36 :'Crash Impact'},
         'evolve': None},
     'Sharktastrophe': {
         'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 119, 'defense': 114, 'speed': 122},
@@ -828,11 +856,11 @@ DINO_DATA = {
         'evolve': {19: 'Tygraflare'}},
     'Drafyton': {
         'stats': {'type': ['ancient', 'flying'], 'health': 100, 'attack': 155, 'defense': 125, 'speed': 120},
-        'moves': {0: 'Fossil Break', 1: 'Arise', 8: 'Quick Slash', 12: 'Fireball', 16: 'Rushdown', 20: 'Mach Speed', 23: 'Primal Rage', 25: 'Fear', 27: 'Ancient Mend', 29: 'Flame Shatter', 31: 'Force Shift', 33: 'Raging Pursuit', 35: 'Crusher', 38: 'Sky Scorch', 40: 'Dragon Zenith', 42: 'Spike Storm' },
+        'moves': {0: 'Fossil Break', 1: 'Arise', 8: 'Quick Slash', 12: 'Fireball', 15: 'Rushdown', 20: 'Mach Speed', 23: 'Primal Rage', 25: 'Fear', 27: 'Ancient Mend', 29: 'Flame Shatter', 31: 'Force Shift', 33: 'Raging Pursuit', 35: 'Crusher', 38: 'Sky Scorch', 40: 'Dragon Zenith', 42: 'Spike Storm' },
         'evolve': None},
     'Auraliz': {
         'stats': {'type': ['ice', 'aqua'], 'health': 92, 'attack': 118, 'defense': 117, 'speed': 123},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane', 26: 'Hyperfrost', 29: 'Deep Freeze',31: 'Fear', 34: 'Hail Storm', 35: 'Freeze Blast', 38:'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane',25 : 'Hail Storm', 27: 'Hyperfrost', 29: 'Deep Freeze',31: 'Fear', 35: 'Freeze Blast', 38:'Eternal Blue'},
         'evolve': None},
     'Voltzbee': {
         'stats': {'type': ['lightning'], 'health': 77, 'attack': 113, 'defense': 88, 'speed': 142},
@@ -848,27 +876,27 @@ DINO_DATA = {
         'evolve': None},
     'Bouldava': {
         'stats': {'type': ['rock', 'magma'], 'health': 120, 'attack': 105, 'defense': 135, 'speed': 80},
-        'moves': {0: "Boulder Smash", 1: 'Sand Kick', 12: 'Flame Shatter', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 39:'Crash Impact', 40: 'Ultra Violet' },
+        'moves': {0: "Boulder Smash", 1: 'Sand Kick', 12: 'Flame Shatter', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 39:'Crash Impact', 40: 'Solar Flare' },
         'evolve': None},
     'Ghoulflame': {
         'stats': {'type': ['dark', 'magma'], 'health': 106, 'attack': 114, 'defense': 94, 'speed': 116},
-        'moves': {0: 'Fireball', 1: 'Fear', 9: 'Dark Energy', 12: 'Binding Curse', 15: 'Prism Glare', 18: 'Magma Boost', 21: 'Flame Shatter', 24: 'Distortion', 26: 'Force Shift', 28: 'Haunt', 32: 'Lava Burst', 37: 'Void Collapse'},
+        'moves': {0: 'Fireball', 1: 'Fear', 9: 'Dark Energy', 13: 'Prism Glare', 16: 'Magma Boost', 18: 'Binding Curse', 21: 'Flame Shatter', 23: 'Distortion', 26: 'Force Shift', 28: 'Haunt', 32: 'Lava Burst', 37: 'Void Collapse'},
         'evolve': None},
     'Scarecrux': {
         'stats': {'type': ['dark', 'earth'], 'health': 110, 'attack': 136, 'defense': 124, 'speed': 88},
-        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Vine Snare', 15: 'Haunt', 19: 'Distortion', 23: 'Dread Thorn', 26: 'Force Shift', 29: 'Thunder Blitz', 33: 'Tree Spin', 37: 'Void Collapse', 40: 'Leaf Ultima'},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Vine Snare', 15: 'Haunt', 19: 'Distortion', 22: 'Thunder Blitz', 25: 'Force Shift', 27: 'Dread Thorn', 31: 'Tree Spin', 34: 'Void Collapse', 37: 'Leaf Ultima'},
         'evolve': None},
     'Gourdecrux': {
         'stats': {'type': ['dark', 'magma'], 'health': 105, 'attack': 142, 'defense': 98, 'speed': 112},
-        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Fireball', 15: 'Haunt', 19: 'Distortion', 23: 'Lava Burst', 26: 'Force Shift', 29: 'Thunder Blitz', 35: 'Solar Flare', 37: 'Void Collapse'},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Fireball', 15: 'Haunt', 19: 'Distortion', 22: 'Thunder Blitz', 25: 'Force Shift', 27: 'Lava Burst', 33: 'Solar Flare', 37: 'Void Collapse'},
         'evolve': None},
     'Palidian': {
         'stats': {'type': ['earth', 'rock'], 'health': 90, 'attack': 124, 'defense': 136, 'speed': 105},
-        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 20: 'Raging Pursuit', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform', 31: 'Iron Core', 34: 'Tree Spin', 36: 'Crash Impact', 39: 'Leaf Ultima'},
+        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 20: 'Raging Pursuit', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform', 31: 'Tree Spin', 34: 'Iron Core', 36: 'Crash Impact', 38: 'Leaf Ultima'},
         'evolve': None},
     'Rockull': {
         'stats': {'type': ['rock'], 'health': 160, 'attack': 100, 'defense': 150, 'speed': 50},
-        'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Boulder Smash', 14: 'Momentum', 15: 'Double Jab', 17: 'Force Shift', 20: 'Iron Core', 24: 'Chain Rip', 26: 'Crusher',30:'Prism Glare', 34: 'Sand Storm', 38: 'Crash Impact'},
+        'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Double Jab', 12: 'Boulder Smash', 14: 'Force Shift', 17: 'Momentum', 20: 'Sand Storm', 25: 'Crusher',28: 'Iron Core', 32:'Prism Glare',36: 'Crash Impact'},
         'evolve': None},
     'Prickly': {
         'stats': {'type': ['earth','spike'], 'health': 71, 'attack': 90, 'defense': 79, 'speed': 60},
@@ -876,16 +904,16 @@ DINO_DATA = {
         'evolve': {21: 'Cyflactus'}},
     'Cyflactus': {
         'stats': {'type': ['earth', 'magma'], 'health': 115, 'attack': 131, 'defense': 119, 'speed': 85},
-        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17: 'Synthesis', 21: 'Flame Shatter', 26: 'Dread Thorn', 30: 'Floral Resonance', 34: 'Tree Spin', 37: 'Spike Storm', 40: 'Leaf Ultima', 43: 'Solar Flare'},
+        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17: 'Synthesis', 21: 'Flame Shatter', 24: 'Dread Thorn', 26: 'Floral Resonance', 28: 'Tree Spin', 30: 'Spike Storm', 33: 'Leaf Ultima', 37: 'Solar Flare'},
         'evolve': None},
 
     'Rhysnow': {
         'stats': {'type': ['ice'], 'health': 90, 'attack': 88, 'defense': 102, 'speed': 55},
-        'moves': {0: 'Arise', 4: 'Snowfall', 8: 'Boulder Smash', 15: 'Iron Core', 18: 'Crusher', 20: 'Raging Pursuit',  22: 'Double Jab', 23: 'Hail Storm', 25: 'Deep Freeze'},
+        'moves': {0: 'Arise', 4: 'Fossil Break', 9: 'Snowfall', 15: 'Boulder Smash', 18: 'Hail Storm', 20: 'Raging Pursuit',  22: 'Double Jab',  25: 'Deep Freeze'},
         'evolve': {25: 'Rhinecicle'}},
     'Rhinecicle': {
         'stats': {'type': ['ice', 'rock'], 'health': 110, 'attack': 120, 'defense': 145, 'speed': 75},
-        'moves': {0: 'Arise', 4: 'Snowfall', 8: 'Boulder Smash', 15: 'Iron Core', 18: 'Crusher', 20: 'Raging Pursuit', 22: 'Double Jab', 23: 'Hail Storm', 25: 'Deep Freeze', 29: 'Hyperfrost',32: 'Momentum', 35: 'Freeze Blast', 38: 'Frozen Aura', 40: 'Crash Impact'},
+        'moves': {0: 'Arise', 4: 'Fossil Break', 9: 'Snowfall', 15: 'Boulder Smash',  18: 'Hail Storm', 20: 'Raging Pursuit', 22: 'Double Jab', 23: 'Hail Storm', 25: 'Deep Freeze', 29: 'Frozen Aura',31: 'Momentum', 34: 'Freeze Blast', 38: 'Crash Impact'},
         'evolve': None},
     'Celestreeyl': {
         'stats': {'type': ['earth', 'light'], 'health': 109, 'attack': 139, 'defense': 109, 'speed': 129},
@@ -897,8 +925,8 @@ DINO_DATA = {
         'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 25: 'Hyperfrost', 27: 'Hurricane', 30: 'Terraform', 35: 'Tree Spin', 38: 'Eternal Blue'},
         'evolve': None},
     'Chomper': {
-        'stats': {'type': ['ancient'], 'health': 130, 'attack': 119, 'defense': 108, 'speed': 85},
-        'moves': {0: 'Bitemark', 1: 'Arise', 6: 'Fossil Break', 10: 'Fear', 15: 'Whirlpool', 20: 'Rushdown', 25: 'Power Fang', 28: 'Dread Thorn', 30: 'Raging Pursuit',33: 'Tree Spin' ,36: 'Ancient Mend' , 39: 'Archaic Aura'},
+        'stats': {'type': ['ancient'], 'health': 125, 'attack': 119, 'defense': 108, 'speed': 92},
+        'moves': {0: 'Bitemark', 1: 'Arise', 6: 'Fossil Break', 10: 'Fear', 15: 'Whirlpool', 17: 'Rushdown', 20: 'Power Fang', 21: 'Ancient Mend', 23: 'Dread Thorn', 25: 'Raging Pursuit',27: 'Tree Spin' , 31: 'Archaic Aura'},
         'evolve': None},
     'Cobaltion': {
         'stats': {'type': ['rock', 'spike'], 'health': 140, 'attack': 130, 'defense': 140, 'speed': 80},
@@ -907,7 +935,7 @@ DINO_DATA = {
 
     'Roxer': {
         'stats': {'type': ['rock'], 'health': 100, 'attack': 90, 'defense': 90, 'speed': 90},
-        'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Boulder Smash', 12: 'Double Jab', 14: 'Momentum', 17: 'Force Shift', 20: 'Iron Core', 25: 'Crusher',30:'Prism Glare', 34: 'Sand Storm', 38: 'Crash Impact'},
+        'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Double Jab', 12: 'Boulder Smash', 14: 'Force Shift', 17: 'Momentum', 20: 'Sand Storm', 25: 'Crusher',28: 'Iron Core', 32:'Prism Glare',36: 'Crash Impact'},
         'evolve': {25: 'Rockull'}},
 
     'Skolt': {
@@ -937,17 +965,17 @@ DINO_DATA = {
 
     'Pectura': {
         'stats': {'type': ['magma', 'flying'], 'health': 70, 'attack': 80, 'defense': 75, 'speed': 65},
-        'moves': {0: 'Fireball', 1: 'Air Strike', 5: 'Flash', 9: 'Swift Sneak', 13: 'Bitemark', 15: 'Flame Shatter', 20: 'Mach Speed', 23: 'Magma Boost', 25: 'Double Jab' , 27: 'Wind Fracture', 30: 'Lava Burst', 33: 'Turbo Booster', 36: 'Solar Flare', 40: 'Sky Scorch'},
+        'moves': {0: 'Fireball', 1: 'Air Strike', 5: 'Flash', 9: 'Swift Sneak', 13: 'Prism Glare', 15: 'Flame Shatter', 20: 'Mach Speed', 23: 'Lava Burst', 25: 'Piercing Light' , 27: 'Wind Fracture', 30: 'Magma Boost', 33: 'Turbo Booster', 36: 'Solar Flare', 40: 'Sky Scorch'},
         'evolve': {15: 'Browler'}},
 
     'Browler': {
         'stats': {'type': ['magma', 'flying'], 'health': 95, 'attack': 117, 'defense': 115, 'speed': 113},
-        'moves': {0: 'Fireball', 1: 'Air Strike', 5: 'Flash', 9: 'Swift Sneak', 13: 'Bitemark', 15: 'Flame Shatter', 20: 'Mach Speed', 23: 'Magma Boost', 25: 'Double Jab' , 27: 'Wind Fracture', 30: 'Lava Burst', 33: 'Turbo Booster', 36: 'Solar Flare', 40: 'Sky Scorch'},
+        'moves': {0: 'Fireball', 1: 'Air Strike', 5: 'Flash', 9: 'Swift Sneak', 13: 'Prism Glare', 15: 'Flame Shatter', 20: 'Mach Speed', 23: 'Lava Burst', 25: 'Piercing Light' , 27: 'Wind Fracture', 30: 'Magma Boost', 33: 'Turbo Booster', 36: 'Solar Flare', 40: 'Sky Scorch'},
         'evolve': None},
 
     'Ghoslink': {
         'stats': {'type': ['dark'], 'health': 106, 'attack': 117, 'defense': 142, 'speed': 85},
-        'moves': {0: 'Dark Energy', 1: 'Fear', 5: 'Binding Curse', 9: 'Chain Rip', 13: 'Shadow Veil', 17: 'Haunt', 21: 'Force Shift', 25: 'Velo Induction', 28: 'Distortion', 31: 'Leaf Ultima', 36: 'Void Collapse'},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 5: 'Whirlpool', 9: 'Chain Rip', 13: 'Shadow Veil', 17: 'Haunt', 19: 'Binding Curse21', 21:'Force Shift', 24: 'Velo Induction', 26: 'Distortion', 29: 'Leaf Ultima', 35: 'Void Collapse'},
         'evolve': None},
 
 }
@@ -979,6 +1007,7 @@ TRAINER_DATA['skyy_rematch'] = {
                      "Log's been training hard too. Go show him what you've got!"],
     },
     'reward_coins': 2500,
+    'rank': 'medium',   # the first Skyy fight is 'lowest'; the rematch stays a real gym fight
 }
 TRAINER_DATA['log_rematch'] = {
     **TRAINER_DATA['log'],
@@ -1214,14 +1243,14 @@ MOVE_DATA = {
     'Crash Impact': {'target': 'opponent', 'damage': 90, 'accuracy': 95, 'type': 'rock',
                      'ability': {'kind': 'recoil', 'percent': 15, 'chance': 100}},
     'Sand Storm': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'rock',
-                   'ability': {'kind': 'dot', 'damage_percent': 8, 'turns': 2,
+                   'ability': {'kind': 'dot', 'damage_flat': 8, 'turns': 3,
                                'tick_msg': 'hit by waves of sand', 'chance': 100}},
 
     #LIGHTNING MOVES
     'Stinger Shock': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
     'Static Graze': {'target': 'opponent', 'damage': 25, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
-    'Thunder Blitz': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'lightning','priority': 1},
-    'Lightning Bolt': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'ability': None, 'type': 'lightning',
+    'Thunder Blitz': {'target': 'opponent', 'damage': 40, 'accuracy': 99, 'ability': None, 'type': 'lightning','priority': 1},
+    'Lightning Bolt': {'target': 'opponent', 'damage': 55, 'accuracy': 95, 'ability': None, 'type': 'lightning',
                         'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': 1, 'target': 'self', 'chance': 50},
 },
     'Volt Storm': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
@@ -1246,8 +1275,13 @@ MOVE_DATA = {
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
     'Haunt':   {'target': 'opponent', 'damage': 0, 'accuracy': 95, 'type': 'dark', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -2, 'target': 'opponent', 'chance': 100}},
-    'Binding Curse': {'target': 'opponent', 'damage': 35, 'accuracy': 90, 'type': 'dark',
-                      'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': -2, 'target': 'opponent', 'chance': 100}},
+    # Dark-type Hail Storm: same lingering end-of-turn damage, curse flavour
+    'Binding Curse': {'target': 'opponent', 'damage': 25, 'accuracy': 90, 'type': 'dark',
+                      'ability': {'kind': 'dot', 'damage_flat': 8, 'turns': 3, 'chance': 100,
+                                  'tick_msg': 'wracked by the binding curse',
+                                  'apply_msg': 'A binding curse takes hold of {name}!',
+                                  'clear_msg': 'The curse on {name} faded!',
+                                  'badge': 'CURSE'}},
     'Shadow Veil':   {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'type': 'dark',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': 1, 'target': 'self', 'chance': 100}},
     'Eternal Darkness': {'target': 'opponent', 'damage': 120, 'accuracy': 80, 'type': 'dark',
@@ -1273,7 +1307,7 @@ MOVE_DATA = {
     'Hyperfrost': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'ice', 'pierces_defend': True},
 
     'Hail Storm': {'target': 'opponent', 'damage': 25, 'accuracy': 90, 'type': 'ice',
-                   'ability': {'kind': 'dot', 'damage_percent': 8, 'turns': 2,
+                   'ability': {'kind': 'dot', 'damage_flat': 8, 'turns': 3,
                                'tick_msg': 'pelted by the raging hail', 'chance': 100}},
     'Frozen Aura': {'target': 'self', 'damage': 10, 'accuracy': 100, 'type': 'ice',
                      'ability': {'kind': 'heal', 'percent': 30, 'chance': 100}},
@@ -1488,13 +1522,13 @@ ENCOUNTER_ZONES = {
             {"name": "Creuw",  "weight": 0.2, "time": "day"},
 
             {"name": "Prickly",  "weight": 0.3, "time": "day"},
-            {"name": "Prickly",  "weight": 0.25, "time": "night"},
+            {"name": "Prickly",  "weight": 0.20, "time": "night"},
 
             {"name": "Teamtwood",  "weight": 0.25, "time": "day"},
             {"name": "Teamtwood",  "weight": 0.20, "time": "night"},
 
             {"name": "Sortle",  "weight": 0.25, "time": "day"},
-            {"name": "Sortle",  "weight": 0.20, "time": "night"},
+            {"name": "Sortle",  "weight": 0.1, "time": "night"},
 
             {"name": "Voltzbee",  "weight": 0.3, "time": "day"},
 
@@ -1539,7 +1573,7 @@ ENCOUNTER_ZONES = {
             {"name": "Prowscar", "weight": 0.1, "time": "day"},
             {"name": "Prowscar", "weight": 0.3, "time": "night"},
             {"name": "Creuw", "weight": 0.6, "time": "day"},
-            {"name": "Vusion",   "weight": 0.01, "time": "night"},
+            {"name": "Vusion",   "weight": 0.05, "time": "night"},
         ],
         "level_range": (8, 12)
 
@@ -1721,7 +1755,7 @@ ENCOUNTER_ZONES = {
 
                     "horizon_entrance": {
         "encounter_rate": 0.1,
-        "dinos": ["Voltzbee", "Skolt", "Magnecrab", "Stormulus", "Bullicorn", "Teamtwood", "Cyflactus", "Typhoonray", "Chomper", "Auraliz", "Frostle", "Browler", "Netyrant", "Drafyton", "Seasoo", "Rhinecicle" ],
+        "dinos": ["Voltzbee", "Skolt", "Magnecrab", "Stormulus", "Bullicorn", "Teamtwood", "Cyflactus", "Typhoonray", "Chomper", "Auraliz", "Frostle", "Browler", "Netyrant", "Drafyton", "Seasoo", "Rhinecicle" , "Scarlust"],
         "level_range": (27, 32)
 
     },

@@ -380,23 +380,25 @@ if __name__ == '__main__':
 # VY/Deimo Event post credits - portals spawn 25 tile sound cue
 # Dinodex stat filters to check stats
 # Every audio created or using mine
+# PARTY MENU CLEANED UP 
+# MASSIVE PLAYTHROUGH FIXES - double battles, defend, move balancing, textures, xp share (nerf), size fixes
 
 
+# PLAYTHROUGH NOTES
+# Sam rematch is very hard, need some more battles to level up
+
+#add ASSISTANCE to credits
+# Claude - Coding Logic, Animations, Sound Design
+# Chatgpt - Sprite Creation from Drawings
 
 
-# Add songs to certain parts of game
-# End credits, Routes, corn maze, cave, horizon cave, boss battles, battles, legendary
-#multiple save files? (3)
-# Need to finish Browler, Gartunis/Relucturen, Stagnetic, Panthyr/Vlyth, Prowscar evo, Brishton
-#SOUND FX - entry, interact, selecting wasd, grass rustle, collision, save confirmation, EVENTS (legendary, cinematic)
-# MUSIC - routes, battle, DC, boss battle, legendary?
-
-
-#THEN - sound effects, route music and event music, nuzlocke/randomizer/speed run modes
-#go over playthrough to see how difficulty and glitches work, refine and fix, then...
-# add more lore and suspense for the plot
 #ALPHA COMPLETE
 
+
+
+#multiple save files? (3)
+# Need to finish Browler, Gartunis/Relucturen, Stagnetic, Panthyr/Vlyth, Prowscar evo, Brishton
+# add more lore and suspense for the plot
 
 # PLAYTHROUGH NOTES
 # early game works well!

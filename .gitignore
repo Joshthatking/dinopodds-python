@@ -17,3 +17,5 @@ settings.json
 .DS_Store
 Thumbs.db
 #TILESET/
+trailer/
+make_trailer.py
