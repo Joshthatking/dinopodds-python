@@ -669,6 +669,36 @@ TRAINER_DATA = {
         'reward_coins': 500,
         'rank': 'lowest',
     },
+    # ROUTE3_4 (west, toward Cobalt Cave)
+    'kate': {
+        'name': 'Kate',
+        'dinos': {0: ('Sharka', 19), 1: ('Rhysnow', 20)},
+        'dialog': {
+            'default':  ["The cold air off Lake Meridian keeps my dinos sharp!", "Let's battle!"],
+            'defeated': ["Brr... I guess I need to toughen them up some more."]
+        },
+        'directions': ['down'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 450,
+        'rank': 'lowest',
+    },
+    # ROUTE3_2
+    'grayson': {
+        'name': 'Grayson',
+        'dinos': {0: ('Roxer', 19), 1: ('Frostle', 20)},
+        'dialog': {
+            'default':  ["My dinos are as tough as the rocks on this route!", "Think you can crack them?"],
+            'defeated': ["Cracked... you hit harder than you look."]
+        },
+        'directions': ['left'],
+        'look_around': True,
+        'defeated': False,
+        'biome': 'forest',
+        'reward_coins': 450,
+        'rank': 'lowest',
+    },
 }
 
 

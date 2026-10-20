@@ -258,6 +258,8 @@ NPC_SPRITE_KEY = {
     'tommy':         'basic_trainer',
     'gracie':        'carrie',   # lady2.png
     'becca':         'debby',    # Blue_G.png
+    'kate':          'basic_trainer_girl',
+    'grayson':       'basic_trainer2',
 }
 
 # Dialogue-box speaker portraits: the display name used in a dialogue tag
@@ -348,6 +350,10 @@ WORLD_NPCS = {
         # ROUTE4_2 / PALM_PORT9 single battles
         ('jill', -72, -41, 'down', 5, 'trainer'),
         ('becca', -49, 3, 'right', 5, 'trainer'),
+
+        # ROUTE3_4 / ROUTE3_2 single battles
+        ('kate', -13, -71, 'down', 5, 'trainer'),
+        ('grayson', 30, -71, 'left', 5, 'trainer'),
 
         # Corn Maze single battles
         ('cornmaze1', 96, -56, 'right', 5, 'trainer'),

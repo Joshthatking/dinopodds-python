@@ -32,6 +32,41 @@ import story as _story
 
 SAVE_PATH = 'dinopodds_save.json'
 TITLE_MUSIC_PATH = os.path.join('assets', 'SOUND', 'title.wav')
+TITLE_MUSIC_GAIN = 1.3   # the title / credits theme plays a little louder than the Options level
+
+# Looping area music: (world file, where, track). `where` is a tile rect
+# (x1, y1, x2, y2), a map-name prefix like 'PALM_PORT' (every .tmx in the
+# .world whose file name starts with it), or None for the whole world. The
+# first match for the player's tile plays; anywhere else is silent. See
+# Game._update_area_music.
+_MUSIC = os.path.join('assets', 'SOUND')
+AREA_MUSIC = [
+    ('LOST_REGION.world', (-5, -28, 14, 31), os.path.join(_MUSIC, 'route1.wav')),        # ROUTE_1 .. ROUTE_1.4
+    ('LOST_REGION.world', (-5, 32, 14, 46), os.path.join(_MUSIC, 'silverleaf.wav')),     # START_TOWN (Silverleaf)
+    ('LOST_REGION.world', (-25, 17, -6, 46), os.path.join(_MUSIC, 'silverleaf.wav')),    # START_COAST + START_COAST_1.1
+    ('LOST_REGION.world', (15, -26, 34, 16), os.path.join(_MUSIC, 'sierratown.wav')),    # TOWN_1 .. 1.3, up to the Route 2 banner (y=-27)
+    ('LOST_REGION.world', (-20, -120, 55, -76), os.path.join(_MUSIC, 'lake_meridian.wav')),  # Lake Meridian
+    ('LOST_REGION.world', (-25, -74, 54, -59), os.path.join(_MUSIC, 'route3.wav')),       # ROUTE3_1 .. ROUTE3_4
+    ('LOST_REGION.world', 'POWER_PLANT', os.path.join(_MUSIC, 'route3.wav')),            # outside the Power Plant (POWER_PLANT1/2)
+    ('LOST_REGION.world', 'PALM_PORT', os.path.join(_MUSIC, 'palmport.wav')),            # PALM_PORT1 .. 15
+    ('LOST_REGION.world', 'ROUTE4', os.path.join(_MUSIC, 'route4.wav')),                 # ROUTE4.1, ROUTE4_2
+    # Corn Maze before Route 2: ROUTE2.6's strip east of the "Corn Maze" banner (x=89) is the maze
+    ('LOST_REGION.world', (89, -58, 94, -44), os.path.join(_MUSIC, 'corn_maze.wav')),
+    ('LOST_REGION.world', 'CORN_MAZE', os.path.join(_MUSIC, 'corn_maze.wav')),           # CORN_MAZE1 .. 6
+    ('LOST_REGION.world', 'ROUTE2', os.path.join(_MUSIC, 'route2.wav')),                 # ROUTE2, 2.1 .. 2.7, ROUTE2_FILL_0
+    ('LOST_REGION.world', 'TOWN2_4', None),                                               # Episc Chateau grounds: silent (haunted)
+    ('LOST_REGION.world', 'TOWN2', os.path.join(_MUSIC, 'elder_town.wav')),              # Elder Town: TOWN2_1/2/3, TOWN2_BLOCK
+    ('COBALT_CAVE.world', None, os.path.join(_MUSIC, 'cobalt_cave.wav')),
+    ('DINOCENTER.tmx', None, os.path.join(_MUSIC, 'dc.wav')),                           # every town's DinoCenter
+    ('LUNAR_PLANET.tmx', None, os.path.join(_MUSIC, 'spacial.wav')),
+    ('SOLAR_PLANET.tmx', None, os.path.join(_MUSIC, 'spacial.wav')),
+    ('HORIZON_CAVE.world', None, os.path.join(_MUSIC, 'spacial.wav')),
+    ('HORIZON_CAVE1.tmx', None, os.path.join(_MUSIC, 'spacial.wav')),                    # Josh's entrance room
+]
+LAKE_MUSIC = os.path.join(_MUSIC, 'lake_meridian.wav')     # swells while the Lake Meridian lights are out
+BATTLE_MUSIC = os.path.join(_MUSIC, 'encounter.wav')  # wild + ordinary trainer battles
+BOSS_MUSIC = os.path.join(_MUSIC, 'boss.wav')         # gym leaders, rival, bosses, legendaries
+GYM_LEADERS = ('skyy', 'log', 'sam')
 
 # CORN_MAZE5's 3x3 tomb monument (world tile coords) — the interactable
 # lore object housing the Scarecrux <-> Gourdecrux night transformation.
@@ -98,6 +133,12 @@ class Game:
         self.lake_aurora = LakeAurora(self)  # LAKE AURORA
         self._space_bgs = {}   # SPACE_WORLDS file -> backdrop, built on first visit
         self.portals = CelestialPortals(self)  # PORTALS — post-credits lunar/solar portals
+        self._area_music = None        # AREA_MUSIC track playing right now (None = silent)
+        self._area_music_wait = 0      # ticks: don't start a track before this (lets fades finish)
+        self._menu_duck = 1.0          # music volume multiplier, glides to MENU_DUCK while the menu is open
+        self._scene_hold_until = 0     # ticks: area music stays off until then (story scene + grace)
+        self._battle_in_scene = False  # the current battle started during a story scene
+        self._music_scene_quiet = False
 
         self.fade_alpha = 0
         self.fade_color = (0, 0, 0)   # set white for one fade by a light-burst encounter
@@ -578,15 +619,153 @@ class Game:
         if there's no audio device."""
         if self._title_music_on:
             return
+        self._area_music = None   # the title theme takes over the music channel
         try:
             if not pygame.mixer.get_init():
                 pygame.mixer.init()
             pygame.mixer.music.load(TITLE_MUSIC_PATH)
-            pygame.mixer.music.set_volume(self.sfx.music_volume())   # i menu -> Options
+            pygame.mixer.music.set_volume(min(1.0, self.sfx.music_volume() * TITLE_MUSIC_GAIN))   # i menu -> Options
             pygame.mixer.music.play(-1, fade_ms=1500)
             self._title_music_on = True
         except pygame.error as e:
             print(f"[audio] title music unavailable: {e}")
+
+    AREA_FADE_OUT_MS = 1500
+    AREA_FADE_IN_MS = 2000
+    BATTLE_FADE_OUT_MS = 350     # battles cut in (and back out) quickly
+    BATTLE_FADE_IN_MS = 150
+    LAKE_SWELL = 0.6             # Lake Meridian music gets up to 60% louder under the lights
+    MENU_DUCK = 0.5              # music sits at 50% while the i menu (or a screen from it) is open
+    MENU_DUCK_STEP = 0.02        # per frame, so the duck glides over ~0.4s
+
+    SCENE_FADE_OUT_MS = 900      # area music clears out quickly when a story scene starts
+    SCENE_GRACE_MS = 4000        # ...and stays off this long after it ends (scenes come in steps)
+
+    def _is_big_trainer(self, npc):
+        """Gym leaders (and their rematches), the rival and bosses."""
+        key = self._trainer_key(npc)
+        if key.replace('_rematch', '') in GYM_LEADERS:
+            return True
+        return TRAINER_DATA.get(key, {}).get('rank') in ('rival', 'boss')
+
+    def _is_big_battle(self):
+        """Big trainers and the scripted legendary fights get BOSS_MUSIC
+        instead of BATTLE_MUSIC."""
+        if self._legend_battle or self._celestreeyl_battle or self._cobaltion_battle:
+            return True
+        npc = self.current_trainer_npc
+        return bool(self.is_trainer_battle and npc is not None and self._is_big_trainer(npc))
+
+    def _story_scene_active(self):
+        """A scripted story moment is playing: any cutscene phase, a forced
+        walk, the scripted light/dark effects, or a rival / boss / gym leader
+        walking up to challenge the player."""
+        if (self.cutscene or self.forced_walk_npc or self.orb_fx or self.shadowhq_wave
+                or self.cutscene_flash):
+            return True
+        return any(npc.npc_type == 'trainer' and npc.state in ('spotted', 'walking', 'done')
+                   and not npc.defeated and self._is_big_trainer(npc)
+                   for npc in self.npcs)
+
+    def _wanted_music(self):
+        """The track that should be playing right now (None = silence).
+        Sets self._music_scene_quiet when it's silent because of a story scene."""
+        self._music_scene_quiet = False
+        if self._title_music_on or self.credits:
+            return None
+        now = pygame.time.get_ticks()
+        if 'encounter' in self.state_stack:
+            if now < self._scene_hold_until:
+                self._battle_in_scene = True      # a story battle: stay quiet again once it's over
+            return BOSS_MUSIC if self._is_big_battle() else BATTLE_MUSIC
+        if self._battle_in_scene:
+            self._battle_in_scene = False
+            self._scene_hold_until = now + self.SCENE_GRACE_MS
+        if self._story_scene_active():
+            self._scene_hold_until = now + self.SCENE_GRACE_MS
+        if now < self._scene_hold_until:
+            if self.message_box.visible:          # the scene's dialogue is still going
+                self._scene_hold_until = now + self.SCENE_GRACE_MS
+            self._music_scene_quiet = True
+            return None
+        ts = config.TILE_SIZE
+        tx, ty = self.player.rect.centerx // ts, self.player.rect.centery // ts
+        for world, where, track in AREA_MUSIC:
+            if world != self.current_world_file:
+                continue
+            if where is None:
+                return track
+            if isinstance(where, str):
+                if self._map_name_at(tx, ty).startswith(where):
+                    return track
+            elif where[0] <= tx <= where[2] and where[1] <= ty <= where[3]:
+                return track
+        return None
+
+    def _map_name_at(self, tx, ty):
+        """File name of the .tmx (within the current .world) covering tile
+        (tx, ty), or '' if none does. Cached per tile — it's asked every frame."""
+        key = (self.current_world_file, tx, ty)
+        if getattr(self, '_map_name_cache', (None,))[0] != key:
+            ts = config.TILE_SIZE
+            name = ''
+            for m in self.world_maps:
+                if (m['x'] // ts <= tx < (m['x'] + m['width']) // ts
+                        and m['y'] // ts <= ty < (m['y'] + m['height']) // ts):
+                    name = m.get('name', '')
+                    break
+            self._map_name_cache = (key, name)
+        return self._map_name_cache[1]
+
+    def _update_area_music(self):
+        """Play the track for wherever the player is: the area's loop while
+        walking around, the battle / boss theme during a battle, silence
+        anywhere without music. Changes fade out, then the new track fades in."""
+        if not pygame.mixer.get_init():
+            return
+        # menu duck: glide toward MENU_DUCK while the overworld menu is open
+        menu_open = 'menu' in self.state_stack and 'encounter' not in self.state_stack
+        target = self.MENU_DUCK if menu_open else 1.0
+        step = self.MENU_DUCK_STEP
+        self._menu_duck += max(-step, min(step, target - self._menu_duck))
+        want = self._wanted_music()
+        if want == self._area_music:
+            if want is not None:
+                self._apply_music_volume()
+            return
+        now = pygame.time.get_ticks()
+        battle = (BATTLE_MUSIC, BOSS_MUSIC)
+        quick = want in battle or self._area_music in battle
+        if self._area_music is not None:
+            fade = (self.BATTLE_FADE_OUT_MS if quick else
+                    self.SCENE_FADE_OUT_MS if self._music_scene_quiet else self.AREA_FADE_OUT_MS)
+            pygame.mixer.music.fadeout(fade)
+            self._area_music = None
+            self._area_music_wait = now + fade + 60
+            return
+        # wait for any fade-out (ours or the title theme's) to finish first
+        if want is None or now < self._area_music_wait or pygame.mixer.music.get_busy():
+            return
+        try:
+            pygame.mixer.music.load(want)
+            pygame.mixer.music.set_volume(self.sfx.music_volume() * self._menu_duck)   # i menu -> Options
+            pygame.mixer.music.play(-1, fade_ms=self.BATTLE_FADE_IN_MS if quick else self.AREA_FADE_IN_MS)
+            self._area_music = want
+        except pygame.error as e:
+            print(f"[audio] area music unavailable: {e}")
+            self._area_music_wait = now + 10_000
+
+    def _apply_music_volume(self):
+        """Volume for the playing track: the Options level, raised while the
+        Lake Meridian lights are out (following the show's own fade), and
+        ducked while the menu is open. Only touches the mixer when it changes,
+        and also corrects a reset from Options (which sets the plain level)."""
+        vol = self.sfx.music_volume() * self._menu_duck
+        if self._area_music == LAKE_MUSIC and self.lake_aurora.active():
+            vol *= 1 + self.LAKE_SWELL * self.lake_aurora._envelope()
+        vol = min(1.0, vol)
+        if abs(pygame.mixer.music.get_volume() - vol) > 0.01:
+            pygame.mixer.music.set_volume(vol)
 
     def _stop_title_music(self):
         if not self._title_music_on:
@@ -6532,7 +6711,8 @@ class Game:
                         if props.get('exit'):
                             exits.add((ox, oy))
 
-            world_maps.append({'tmx': tmx, 'x': wx, 'y': wy, 'width': m['width'], 'height': m['height']})
+            world_maps.append({'tmx': tmx, 'x': wx, 'y': wy, 'width': m['width'], 'height': m['height'],
+                               'name': os.path.basename(m['fileName'])})
 
         return world_maps, solid, encounter, tile_types, entrances, exits, ball_items
 
@@ -8570,6 +8750,7 @@ class Game:
         self.env_fx.update(dt)  # ENV FX
         self.lake_aurora.update(dt)  # LAKE AURORA
         self.portals.update(dt)  # PORTALS
+        self._update_area_music()
         self._track_dex_seen()
         if self.screen_shake > 0:
             self.screen_shake = max(0.0, self.screen_shake - dt)

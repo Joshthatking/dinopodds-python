@@ -1,6 +1,6 @@
 # DinoPodds
 
-A Pokémon GBA-style RPG (think FireRed / Emerald) built in Python with Pygame, starring original creatures called **dinos**.
+A GBA-style RPG built in Python with Pygame, starring original creatures called **dinos**.
 
 You play as Jet. You explore the Lost Region, catch and train dinos, battle trainers and gym leaders, and uncover a story about an eclipse, a mysterious "Shadow Team" and the celestials that once ruled the region.
 
@@ -27,7 +27,7 @@ pip install pygame pytmx numpy
 python main.py
 ```
 
-`numpy` is only needed to regenerate sound effects with `tools/make_sfx.py`.
+`numpy` is only needed to regenerate sound effects and music with `tools/make_sfx.py` / `tools/make_music.py`.
 
 ## Controls
 
@@ -66,6 +66,7 @@ ANIM/            Visual effects: battle transitions, catch/send-out animations,
                  lights, celestial portals, legendary intros, credits
 tools/           Scripts that generate assets in code:
                    make_sfx.py      all sound effects
+                   make_music.py    all music: area loops + battle themes
                    make_planets.py  the planet tilesets, maps and battle backgrounds
                    make_mansion.py  the Episc Chateau tileset
 info/            Notes — TILED_INFO.txt documents map-making conventions

@@ -379,6 +379,8 @@ if __name__ == '__main__':
 # Lunar and Solar Planet
 # VY/Deimo Event post credits - portals spawn 25 tile sound cue
 # Dinodex stat filters to check stats
+# Every audio created or using mine
+
 
 
 
