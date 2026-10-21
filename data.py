@@ -783,16 +783,16 @@ DINODEX_DATA = {
 
 DINO_DATA = {
     'Vusion': {
-        'stats': {'type': ['dark'], 'health': 113, 'attack': 155, 'defense': 77, 'speed': 125},
+        'stats': {'type': ['dark'], 'health': 108, 'attack': 155, 'defense': 82, 'speed': 125},
         'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Thunder Blitz', 20: 'Distortion', 23: 'Lava Burst', 27: 'Binding Curse', 30: 'Haunt',35: 'Void Collapse', 38: 'Spectral Overload', 42: 'Ultra Violet'},
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 115, 'defense': 120, 'speed':80},
-        'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash',16: 'Rushdown',  19: 'Double Jab', 22: 'Hurricane', 25: 'Ripping Impact', 28:'Deep Freeze', 30: 'Sword Slash', 35: 'Spike Storm', 38: 'Eternal Blue'},
+        'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 12: 'Wave Dash',15: 'Venom Decay',  19: 'Double Jab', 22: 'Hurricane', 25: 'Ripping Impact', 28:'Deep Freeze', 30: 'Sword Slash', 35: 'Spike Storm', 38: 'Eternal Blue'},
         'evolve': None},
     'Corlave': {
         'stats': {'type': ['aqua'], 'health': 100, 'attack': 80, 'defense': 90, 'speed':50},
-        'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 13: 'Wave Dash', 19: 'Double Jab'},
+        'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 12: 'Wave Dash',15: 'Venom Decay',  19: 'Double Jab', 22: 'Hurricane', 25: 'Ripping Impact', 28:'Deep Freeze', 30: 'Sword Slash', 35: 'Spike Storm', 38: 'Eternal Blue'},
         'evolve': {19: 'Anemamace'}},
     'Creuw': {
         'stats': {'type': ['flying'], 'health': 80, 'attack': 75, 'defense': 60, 'speed':75},
@@ -804,11 +804,11 @@ DINO_DATA = {
         'evolve': None},
     'Prowscar': {
         'stats': {'type': ['dark'], 'health': 77, 'attack': 95, 'defense': 80, 'speed': 85},
-        'moves': {0: 'Bitemark', 1: 'Fear', 8: 'Dark Energy', 12: 'Double Jab', 15: 'Rushdown', 18: 'Force Shift', 20: 'Power Fang',23: 'Shadow Veil'},
+        'moves': {0: 'Bitemark', 1: 'Fear', 7: 'Dark Energy', 11: 'Double Jab', 14: 'Rushdown', 16: 'Fireball', 18: 'Force Shift', 20: 'Power Fang', 23: 'Shadow Veil', 25: 'Lava Burst', 27: 'Sword Slash', 29: 'Binding Curse', 32: 'Haunt', 34: 'Void Collapse', 37: 'Archaic Aura', 39: 'Spike Storm', 42: 'Ultra Violet'},
         'evolve': {24: 'Scarlust'}},
     'Scarlust': {
         'stats': {'type': ['dark', 'spike'], 'health': 97, 'attack': 140, 'defense': 108, 'speed': 115},
-        'moves': {0: 'Bitemark', 1: 'Fear', 8: 'Dark Energy', 12: 'Double Jab', 15: 'Rushdown', 18: 'Force Shift', 20: 'Power Fang', 23: 'Shadow Veil', 25: 'Lava Burst', 27: 'Sword Slash', 29: 'Binding Curse', 32: 'Haunt', 34: 'Void Collapse', 37: 'Archaic Aura', 39: 'Spike Storm', 42: 'Ultra Violet'},
+        'moves': {0: 'Bitemark', 1: 'Fear', 7: 'Dark Energy', 11: 'Double Jab', 14: 'Rushdown', 16: 'Fireball', 18: 'Force Shift', 20: 'Power Fang', 23: 'Shadow Veil', 25: 'Lava Burst', 27: 'Sword Slash', 29: 'Binding Curse', 32: 'Haunt', 34: 'Void Collapse', 37: 'Archaic Aura', 39: 'Spike Storm', 42: 'Ultra Violet'},
         'evolve': None},
     'Floravel': {
         'stats': {'type': ['earth'], 'health': 70, 'attack': 95, 'defense': 95, 'speed': 60},
@@ -819,11 +819,11 @@ DINO_DATA = {
         'moves': {0: 'Arise', 4: 'Horn Tackle', 7: 'Sand Kick', 10: 'Static Graze', 12: 'Boulder Smash', 15: 'Double Jab', 18: 'Snowfall', 21:'Rushdown', 24: 'Quick Slash', 26: 'Ripping Impact', 28:'Crusher', 32:'Spike Storm' },
         'evolve': None},
     'Netaslam': {
-        'stats': {'type': ['flying', 'spike'], 'health': 80, 'attack': 80, 'defense': 60, 'speed': 70},
-        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 21: 'Mach Speed', 25: 'Ripping Impact'},
+        'stats': {'type': ['flying'], 'health': 90, 'attack': 80, 'defense': 70, 'speed': 75},
+        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Swift Sneak', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 21: 'Mach Speed', 25: 'Ripping Impact'},
         'evolve': {22: 'Netyrant'}},
     'Netyrant': {
-        'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 143, 'defense': 75, 'speed': 122},
+        'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 139, 'defense': 78, 'speed': 122},
         'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 20: 'Mach Speed', 22: 'Ripping Impact', 26: 'Wind Fracture', 30: 'Sword Slash', 33: 'Turbo Booster', 37: 'Spike Storm', 40: 'Sky Scorch'},
         'evolve': None},
     'Sortle': {
@@ -847,7 +847,7 @@ DINO_DATA = {
         'moves': {0: 'Whirlpool', 1: 'Arise', 5: 'Bitemark', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21: 'Haunt'},
         'evolve': {21: 'Sharktastrophe'}},
     'Magnecrab': {
-        'stats': {'type': ['aqua', 'lightning'], 'health': 140, 'attack': 110, 'defense': 75, 'speed': 100},
+        'stats': {'type': ['aqua', 'lightning'], 'health': 140, 'attack': 105, 'defense': 89, 'speed': 105},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Static Graze', 14: 'Shock', 18: 'Double Jab', 24:'Lightning Bolt', 28: 'Hurricane', 31: 'Ripping Impact', 35: 'Conduit Surge', 39: 'Quantum Flux', 44: 'Eternal Blue'},
         'evolve': None},
     'Volkit': {
@@ -879,16 +879,16 @@ DINO_DATA = {
         'moves': {0: "Boulder Smash", 1: 'Sand Kick', 12: 'Flame Shatter', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 39:'Crash Impact', 40: 'Solar Flare' },
         'evolve': None},
     'Ghoulflame': {
-        'stats': {'type': ['dark', 'magma'], 'health': 106, 'attack': 114, 'defense': 94, 'speed': 116},
-        'moves': {0: 'Fireball', 1: 'Fear', 9: 'Dark Energy', 13: 'Prism Glare', 16: 'Magma Boost', 18: 'Binding Curse', 21: 'Flame Shatter', 23: 'Distortion', 26: 'Force Shift', 28: 'Haunt', 32: 'Lava Burst', 37: 'Void Collapse'},
+        'stats': {'type': ['dark', 'magma'], 'health': 116, 'attack': 114, 'defense': 94, 'speed': 116},
+        'moves': {0: 'Fireball', 1: 'Fear', 9: 'Dark Energy', 13: 'Prism Glare', 16: 'Magma Boost', 18: 'Binding Curse', 21: 'Flame Shatter', 23: 'Distortion', 26: 'Force Shift', 28: 'Haunt', 30: 'Lava Burst', 32: 'Void Collapse'},
         'evolve': None},
     'Scarecrux': {
         'stats': {'type': ['dark', 'earth'], 'health': 110, 'attack': 136, 'defense': 124, 'speed': 88},
-        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Vine Snare', 15: 'Haunt', 19: 'Distortion', 22: 'Thunder Blitz', 25: 'Force Shift', 27: 'Dread Thorn', 31: 'Tree Spin', 34: 'Void Collapse', 37: 'Leaf Ultima'},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Vine Snare', 15: 'Thunder Blitz', 19: 'Force Shift', 22: 'Dread Thorn', 25: 'Distortion', 27: 'Haunt', 29: 'Tree Spin', 33: 'Void Collapse', 35: 'Leaf Ultima'},
         'evolve': None},
     'Gourdecrux': {
-        'stats': {'type': ['dark', 'magma'], 'health': 105, 'attack': 142, 'defense': 98, 'speed': 112},
-        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Fireball', 15: 'Haunt', 19: 'Distortion', 22: 'Thunder Blitz', 25: 'Force Shift', 27: 'Lava Burst', 33: 'Solar Flare', 37: 'Void Collapse'},
+        'stats': {'type': ['dark', 'magma'], 'health': 106, 'attack': 141, 'defense': 98, 'speed': 113},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 9: 'Fireball', 15: 'Thunder Blitz', 19: 'Force Shift', 22: 'Lava Burst', 25: 'Distortion', 28: 'Chain Rip', 32: 'Void Collapse', 35: 'Solar Flare'},
         'evolve': None},
     'Palidian': {
         'stats': {'type': ['earth', 'rock'], 'health': 90, 'attack': 124, 'defense': 136, 'speed': 105},
@@ -925,12 +925,12 @@ DINO_DATA = {
         'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 25: 'Hyperfrost', 27: 'Hurricane', 30: 'Terraform', 35: 'Tree Spin', 38: 'Eternal Blue'},
         'evolve': None},
     'Chomper': {
-        'stats': {'type': ['ancient'], 'health': 125, 'attack': 119, 'defense': 108, 'speed': 92},
+        'stats': {'type': ['ancient'], 'health': 125, 'attack': 119, 'defense': 112, 'speed': 92},
         'moves': {0: 'Bitemark', 1: 'Arise', 6: 'Fossil Break', 10: 'Fear', 15: 'Whirlpool', 17: 'Rushdown', 20: 'Power Fang', 21: 'Ancient Mend', 23: 'Dread Thorn', 25: 'Raging Pursuit',27: 'Tree Spin' , 31: 'Archaic Aura'},
         'evolve': None},
     'Cobaltion': {
         'stats': {'type': ['rock', 'spike'], 'health': 140, 'attack': 130, 'defense': 140, 'speed': 80},
-        'moves': {0: 'Arise', 4: 'Dust Beam', 8: 'Static Graze', 13: 'Boulder Smash', 18: 'Double Jab', 23: 'Thunder Blitz', 26: 'Sword Slash', 29: 'Iron Core', 33: 'Crusher', 35: 'Archaic Aura' , 38: 'Crash Impact', 40: 'Spike Storm'},
+        'moves': {0: 'Arise', 4: 'Dust Beam', 8: 'Static Graze', 13: 'Boulder Smash', 18: 'Double Jab', 20: 'Chain Rip', 23: 'Thunder Blitz', 26: 'Sword Slash', 29: 'Iron Core', 33: 'Crusher', 35: 'Archaic Aura' , 38: 'Crash Impact', 40: 'Spike Storm'},
         'evolve': None},
 
     'Roxer': {
@@ -974,8 +974,8 @@ DINO_DATA = {
         'evolve': None},
 
     'Ghoslink': {
-        'stats': {'type': ['dark'], 'health': 106, 'attack': 117, 'defense': 142, 'speed': 85},
-        'moves': {0: 'Dark Energy', 1: 'Fear', 5: 'Whirlpool', 9: 'Chain Rip', 13: 'Shadow Veil', 17: 'Haunt', 19: 'Binding Curse21', 21:'Force Shift', 24: 'Velo Induction', 26: 'Distortion', 29: 'Leaf Ultima', 35: 'Void Collapse'},
+        'stats': {'type': ['dark'], 'health': 106, 'attack': 117, 'defense': 142, 'speed': 88},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 5: 'Whirlpool', 9: 'Chain Rip', 13: 'Shadow Veil', 17: 'Haunt', 19: 'Binding Curse', 21:'Force Shift', 24: 'Velo Induction', 26: 'Distortion', 29: 'Leaf Ultima', 35: 'Void Collapse'},
         'evolve': None},
 
 }
@@ -1151,8 +1151,8 @@ TYPE_CHART_VAL = {
     'light': {'aqua': 10, 'magma': 10, 'earth': 5, 'flying': 10, 'dark': 20 , 'light': 5, 'spike': 20, 'rock': 10, 'lightning': 10, 'ice': 10,'ancient': 10},
     'spike': {'aqua': 10, 'magma': 10, 'earth': 20, 'flying': 5, 'dark': 5 , 'light': 5, 'spike': 10, 'rock': 20, 'lightning': 10, 'ice': 10,'ancient': 20},
     'rock': {'aqua': 10, 'magma': 20, 'earth': 10, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 5, 'rock': 10, 'lightning': 10, 'ice': 20,'ancient': 10},
-    'lightning': {'aqua': 20, 'magma': 10, 'earth': 10, 'flying': 20, 'dark': 5 , 'light': 5, 'spike': 10, 'rock': 5, 'lightning': 5, 'ice': 10,'ancient': 5},
-    'ice': {'aqua': 5, 'magma': 5, 'earth': 20, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 10, 'lightning': 10, 'ice': 5,'ancient': 20},
+    'lightning': {'aqua': 20, 'magma': 10, 'earth': 10, 'flying': 20, 'dark': 10 , 'light': 5, 'spike': 10, 'rock': 5, 'lightning': 5, 'ice': 10,'ancient': 5},
+    'ice': {'aqua': 10, 'magma': 5, 'earth': 20, 'flying': 20, 'dark': 10 , 'light': 10, 'spike': 10, 'rock': 10, 'lightning': 10, 'ice': 5,'ancient': 20},
     'ancient': {'aqua': 10, 'magma': 10, 'earth': 10, 'flying': 10, 'dark': 20 , 'light': 20, 'spike': 5, 'rock': 5, 'lightning': 10, 'ice': 10,'ancient': 20},
 
 }
@@ -2043,8 +2043,12 @@ DEFENSE_EXP = 0.88
 
 ################## BATTLE MATHEMATICS #################
 
+# How much each point of defense counts in Damage(). Higher = tankier dinos
+# (was 0.95; 1.0 takes ~5% off every hit).
+DEFENSE_WEIGHT = 1.0
+
 def Damage(level, attack, power, defender_defense, STAB, effectiveness, random): #randoom 217-255 , STAB (1,1.5), Type Modifier (40,20,10,5,2.5)
-    return ((((((((2*level / 5 + 2) * attack * power)/(defender_defense * 0.95))/50)+2)*STAB)*effectiveness/10)*random)/255
+    return ((((((((2*level / 5 + 2) * attack * power)/(defender_defense * DEFENSE_WEIGHT))/50)+2)*STAB)*effectiveness/10)*random)/255
 
 # tesing = Damage(16,18,30,17,1.5,10,220)
 # print(tesing) -----> 6.34

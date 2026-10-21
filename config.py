@@ -254,6 +254,13 @@ NPC_SPRITE_KEY = {
     'horizon_beard': 'rocko',    # Beard.png
     'dawson':        'farmer',   # farmer.png
     'nick':          'farmer',   # farmer.png
+    'keller':        'farmer',   # farmer.png
+    'luka':          'basic_trainer2',
+    'riley':         'debby',    # Blue_G.png
+    'dr_taft':       'rocko',    # Beard.png
+    'gym2_guard_a':  'enemy_male',
+    'gym2_guard_b':  'enemy_male',
+    'gym2_guard_c':  'enemy_male',
     'hannah':        'basic_trainer_girl',
     'tommy':         'basic_trainer',
     'gracie':        'carrie',   # lady2.png
@@ -290,6 +297,10 @@ DIALOGUE_PORTRAITS = {
     'Brady':   'rocko',    # Beard.png
     'Dawson':  'farmer',   # farmer.png
     'Nick':    'farmer',   # farmer.png
+    'Keller':  'farmer',   # farmer.png
+    'Luka':    'basic_trainer2',
+    'Riley':   'debby',    # Blue_G.png
+    'Dr. Taft': 'rocko',   # Beard.png
     'Hannah':  'basic_trainer_girl',
     'Tommy':   'basic_trainer',
     'Gracie':  'carrie',   # lady2.png
@@ -349,6 +360,20 @@ WORLD_NPCS = {
 
         # Lore NPC — Tommy, blames the solar panels for the flares/eclipses
         ('tommy', 27, -8, 'left', 0, 'story'),
+
+        # Luka — scared of the corn maze; trades a Lv 15 Sharka for a Ghoulflame (flag: luka_traded)
+        ('luka', 58, -48, 'left', 0, 'story'),
+
+        # Shadow grunts blocking the path — gone once Gym 2 is beaten (see game.py GYM2_GUARDS)
+        ('gym2_guard_a', 55, -70, 'down', 0, 'story'),
+        ('gym2_guard_b', 55, -69, 'down', 0, 'story'),
+        ('gym2_guard_c', 55, -68, 'down', 0, 'story'),
+
+        # Dr. Taft — explains the power plant takeover, gives 2 Mega Sprays once (flag: taft_gift_done)
+        ('dr_taft', -3, -51, 'down', 0, 'story'),
+
+        # Riley — gives 5 DinoPods + 1 Revival Gem once (flag: riley_gift_done)
+        ('riley', 109, -76, 'left', 0, 'story'),
 
         # Lore NPC — Gracie, hints at the corn maze's night-only rare dino
         ('gracie', 80, -58, 'down', 0, 'story'),
@@ -419,6 +444,9 @@ WORLD_NPCS = {
     'HORIZON_CAVE1.tmx': [
         ('josh', 9, 3, 'down', 0, 'story'),   # Horizon Cave guardian — gone once josh_defeated
     ],
+    'SIERRA_HOUSE1.tmx': [
+        ('keller', 13, 9, 'down', 0, 'story'),   # Lore NPC — praises Xander's solar energy
+    ],
     'SIERRA_HOUSE2.tmx': [
         ('collector', 13, 8, 'down', 0, 'story'),   # Skelig Town visitor — Pectura -> Rhysnow trade
     ],
@@ -456,7 +484,7 @@ BACK_SPRITE_TWEAKS = {
     'Rhysnow':    (0.82, 0),
     'Tygraflare': (1.3, 8),
     'Prowscar':   (1.0, 14),
-    'Vusion':     (1.0, -14),
+    'Vusion':     (1.25, -14),
     'Rhinecicle': (1.15, 14),
 }
 

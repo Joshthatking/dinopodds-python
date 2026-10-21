@@ -196,6 +196,7 @@ QUEST_LOG = {
         ("The Lanterns in the Corn",           ('lanterns_rewarded',)),
         ("Deliver Debby's package to Mom",     ('package_delivered',)),
         ("Trade with the Collector",           ('collector_traded',)),
+        ("Trade Luka a Ghoulflame",            ('luka_traded',)),
         ("Face Deimo on the Lunar Planet",     ('deimo_done',)),
         ("Face VY on the Solar Planet",        ('vy_done',)),
     ],

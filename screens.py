@@ -4116,14 +4116,33 @@ GAME_MODES = [
 ]
 
 
+# Typed into the Ctrl+J+K unlock menu (case-insensitive) -> (unlocks, label)
+UNLOCK_CODES = {
+    'nuz':    (('nuzlocke', 'randomizer_nuzlocke'), "Nuzlocke + Randomizer Nuzlocke"),
+    'random': (('randomizer',), "Randomizer"),
+    'sand':   (('sandbox',), "Sandbox Mode"),
+}
+LOCKED_MODE_HINT = "Locked: finish the main story in Standard to unlock this mode."
+
+
 # === Main Menu ===
 class TitleScreen:
+    """Views: 'main' (New Game / Continue / Sandbox), 'modes' (New Game mode
+    picker), 'slots' (save file picker, for loading or for a new run) and
+    'unlock' (Ctrl+J+K code menu)."""
+
     def __init__(self, game):
         self.game = game
-        self.options = ["New Game", "Continue", "Sandbox Mode"]
         self.selected = 0
-        self.picking_mode = False   # the New Game mode picker is open
+        self.view = 'main'
         self.mode_selected = 0
+        self.slot_purpose = None     # 'load' or 'new'
+        self.slot_selected = 0
+        self.slots = []              # game.save_slot_summaries(), read when the picker opens
+        self.confirm_overwrite = False
+        self.pending_start = None    # ('mode', mode_id) or ('sandbox',) — starts once a file is picked
+        self.unlock_text = ''
+        self.unlock_msg = None       # (text, color) shown under the unlock code box
         self.option_font = game.fonts['DIALOGUE']
         self.hint_font = game.fonts['XS']
         self.backdrop = TitleBackdrop()
@@ -4131,10 +4150,19 @@ class TitleScreen:
         self.fade_alpha = 255
         self._fading_in = True
 
+    @property
+    def options(self):
+        opts = ["New Game", "Continue"]
+        if self.game.is_unlocked('sandbox'):
+            opts.append("Sandbox Mode")
+        return opts
+
     def reset(self, fade_from_black=True):
         self.selected = 0
-        self.picking_mode = False
+        self.view = 'main'
         self.mode_selected = 0
+        self.pending_start = None
+        self.confirm_overwrite = False
         self.fade_alpha = 255 if fade_from_black else 0
         self._fading_in = fade_from_black
         self.backdrop.show_sun = True
@@ -4148,20 +4176,52 @@ class TitleScreen:
             if self.fade_alpha == 0:
                 self._fading_in = False
 
+    # ── input ─────────────────────────────────────────────────────────────
+
     def handle_event(self, event, has_save):
         if self._fading_in:
             return
         if event.type != pygame.KEYDOWN:
             return
-        if self.picking_mode:
-            self._handle_mode_picker(event)
+        if event.mod & pygame.KMOD_CTRL and event.key in (pygame.K_j, pygame.K_k):
+            # Ctrl+J+K (either order) opens the unlock menu; a lone Ctrl+J
+            # is half the chord, not a menu press.
+            held = pygame.key.get_pressed()
+            other = pygame.K_k if event.key == pygame.K_j else pygame.K_j
+            if held[other] and self.view != 'unlock':
+                self.view = 'unlock'
+                self.unlock_text = ''
+                self.unlock_msg = None
             return
-        if event.key in (pygame.K_w, pygame.K_UP):
+        if self.view == 'modes':
+            self._handle_mode_picker(event)
+        elif self.view == 'slots':
+            self._handle_slot_picker(event)
+        elif self.view == 'unlock':
+            self._handle_unlock(event)
+        elif event.key in (pygame.K_w, pygame.K_UP):
             self.selected = (self.selected - 1) % len(self.options)
         elif event.key in (pygame.K_s, pygame.K_DOWN):
             self.selected = (self.selected + 1) % len(self.options)
         elif event.key in (pygame.K_j, pygame.K_RETURN):
             self._confirm(has_save)
+
+    def _confirm(self, has_save):
+        opt = self.options[self.selected]
+        if opt == "New Game":
+            self.view = 'modes'
+            self.mode_selected = 0
+        elif opt == "Continue":
+            if has_save:
+                self.pending_start = None
+                self._open_slots('load')
+        elif opt == "Sandbox Mode":
+            self.pending_start = ('sandbox',)
+            self._open_slots('new')
+
+    def _mode_available(self, i):
+        mode_id, _, _, playable = GAME_MODES[i]
+        return playable and self.game.is_unlocked(mode_id)
 
     def _handle_mode_picker(self, event):
         if event.key in (pygame.K_w, pygame.K_UP):
@@ -4169,37 +4229,98 @@ class TitleScreen:
         elif event.key in (pygame.K_s, pygame.K_DOWN):
             self.mode_selected = (self.mode_selected + 1) % len(GAME_MODES)
         elif event.key in (pygame.K_j, pygame.K_RETURN):
-            mode_id, _, _, playable = GAME_MODES[self.mode_selected]
-            if playable:
-                self.picking_mode = False
-                self.game.new_game(mode_id)
+            if self._mode_available(self.mode_selected):
+                self.pending_start = ('mode', GAME_MODES[self.mode_selected][0])
+                self._open_slots('new')
         elif event.key in (pygame.K_ESCAPE, pygame.K_SPACE, pygame.K_BACKSPACE):
-            self.picking_mode = False
+            self.view = 'main'
 
-    def _confirm(self, has_save):
-        opt = self.options[self.selected]
-        if opt == "New Game":
-            self.picking_mode = True
-            self.mode_selected = 0
-        elif opt == "Continue":
-            if has_save:
-                self.game.load_game()
-        elif opt == "Sandbox Mode":
-            self.game.sandbox_mode()
+    def _open_slots(self, purpose):
+        self.slots = self.game.save_slot_summaries()
+        self.slot_purpose = purpose
+        self.confirm_overwrite = False
+        want_filled = purpose == 'load'   # loading starts on a save, a new run on an empty file
+        self.slot_selected = next((i for i, (_, s) in enumerate(self.slots)
+                                   if (s is not None) == want_filled), 0)
+        self.view = 'slots'
+
+    def _handle_slot_picker(self, event):
+        slot, summary = self.slots[self.slot_selected]
+        if self.confirm_overwrite:
+            if event.key in (pygame.K_j, pygame.K_RETURN):
+                self._start(slot)
+            elif event.key in (pygame.K_ESCAPE, pygame.K_SPACE, pygame.K_BACKSPACE):
+                self.confirm_overwrite = False
+            return
+        if event.key in (pygame.K_w, pygame.K_UP):
+            self.slot_selected = (self.slot_selected - 1) % len(self.slots)
+        elif event.key in (pygame.K_s, pygame.K_DOWN):
+            self.slot_selected = (self.slot_selected + 1) % len(self.slots)
+        elif event.key in (pygame.K_j, pygame.K_RETURN):
+            if self.slot_purpose == 'load':
+                if summary is not None:
+                    self.view = 'main'
+                    self.game.load_game(slot)
+            elif summary is not None:
+                self.confirm_overwrite = True
+            else:
+                self._start(slot)
+        elif event.key in (pygame.K_ESCAPE, pygame.K_SPACE, pygame.K_BACKSPACE):
+            from_modes = self.pending_start and self.pending_start[0] == 'mode'
+            self.view = 'modes' if from_modes else 'main'
+
+    def _start(self, slot):
+        start, self.pending_start = self.pending_start, None
+        self.view = 'main'
+        self.confirm_overwrite = False
+        if start[0] == 'sandbox':
+            self.game.sandbox_mode(slot)
+        else:
+            self.game.new_game(start[1], slot)
+
+    def _handle_unlock(self, event):
+        if event.key == pygame.K_ESCAPE:
+            self.view = 'main'
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            entry = UNLOCK_CODES.get(self.unlock_text.strip().lower())
+            if entry:
+                keys, label = entry
+                new = self.game.unlock(*keys)
+                text = f"{label} unlocked!" if new else f"{label} is already unlocked."
+                self.unlock_msg = (text, (140, 240, 150))
+            elif self.unlock_text:
+                self.unlock_msg = ("Nothing happened...", (240, 140, 140))
+            self.unlock_text = ''
+        elif event.key == pygame.K_BACKSPACE:
+            self.unlock_text = self.unlock_text[:-1]
+        else:
+            ch = event.unicode
+            if ch and ch.isalpha() and len(self.unlock_text) < 12:
+                self.unlock_text += ch
+
+    # ── drawing ───────────────────────────────────────────────────────────
 
     def draw(self, screen, has_save):
         W, H = screen.get_width(), screen.get_height()
         self.backdrop.draw(screen, self.logo)
 
-        if self.picking_mode:
+        if self.view == 'modes':
             self._draw_mode_picker(screen)
-            if self.fade_alpha > 0:
-                fade = pygame.Surface((W, H))
-                fade.fill((0, 0, 0))
-                fade.set_alpha(self.fade_alpha)
-                screen.blit(fade, (0, 0))
-            return
+        elif self.view == 'slots':
+            self._draw_slot_picker(screen)
+        else:
+            self._draw_main(screen, has_save, show_hint=self.view == 'main')
+            if self.view == 'unlock':
+                self._draw_unlock(screen)
 
+        if self.fade_alpha > 0:
+            fade = pygame.Surface((W, H))
+            fade.fill((0, 0, 0))
+            fade.set_alpha(self.fade_alpha)
+            screen.blit(fade, (0, 0))
+
+    def _draw_main(self, screen, has_save, show_hint=True):
+        W, H = screen.get_width(), screen.get_height()
         for i, opt in enumerate(self.options):
             y = 250 + i * 52
             unavailable = opt == "Continue" and not has_save
@@ -4223,22 +4344,20 @@ class TitleScreen:
             screen.blit(shadow, (W // 2 - surf.get_width() // 2 + 2, y + 2))
             screen.blit(surf, (W // 2 - surf.get_width() // 2, y))
 
-        hint = self.hint_font.render("W/S  Navigate       J  Select", True, (150, 135, 190))
-        screen.blit(hint, (W // 2 - hint.get_width() // 2, H - 35))
+        if show_hint:
+            hint = self.hint_font.render("W/S  Navigate       J  Select", True, (150, 135, 190))
+            screen.blit(hint, (W // 2 - hint.get_width() // 2, H - 35))
 
-        if self.fade_alpha > 0:
-            fade = pygame.Surface((W, H))
-            fade.fill((0, 0, 0))
-            fade.set_alpha(self.fade_alpha)
-            screen.blit(fade, (0, 0))
-
-    def _draw_mode_picker(self, screen):
-        W, H = screen.get_width(), screen.get_height()
-        panel = pygame.Rect(W // 2 - 270, 140, 540, 290)
+    def _draw_panel(self, screen, panel):
         bg = pygame.Surface(panel.size, pygame.SRCALPHA)
         pygame.draw.rect(bg, (22, 12, 46, 255), bg.get_rect(), border_radius=10)
         screen.blit(bg, panel.topleft)
         pygame.draw.rect(screen, (160, 130, 255), panel, 2, border_radius=10)
+
+    def _draw_mode_picker(self, screen):
+        W, H = screen.get_width(), screen.get_height()
+        panel = pygame.Rect(W // 2 - 270, 140, 540, 290)
+        self._draw_panel(screen, panel)
 
         desc_font = self.game.fonts['BAG']
         title = desc_font.render("Choose a game mode", True, (190, 178, 220))
@@ -4246,30 +4365,124 @@ class TitleScreen:
 
         row_h = 40
         top = panel.y + 40
-        for i, (_, label, _, playable) in enumerate(GAME_MODES):
+        for i, (mode_id, label, _, playable) in enumerate(GAME_MODES):
             y = top + i * row_h
+            available = self._mode_available(i)
             if i == self.mode_selected:
                 box = pygame.Rect(panel.x + 14, y - 4, panel.width - 28, row_h - 4)
                 pygame.draw.rect(screen, (45, 28, 90), box, border_radius=7)
                 pygame.draw.rect(screen, (160, 130, 255), box, 2, border_radius=7)
-                color = (255, 230, 80) if playable else (150, 140, 180)
+                color = (255, 230, 80) if available else (150, 140, 180)
             else:
-                color = (190, 178, 220) if playable else (95, 88, 125)
+                color = (190, 178, 220) if available else (95, 88, 125)
             surf = self.game.fonts['BATTLE'].render(label, True, color)
             screen.blit(surf, (panel.x + 30, y + (row_h - 4 - surf.get_height()) // 2 - 4))
-            if not playable:
-                tag = self.hint_font.render("Coming soon", True, (150, 135, 190))
+            if not available:
+                tag_text = "Coming soon" if not playable else "Locked"
+                tag = self.hint_font.render(tag_text, True, (150, 135, 190))
                 screen.blit(tag, (panel.right - 30 - tag.get_width(), y + 8))
 
         # description of the highlighted mode
-        desc = GAME_MODES[self.mode_selected][2]
+        mode_id, _, desc, playable = GAME_MODES[self.mode_selected]
+        if playable and not self.game.is_unlocked(mode_id):
+            desc = LOCKED_MODE_HINT
         div_y = top + len(GAME_MODES) * row_h + 2
         pygame.draw.line(screen, (90, 70, 150), (panel.x + 20, div_y), (panel.right - 20, div_y), 1)
         for j, line in enumerate(wrap_text(desc, desc_font, panel.width - 50)[:4]):
             surf = desc_font.render(line, True, (220, 212, 240))
             screen.blit(surf, (panel.x + 25, div_y + 10 + j * 19))
 
-        hint = self.hint_font.render("W/S  Navigate       J  Start       Esc  Back", True, (150, 135, 190))
+        hint = self.hint_font.render("W/S  Navigate       J  Select       Esc  Back", True, (150, 135, 190))
+        screen.blit(hint, (W // 2 - hint.get_width() // 2, H - 35))
+
+    def _slot_summary_text(self, s):
+        if s['sandbox']:
+            mode = "Sandbox"
+        else:
+            mode = next((label for m, label, _, _ in GAME_MODES if m == s['mode']), s['mode'])
+        mins = int(s['play_time'] // 60)
+        parts = [mode, f"{mins // 60}:{mins % 60:02d}",
+                 f"{s['badges']} badge" + ("" if s['badges'] == 1 else "s")]
+        if s['lead']:
+            parts.append(s['lead'])
+        if s['finished']:
+            parts.append("Cleared")
+        return "  |  ".join(parts)
+
+    def _draw_slot_picker(self, screen):
+        W, H = screen.get_width(), screen.get_height()
+        panel = pygame.Rect(W // 2 - 270, 140, 540, 290)
+        self._draw_panel(screen, panel)
+
+        desc_font = self.game.fonts['BAG']
+        heading = "Continue: choose a file" if self.slot_purpose == 'load' else "New Game: choose a file"
+        title = desc_font.render(heading, True, (190, 178, 220))
+        screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 10))
+
+        row_h = 62
+        top = panel.y + 40
+        for i, (slot, s) in enumerate(self.slots):
+            y = top + i * row_h
+            dim = self.slot_purpose == 'load' and s is None   # nothing to continue
+            if i == self.slot_selected:
+                box = pygame.Rect(panel.x + 14, y - 4, panel.width - 28, row_h - 6)
+                pygame.draw.rect(screen, (45, 28, 90), box, border_radius=7)
+                pygame.draw.rect(screen, (160, 130, 255), box, 2, border_radius=7)
+                color = (150, 140, 180) if dim else (255, 230, 80)
+            else:
+                color = (95, 88, 125) if dim else (190, 178, 220)
+            name = self.game.fonts['BATTLE'].render(f"File {slot}", True, color)
+            screen.blit(name, (panel.x + 30, y + 2))
+            detail = self._slot_summary_text(s) if s else "Empty"
+            surf = desc_font.render(detail, True, (95, 88, 125) if s is None else (220, 212, 240))
+            screen.blit(surf, (panel.x + 30, y + 4 + name.get_height()))
+
+        div_y = top + len(self.slots) * row_h
+        pygame.draw.line(screen, (90, 70, 150), (panel.x + 20, div_y), (panel.right - 20, div_y), 1)
+        slot, s = self.slots[self.slot_selected]
+        if self.confirm_overwrite:
+            msg, color = f"Overwrite File {slot}? It's replaced the first time you save.", (255, 200, 120)
+            hint_text = "J  Overwrite       Esc  Cancel"
+        else:
+            if self.slot_purpose == 'new' and s is not None:
+                msg = "This file is in use. Pick it to overwrite it."
+            elif self.slot_purpose == 'new' and all(x is not None for _, x in self.slots):
+                msg = "All files are in use."
+            else:
+                msg = ""
+            color = (220, 212, 240)
+            hint_text = "W/S  Navigate       J  Select       Esc  Back"
+        if msg:
+            surf = desc_font.render(msg, True, color)
+            screen.blit(surf, (panel.centerx - surf.get_width() // 2, div_y + 10))
+
+        hint = self.hint_font.render(hint_text, True, (150, 135, 190))
+        screen.blit(hint, (W // 2 - hint.get_width() // 2, H - 35))
+
+    def _draw_unlock(self, screen):
+        W, H = screen.get_width(), screen.get_height()
+        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        dim.fill((0, 0, 0, 170))
+        screen.blit(dim, (0, 0))
+        panel = pygame.Rect(0, 0, 400, 150)
+        panel.center = (W // 2, H // 2)
+        self._draw_panel(screen, panel)
+
+        title = self.game.fonts['BATTLE'].render("UNLOCK", True, (255, 230, 80))
+        screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 12))
+
+        field = pygame.Rect(panel.x + 40, panel.y + 52, panel.width - 80, 36)
+        pygame.draw.rect(screen, (45, 28, 90), field, border_radius=6)
+        pygame.draw.rect(screen, (160, 130, 255), field, 2, border_radius=6)
+        text = self.option_font.render(self.unlock_text + "_", True, (255, 248, 220))
+        screen.blit(text, (field.x + 10, field.centery - text.get_height() // 2))
+
+        if self.unlock_msg:
+            msg, color = self.unlock_msg
+            surf = self.game.fonts['BAG'].render(msg, True, color)
+            screen.blit(surf, (panel.centerx - surf.get_width() // 2, field.bottom + 14))
+
+        hint = self.hint_font.render("Type a code       Enter  Submit       Esc  Close", True, (150, 135, 190))
         screen.blit(hint, (W // 2 - hint.get_width() // 2, H - 35))
 
 

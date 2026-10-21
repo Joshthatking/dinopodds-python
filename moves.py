@@ -28,6 +28,7 @@ DURATIONS = {                       # signature moves that run longer than DURAT
     'Infinite Light': 3.4,
     'Leaf Ultima': 1.4,
     'Crusher': 1.3,
+    'Power Fang': 1.3,
 }
 STRONG_POWER = 70
 TAU = math.pi * 2
@@ -1194,12 +1195,102 @@ def anim_ripping_impact(a):
     _impact(a, seg(a.t, 0.45, 1.0), ((230, 60, 60), (255, 200, 200)), 0.9)
 
 
+_PF_GUM = (130, 25, 40)
+_PF_FANGS = (0.22, 0.78)   # canine positions along the jaw (0..1)
+
+
+def _pf_jaw(a, cx, row, sgn, w, alpha, gleam=0.0):
+    """One curved jaw (sgn=1 upper, -1 lower): gum band with teeth pointing
+    toward the mouth's center and two big canines. Returns the canine tips."""
+    s = a.s
+    edge = []
+    for i in range(17):
+        u = i / 16
+        edge.append((cx + (u - 0.5) * w, row + sgn * 16 * s * (2 * u - 1) ** 2))
+    back = [(x, y - sgn * 16 * s) for x, y in reversed(edge)]
+    a.poly(edge + back, _PF_GUM, alpha * 0.9)
+    a.lines(edge, (70, 10, 20), alpha, 3)
+    tips = []
+    n = 8
+    for i in range(n):
+        u = (i + 0.5) / n
+        x = cx + (u - 0.5) * w
+        y = row + sgn * 16 * s * (2 * u - 1) ** 2
+        half = w / n * 0.42
+        a.poly([(x - half, y), (x + half, y), (x, y + sgn * 15 * s)], (235, 232, 225), alpha)
+    for u in _PF_FANGS:
+        x = cx + (u - 0.5) * w
+        y = row + sgn * 16 * s * (2 * u - 1) ** 2
+        tip = (x + (0.5 - u) * 10 * s, y + sgn * 46 * s)
+        body = [(x - 12 * s, y), (x + 12 * s, y), tip]
+        a.poly(body, WHITE, alpha)
+        a.poly(body, SPIKE[2], alpha * 0.8, 2)
+        a.line(x - 4 * s, y + sgn * 4 * s, tip[0], tip[1] - sgn * 6 * s, (255, 255, 255), alpha * 0.6, 2)
+        if gleam > 0:
+            a.star(tip[0], tip[1], 14 * s * gleam, WHITE, 255 * gleam, points=4, rot=0.3)
+            a.glow(tip[0], tip[1], 22 * s, WHITE, 0.9 * gleam)
+        tips.append(tip)
+    return tips
+
+
 def anim_power_fang(a):
-    _jaws(a, a.t, WHITE, 1.15, 5, fang=True)
-    p = seg(a.t, 0.42, 1.0)
+    t = a.t
+    s = a.s
+    w = 150 * s
+    # Gap between the jaws over time: open + wind up wider, then a fast snap
+    # (kept small enough that the jaws stay on screen for both battle slots)
+    if t < 0.3:
+        gap = lerp(48, 62, ease_out(t / 0.3)) * s
+    elif t < 0.4:
+        gap = 62 * s * (1 - ease_in((t - 0.3) / 0.1))
+    else:
+        gap = -6 * s   # bitten in
+    bite = seg(t, 0.4, 1.0)
+
+    # 1. Darken the screen, jaws fade in, canines gleam at the top of the wind-up
+    p = seg(t, 0.0, 0.4)
     if p is not None:
-        a.burst(a.tx, a.ty, p, 14, 90 * a.s, SPIKE[1], 4 * a.s, shape='streak', glow=0.3)
-        a.shake(4 * (1 - p))
+        a.tint((25, 0, 10), 120 * ease_out(p))
+    jaw_alpha = 255 * min(1.0, t / 0.12) * (fade_late(bite, 0.55) if bite is not None else 1.0)
+    shudder = math.sin(t * 90) * 4 * s * (1 - bite) if bite is not None and bite < 0.5 else 0.0
+    gleam = hump(seg(t, 0.12, 0.32) or 0.0) if t < 0.32 else 0.0
+
+    # 2. Speed streaks as the jaws slam shut
+    p = seg(t, 0.3, 0.42)
+    if p is not None:
+        for i in range(6):
+            x = a.tx + (i - 2.5) * w / 6
+            a.line(x, a.ty - gap - 50 * s, x, a.ty - gap - 15 * s, WHITE, 140 * (1 - p), 2)
+            a.line(x, a.ty + gap + 50 * s, x, a.ty + gap + 15 * s, WHITE, 140 * (1 - p), 2)
+
+    up = _pf_jaw(a, a.tx + shudder, a.ty - gap - 38 * s, 1, w, jaw_alpha, gleam)
+    _pf_jaw(a, a.tx - shudder, a.ty + gap + 38 * s, -1, w, jaw_alpha, gleam)
+
+    # 3. CRUNCH: flash, shockwave, puncture cracks at each canine, sparks
+    if bite is not None:
+        _strong_finish(a, bite, ((255, 255, 255), (255, 235, 235)), 200, 11)
+        e = ease_out(bite)
+        a.ring(a.tx, a.ty, 20 * s + 130 * s * e, (255, 210, 210), 230 * (1 - bite), 5)
+        a.ring(a.tx, a.ty, 10 * s + 85 * s * e, SPIKE[1], 200 * (1 - bite), 3)
+        a.glow(a.tx, a.ty, 90 * s, (255, 120, 120), 1.4 * (1 - bite))
+        crack_al = 255 * fade_late(bite, 0.5)
+        rng = a.rng('pf_cracks')
+        for k, (fx, fy) in enumerate(up):
+            px, py = fx, a.ty
+            a.circle(px, py, 8 * s, (170, 20, 40), crack_al)
+            a.circle(px, py, 4 * s, WHITE, crack_al)
+            grow = ease_out(min(1.0, bite / 0.35))
+            for j in range(5):
+                ang = rng.uniform(0, TAU)
+                pts = [(px, py)]
+                L = rng.uniform(28, 55) * s * grow
+                for m in range(1, 4):
+                    d = L * m / 3
+                    jit = rng.uniform(-0.35, 0.35)
+                    pts.append((px + math.cos(ang + jit) * d, py + math.sin(ang + jit) * d))
+                a.lines(pts, (255, 235, 235), crack_al, 2)
+        a.burst(a.tx, a.ty, bite, 22, 150 * s, WHITE, 4 * s, shape='streak', glow=0.4)
+        a.burst(a.tx, a.ty, bite, 12, 110 * s, (230, 60, 70), 4 * s, gravity=120, key=1)
 
 
 def anim_sword_slash(a):

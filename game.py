@@ -30,7 +30,18 @@ from data import *
 import random
 import story as _story
 
-SAVE_PATH = 'dinopodds_save.json'
+SAVE_DIR = 'SAVES'
+LEGACY_SAVE_PATH = 'dinopodds_save.json'   # the single save file from before save slots
+SAVE_SLOTS = 3
+UNLOCKS_PATH = os.path.join(SAVE_DIR, 'unlocks.json')   # title-screen unlocks, shared by every save slot
+# Finishing the main story in Standard unlocks these modes (Sandbox only via the code menu)
+STORY_UNLOCKS = ('randomizer', 'nuzlocke', 'randomizer_nuzlocke')
+
+
+def save_path(slot):
+    return os.path.join(SAVE_DIR, f'dinopodds_save_{slot}.json')
+
+
 TITLE_MUSIC_PATH = os.path.join('assets', 'SOUND', 'title.wav')
 TITLE_MUSIC_GAIN = 1.3   # the title / credits theme plays a little louder than the Options level
 
@@ -177,6 +188,10 @@ class Game:
         # Story / progress
         self.story_flags = {}
         self.sandbox = False
+        self.save_slot = 1   # which dinopodds_save_N.json this run saves to
+        self._migrate_legacy_save()
+        self.unlocks = self._load_unlocks()
+        self._unlock_from_finished_saves()
 
         # Screens
         self.title_screen = TitleScreen(self)
@@ -242,6 +257,7 @@ class Game:
         self.heal_anim = None
         self.yes_no_prompt = None
         self.yes_no_callback = None
+        self.yes_no_no_callback = None   # optional, fires when the player picks No
         self.cutscene = None
         self.cutscene_flash = None
         self.orb_fx = None
@@ -509,8 +525,96 @@ class Game:
 
     # --- Title / New Game / Save-Load ---
 
-    def new_game(self, mode='standard'):
+    # --- Save slots + title-screen unlocks ---
+
+    def _migrate_legacy_save(self):
+        """Move saves from the game folder into SAVES/: slot files and
+        unlocks.json from before the folder existed, then the old single
+        dinopodds_save.json into the first free slot."""
+        os.makedirs(SAVE_DIR, exist_ok=True)
+        for old in [f'dinopodds_save_{s}.json' for s in range(1, SAVE_SLOTS + 1)] + ['unlocks.json']:
+            new = os.path.join(SAVE_DIR, old)
+            if os.path.exists(old) and not os.path.exists(new):
+                try:
+                    os.replace(old, new)
+                except OSError as e:
+                    print(f"[save] couldn't move {old} into {SAVE_DIR}/: {e}")
+        if not os.path.exists(LEGACY_SAVE_PATH):
+            return
+        for slot in range(1, SAVE_SLOTS + 1):
+            if not os.path.exists(save_path(slot)):
+                try:
+                    os.replace(LEGACY_SAVE_PATH, save_path(slot))
+                except OSError as e:
+                    print(f"[save] couldn't move old save into slot {slot}: {e}")
+                return
+
+    def _read_save(self, slot):
+        try:
+            with open(save_path(slot)) as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return None
+
+    def has_any_save(self):
+        return any(os.path.exists(save_path(s)) for s in range(1, SAVE_SLOTS + 1))
+
+    def save_slot_summaries(self):
+        """[(slot, summary dict or None)] for the title screen's file picker."""
+        out = []
+        for slot in range(1, SAVE_SLOTS + 1):
+            data = self._read_save(slot)
+            if data is None:
+                out.append((slot, None))
+                continue
+            party = data.get('party') or []
+            out.append((slot, {
+                'mode': data.get('game_mode', 'standard'),
+                'sandbox': data.get('sandbox', False),
+                'play_time': data.get('play_time', 0.0),
+                'badges': len(data.get('badges', [])),
+                'lead': party[0].get('name') if party else None,
+                'finished': bool(data.get('story_flags', {}).get('credits_done')),
+            }))
+        return out
+
+    def _load_unlocks(self):
+        try:
+            with open(UNLOCKS_PATH) as f:
+                return set(json.load(f).get('unlocked', []))
+        except (FileNotFoundError, json.JSONDecodeError, AttributeError):
+            return set()
+
+    def unlock(self, *keys):
+        """Unlock title-screen modes ('randomizer', 'nuzlocke',
+        'randomizer_nuzlocke', 'sandbox'). Returns the ones that were new."""
+        new = [k for k in keys if k not in self.unlocks]
+        if new:
+            self.unlocks.update(new)
+            try:
+                os.makedirs(SAVE_DIR, exist_ok=True)
+                with open(UNLOCKS_PATH, 'w') as f:
+                    json.dump({'unlocked': sorted(self.unlocks)}, f, indent=2)
+            except OSError as e:
+                print(f"[save] couldn't write {UNLOCKS_PATH}: {e}")
+        return new
+
+    def is_unlocked(self, key):
+        return key == 'standard' or key in self.unlocks
+
+    def _unlock_from_finished_saves(self):
+        """Saves that already beat the main story in Standard (e.g. from
+        before unlocks existed) count toward the story unlocks."""
+        for slot in range(1, SAVE_SLOTS + 1):
+            data = self._read_save(slot)
+            if (data and data.get('game_mode', 'standard') == 'standard'
+                    and not data.get('sandbox') and data.get('story_flags', {}).get('credits_done')):
+                self.unlock(*STORY_UNLOCKS)
+                return
+
+    def new_game(self, mode='standard', slot=1):
         import datetime
+        self.save_slot = slot
         self.story_flags = {}
         self.sandbox = False
         self.game_mode = mode
@@ -579,6 +683,7 @@ class Game:
         self.heal_anim = None
         self.yes_no_prompt = None
         self.yes_no_callback = None
+        self.yes_no_no_callback = None
         self.dino_pickup_popup = None
 
         self.day_night_timer = 0.0
@@ -596,7 +701,8 @@ class Game:
         self.intro_sequence = IntroSequence(self)
         self.state_stack = ['intro']
 
-    def sandbox_mode(self):
+    def sandbox_mode(self, slot=1):
+        self.save_slot = slot
         self.story_flags = {e['id']: True for e in _story.STORY_EVENTS}
         self.story_flags['encounters_unlocked'] = True
         self.sandbox = True
@@ -826,16 +932,16 @@ class Game:
                 'enemies_defeated': self.stats_enemies_defeated,
             },
         }
-        with open(SAVE_PATH, 'w') as f:
+        os.makedirs(SAVE_DIR, exist_ok=True)
+        with open(save_path(self.save_slot), 'w') as f:
             json.dump(data, f, indent=2)
-        self.message_box.queue_messages(["Game saved!"], wait_for_input=True)
+        self.message_box.queue_messages([f"Game saved to File {self.save_slot}!"], wait_for_input=True)
 
-    def load_game(self):
-        try:
-            with open(SAVE_PATH) as f:
-                data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+    def load_game(self, slot=1):
+        data = self._read_save(slot)
+        if data is None:
             return
+        self.save_slot = slot
         self.coins = data.get('coins', 0)
         self.inventory = {**{item: 0 for item in config.ITEMS.keys()}, **data.get('inventory', {})}
         self.items_screen.inventory = self.inventory
@@ -2944,6 +3050,8 @@ class Game:
         self.credits = None
         self._stop_title_music()
         self.story_flags['credits_done'] = True
+        if self.game_mode == 'standard' and not self.sandbox:
+            self.unlock(*STORY_UNLOCKS)   # the challenge modes open up on the title screen
         self.cutscene = None
         self.world_stack = []
         self._load_world_data('HOME_JET2.tmx')
@@ -3301,7 +3409,9 @@ class Game:
             self._split_dialogue(
                 "Some of that energy is still around it seems, I would be vigilant around"
                 " here at night ok Jet? I hope to see you at my gym soon, would love a good"
-                " challenge",
+                " challenge" 
+                "and who knows maybe you'll end up being our next champion",
+                
                 name='Log'
             ),
             wait_for_input=True,
@@ -5750,7 +5860,7 @@ class Game:
         self.message_box.queue_messages(
             self._tag_dialogue('Skyy', [
                 "We need to help him, I am sure he can handle the grunts on his own since he is the strongest gym leader of our region.",
-                "Though the leaders of the Shadow Group are tough.",
+                "Though the leaders of the Shadow Group are tough.", "If only Champion Xander was here to help, where has he been?"
             ]),
             wait_for_input=True,
             on_complete=lambda: self._shadow_confrontation_abby_line(gray, skyy, abby)
@@ -6672,8 +6782,8 @@ class Game:
                 "I will be checking the ruins for any hints as to where this last shard is located.",
             ]),
             ('Abby', [
-                "I will continue researching this group for Professor Amber. I know what they are doing is not right, but their reason may be valid..",
-                "The solar energy is beginning to damage our planet, there must be another way...",
+                "I will continue researching this group for Professor Amber. But what if they are right about this?",
+                "What if Champion Xander miscalculated the damages all the solar power is creating?",
             ]),
             ('Skyy', [
                 "At this point in time the threat is priority..",
@@ -6844,8 +6954,16 @@ class Game:
             os.path.join('assets', 'Badges', 'flying_badge.png'),
             on_dismiss=_after_badge)
 
+    # Grunts at (55, -70..-68) on the overworld, there until Gym 2 is beaten
+    GYM2_GUARDS = ('gym2_guard_a', 'gym2_guard_b', 'gym2_guard_c')
+
     def _on_log_gym_won(self):
         self.story_flags['gym2_leader_defeated'] = True
+        # The overworld's NPC list is restored from world_stack on exit —
+        # drop the guards from it so they're gone when the player walks out.
+        for entry in self.world_stack:
+            entry['npcs'][:] = [n for n in entry['npcs']
+                                if getattr(n, 'trainer_id', '') not in self.GYM2_GUARDS]
         if 'earth' not in self.badges_earned:
             self.badges_earned.append('earth')
 
@@ -7001,7 +7119,7 @@ class Game:
 
             if self.state == 'title':
                 self._ui_sfx(event)
-                self.title_screen.handle_event(event, os.path.exists(SAVE_PATH))
+                self.title_screen.handle_event(event, self.has_any_save())
                 continue
 
             if self.state == 'intro':
@@ -7025,15 +7143,13 @@ class Game:
             # Yes/No prompt (generic — callback set by whoever opens it)
             if self.yes_no_prompt:
                 result = self.yes_no_prompt.handle_event(event)
-                if result == 'yes':
-                    cb = self.yes_no_callback
+                if result in ('yes', 'no'):
+                    cb = self.yes_no_callback if result == 'yes' else self.yes_no_no_callback
                     self.yes_no_prompt = None
                     self.yes_no_callback = None
+                    self.yes_no_no_callback = None
                     if cb:
                         cb()
-                elif result == 'no':
-                    self.yes_no_prompt = None
-                    self.yes_no_callback = None
                 return
 
             if self.dino_pickup_popup and self.dino_pickup_popup.active:
@@ -7695,6 +7811,8 @@ class Game:
                 continue
             if trainer_id == 'josh' and self.story_flags.get('josh_defeated'):
                 continue
+            if trainer_id in self.GYM2_GUARDS and self.story_flags.get('gym2_leader_defeated'):
+                continue
             if trainer_id == 'celestreeyl' and self.story_flags.get('celestreeyl_done'):
                 continue
             if trainer_id in self.LEGENDS and self.story_flags.get(self.LEGENDS[trainer_id]['flag']):
@@ -7842,6 +7960,54 @@ class Game:
             ]),
             wait_for_input=True, on_complete=give)
 
+    def _interact_riley(self, npc):
+        """Riley gives the player 5 DinoPods and a Revival Gem, once."""
+        if self.story_flags.get('riley_gift_done'):
+            self.message_box.queue_messages(
+                self._tag_dialogue('Riley', ["Don't forget, a Revival Gem can bring a fainted dino right back!"]),
+                wait_for_input=True)
+            return
+
+        def give():
+            self.inventory['DinoPod'] = self.inventory.get('DinoPod', 0) + 5
+            self.inventory['Revival Gem'] = self.inventory.get('Revival Gem', 0) + 1
+            self.story_flags['riley_gift_done'] = True
+            self.message_box.queue_messages(
+                ["You received 5 DinoPods!", "You received a Revival Gem!"], wait_for_input=True)
+
+        self.message_box.queue_messages(
+            self._tag_dialogue('Riley', [
+                "Hey there! You look like you've been battling a lot lately!",
+                "Here, take these, every trainer could use a few extras!",
+            ]),
+            wait_for_input=True, on_complete=give)
+
+    def _interact_dr_taft(self, npc):
+        """Dr. Taft explains the power plant takeover and gives 2 Mega Sprays, once."""
+        if self.story_flags.get('taft_gift_done'):
+            self.message_box.queue_messages(
+                self._tag_dialogue('Dr. Taft', ["Be careful in there!"]),
+                wait_for_input=True)
+            return
+
+        def give():
+            self.inventory['Mega Spray'] = self.inventory.get('Mega Spray', 0) + 2
+            self.story_flags['taft_gift_done'] = True
+            self.message_box.queue_messages(
+                ["You received 2 Mega Sprays!"], wait_for_input=True)
+
+        self.message_box.queue_messages(
+            self._tag_dialogue('Dr. Taft', [
+                "Our Power plant was hostilely taken over",
+                "It has been a big buzz ever since 100% lossless solar energy was found",
+                "Our champion really pushed it and things were going great...",
+                "Until this Shadow Group began vandalizing every source of energy",
+                "Not to mention the eclipses followed by solar flares",
+                "What is going on!?",
+                "Be careful in there, here are some items to help",
+            ]),
+            wait_for_input=True, on_complete=give)
+
     def _interact_story_npc(self, npc):
         if npc.trainer_id == 'amber':
             if (self.current_world_file == 'RESEARCH_LAB.tmx'
@@ -7899,6 +8065,14 @@ class Game:
                     "Our crops have suffered ever since they got installed",
                 ]),
                 wait_for_input=True)
+        elif npc.trainer_id == 'keller':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Keller', [
+                    "Ever since Xander, the champion and leader of this region, came to be our lives have gotten so much easier!",
+                    "The move to 100% lossless solar energy has been life changing!",
+                    "He is really ahead of his time",
+                ]),
+                wait_for_input=True)
         elif npc.trainer_id == 'hannah':
             self.message_box.queue_messages(
                 self._tag_dialogue('Hannah', [
@@ -7910,6 +8084,13 @@ class Game:
                 on_complete=lambda n=npc: setattr(n, 'facing', n.home_facing))
         elif npc.trainer_id == 'lilly':
             self._interact_lilly(npc)
+        elif npc.trainer_id == 'riley':
+            self._interact_riley(npc)
+        elif npc.trainer_id == 'dr_taft':
+            self._interact_dr_taft(npc)
+        elif npc.trainer_id in self.GYM2_GUARDS:
+            self.message_box.queue_messages(
+                ["Don't worry about it, go somewhere else"], wait_for_input=True)
         elif npc.trainer_id == 'tommy':
             self.message_box.queue_messages(
                 self._tag_dialogue('Tommy', [
@@ -7935,6 +8116,8 @@ class Game:
             self._interact_package_debby(npc)
         elif npc.trainer_id == 'collector':
             self._interact_trade_collector(npc)
+        elif npc.trainer_id == 'luka':
+            self._interact_luka(npc)
         elif npc.trainer_id == 'josh':
             self._interact_josh(npc)
         elif npc.trainer_id == 'celestreeyl':
@@ -8775,6 +8958,61 @@ class Game:
              *self._split_dialogue(*lines, name='Collector')],
             wait_for_input=True)
 
+    # --- Side quest: Luka's Ghoulflame trade ---
+    # Luka (Route 2, outside the Corn Maze) is too scared to go into the maze
+    # but wants a Ghoulflame. With one in the party he offers a yes/no trade
+    # for a Lv 15 Sharka from Palm Port. Flag: luka_traded.
+    LUKA_WANT = 'Ghoulflame'
+    LUKA_GIVE = ('Sharka', 15)
+
+    def _interact_luka(self, npc):
+        want = self._rando(self.LUKA_WANT, "trade_want:luka")
+        give, level = self._rando(self.LUKA_GIVE[0], "gift:luka"), self.LUKA_GIVE[1]
+        if self.story_flags.get('luka_traded'):
+            self.message_box.queue_messages(self._split_dialogue(
+                f"{want} and I go everywhere together now! My friends can't believe it!",
+                f"I hope {give} is treating you well!",
+                name='Luka'), wait_for_input=True)
+            return
+        lines = ["Man... to be honest I am scared to go into the corn maze",
+                 f"But I really want a {want}!",
+                 "My friends would think I am so tough if I got one",
+                 f"Would you be willing to trade, I have a {give} from Palm Port to offer?"]
+        offer = next((d for d in self.player_dinos if d['name'] == want), None)
+        if not offer:
+            lines.append(f"If you ever find a {want}, come find me!")
+            self.message_box.queue_messages(self._split_dialogue(*lines, name='Luka'), wait_for_input=True)
+            return
+
+        def ask():
+            self.yes_no_prompt = YesNoPrompt(
+                f"Trade your Lv {offer['level']} {offer['name']} for a Lv {level} {give}?",
+                self.fonts, config.WIDTH, config.HEIGHT)
+            self.yes_no_callback = lambda: self._do_luka_trade(offer, give, level)
+            self.yes_no_no_callback = lambda: self.message_box.queue_messages(self._split_dialogue(
+                f"Aw man... I get it, a {want} is hard to part with.",
+                "If you change your mind I'll be right here... definitely not going into that maze.",
+                name='Luka'), wait_for_input=True)
+        self.message_box.queue_messages(self._split_dialogue(*lines, name='Luka'),
+                                        wait_for_input=True, on_complete=ask)
+
+    def _do_luka_trade(self, offer, give, level):
+        if offer not in self.player_dinos:
+            return
+        if offer['name'] not in self.nz_owned_species:   # Nuzlocke dupes count traded-away dinos
+            self.nz_owned_species.append(offer['name'])
+        self.player_dinos[self.player_dinos.index(offer)] = self.create_dino(give, level)
+        self.dinos_seen.add(give)
+        self.story_flags['luka_traded'] = True
+        self.message_box.queue_messages(
+            [f"{config.PLAYER_NAME} traded {offer['name']} for {give}!",
+             *self._split_dialogue(
+                 f"No way, a real {offer['name']}! Thank you so much!",
+                 f"Take good care of {give}, it's a tough little guy straight from Palm Port!",
+                 "Just wait until my friends see this!",
+                 name='Luka')],
+            wait_for_input=True)
+
     def _lantern_glow(self, r):
         cache = self.__dict__.setdefault('_lantern_glow_cache', {})
         spr = cache.get(r)
@@ -9219,7 +9457,7 @@ class Game:
             return
 
         if self.state == 'title':
-            self.title_screen.draw(self.screen, os.path.exists(SAVE_PATH))
+            self.title_screen.draw(self.screen, self.has_any_save())
             pygame.display.flip()
             return
 

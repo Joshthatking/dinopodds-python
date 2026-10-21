@@ -23,7 +23,7 @@ LAKE_WORLD = 'LOST_REGION.world'
 LAKE_RECT  = (-20, -120, 55, -75)
 CAVE_ENTRANCE_ID = 'horizon'
 
-INTERVAL = (45.0, 60.0)   # seconds between shows (only counted while in the lake)
+INTERVAL = (35.0, 50.0)   # seconds between shows (only counted while in the lake)
 DURATION = 5.0
 FADE_IN  = 1.2
 FADE_OUT = 1.6

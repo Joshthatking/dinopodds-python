@@ -382,6 +382,14 @@ if __name__ == '__main__':
 # Every audio created or using mine
 # PARTY MENU CLEANED UP 
 # MASSIVE PLAYTHROUGH FIXES - double battles, defend, move balancing, textures, xp share (nerf), size fixes
+# TRAILER
+
+
+
+#10/20
+# Lock Gamemodes behind beating game(sandbox too)
+# add unlock menu - CTRL + J + K - sand/random/nuz
+# lightning neutral - dark | ice neutral to aqua
 
 
 # PLAYTHROUGH NOTES
