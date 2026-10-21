@@ -697,6 +697,35 @@ TRAINER_DATA = {
         'reward_coins': 850,
         'rank': 'lowest',
     },
+    # COBALT_CAVE.world
+    'jt': {
+        'name': 'JT',
+        'dinos': {0: ('Lavaleo', 23), 1: ('Ghoulflame', 24)},
+        'dialog': {
+            'default':  ["It's pitch black in here, but my dinos light the way!", "Let's battle!"],
+            'defeated': ["Guess my flames burned out..."]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'cave',
+        'reward_coins': 750,
+        'rank': 'lowest',
+    },
+    'ty': {
+        'name': 'Ty',
+        'dinos': {0: ('Rockull', 25)},
+        'dialog': {
+            'default':  ["Rockull and I have been training deep in this cave.", "You won't crack us!"],
+            'defeated': ["Not even a dent... that's tough to take."]
+        },
+        'directions': ['down'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'cave',
+        'reward_coins': 700,
+        'rank': 'lowest',
+    },
     # ROUTE3_4 (west, toward Cobalt Cave)
     'kate': {
         'name': 'Kate',

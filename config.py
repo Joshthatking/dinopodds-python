@@ -258,6 +258,8 @@ NPC_SPRITE_KEY = {
     'luka':          'basic_trainer2',
     'riley':         'debby',    # Blue_G.png
     'dr_taft':       'rocko',    # Beard.png
+    'jt':            'basic_trainer',
+    'ty':            'basic_trainer2',
     'gym2_guard_a':  'enemy_male',
     'gym2_guard_b':  'enemy_male',
     'gym2_guard_c':  'enemy_male',
@@ -443,6 +445,10 @@ WORLD_NPCS = {
     ],
     'HORIZON_CAVE1.tmx': [
         ('josh', 9, 3, 'down', 0, 'story'),   # Horizon Cave guardian — gone once josh_defeated
+    ],
+    'COBALT_CAVE.world': [
+        ('jt', -14, 38, 'down', 5, 'trainer'),
+        ('ty', -9, 25, 'down', 5, 'trainer'),
     ],
     'SIERRA_HOUSE1.tmx': [
         ('keller', 13, 9, 'down', 0, 'story'),   # Lore NPC — praises Xander's solar energy
