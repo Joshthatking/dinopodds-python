@@ -12,9 +12,10 @@ settings.json, separate from the save file, so they apply to every save.
 import json
 import os
 import pygame
+import paths
 
 SFX_DIR = os.path.join('assets', 'SOUND', 'SFX')
-SETTINGS_PATH = 'settings.json'
+SETTINGS_PATH = os.path.join(paths.USER_DIR, 'settings.json')
 
 # Loudest each one gets at volume 10; the 1-10 level scales down from here.
 SFX_MAX_VOLUME = 0.6

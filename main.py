@@ -1,3 +1,7 @@
+import os
+import paths
+os.chdir(paths.BASE_DIR)   # assets/ paths are relative — works from any launch folder and in the .exe
+
 import pygame
 import pytmx
 import config
@@ -399,23 +403,18 @@ if __name__ == '__main__':
 # Claude - Coding Logic, Animations, Sound Design
 # Chatgpt - Sprite Creation from Drawings
 
+# PLAYTHROUGH NOTES
+# early game works well!
 
 #ALPHA COMPLETE
 
 
 
-#multiple save files? (3)
 # Need to finish Browler, Gartunis/Relucturen, Stagnetic, Panthyr/Vlyth, Prowscar evo, Brishton
 # add more lore and suspense for the plot
 
 # PLAYTHROUGH NOTES
 # early game works well!
-
-# suggest lowering gym 1 levels by 1
-# route 2 lower levels of spawns by 2
-# part 2 of game feels a bit steep alter by 1-2 levels
-# keep ace the same
-# after gym 2 my dinos are 17-21
 
 # after the eternal darkness, have red emergency lights throughout the region
 

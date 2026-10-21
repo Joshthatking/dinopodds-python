@@ -29,9 +29,10 @@ from screens import *
 from data import *
 import random
 import story as _story
+import paths
 
-SAVE_DIR = 'SAVES'
-LEGACY_SAVE_PATH = 'dinopodds_save.json'   # the single save file from before save slots
+SAVE_DIR = os.path.join(paths.USER_DIR, 'SAVES')
+LEGACY_SAVE_PATH = os.path.join(paths.USER_DIR, 'dinopodds_save.json')   # the single save file from before save slots
 SAVE_SLOTS = 3
 UNLOCKS_PATH = os.path.join(SAVE_DIR, 'unlocks.json')   # title-screen unlocks, shared by every save slot
 # Finishing the main story in Standard unlocks these modes (Sandbox only via the code menu)
@@ -110,6 +111,11 @@ class Game:
         pygame.mixer.pre_init(44100, -16, 2, 512)   # small buffer so SFX play without lag
         pygame.init()
         self.sfx = SFX()
+        try:   # window / taskbar icon (tools/make_icon.py); set before the window opens
+            icon = pygame.image.load(os.path.join('assets', 'DinoPodds_icon.png'))
+            pygame.display.set_icon(pygame.transform.smoothscale(icon, (64, 64)))
+        except (pygame.error, FileNotFoundError):
+            pass
         self.screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT))
         pygame.display.set_caption('DinoPodds')
         self.clock = pygame.time.Clock()
@@ -532,8 +538,8 @@ class Game:
         unlocks.json from before the folder existed, then the old single
         dinopodds_save.json into the first free slot."""
         os.makedirs(SAVE_DIR, exist_ok=True)
-        for old in [f'dinopodds_save_{s}.json' for s in range(1, SAVE_SLOTS + 1)] + ['unlocks.json']:
-            new = os.path.join(SAVE_DIR, old)
+        for name in [f'dinopodds_save_{s}.json' for s in range(1, SAVE_SLOTS + 1)] + ['unlocks.json']:
+            old, new = os.path.join(paths.USER_DIR, name), os.path.join(SAVE_DIR, name)
             if os.path.exists(old) and not os.path.exists(new):
                 try:
                     os.replace(old, new)
