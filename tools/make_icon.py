@@ -1,6 +1,7 @@
 """DinoPodds app icon: a DinoPod eclipsing the sun.
 
-Writes DinoPodds.ico (the .exe icon, see DinoPodds.spec), DinoPodds_icon.png
+Writes DinoPodds.ico (the Windows .exe icon), DinoPodds.icns (the Mac .app
+icon) — both used by DinoPodds.spec — and DinoPodds_icon.png
 (the game window icon), plus icon_preview.png (every size side by side) when
 given an OUT_DIR other than assets.
     python tools/make_icon.py [OUT_DIR]      (default: assets)
@@ -132,6 +133,7 @@ img.putalpha(ImageChops.multiply(img.getchannel('A'), mask))
 img.save(f'{out_dir}/DinoPodds_icon.png')
 sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 img.save(f'{out_dir}/DinoPodds.ico', sizes=sizes)
+img.save(f'{out_dir}/DinoPodds.icns')   # the Mac .app icon
 # preview sheet: the sizes Windows actually shows
 prev = Image.new('RGBA', (16 + 24 + 32 + 48 + 64 + 128 + 256 + 8 * 10, 276), (40, 40, 40, 255))
 x = 10

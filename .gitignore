@@ -31,4 +31,4 @@ SAVES/
 # PyInstaller output (rebuild with: dino\Scripts\python.exe -m PyInstaller DinoPodds.spec --noconfirm)
 dist/
 build/
-DinoPodds.spec
+

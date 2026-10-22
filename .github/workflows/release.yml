@@ -1,0 +1,112 @@
+# Builds DinoPodds for Windows and Mac and attaches the zips to a GitHub release.
+#
+#   * Push a new tag (e.g. `git tag alpha-v0.2 && git push origin alpha-v0.2`)
+#     -> creates that release (as a pre-release) and attaches both builds.
+#   * Actions tab -> "Build release" -> "Run workflow"
+#     -> builds from the chosen branch and attaches to an EXISTING release
+#        (e.g. alpha-v0.1), Mac only or both.
+#
+# Only reads the repo and writes release files — it never commits anything.
+name: Build release
+
+on:
+  push:
+    tags: ['alpha-v*', 'beta-v*', 'v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to attach the builds to (e.g. alpha-v0.1)'
+        required: true
+      platforms:
+        description: 'Which builds to make'
+        type: choice
+        options: [mac, both]
+        default: mac
+
+permissions:
+  contents: write   # needed to create releases and upload files
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+  PYTHON_VERSION: '3.11'
+  # The game only needs pygame + pytmx at runtime (numpy/Pillow are tools/ only)
+  DEPS: pygame==2.6.1 pytmx==3.32 pyinstaller
+
+jobs:
+  release:
+    name: Make sure the release exists
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the pre-release if this tag doesn't have one yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease \
+                 --title "DinoPodds $TAG" --notes-file - <<'EOF'
+          **Windows:** unzip, then run `DinoPodds.exe` (keep it next to the `_internal` folder).
+          If Windows says "Windows protected your PC", click **More info → Run anyway**.
+
+          **Mac (Apple Silicon, M1 or newer):** unzip, then drag `DinoPodds.app` to Applications.
+          The first time, right-click it → **Open** (or System Settings → Privacy & Security → **Open Anyway**).
+          If macOS says the app "is damaged", open Terminal and run:
+          `xattr -cr /Applications/DinoPodds.app`
+          EOF
+
+  windows:
+    name: Windows build
+    needs: release
+    if: github.event_name == 'push' || inputs.platforms == 'both'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: python -m pip install ${{ env.DEPS }}
+      - name: Build
+        run: python -m PyInstaller DinoPodds.spec --noconfirm --clean
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/DinoPodds -DestinationPath "DinoPodds_${env:TAG}_Windows.zip"
+      - name: Attach to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "DinoPodds_${TAG}_Windows.zip" --clobber --repo "$GITHUB_REPOSITORY"
+
+  mac:
+    name: Mac build (Apple Silicon)
+    needs: release
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: python -m pip install ${{ env.DEPS }}
+      - name: Build
+        run: python -m PyInstaller DinoPodds.spec --noconfirm --clean
+      - name: Smoke test (the app must still be running after 20s)
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          dist/DinoPodds.app/Contents/MacOS/DinoPodds &
+          PID=$!
+          sleep 20
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "::error::DinoPodds.app crashed during startup (see the output above)"
+            exit 1
+          fi
+          kill "$PID"
+          echo "App ran for 20s without crashing."
+      - name: Zip
+        # ditto keeps the .app's symlinks and permissions intact (plain zip breaks them)
+        run: ditto -c -k --keepParent dist/DinoPodds.app "DinoPodds_${TAG}_Mac.zip"
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "DinoPodds_${TAG}_Mac.zip" --clobber --repo "$GITHUB_REPOSITORY"
