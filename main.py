@@ -419,24 +419,28 @@ if __name__ == '__main__':
 # add some repels on ground
 # SOFT LOCK FOUND! - if you lose battle in cobalt cave you cannot re enter!
 
-#
 
-#add ASSISTANCE to credits
-# Claude - Coding Logic, Animations, Sound Design
-# Chatgpt - Sprite Creation from Drawings
-
-# PLAYTHROUGH NOTES
-# early game works well!
 
 #ALPHA COMPLETE
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+# IDEAS
 # Need to finish Browler, Gartunis/Relucturen, Stagnetic, Panthyr/Vlyth, Prowscar evo, Brishton
 # add more lore and suspense for the plot
-
-# PLAYTHROUGH NOTES
-# early game works well!
 
 # after the eternal darkness, have red emergency lights throughout the region
 

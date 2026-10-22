@@ -1390,6 +1390,32 @@ class PartyScreen:
     STATS_Y, STATS_H = 216, 220
     FOOTER_Y = 444
 
+    HEAL_ITEMS = ('Revival Gem', 'Mega Spray')
+    MEGA_SPRAY_HP = 20
+
+    def _use_heal_item(self, game, chosen, item_mode):
+        """Apply a Revival Gem / Mega Spray to `chosen`. Returns the result
+        message, or None (after explaining why) if it can't be used on it."""
+        if item_mode == 'Revival Gem':
+            if chosen.get('hp', 0) > 0:
+                game.message_box.queue_messages(
+                    [f"{chosen['name']} hasn't fainted!"], wait_for_input=True)
+                return None
+            chosen['hp'] = max(1, chosen['max_hp'] // 2)
+            game.inventory['Revival Gem'] = max(0, game.inventory.get('Revival Gem', 0) - 1)
+            return f"{chosen['name']} was revived with half its HP back!"
+        if chosen.get('hp', 0) <= 0:
+            game.message_box.queue_messages(
+                [f"{chosen['name']} has fainted! Use a Revival Gem instead."], wait_for_input=True)
+            return None
+        if chosen['hp'] >= chosen['max_hp']:
+            game.message_box.queue_messages(
+                [f"{chosen['name']} is already at full health!"], wait_for_input=True)
+            return None
+        chosen['hp'] = min(chosen['max_hp'], chosen['hp'] + self.MEGA_SPRAY_HP)
+        game.inventory['Mega Spray'] = max(0, game.inventory.get('Mega Spray', 0) - 1)
+        return f"{chosen['name']} was healed by {self.MEGA_SPRAY_HP} HP!"
+
     def handle_event(self, event, game):
         if event.type != pygame.KEYDOWN:
             return None
@@ -1412,6 +1438,26 @@ class PartyScreen:
         if event.key == pygame.K_l:
             game.move_list_screen.open()
             game.push_state('move_list')
+            return None
+
+        # ── Healing item used mid-battle (blocked in Nuzlocke by the bag) ──
+        # Costs the turn, just like switching: see Game._item_turn_used.
+        item_mode = getattr(game, 'item_target_mode', None)
+        if item_mode in self.HEAL_ITEMS and in_encounter:
+            if event.key == pygame.K_j:
+                chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
+                msg = self._use_heal_item(game, chosen, item_mode) if chosen else None
+                if msg:
+                    game.item_target_mode = None
+                    self.reset()
+                    game.pop_state()
+                    game.message_box.queue_messages(
+                        [f"{config.PLAYER_NAME} used a {item_mode}!", msg],
+                        on_complete=game._item_turn_used)
+            elif event.key == pygame.K_SPACE:
+                game.item_target_mode = None
+                self.reset()
+                game.pop_state()
             return None
 
         # ── Double battle forced replacement ──────────────────────
@@ -1542,34 +1588,13 @@ class PartyScreen:
                 chosen = party[self.selected_index] if 0 <= self.selected_index < list_length else None
                 if not chosen:
                     return None
-                if item_mode == 'Revival Gem':
-                    if chosen.get('hp', 0) > 0:
-                        game.message_box.queue_messages(
-                            [f"{chosen['name']} hasn't fainted!"], wait_for_input=True)
-                        return None
-                    chosen['hp'] = max(1, chosen['max_hp'] // 2)
-                    game.inventory['Revival Gem'] = max(0, game.inventory.get('Revival Gem', 0) - 1)
-                    game.item_target_mode = None
-                    self.reset()
-                    game.pop_state()
-                    game.message_box.queue_messages(
-                        [f"{chosen['name']} was revived with half its HP back!"], wait_for_input=True)
-                elif item_mode == 'Mega Spray':
-                    if chosen.get('hp', 0) <= 0:
-                        game.message_box.queue_messages(
-                            [f"{chosen['name']} has fainted! Use a Revival Gem instead."], wait_for_input=True)
-                        return None
-                    if chosen['hp'] >= chosen['max_hp']:
-                        game.message_box.queue_messages(
-                            [f"{chosen['name']} is already at full health!"], wait_for_input=True)
-                        return None
-                    chosen['hp'] = min(chosen['max_hp'], chosen['hp'] + 20)
-                    game.inventory['Mega Spray'] = max(0, game.inventory.get('Mega Spray', 0) - 1)
-                    game.item_target_mode = None
-                    self.reset()
-                    game.pop_state()
-                    game.message_box.queue_messages(
-                        [f"{chosen['name']} was healed by 20 HP!"], wait_for_input=True)
+                if item_mode in self.HEAL_ITEMS:
+                    msg = self._use_heal_item(game, chosen, item_mode)
+                    if msg:
+                        game.item_target_mode = None
+                        self.reset()
+                        game.pop_state()
+                        game.message_box.queue_messages([msg], wait_for_input=True)
                 elif config.ITEMS.get(item_mode, {}).get('tm_move'):
                     used, msgs = game.use_tm(chosen, item_mode)
                     if used:
@@ -1734,14 +1759,14 @@ class PartyScreen:
         """(prompt, [(key, label), ...]) for the current party-screen mode."""
         g = self.game
         item_mode = getattr(g, 'item_target_mode', None)
-        if 'encounter' in g.state_stack:
-            if g.awaiting_switch or getattr(g, 'double_replace_slot', None) is not None:
-                return "Choose a replacement", [("J", "Send out"), ("I", "Moves"), ("L", "Move List")]
-            return None, [("J", "Switch in"), ("I", "Moves"), ("L", "Move List"), ("SPACE", "Back")]
         if item_mode == 'Revival Gem':
             return "Revive which Dino?", [("J", "Select"), ("SPACE", "Cancel")]
         if item_mode == 'Mega Spray':
             return "Heal which Dino?", [("J", "Select"), ("SPACE", "Cancel")]
+        if 'encounter' in g.state_stack:
+            if g.awaiting_switch or getattr(g, 'double_replace_slot', None) is not None:
+                return "Choose a replacement", [("J", "Send out"), ("I", "Moves"), ("L", "Move List")]
+            return None, [("J", "Switch in"), ("I", "Moves"), ("L", "Move List"), ("SPACE", "Back")]
         if config.ITEMS.get(item_mode or '', {}).get('tm_move'):
             return f"Teach {config.ITEMS[item_mode]['tm_move']}?", [("J", "Select"), ("SPACE", "Cancel")]
         if self.picking_index is not None:
@@ -2580,9 +2605,9 @@ class ItemsScreen:
                         wait_for_input=True)
                 return 'used'
             elif item_name == 'Revival Gem':
-                if 'encounter' in game.state_stack:
+                if 'encounter' in game.state_stack and game.nuzlocke:
                     game.message_box.queue_messages(
-                        ["Revival Gems can't be used in battle!"], wait_for_input=True)
+                        ["Nuzlocke: Revival Gems can't be used in battle!"], wait_for_input=True)
                     return 'used'
                 if not any(d.get('hp', 0) <= 0 for d in game.player_dinos):
                     game.message_box.queue_messages(
@@ -2591,9 +2616,9 @@ class ItemsScreen:
                 game.item_target_mode = 'Revival Gem'
                 return 'target_party'
             elif item_name == 'Mega Spray':
-                if 'encounter' in game.state_stack:
+                if 'encounter' in game.state_stack and game.nuzlocke:
                     game.message_box.queue_messages(
-                        ["Mega Sprays can't be used in battle!"], wait_for_input=True)
+                        ["Nuzlocke: Mega Sprays can't be used in battle!"], wait_for_input=True)
                     return 'used'
                 if not any(0 < d.get('hp', 0) < d.get('max_hp', 0) for d in game.player_dinos):
                     game.message_box.queue_messages(

@@ -1868,7 +1868,8 @@ class Game:
     #     2 new dinos. Those encounters are catch-only (no Fight/Defend/Run);
     #     after 2/2 you can only fight or run. A species you've already owned
     #     is a "Duplicate Skip": fight or run, no catching, doesn't count.
-    #   * Sprays / Revival Gems are out-of-battle only (true in every mode).
+    #   * Sprays / Revival Gems are out-of-battle only (other modes allow them
+    #     in battle, costing the turn — see Game._item_turn_used).
     #   * A dino that faints is moved to the box for good after the battle.
     NUZLOCKE_MODES = ('nuzlocke', 'randomizer_nuzlocke')
     NUZLOCKE_ROUTE_CATCHES = 2
@@ -2587,6 +2588,19 @@ class Game:
             self.push_state('items')
         elif result == "Party":
             self.push_state('party')
+
+    def _item_turn_used(self):
+        """A Mega Spray / Revival Gem used mid-battle spends the turn, the
+        same way a voluntary switch does (see PartyScreen)."""
+        if self.is_double_battle:
+            if self.double_phase == 'p1':
+                self.double_p1_queued = None
+                self._double_advance_to_p2()
+            else:
+                self.double_p2_queued = None
+                self._execute_double_turn()
+        else:
+            self._enemy_turn()
 
     def _double_advance_to_p2(self):
         p2 = self._double_battle_p2()
