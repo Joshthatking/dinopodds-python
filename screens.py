@@ -67,7 +67,7 @@ class Encounter:
             scaled = pygame.transform.scale(self.current_dino_surface, (size, size))
             rect = scaled.get_rect()
             rect.centerx = screen.get_width() - 157 + int(offset_x)
-            rect.centery = 155
+            rect.centery = 155 + config.FRONT_SPRITE_DY.get(self.dino_key, 0)
             screen.blit(scaled, rect)
 
 
@@ -133,6 +133,8 @@ def _describe_move_effect(md):
             lines.append(f"Locks foe for {ab['turns']} turns")
         elif kind == 'recharge':
             lines.append("User must recharge next turn")
+        elif kind == 'return_hit':
+            lines.append(f"Returns next turn: {ab['power']} power")
         elif kind == 'dot':
             if 'damage_flat' in ab:
                 lines.append(f"{ab['damage_flat']} HP/turn for {ab['turns']} turns")
@@ -221,6 +223,10 @@ def status_badges(dino, field_effects=None):
         label = dot.get('badge', 'STORM')
         color = (190, 150, 225) if label == 'CURSE' else (215, 190, 130)
         badges.append((f"{label} {dot.get('turns_left', '')}".strip(), color))
+    rh = dino.get('return_hit')
+    if rh:
+        color = (165, 215, 240) if rh.get('type') == 'ice' else (215, 175, 120)
+        badges.append((f"{rh.get('badge', 'RETURN')} {rh.get('turns_left', '')}".strip(), color))
     if dino.get('locked_move'):
         badges.append((f"LOCK {dino.get('lock_turns_left', '')}".strip(), (195, 170, 225)))
     if dino.get('must_recharge'):
@@ -974,8 +980,13 @@ class LevelUpPopup:
 
 
 # === Dino Ball Pickup Popup ===
+def _seconds_since(start_ms):
+    return (pygame.time.get_ticks() - start_ms) / 1000.0
+
+
 class DinoPickupPopup:
     W, H = 260, 210
+    MIN_DISPLAY_SEC = 1.5   # like BadgeEarnedScreen: can't be mashed past
 
     def __init__(self, dino, fonts, party_full, screen_w=640, screen_h=480):
         self.dino = dino
@@ -987,9 +998,14 @@ class DinoPickupPopup:
         raw = dino.get('front_image', dino['image'])
         self._dino_img = pygame.transform.scale(raw, (90, 90))
         self._party_full = party_full
+        self._opened_ms = pygame.time.get_ticks()
+
+    @property
+    def ready(self):
+        return _seconds_since(self._opened_ms) >= self.MIN_DISPLAY_SEC
 
     def handle_event(self, event):
-        if event.type == pygame.KEYDOWN:
+        if event.type == pygame.KEYDOWN and self.ready:
             self.active = False
 
     def draw(self, screen):
@@ -1013,15 +1029,18 @@ class DinoPickupPopup:
         msg_surf = self.fonts['BAG'].render(msg, True, (30, 30, 30))
         screen.blit(msg_surf, msg_surf.get_rect(centerx=cx, top=y))
 
-        prompt = self.fonts['XS'].render("[ J ] Continue", True, (100, 90, 120))
+        prompt = self.fonts['XS'].render("[ J ] Continue" if self.ready else "...", True, (100, 90, 120))
         screen.blit(prompt, prompt.get_rect(centerx=cx, bottom=self.rect.bottom - 10))
 
 
 # === Dino Picker (starter choice) ===
 class DinoPicker:
-    """Shows all starter dinos at once; player picks one to keep."""
+    """Shows all starter dinos at once; player picks one to keep. Ignores
+    input for MIN_DISPLAY_SEC so mashing through Amber's dialogue can't
+    pick one by accident."""
 
     CARD_W, CARD_H = 150, 185
+    MIN_DISPLAY_SEC = 1.5
 
     def __init__(self, dinos, fonts, screen_w=640, screen_h=480):
         self.dinos = dinos
@@ -1035,10 +1054,15 @@ class DinoPicker:
         for d in dinos:
             raw = d.get('front_image', d['image'])
             self._imgs.append(pygame.transform.scale(raw, (90, 90)))
+        self._opened_ms = pygame.time.get_ticks()
+
+    @property
+    def ready(self):
+        return _seconds_since(self._opened_ms) >= self.MIN_DISPLAY_SEC
 
     def handle_event(self, event):
         """Returns chosen index when confirmed, else None."""
-        if event.type != pygame.KEYDOWN:
+        if event.type != pygame.KEYDOWN or not self.ready:
             return None
         if event.key in (pygame.K_a, pygame.K_LEFT):
             self.selected = (self.selected - 1) % len(self.dinos)
@@ -1081,7 +1105,7 @@ class DinoPicker:
             screen.blit(lvl_surf, lvl_surf.get_rect(centerx=cx + self.CARD_W // 2, top=card_y + 132))
 
             if sel:
-                arrow = self.fonts['XS'].render("[ J ] Choose", True, (200, 60, 40))
+                arrow = self.fonts['XS'].render("[ J ] Choose" if self.ready else "...", True, (200, 60, 40))
                 screen.blit(arrow, arrow.get_rect(centerx=cx + self.CARD_W // 2, top=card_y + 156))
 
         hint = self.fonts['XS'].render("A / D  to navigate", True, (160, 150, 180))
@@ -2188,6 +2212,9 @@ def generate_move_desc(move_name):
             parts.append(f"Traps the opponent for {turns} turns.")
         elif kind == 'recharge':
             parts.append("If it hits, the user must spend its next turn recharging.")
+        elif kind == 'return_hit':
+            parts.append(f"If it hits, it comes back around at the end of the next turn "
+                         f"for another {ability.get('power', 0)} base damage. The return can't be Defended.")
         elif kind == 'field':
             eff = ability.get('effect', '')
             if eff == 'type_power':
@@ -2788,17 +2815,19 @@ class YesNoPrompt:
     BOX_W = 90
     BOX_H = 68
 
-    def __init__(self, question, fonts, width=640, height=480):
+    def __init__(self, question, fonts, width=640, height=480, input_delay=0.0):
         self.question = question
         self.font     = fonts['DIALOGUE']
         self.opt_font = fonts['BAG']
         self.selected = 0   # 0 = Yes, 1 = No
         self.width    = width
         self.height   = height
+        self.input_delay = input_delay   # seconds of ignored input, so a mashed key can't answer it
+        self._opened_ms  = pygame.time.get_ticks()
 
     def handle_event(self, event):
         """Returns 'yes', 'no', or None."""
-        if event.type != pygame.KEYDOWN:
+        if event.type != pygame.KEYDOWN or _seconds_since(self._opened_ms) < self.input_delay:
             return None
         if event.key == pygame.K_SPACE:
             return 'no'

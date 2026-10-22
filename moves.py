@@ -34,6 +34,10 @@ DURATIONS = {                       # signature moves that run longer than DURAT
     'Fossil Break': 1.2,
     'Flame Shatter': 1.3,
     'Raging Pursuit': 1.4,
+    'Temporal Pincer': 1.3,
+    'Temporal Pincer (return)': 1.5,     # the end-of-next-turn second hit (game._land_return_hit)
+    'Dust Devil': 1.3,
+    'Dust Devil (return)': 1.4,
 }
 STRONG_POWER = 70
 TAU = math.pi * 2
@@ -1882,6 +1886,115 @@ def anim_sand_storm(a):
     a.ellipse(a.tx, a.ty, 220 * a.s, 150 * a.s, ROCK[1], 40 * hump(t))
 
 
+def _dust_devil(a, x, y, h, k, alpha, spin):
+    """Spinning dust tornado standing on (x, y): stacked swirl rings that
+    widen toward the top and sway with `spin`, carrying orbiting pebbles."""
+    if alpha <= 0 or h < 4:
+        return
+    s = a.s
+    a.ellipse(x, y, 70 * s * k, 16 * s * k, BLACK, alpha * 0.3)
+    n = 12
+
+    def width_at(u):
+        return (16 + 84 * u ** 1.3) * s * k
+
+    def sway_at(u):
+        return math.sin(spin * 1.7 + u * 3.5) * 8 * s * u * k
+
+    # solid funnel body behind the swirl rings
+    left = [(x + sway_at(i / 8) - width_at(i / 8) / 2, y - i / 8 * h) for i in range(9)]
+    right = [(x + sway_at(i / 8) + width_at(i / 8) / 2, y - i / 8 * h) for i in range(9)]
+    a.poly(left + right[::-1], ROCK[0], alpha * 0.45)
+    for i in range(n):
+        u = i / (n - 1)
+        yy = y - u * h
+        w = width_at(u)
+        sway = sway_at(u)
+        a.ellipse(x + sway, yy, w, w * 0.3, _mix(ROCK[2], ROCK[1], u), alpha * 0.55)
+        a.ellipse(x + sway, yy, w, w * 0.3, ROCK[1], alpha * (0.6 + 0.4 * u), width=2)
+        ph = spin * 4 + u * 5   # a streak on each ring sells the spin
+        fx = x + sway + math.cos(ph) * w * 0.4
+        fy = yy + abs(math.sin(ph)) * w * 0.12
+        a.line(fx - 8 * s * k, fy, fx + 8 * s * k, fy, ROCK[0], alpha * 0.8, 2)
+    rng = a.rng('devil_pebbles')
+    for i in range(14):
+        u = rng.uniform(0.05, 0.95)
+        ph = spin * rng.uniform(3, 5) + rng.uniform(0, TAU)
+        w = width_at(u)
+        px = x + math.cos(ph) * w * 0.55
+        py = y - u * h + math.sin(ph) * w * 0.17
+        a.poly(_rock_poly(px, py, rng.uniform(2.5, 4.5) * s, ph), ROCK[0] if i % 2 else ROCK[2], alpha)
+    a.glow(x, y - h * 0.4, 50 * s * k, ROCK[1], 0.25 * alpha / 255)
+
+
+def anim_dust_devil(a):
+    t = a.t
+    s = a.s
+    ground = 45 * s
+    away = 1 if a.tx >= a.sx else -1
+    spin = t * 14
+    # 1. Whips up at the attacker and races over to the target
+    p = seg(t, 0.0, 0.42)
+    if p is not None:
+        e = ease_in_out(p)
+        x, y = a.travel(e)
+        _dust_devil(a, x, y + ground, 120 * s * (0.35 + 0.65 * ease_out(p)), 0.55 + 0.4 * e, 235, spin)
+    # 2. Swallows the target, grinding it with sand and stone
+    p = seg(t, 0.4, 0.72)
+    if p is not None:
+        _dust_devil(a, a.tx + math.sin(p * 9) * 4 * s, a.ty + ground, 140 * s, 0.95, 240, spin)
+        _impact(a, p, ROCK, 0.8, n=12)
+        a.tint(ROCK[2], 50 * hump(p))
+        if p < 0.5:
+            a.shake(4)
+    # 3. Spins away off the far side of the screen — it'll be back
+    p = seg(t, 0.7, 1.0)
+    if p is not None:
+        e = ease_in(p)
+        _dust_devil(a, a.tx + away * 320 * s * e, a.ty + ground - 20 * s * e,
+                    140 * s * (1 - 0.3 * e), 0.95 - 0.35 * e, 240 * (1 - p), spin)
+
+
+def anim_dust_devil_return(a):
+    """End of the next turn: the Dust Devil blows back in from the side it
+    left by, loops around the target and slams down on it."""
+    t = a.t
+    s = a.s
+    ground = 45 * s
+    away = 1 if a.tx >= a.sx else -1
+    spin = t * 16
+    # 1. Wind and grit gust back in from that edge
+    p = seg(t, 0.0, 0.7)
+    if p is not None:
+        rng = a.rng('ddr_wind')
+        al = 200 * hump(p)
+        for _ in range(26):
+            y = a.ty + rng.uniform(-90, 70) * s
+            q = (p * rng.uniform(1.2, 2.0) + rng.random()) % 1
+            x = a.tx + away * (300 - q * 420) * s
+            a.line(x, y, x + away * 18 * s, y, ROCK[1], al * 0.7, 2)
+    # 2. Swings around the target on a closing loop
+    p = seg(t, 0.1, 0.68)
+    if p is not None:
+        e = ease_in_out(p)
+        ang = (0.0 if away > 0 else math.pi) - away * e * 1.25 * TAU
+        r = 300 * s * (1 - e)
+        x = a.tx + math.cos(ang) * r
+        y = a.ty + ground + math.sin(ang) * r * 0.35
+        behind = math.sin(ang) < 0   # far side of the loop reads dimmer
+        _dust_devil(a, x, y, 140 * s, 0.7 + 0.35 * e, 240 * (0.7 if behind else 1.0) * min(1, p / 0.15), spin)
+    # 3. Slams down on the target
+    p = seg(t, 0.62, 1.0)
+    if p is not None:
+        if p < 0.45:
+            q = p / 0.45
+            _dust_devil(a, a.tx, a.ty + ground, 150 * s * (1 - 0.4 * q), 1.05, 240 * (1 - q), spin)
+        a.burst(a.tx, a.ty, p, 16, 110 * s, ROCK[0], 7 * s, gravity=140, shape='square')
+        a.burst(a.tx, a.ty + 20 * s, p, 18, 90 * s, ROCK[1], 5 * s, spread=(math.pi, TAU), key=1)
+        _impact(a, p, ROCK, 1.1, n=14, key=2)
+        _strong_finish(a, p, ROCK, 120, 8)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # LIGHTNING
 # ─────────────────────────────────────────────────────────────────────────────
@@ -3230,6 +3343,120 @@ def anim_deep_freeze(a):
     _impact(a, seg(t, 0.6, 1.0), ICE, 0.8)
 
 
+def _tp_clock(a, r, alpha, hand_ang):
+    """Frosted clock face ringing the target: rim, 12 ticks and one hand."""
+    if alpha <= 0:
+        return
+    x, y = a.tx, a.ty
+    a.ring(x, y, r, ICE[1], alpha, 3)
+    a.ring(x, y, r * 0.86, ICE[0], alpha * 0.5, 1)
+    for i in range(12):
+        ang = i * TAU / 12
+        ln = (0.16 if i % 3 == 0 else 0.08) * r
+        ca, sa = math.cos(ang), math.sin(ang)
+        a.line(x + ca * r, y + sa * r, x + ca * (r - ln), y + sa * (r - ln), WHITE, alpha, 3 if i % 3 == 0 else 2)
+    a.line(x, y, x + math.cos(hand_ang) * r * 0.75, y + math.sin(hand_ang) * r * 0.75, WHITE, alpha, 3)
+    a.glow(x, y, r * 1.1, ICE[0], 0.35 * alpha / 255)
+
+
+def _tp_jaw(a, hinge_ang, sgn, R, gap, w, alpha):
+    """One icy pincer jaw: a tapering, serrated arc around the target that
+    runs from the hinge at `hinge_ang` toward the far side, stopping `gap`
+    radians short of it. sgn picks the upper or lower jaw."""
+    if alpha <= 0:
+        return
+    x, y = a.tx, a.ty
+    span = math.pi - gap
+    n = 14
+    outer, inner = [], []
+    for i in range(n + 1):
+        u = i / n
+        th = hinge_ang + sgn * u * span
+        half = (w * (1 - u) ** 0.8 + 1.5) / 2
+        outer.append((x + math.cos(th) * (R + half), y + math.sin(th) * (R + half)))
+        inner.append((x + math.cos(th) * (R - half), y + math.sin(th) * (R - half)))
+    a.poly(outer + inner[::-1], ICE[0], alpha)
+    a.lines(outer, WHITE, alpha, 2)
+    for i in range(2, n, 3):   # serrated teeth along the inner edge
+        u = i / n
+        th = hinge_ang + sgn * u * span
+        r0 = R - (w * (1 - u) ** 0.8 + 1.5) / 2
+        a.poly([(x + math.cos(th - 0.07) * r0, y + math.sin(th - 0.07) * r0),
+                (x + math.cos(th + 0.07) * r0, y + math.sin(th + 0.07) * r0),
+                (x + math.cos(th) * (r0 - 7 * a.s), y + math.sin(th) * (r0 - 7 * a.s))], ICE[1], alpha)
+    a.circle(x + math.cos(hinge_ang) * R, y + math.sin(hinge_ang) * R, w * 0.7, ICE[2], alpha)
+    tip_ang = hinge_ang + sgn * span
+    tx, ty = x + math.cos(tip_ang) * R, y + math.sin(tip_ang) * R
+    a.star(tx, ty, 6 * a.s, WHITE, alpha, rot=tip_ang)
+    a.glow(tx, ty, 16 * a.s, ICE[1], 0.6 * alpha / 255)
+
+
+def anim_temporal_pincer(a):
+    t = a.t
+    s = a.s
+    hinge = math.atan2(a.sy - a.ty, a.sx - a.tx)   # the jaws close in from the attacker's side
+    # 1. Time stops: a frosted clock rings the target, its hand ticking in
+    #    steps until the snap, then rewinding as the pincer slips away
+    if t < 0.55:
+        hand = -math.pi / 2 + math.floor(t * 20) / 20 * TAU * 1.2
+    else:
+        hand = -math.pi / 2 + 0.55 * TAU * 1.2 - ease_in(seg(t, 0.55, 1.0)) * TAU * 2.5
+    _tp_clock(a, 85 * s, 230 * min(1, t / 0.2) * fade_late(t, 0.75), hand)
+    a.tint((20, 50, 90), 80 * hump(min(1, t / 0.9)))
+    # 2. The jaws open wide around it, then snap shut
+    p = seg(t, 0.12, 0.55)
+    if p is not None:
+        e = ease_in(p)
+        for sgn in (-1, 1):
+            _tp_jaw(a, hinge, sgn, lerp(78, 40, e) * s, lerp(1.5, 0.08, e), 16 * s, 240 * min(1, p / 0.2))
+    # 3. Snap: shards burst, and the jaws whirl away into the rewound moment
+    p = seg(t, 0.55, 1.0)
+    if p is not None:
+        a.burst(a.tx, a.ty, p, 20, 120 * s, ICE[1], 7 * s, shape='shard', glow=0.3, gravity=50)
+        _impact(a, p, ICE, 0.9, n=10)
+        e = ease_in(p)
+        for sgn in (-1, 1):
+            _tp_jaw(a, hinge - e * TAU * 0.9, sgn, lerp(40, 150, e) * s, lerp(0.08, 0.9, e),
+                    16 * s * (1 - 0.4 * e), 240 * (1 - p))
+        if p < 0.3:
+            a.shake(5 * (1 - p / 0.3))
+
+
+def anim_temporal_pincer_return(a):
+    """End of the next turn: the clock rewinds and the pincer spirals back
+    around out of the frozen moment to snap shut on the target again."""
+    t = a.t
+    s = a.s
+    hinge_end = math.atan2(a.sy - a.ty, a.sx - a.tx)
+    # 1. The clock reappears, its hand spinning backwards
+    hand = -math.pi / 2 - ease_in_out(min(1, t / 0.7)) * TAU * 3
+    _tp_clock(a, 85 * s * (1 + 0.15 * hump(min(1, t / 0.7))),
+              230 * min(1, t / 0.15) * fade_late(t, 0.7), hand)
+    a.tint((20, 50, 90), 100 * hump(min(1, t / 0.95)))
+    # 2. The pincer spirals back in from the far side, trailing afterimages
+    p = seg(t, 0.1, 0.66)
+    if p is not None:
+        e = ease_in_out(p)
+        fade_in = min(1, p / 0.15)
+        for g in range(3, -1, -1):
+            q = max(0.0, e - g * 0.06)
+            h = hinge_end - (1 - q) * 3 * math.pi    # starts opposite, 1.5 turns round
+            al = (240 if g == 0 else 70 / g) * fade_in
+            for sgn in (-1, 1):
+                _tp_jaw(a, h, sgn, lerp(230, 40, q) * s, lerp(1.3, 0.08, ease_in(q)), 16 * s, al)
+    # 3. Snaps shut again, harder, shattering the clock
+    p = seg(t, 0.64, 1.0)
+    if p is not None:
+        if p < 0.35:
+            for sgn in (-1, 1):
+                _tp_jaw(a, hinge_end, sgn, 40 * s, 0.08, 16 * s, 240 * (1 - p / 0.35))
+        a.burst(a.tx, a.ty, p, 28, 160 * s, ICE[1], 8 * s, shape='shard', glow=0.3, gravity=60)
+        a.burst(a.tx, a.ty, p, 12, 100 * s, WHITE, 3 * s, shape='star', key=1)
+        a.ring(a.tx, a.ty, 30 * s + 130 * s * ease_out(p), WHITE, 230 * (1 - p), 4)
+        _impact(a, p, ICE, 1.1, n=12, key=3)
+        _strong_finish(a, p, ICE, 150, 8)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ANCIENT
 # ─────────────────────────────────────────────────────────────────────────────
@@ -3776,6 +4003,8 @@ ANIMATIONS = {
     'Crash Impact': anim_crash_impact,
     'Sand Storm': anim_sand_storm,
     'Chain Rip': anim_chain_rip,
+    'Dust Devil': anim_dust_devil,
+    'Dust Devil (return)': anim_dust_devil_return,
     # Lightning
     'Stinger Shock': anim_stinger_shock,
     'Static Graze': anim_static_graze,
@@ -3812,6 +4041,8 @@ ANIMATIONS = {
     'Hail Storm': anim_hail_storm,
     'Frozen Aura': anim_frozen_aura,
     'Deep Freeze': anim_deep_freeze,
+    'Temporal Pincer': anim_temporal_pincer,
+    'Temporal Pincer (return)': anim_temporal_pincer_return,
     # Ancient
     'Fossil Break': anim_fossil_break,
     'Raging Pursuit': anim_raging_pursuit,

@@ -406,7 +406,7 @@ if __name__ == '__main__':
 # PLAYTHROUGH NOTES
 # Sam rematch is very hard, need some more battles to level up
 
-# Alpha v0.1
+# Alpha v0.2
 # Leveling xp is little slow for other dinos, might be perfect though
 # A lot of dinopods now in the game
 # too many swift sneak users
@@ -419,7 +419,15 @@ if __name__ == '__main__':
 # add some repels on ground
 # SOFT LOCK FOUND! - if you lose battle in cobalt cave you cannot re enter!
 
-
+# 10/22
+# Alpha v0.3 changes
+# Make Temporal Pincer (ice) and Dust Devil (rock) Moves - they hit for 50 and then at the end of the next turn come back around and hit for another 50 , show the animation of it coming bback to the user at the end 95% accurate
+# 3 Grunt battles before shadow HQ
+# more npc dialogue 
+# Eclipse mode blackouts buildings
+# Abby dialogue mentions blackout in beginning
+# Fix descriptions
+# ADD A BRIEF NO INTERACTION PERIOD when choosing your first dino, and an are you sure, yes no when talking to professor amber choosing one of the 3 dinos
 
 #ALPHA COMPLETE
 

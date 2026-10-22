@@ -245,6 +245,9 @@ NPC_SPRITE_KEY = {
     'pp_grunt_d':    'enemy_male',
     'hq_grunt_a':    'enemy_male',
     'hq_grunt_b':    'enemy_male',
+    'cc_grunt_a':    'enemy_male',
+    'cc_grunt_b':    'enemy_male',
+    'cc_grunt_c':    'enemy_male',
     'vanessa_hq':    'vanessa',
     'gray_home':     'gray',
     'abby_home':     'abby',
@@ -252,6 +255,7 @@ NPC_SPRITE_KEY = {
     'jill':          'carrie',   # lady2.png
     'solar_lady':    'carrie',   # lady2.png
     'horizon_beard': 'rocko',    # Beard.png
+    'matthew':       'rocko',    # Beard.png
     'dawson':        'farmer',   # farmer.png
     'nick':          'farmer',   # farmer.png
     'keller':        'farmer',   # farmer.png
@@ -347,6 +351,9 @@ WORLD_NPCS = {
 
         # Lore NPC — rumors of Horizon Cave to the north
         ('horizon_beard', 88, -66, 'down', 0, 'story'),
+
+        # Lore NPC — Matthew, shrugs off the blackouts
+        ('matthew', 17, -21, 'down', 0, 'story'),
 
         # Sierra Town — Lilly hands out 5 DinoPods once (flag: lilly_gift_done)
         ('lilly', 33, 5, 'down', 0, 'story'),
@@ -449,6 +456,10 @@ WORLD_NPCS = {
     'COBALT_CAVE.world': [
         ('jt', -14, 38, 'down', 5, 'trainer'),
         ('ty', -9, 25, 'down', 5, 'trainer'),
+        # Shadow Group grunts guarding the way to Shadow HQ (see Game._spawn_world_npcs)
+        ('cc_grunt_a', -16, 7,  'right', 12, 'trainer'),
+        ('cc_grunt_b', -4,  9,  'left',  12, 'trainer'),
+        ('cc_grunt_c', -16, 11, 'right', 12, 'trainer'),
     ],
     'SIERRA_HOUSE1.tmx': [
         ('keller', 13, 9, 'down', 0, 'story'),   # Lore NPC — praises Xander's solar energy
@@ -479,7 +490,14 @@ ENCOUNTER_DINO_SIZES = {
     # Scale multipliers relative to ENCOUNTER_BASE_SIZE (1.0 = 150x150)
     'Creuw':    0.70,
     'Luna':     1.35,
-    'Ghoslink': 1.25,
+    'Ghoslink': 1.3,
+    'Rhinecicle': 1.2,
+
+}
+# Enemy-side (front) single-battle sprite nudge: name -> dy in pixels
+# (+ = down, - = up). Move animations and the catch throw aim at the moved spot.
+FRONT_SPRITE_DY = {
+    'Vusion': -20,
 }
 
 # Player-side (back) battle sprite tweaks: name -> (scale, dy).
@@ -490,8 +508,10 @@ BACK_SPRITE_TWEAKS = {
     'Rhysnow':    (0.82, 0),
     'Tygraflare': (1.3, 8),
     'Prowscar':   (1.0, 14),
-    'Vusion':     (1.25, 0),
+    'Vusion':     (1.25, 15),
     'Rhinecicle': (1.15, 14),
+    'Sortle': (1.15, 12),
+
 }
 
 

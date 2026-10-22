@@ -300,7 +300,7 @@ TRAINER_DATA = {
         'name': 'Grunt',
         'dinos': {0: ('Ghoslink', 22), 1: ('Lavaleo', 22)},
         'dialog': {
-            'default':  ["You're not getting anywhere near our leaders!"],
+            'default':  ["You're not getting anywhere near our leaders! Your solar power is usless if we can block the sun"],
             'defeated': ["No... the plan can't be stopped now."]
         },
         'directions': ['down'],
@@ -428,7 +428,7 @@ TRAINER_DATA = {
     # beaten. Battle only starts once Gym 3 is cleared (see Game._interact_josh).
     'josh': {
         'name': 'Josh',
-        'dinos': {0: ('Skolt', 38), 1: ('Drafyton', 39), 2: ('Deimo', 40), 3: ('VY', 40), 4: ('Vusion', 41)},
+        'dinos': {0: ('Skolt', 38), 1: ('Ghoslink', 39), 2: ('Scarlust', 40), 3: ('Drafyton', 40), 4: ('Vusion', 41)},
         'dialog': {
             'locked':   ["... You are not strong enough to enter, I alone am the honored one"],
             'default':  [
@@ -726,6 +726,51 @@ TRAINER_DATA = {
         'reward_coins': 700,
         'rank': 'lowest',
     },
+    # Cobalt Cave Shadow Group grunts on the way to Shadow HQ. Present from
+    # pp_eclipse_reveal_done until Vanessa is beaten in Shadow HQ
+    # (Game._spawn_world_npcs).
+    'cc_grunt_a': {
+        'name': 'Grunt',
+        'dinos': {0: ('Ghoulflame', 20), 1: ('Roxer', 21)},
+        'dialog': {
+            'default':  ["We cannot let you disrupt our plans!"],
+            'defeated': ["Our plans won't stop for one loss..."]
+        },
+        'directions': ['right'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'cave',
+        'reward_coins': 500,
+        'rank': 'medium',
+    },
+    'cc_grunt_b': {
+        'name': 'Grunt',
+        'dinos': {0: ('Lavaleo', 20), 1: ('Frostle', 20)},
+        'dialog': {
+            'default':  ["We won't let you get to our leaders!"],
+            'defeated': ["The leaders will deal with you..."]
+        },
+        'directions': ['left'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'cave',
+        'reward_coins': 500,
+        'rank': 'medium',
+    },
+    'cc_grunt_c': {
+        'name': 'Grunt',
+        'dinos': {0: ('Ghoslink', 20), 1: ('Cyflactus', 22)},
+        'dialog': {
+            'default':  ["We aren't scared of you!"],
+            'defeated': ["Okay... maybe a little scared."]
+        },
+        'directions': ['right'],
+        'look_around': False,
+        'defeated': False,
+        'biome': 'cave',
+        'reward_coins': 500,
+        'rank': 'medium',
+    },
     # ROUTE3_4 (west, toward Cobalt Cave)
     'kate': {
         'name': 'Kate',
@@ -761,13 +806,13 @@ TRAINER_DATA = {
 
 
 DINODEX_DATA = {
-    'Vusion':    {'number': 41,  'desc': "A relentless dark-type predator that hunts in the shadows. Its flickering energy aura can destabilize opponents before they even strike."},
+    'Vusion':    {'number': 41,  'desc': "A relentless dark-type predator that hunts in the shadows. Rare to find in the wild, its flickering energy aura can destabilize opponents before they even strike."},
     'Corlave':   {'number': 5,  'desc': "A small aquatic dino that dwells in shallow coastal waters. Its compact shell deflects glancing blows, making it tougher than it looks."},
     'Anemamace': {'number': 6,  'desc': "The oceans sturdiest protector. It wields spiked appendages that can pierce rock. Feared by the celestials that once attacked both land,sky and sea."},
     'Creuw':     {'number': 10,  'desc': "A lightweight flier with hollow bones built for bursts of speed. Often sited in the plains of the region"},
     'Luna':      {'number': 11,  'desc': "Creuw's evolved form. Fused flying and dark energy grant it near-invisibility at night. Rarely seen twice by the same trainer."},
-    'Prowscar':  {'number': 22,  'desc': "A scrappy dark-type that roams dense undergrowth. Its jaw muscles generate enormous bite force despite its small frame."},
-    'Floravel':  {'number': 1,  'desc': "A plant-armored earth-type that draws nutrients from the soil mid-battle. Its vines can reconfigure into defensive shields in an instant."},
+    'Prowscar':  {'number': 22,  'desc': "A scrappy dark-type that roams the regions corn fields. A bloodthirsty beast who is known to get stronger with each battle."},
+    'Floravel':  {'number': 1,  'desc': "A plant-armored earth-type that's primary purpose is to help those around it. An aspiring warrior at heart."},
     'Bullicorn': {'number': 7,  'desc': "A bullish yet gentle creature with a unique horn on its head, loved by many in the farm areas."},
     'Netaslam':  {'number': 14,  'desc': "The net dino, Netaslam yields a net while jumping and flying around with its net wings to catch prey in the open grass."},
     'Netyrant':  {'number': 15, 'desc': "Netyrant's wings have fully developed allowing it to soar the skies while hunting, becoming an apex predator."},
@@ -788,7 +833,7 @@ DINODEX_DATA = {
     'Prickly':    {'number': 19, 'desc': "A cheerful cactus dino covered in spines that are sharper than they look. Prickly thrives in dry, sun-baked soil."},
     'Cyflactus':  {'number': 20, 'desc': "Prickly's evolved form, a result of extensive solar panels surrounding the Region. This mutation turned its prickly spikes into scorching spikes made of flames."},
     'Gourdecrux': {'number': 40, 'desc': "A fiery transformation of Scarecrux, its head consumed by a burning jack-o'-lantern. Legend says only a trainer who has proven themselves at the Region's gyms can awaken this form once known as the gatekeeper of the Elder Town Mansion."},
-    'Rhinecicle': {'number': 32, 'desc': "An ice and rock plated rhino dino that charges with a frozen horn."},
+    'Rhinecicle': {'number': 32, 'desc': "An ice and rock plated rhino dino that charges with a frozen horn. One of the oldest dinos in the region"},
     'Celestreeyl': {'number': 44, 'desc': "One of the celestials, holder of the Celestial Solar Shard. It is a guardian of light and life and its mission is to preserve both."},
     'Rhysnow':    {'number': 31, 'desc': "A small rhino dino covered in snow, common in the mountainous winter terrain."},
     'Seasoo':     {'number': 35, 'desc': "A sea turtle dino with a small island of palms, sand, and coral thriving on its shell."},
@@ -802,7 +847,7 @@ DINODEX_DATA = {
     'VY':         {'number': 46, 'desc': "The solar celestial, whose wings burn with the light of the sun itself. Legend says its flares grow fiercer whenever the balance of the region is threatened."},
     'Sharka':     {'number': 36, 'desc': "A young shark dino that patrols the shallows in small packs. Its teeth regrow constantly, and its fins will one day harden into the spikes of Sharktastrophe."},
     'Stormulus':  {'number': 26, 'desc': "A brooding thundercloud that drifts toward anything that hums with power. It feeds on static in the air and lashes out with forked lightning when disturbed."},
-    'Lavaleo':    {'number': 38, 'desc': "Its obsidian hide is split by rivers of living magma. It prowls deep cave tunnels on four clawed legs, and the rock it walks on glows for hours after it passes."},
+    'Lavaleo':    {'number': 38, 'desc': "A magma frog who seeks to be ablazed. It lives in caves where the rock it walks on glows for hours after it passes."},
     'Pectura':    {'number': 12, 'desc': "A fiery owl that hunts by night, its ember-tipped wings leaving trails of sparks across the sky. Its blazing eyes can spot prey from miles away, and its cry is said to rekindle dying campfires."},
     'Ghoslink':   {'number': 21, 'desc': "A restless spirit that drifts through the Corn Maze after dark, dragging a rattling chain behind it and a vacuum. Farmers say the clinking of its links is the first sign a ghost is near."},
     'Scarlust':   {'number': 23, 'desc': "Prowscar's evolved form, wreathed in violet flames that burn cold to the touch. It stalks its prey from the shadows, and its scars glow brighter with every battle it survives."},
@@ -813,7 +858,7 @@ DINODEX_DATA = {
 DINO_DATA = {
     'Vusion': {
         'stats': {'type': ['dark'], 'health': 108, 'attack': 155, 'defense': 82, 'speed': 125},
-        'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Thunder Blitz', 20: 'Distortion', 23: 'Lava Burst', 27: 'Binding Curse', 30: 'Haunt',35: 'Void Collapse', 38: 'Spectral Overload', 42: 'Ultra Violet'},
+        'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Thunder Blitz', 20: 'Distortion', 23: 'Lava Burst', 27: 'Binding Curse', 30: 'Haunt', 32: 'Temporal Pincer', 35: 'Void Collapse', 38: 'Spectral Overload', 42: 'Ultra Violet'},
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 115, 'defense': 120, 'speed':80},
@@ -857,7 +902,7 @@ DINO_DATA = {
         'evolve': None},
     'Sortle': {
         'stats': {'type': ['rock'], 'health': 120, 'attack': 110, 'defense': 140, 'speed': 60},
-        'moves': {0: 'Dust Beam', 1: 'Arise', 8: 'Sand Kick', 12: 'Air Strike', 15: 'Venom Decay', 17: 'Boulder Smash', 22:'Sand Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Wind Fracture', 33: 'Crusher', 36 :'Crash Impact'},
+        'moves': {0: 'Dust Beam', 1: 'Arise', 8: 'Sand Kick', 12: 'Air Strike', 15: 'Venom Decay', 17: 'Boulder Smash', 22:'Sand Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Dust Devil', 33: 'Crusher', 36 :'Crash Impact'},
         'evolve': None},
     'Sharktastrophe': {
         'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 119, 'defense': 114, 'speed': 122},
@@ -925,7 +970,7 @@ DINO_DATA = {
         'evolve': None},
     'Rockull': {
         'stats': {'type': ['rock'], 'health': 160, 'attack': 100, 'defense': 150, 'speed': 50},
-        'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Double Jab', 12: 'Boulder Smash', 14: 'Force Shift', 17: 'Momentum', 20: 'Sand Storm', 25: 'Crusher',28: 'Iron Core', 32:'Prism Glare',36: 'Crash Impact'},
+        'moves': {0: 'Dust Beam', 4: 'Sand Kick', 8: 'Double Jab', 12: 'Boulder Smash', 14: 'Force Shift', 17: 'Momentum', 20: 'Sand Storm', 25: 'Crusher',28: 'Iron Core', 32:'Prism Glare', 34: 'Dust Devil', 36: 'Crash Impact'},
         'evolve': None},
     'Prickly': {
         'stats': {'type': ['earth','spike'], 'health': 71, 'attack': 90, 'defense': 79, 'speed': 60},
@@ -942,7 +987,7 @@ DINO_DATA = {
         'evolve': {25: 'Rhinecicle'}},
     'Rhinecicle': {
         'stats': {'type': ['ice', 'rock'], 'health': 110, 'attack': 120, 'defense': 145, 'speed': 75},
-        'moves': {0: 'Arise', 4: 'Fossil Break', 9: 'Snowfall', 15: 'Boulder Smash',  18: 'Hail Storm', 20: 'Raging Pursuit', 22: 'Double Jab', 23: 'Hail Storm', 25: 'Deep Freeze', 29: 'Frozen Aura',31: 'Momentum', 34: 'Freeze Blast', 38: 'Crash Impact'},
+        'moves': {0: 'Arise', 4: 'Fossil Break', 9: 'Snowfall', 15: 'Boulder Smash',  18: 'Hail Storm', 20: 'Raging Pursuit', 22: 'Double Jab', 23: 'Hail Storm', 25: 'Deep Freeze', 27: 'Frozen Aura',30: 'Momentum', 34: 'Freeze Blast', 36:'Archaic Aura', 38: 'Crash Impact'},
         'evolve': None},
     'Celestreeyl': {
         'stats': {'type': ['earth', 'light'], 'health': 109, 'attack': 139, 'defense': 109, 'speed': 129},
@@ -974,7 +1019,7 @@ DINO_DATA = {
 
     'Frostle': {
         'stats': {'type': ['ice'], 'health': 121, 'attack': 118, 'defense': 97, 'speed': 94},
-        'moves': {0: 'Snowfall', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Deep Freeze', 22: 'Hail Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Frozen Aura', 33: 'Hyperfrost', 36: 'Freeze Blast'},
+        'moves': {0: 'Snowfall', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Deep Freeze', 22: 'Hail Storm', 24: 'Iron Core', 26: 'Power Fang', 28: 'Frozen Aura', 30:'Temporal Pincer', 33: 'Hyperfrost', 36: 'Freeze Blast'},
         'evolve': None},
 
     'Typhoonray': {
@@ -984,7 +1029,7 @@ DINO_DATA = {
 
     'Stormulus': {
         'stats': {'type': ['lightning', 'flying'], 'health': 90, 'attack': 115, 'defense': 127, 'speed': 116},
-        'moves': {0: 'Static Graze', 1: 'Air Strike', 5: 'Shock', 9: 'Thunder Blitz', 13: 'Swift Sneak', 17: 'Lightning Bolt', 21: 'Mach Speed', 25: 'Hurricane', 28: 'Conduit Surge', 31: 'Wind Fracture', 34: 'Quantum Flux', 37: 'Volt Storm', 40: 'Sky Scorch'},
+        'moves': {0: 'Static Graze', 1: 'Air Strike', 5: 'Shock', 9: 'Thunder Blitz', 13: 'Swift Sneak', 17: 'Lightning Bolt', 21: 'Mach Speed', 25: 'Hurricane', 27: 'Conduit Surge', 29:'Dust Devil',  31: 'Wind Fracture', 34: 'Quantum Flux', 37: 'Volt Storm', 40: 'Sky Scorch'},
         'evolve': None},
 
     'Lavaleo': {
@@ -1275,6 +1320,12 @@ MOVE_DATA = {
     'Sand Storm': {'target': 'opponent', 'damage': 20, 'accuracy': 90, 'type': 'rock',
                    'ability': {'kind': 'dot', 'damage_flat': 8, 'turns': 3,
                                'tick_msg': 'hit by waves of sand', 'chance': 100}},
+    # Hits now, then whirls back around at the end of the next turn for a second hit
+    'Dust Devil': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'type': 'rock',
+                   'ability': {'kind': 'return_hit', 'move': 'Dust Devil', 'power': 50, 'chance': 100,
+                               'apply_msg': "The Dust Devil spun away from {name}... it'll be back!",
+                               'return_msg': "The Dust Devil whirled back around into {name}!",
+                               'badge': 'DUST'}},
 
     #LIGHTNING MOVES
     'Stinger Shock': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'lightning'},
@@ -1343,6 +1394,12 @@ MOVE_DATA = {
                      'ability': {'kind': 'heal', 'percent': 30, 'chance': 100}},
     'Deep Freeze':   {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'type': 'ice',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
+    # Hits now, then snaps back through time at the end of the next turn for a second hit
+    'Temporal Pincer': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'type': 'ice',
+                        'ability': {'kind': 'return_hit', 'move': 'Temporal Pincer', 'power': 50, 'chance': 100,
+                                    'apply_msg': "Time froze around {name}... the pincer will return!",
+                                    'return_msg': "The Temporal Pincer snapped back through time at {name}!",
+                                    'badge': 'PINCER'}},
     #ANCIENT MOVES
     'Fossil Break': {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'ability': None, 'type': 'ancient'},
 

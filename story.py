@@ -124,7 +124,7 @@
 #       to HORIZON_CAVE.world for the whole game. Before Game.JOSH_UNLOCK_FLAG
 #       (gym3_rematch_defeated — all 3 gym rematches done) he just turns the
 #       player away; after
-#       it he battles (Skolt/Drafyton/Deimo/VY/Vusion, Lv 38-41). Winning makes
+#       it he battles (Skolt/Ghoslink/Scarlust/Drafyton/Vusion, Lv 38-41). Winning makes
 #       him walk out of the cave and disappear (see Game._interact_josh).
 #
 # ══════════════════════════════════════════════════════════════════

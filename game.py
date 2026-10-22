@@ -432,6 +432,7 @@ class Game:
         self.fading = False
         self.catch_anim = None
         self._storms_ticked = False
+        self._clear_recharge_flags()   # leftover storms / returning hits end with the battle
 
     def trigger_blackout(self):
         lost_npc = self.current_trainer_npc
@@ -1411,12 +1412,36 @@ class Game:
             # double-battle p1/p2 slots.
             user['must_recharge'] = True
             msgs.append(f"{user['name']} is drained and must recharge!")
+        elif ability['kind'] == 'return_hit':
+            # Comes back around at the end of the NEXT turn (_end_turn ticks it
+            # down twice). The user's stats are snapshotted now so the return
+            # still lands if the user switches out or faints. One at a time per
+            # target — a second cast while one is circling only hits once.
+            if target.get('hp', 0) > 0 and not target.get('return_hit'):
+                mtype = MOVE_DATA.get(ability['move'], {}).get('type', 'normal')
+                target['return_hit'] = {
+                    'move':       ability['move'],
+                    'type':       mtype,
+                    'power':      ability['power'],
+                    'level':      max(1, user['level']),
+                    'attack':     self._get_effective_stat(user, 'attack'),
+                    'stab':       stab_multiplier(mtype, user['type']),
+                    'turns_left': 2,
+                    'return_msg': ability.get('return_msg', 'The {move} came back around!'),
+                    'badge':      ability.get('badge', 'RETURN'),
+                }
+                msgs.append(ability.get('apply_msg', 'It will come back around!').format(name=target['name']))
         return msgs
 
     def _clear_recharge_flags(self):
-        """A pending recharge never carries over into another battle."""
+        """Battle-only effects never carry over into another battle: a pending
+        recharge, a returning hit (Temporal Pincer, Dust Devil) or a storm
+        (Hail/Sand Storm, Binding Curse). Runs when every battle starts and
+        when one ends (pop_to_world)."""
         for d in list(self.player_dinos) + list(getattr(self, 'abby_dinos', None) or []):
             d.pop('must_recharge', None)
+            d.pop('return_hit', None)
+            d.pop('dot', None)
 
     def _player_recharge_turn(self, dino):
         """Single battle: the player's active dino spends this turn recharging
@@ -1441,8 +1466,8 @@ class Game:
         self.field_effects = [fx for fx in self.field_effects if fx['turns_left'] > 0]
         return msgs
 
-    def _storm_targets(self):
-        """(dino, battle slot) for every on-field dino with a storm (dot) on it."""
+    def _field_slots(self):
+        """(dino, battle slot) for every living on-field dino."""
         if self.is_double_battle:
             slots = [(self.player_dinos[0] if self.player_dinos else None, 'player1'),
                      (self._double_battle_p2(), 'player2'),
@@ -1451,21 +1476,89 @@ class Game:
         else:
             slots = [(self.player_dinos[self.active_dino_index], 'player'),
                      (self.enemy_dino, 'enemy')]
-        return [(d, s) for d, s in slots if d and d.get('dot') and d.get('hp', 0) > 0]
+        return [(d, s) for d, s in slots if d and d.get('hp', 0) > 0]
+
+    def _storm_targets(self):
+        """(dino, battle slot) for every on-field dino with a storm (dot) on it."""
+        return [(d, s) for d, s in self._field_slots() if d.get('dot')]
+
+    def _due_return_hits(self):
+        """Count down every on-field returning hit (Temporal Pincer, Dust
+        Devil) and return (dino, slot) for the ones landing this turn. Like
+        storms, the countdown pauses while the target is benched."""
+        due = []
+        for d, s in self._field_slots():
+            rh = d.get('return_hit')
+            if rh:
+                rh['turns_left'] -= 1
+                if rh['turns_left'] <= 0:
+                    due.append((d, s))
+        return due
+
+    def _land_return_hit(self, dino, slot):
+        """A returning hit lands on `dino`: deal the damage, play the
+        '<move> (return)' animation and return its message lines."""
+        rh = dino.pop('return_hit')
+        mtype   = rh['type']
+        eff_val = type_effectiveness_value(mtype, dino['type'])
+        dfs     = self._get_effective_stat(dino, 'defense')
+        type_boost = next((fx['multiplier'] for fx in self.field_effects
+                           if fx['effect'] == 'type_power' and fx.get('boost_type') == mtype), 1.0)
+        raw = Damage(rh['level'], rh['attack'], rh['power'], dfs, rh['stab'], eff_val,
+                     random_damage_factor()) * type_boost
+        dmg = max(1, int(raw))
+        dino['hp'] = max(0, dino['hp'] - dmg)
+        # The return swings in from the attacker's side of the field
+        if self.is_double_battle:
+            source = 'player1' if slot.startswith('enemy') else 'enemy1'
+        else:
+            source = 'player' if slot == 'enemy' else 'enemy'
+        self.play_move_anim(f"{rh['move']} (return)", slot, source)
+        self.trigger_hit_flash(slot)
+        lines = [rh['return_msg'].format(name=dino['name'], move=rh['move'])]
+        if eff_val > 10:
+            lines.append("It's super effective!")
+        elif 0 < eff_val < 10:
+            lines.append("It's not very effective...")
+        elif eff_val <= 0:
+            lines.append("It had no effect...")
+        return lines
+
+    def _land_storm_tick(self, dino, slot):
+        """One storm (dot) tick on `dino`: deal the damage, flash it black and
+        return its message lines."""
+        dot = dino['dot']
+        dmg = dot.get('damage_flat') or max(1, int(dino['max_hp'] * dot.get('damage_percent', 0) / 100))
+        dmg = min(dmg, dino['hp'])
+        dino['hp'] -= dmg
+        self.trigger_dot_flash(slot)
+        lines = [f"{dino['name']} is {dot['tick_msg']}! (-{dmg} HP)"]
+        dot['turns_left'] -= 1
+        if dino['hp'] <= 0 or dot['turns_left'] <= 0:
+            dino.pop('dot', None)
+        if dino['hp'] > 0 and dot['turns_left'] <= 0:
+            lines.append(dot.get('clear_msg', 'The storm around {name} cleared!')
+                         .format(name=dino['name']))
+        return lines
 
     def _end_turn(self, msgs=()):
         """Close out a battle turn: show `msgs`, tick field effects, then
-        play each storm (Hail/Sand Storm) tick as its own beat — damage lands
-        and the hit dino flashes black when its message appears, rather than
-        all HP being deducted up front — and finally prompt for the next turn.
-        A storm tick can KO; that hands off to the normal faint flow and any
-        storms not yet ticked this turn wait for the next one."""
+        play each returning hit (Temporal Pincer, Dust Devil) and storm
+        (Hail/Sand Storm) tick as its own beat — damage lands and the hit dino
+        flashes when its message appears, rather than all HP being deducted
+        up front — and finally prompt for the next turn. A tick can KO; that
+        hands off to the normal faint flow and any ticks not yet played this
+        turn wait for the next one."""
         msgs = list(msgs) + list(self._tick_field_effects())
         self._clear_defending_flags()
         self._enemy_defend_rolled = False
-        # A double-battle storm KO re-runs _double_turn_end, which lands back
-        # here — this turn's storms have already been played by then.
-        ticks = [] if self._storms_ticked else self._storm_targets()
+        # A double-battle tick KO re-runs _double_turn_end, which lands back
+        # here — this turn's ticks have already been played by then.
+        if self._storms_ticked:
+            ticks = []
+        else:
+            ticks = ([('return_hit', d, s) for d, s in self._due_return_hits()]
+                     + [('dot', d, s) for d, s in self._storm_targets()])
         self._storms_ticked = False
         double_ko = []   # double battles: play every tick, then resolve faints once
 
@@ -1480,23 +1573,15 @@ class Game:
                     return
                 self.message_box.queue_messages(["What will you do?"], wait_for_input=True)
                 return
-            dino, slot = ticks[i]
-            if dino.get('hp', 0) <= 0 or not dino.get('dot'):
+            kind, dino, slot = ticks[i]
+            if dino.get('hp', 0) <= 0 or not dino.get(kind):
                 tick(i + 1)
                 return
-            dot = dino['dot']
-            dmg = dot.get('damage_flat') or max(1, int(dino['max_hp'] * dot.get('damage_percent', 0) / 100))
-            dmg = min(dmg, dino['hp'])
-            dino['hp'] -= dmg
-            self.trigger_dot_flash(slot)
-            lines = [f"{dino['name']} is {dot['tick_msg']}! (-{dmg} HP)"]
-            dot['turns_left'] -= 1
-            if dino['hp'] <= 0 or dot['turns_left'] <= 0:
-                dino.pop('dot', None)
+            if kind == 'return_hit':
+                lines = self._land_return_hit(dino, slot)
+            else:
+                lines = self._land_storm_tick(dino, slot)
             if dino['hp'] > 0:
-                if dot['turns_left'] <= 0:
-                    lines.append(dot.get('clear_msg', 'The storm around {name} cleared!')
-                                 .format(name=dino['name']))
                 self.message_box.queue_messages(lines, wait_for_input=True,
                                                 on_complete=lambda: tick(i + 1))
                 return
@@ -1561,6 +1646,17 @@ class Game:
 
     ALLY_BEST_CHANCE = 0.70   # same as a 'medium'/'rival' enemy trainer in _pick_enemy_move
 
+    @staticmethod
+    def _expected_power(move, foe):
+        """Base power the AI credits a move with: a returning hit (Temporal
+        Pincer, Dust Devil) counts its second hit too, unless one is already
+        circling `foe` (a second cast wouldn't add another)."""
+        power = move.get('damage', 0)
+        ab = move.get('ability') or {}
+        if ab.get('kind') == 'return_hit' and not foe.get('return_hit'):
+            power += ab.get('power', 0)
+        return power
+
     def _ally_choose_action(self, ally, targets):
         """Move + target for an AI ally (Abby, Skyy) in a double battle, at
         medium/rival smarts: usually the hardest-hitting move on whichever
@@ -1574,7 +1670,7 @@ class Game:
                 for m in moves:
                     mtype = m.get('type', 'normal')
                     score = (type_effectiveness_value(mtype, foe['type'])
-                             * stab_multiplier(mtype, ally['type']) * m.get('damage', 0))
+                             * stab_multiplier(mtype, ally['type']) * self._expected_power(m, foe))
                     if foe.get('defending') and not m.get('pierces_defend'):
                         score *= 0.1
                     if best is None or score > best[0]:
@@ -1609,7 +1705,7 @@ class Game:
             mtype = move.get('type', 'normal')
             eff   = type_effectiveness_value(mtype, defender['type'])
             stab  = stab_multiplier(mtype, attacker['type'])
-            score = eff * stab * move.get('damage', 0)
+            score = eff * stab * self._expected_power(move, defender)
             scored.append((score, move))
         scored.sort(key=lambda x: x[0], reverse=True)
         if rank in ('medium', 'rival'):
@@ -7027,6 +7123,7 @@ class Game:
 
     # Grunts at (55, -70..-68) on the overworld, there until Gym 2 is beaten
     GYM2_GUARDS = ('gym2_guard_a', 'gym2_guard_b', 'gym2_guard_c')
+    COBALT_CAVE_GRUNTS = ('cc_grunt_a', 'cc_grunt_b', 'cc_grunt_c')
 
     def _on_log_gym_won(self):
         self.story_flags['gym2_leader_defeated'] = True
@@ -7345,7 +7442,7 @@ class Game:
                 if self._dino_picker:
                     result = self._dino_picker.handle_event(event)
                     if result is not None:
-                        self._finish_amber_lab(result)
+                        self._confirm_amber_choice(result)
 
             elif self.state == 'shop':
                 result = self.shop_screen.handle_event(event, self)
@@ -7870,7 +7967,7 @@ class Game:
     def _spawn_world_npcs(self, world_file):
         self.npcs = []
         for spec in config.WORLD_NPCS.get(world_file, []):
-            trainer_id, tx, ty, facing, sight, npc_type = spec
+            trainer_id = spec[0]
             if trainer_id == 'scarecrux' and self.story_flags.get('scarecrux_awakened'):
                 continue
             if trainer_id in ('grunt1', 'grunt2', 'vanessa') and not self.story_flags.get('gym2_corn_maze_reveal_done'):
@@ -7882,21 +7979,55 @@ class Game:
                 continue
             if trainer_id == 'josh' and self.story_flags.get('josh_defeated'):
                 continue
+            if trainer_id in self.COBALT_CAVE_GRUNTS and not self._cobalt_cave_grunts_active():
+                continue
             if trainer_id in self.GYM2_GUARDS and self.story_flags.get('gym2_leader_defeated'):
                 continue
             if trainer_id == 'celestreeyl' and self.story_flags.get('celestreeyl_done'):
                 continue
             if trainer_id in self.LEGENDS and self.story_flags.get(self.LEGENDS[trainer_id]['flag']):
                 continue
-            npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
-                      facing=facing, sight_range=sight, npc_type=npc_type)
-            npc.home_tile   = (tx, ty)
-            npc.home_facing = facing
-            if trainer_id in self.defeated_trainers:
-                npc.defeated = True
-            self.npcs.append(npc)
-            self.solid_tile_coords.add((tx, ty))
+            self._add_world_npc(spec)
         self._refresh_gym_trainers_defeated()
+
+    def _add_world_npc(self, spec):
+        """Place one config.WORLD_NPCS entry in the current world."""
+        trainer_id, tx, ty, facing, sight, npc_type = spec
+        npc = NPC(trainer_id, tile_x=tx, tile_y=ty,
+                  facing=facing, sight_range=sight, npc_type=npc_type)
+        npc.home_tile   = (tx, ty)
+        npc.home_facing = facing
+        if trainer_id in self.defeated_trainers:
+            npc.defeated = True
+        self.npcs.append(npc)
+        self.solid_tile_coords.add((tx, ty))
+
+    def _cobalt_cave_grunts_active(self):
+        """Cobalt Cave grunts guard the way to Shadow HQ: from the Power Plant
+        takedown until Vanessa is beaten there."""
+        return (bool(self.story_flags.get('pp_eclipse_reveal_done'))
+                and 'vanessa_hq' not in self.defeated_trainers)
+
+    def _sync_cobalt_cave_grunts(self):
+        """Keep the grunts matching the story while the player is in the cave.
+        The cave's NPCs are otherwise only built on the way in (or restored on
+        the way out of Shadow HQ), so a quest-step jump, a load or the Vanessa
+        win wouldn't show up until the player left and came back."""
+        if self.current_world_file != 'COBALT_CAVE.world':
+            return
+        present = {getattr(n, 'trainer_id', ''): n for n in self.npcs
+                   if getattr(n, 'trainer_id', '') in self.COBALT_CAVE_GRUNTS}
+        if not self._cobalt_cave_grunts_active():
+            for npc in present.values():
+                self.solid_tile_coords.discard((npc.tile_x, npc.tile_y))
+                self.npcs.remove(npc)
+            return
+        player_tile = (self.player.rect.x // config.TILE_SIZE, self.player.rect.y // config.TILE_SIZE)
+        for spec in config.WORLD_NPCS.get('COBALT_CAVE.world', []):
+            trainer_id, tx, ty = spec[0], spec[1], spec[2]
+            if (trainer_id in self.COBALT_CAVE_GRUNTS and trainer_id not in present
+                    and (tx, ty) != player_tile):
+                self._add_world_npc(spec)
 
     def trigger_heal_sequence(self):
         n = len(self.player_dinos)
@@ -8122,6 +8253,13 @@ class Game:
                     "I know it exists but the stories they tell from it are out of this world",
                 ]),
                 wait_for_input=True)
+        elif npc.trainer_id == 'matthew':
+            self.message_box.queue_messages(
+                self._tag_dialogue('Matthew', [
+                    "When the Sun is blocked we get these blackouts...",
+                    "They have been way more common lately but at least when the Sun is out we have unlimited electricity right!",
+                ]),
+                wait_for_input=True)
         elif npc.trainer_id == 'dawson':
             self.message_box.queue_messages(
                 self._tag_dialogue('Dawson', [
@@ -8199,13 +8337,12 @@ class Game:
             self.message_box.queue_messages(
                 self._tag_dialogue('Gray', [
                     f"Hey {config.PLAYER_NAME}, I can't wait to start our dino journey, you better be able to keep up with me",
-                    "Hey quick tip, training your dinos when there are less in your party gives more xp, "
-                    "even better training with just one dino gives you maximum xp for it!"]),
+                    "Maybe then we can stop these solar eclipses from continuing, you've heard the conspiracies right?"]),
                 wait_for_input=True)
         elif npc.trainer_id == 'abby_home':
             self.message_box.queue_messages(
                 self._tag_dialogue('Abby', [
-                    f'Hey {config.PLAYER_NAME}! The professor is having me research some "nature activists" in the area',
+                    f'Hey {config.PLAYER_NAME}! Oof another blackout, these are getting so old! The professor is having me research some "nature activists" in the area',
                     "Hope you get to enjoy the tasks she gave you!"]),
                 wait_for_input=True)
         elif npc.trainer_id == 'scarecrux':
@@ -9201,6 +9338,16 @@ class Game:
         )
         self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=open_picker)
 
+    def _confirm_amber_choice(self, chosen_idx):
+        """'Are you sure?' before the starter pick is final. No just leaves
+        the picker open to choose again."""
+        name = self._dino_picker_starters[chosen_idx]['name']
+        self.yes_no_prompt = YesNoPrompt(
+            f"Are you sure you want {name} as your partner?",
+            self.fonts, config.WIDTH, config.HEIGHT, input_delay=0.5)
+        self.yes_no_callback = lambda: self._finish_amber_lab(chosen_idx)
+        self.yes_no_no_callback = None
+
     def _finish_amber_lab(self, chosen_idx):
         self.pop_state()
         starters = self._dino_picker_starters
@@ -9514,6 +9661,7 @@ class Game:
             self._check_lantern_battle_result()
             self._check_lantern_wisps()
             self._maybe_add_shadowhq_npcs()
+            self._sync_cobalt_cave_grunts()
             self._advance_shadowhq_event()
             self._update_shadowhq_wave(dt)
             self._maybe_add_surf_shack_prep_npcs()
@@ -10048,7 +10196,7 @@ class Game:
             enc = self.encounter
             size = int(config.ENCOUNTER_BASE_SIZE * config.ENCOUNTER_DINO_SIZES.get(enc.dino_key, 1.0))
             rect = pygame.Rect(0, 0, size, size)
-            rect.center = (W - 157, 155)
+            rect.center = self._battle_slot_pos('enemy')[0]
             return enc.current_dino_surface, rect
         d = self.player_dinos[self.active_dino_index]
         return d.get('image'), self.encounter_ui.player_sprite_rect(W, H, d['name'])
@@ -10075,7 +10223,8 @@ class Game:
                 'player2': ((244, 280), 1.1),
             }.get(slot, ((config.WIDTH - 250, 145), 0.85))
         if slot.startswith('enemy'):
-            return (config.WIDTH - 157, 155), 1.0
+            dy = config.FRONT_SPRITE_DY.get(getattr(self.encounter, 'dino_key', None), 0)
+            return (config.WIDTH - 157, 155 + dy), 1.0
         return (166, 255), 1.4
 
     def play_move_anim(self, move_name, target_slot, source_slot):
@@ -10613,9 +10762,8 @@ class Game:
             if after:
                 self.message_box.queue_messages(msgs, wait_for_input=True, on_complete=after)
             else:
-                self._clear_defending_flags()
-                msgs.append("What will you do?")
-                self.message_box.queue_messages(msgs, wait_for_input=True)
+                # Still a full turn: storms and returning hits tick here too
+                self._end_turn(msgs)
             return
 
         # Defend check — only blocks damage moves; 0-power moves (self-buffs, terrain) pass through
