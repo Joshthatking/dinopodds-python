@@ -490,7 +490,7 @@ BACK_SPRITE_TWEAKS = {
     'Rhysnow':    (0.82, 0),
     'Tygraflare': (1.3, 8),
     'Prowscar':   (1.0, 14),
-    'Vusion':     (1.25, -14),
+    'Vusion':     (1.25, 0),
     'Rhinecicle': (1.15, 14),
 }
 
@@ -596,10 +596,12 @@ SCRIPTED_WORLD_ITEMS = {
         (1, -48, "Whitepod"),
         (47, -85, "DinoPod"),
         (32, -115, "DinoPod"),
+        (42, -69, "Repel"),
     ],
     'COBALT_CAVE.world': [
         (17, 26, "Whitepod"),
         (-21, 18, "Whitepod"),
+        (3, 5, "Repel"),
     ],
 }
 

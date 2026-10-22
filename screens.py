@@ -127,6 +127,8 @@ def _describe_move_effect(md):
             lines.append(f"{target_word}: {stat} {sign}{stages} stage{'s' if abs(stages) != 1 else ''}")
         elif kind == 'recoil':
             lines.append(f"User takes {ab['percent']}% recoil")
+        elif kind == 'drain':
+            lines.append(f"Lifesteal: heals {ab['percent']}% of dmg")
         elif kind == 'lock':
             lines.append(f"Locks foe for {ab['turns']} turns")
         elif kind == 'recharge':
@@ -2154,6 +2156,8 @@ def generate_move_desc(move_name):
             parts.append(f"Restores {ability.get('percent', 0)}% of max HP.")
         elif kind == 'recoil':
             parts.append(f"User takes {ability.get('percent', 0)}% recoil damage.")
+        elif kind == 'drain':
+            parts.append(f"Lifesteal: the user heals {ability.get('percent', 0)}% of the damage dealt.")
         elif kind == 'lock':
             turns = ability.get('turns', 2)
             parts.append(f"Traps the opponent for {turns} turns.")

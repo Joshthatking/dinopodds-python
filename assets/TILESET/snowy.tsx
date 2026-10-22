@@ -1,21 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.12.1" name="snowy" tilewidth="32" tileheight="32" tilecount="312" columns="8">
- <image source="../TILESET/snowy.png" width="256" height="1248"/>
+ <image source="snowy.png" width="256" height="1248"/>
  <tile id="1">
   <properties>
    <property name="encounter" type="bool" value="true"/>
-   <property name="type" value="snow"/>
+   <property name="type" value="grass"/>
   </properties>
  </tile>
  <tile id="8">
   <properties>
    <property name="encounter" type="bool" value="true"/>
-   <property name="type" value="snow"/>
+   <property name="type" value="grass"/>
   </properties>
  </tile>
  <tile id="9">
   <properties>
    <property name="encounter" type="bool" value="true"/>
-   <property name="type" value="snow"/>
+   <property name="type" value="grass"/>
   </properties>
  </tile>
  <tile id="10">
@@ -33,7 +34,7 @@
  <tile id="13">
   <properties>
    <property name="encounter" type="bool" value="true"/>
-   <property name="type" value="snow"/>
+   <property name="type" value="grass"/>
   </properties>
  </tile>
  <tile id="24">

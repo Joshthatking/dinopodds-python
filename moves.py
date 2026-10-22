@@ -29,6 +29,11 @@ DURATIONS = {                       # signature moves that run longer than DURAT
     'Leaf Ultima': 1.4,
     'Crusher': 1.3,
     'Power Fang': 1.3,
+    'Dread Thorn': 1.4,
+    'Venom Decay': 1.3,
+    'Fossil Break': 1.2,
+    'Flame Shatter': 1.3,
+    'Raging Pursuit': 1.4,
 }
 STRONG_POWER = 70
 TAU = math.pi * 2
@@ -646,20 +651,87 @@ def anim_solar_flare(a):
         _strong_finish(a, p, ((255, 230, 180),) * 2, 200, 10)
 
 
+def _snap_sword(a, x, y, size, p):
+    """Attack-down cue: a sword that snaps in half and falls over p 0..1."""
+    al = 240 * min(1.0, p * 4) * (1.0 if p < 0.6 else max(0.0, (1 - p) / 0.4))
+    brk = ease_in(max(0.0, (p - 0.35) / 0.65))
+    steel, edge = (215, 220, 235), (255, 255, 255)
+    # hilt half (bottom) tips left, blade half (top) tips right as it breaks
+    for half, sgn in ((0, -1), (1, 1)):
+        ang = -math.pi / 2 + sgn * 0.7 * brk
+        cx = x + sgn * 10 * a.s * brk
+        cy = y + 14 * a.s * brk * brk
+        ca, sa = math.cos(ang), math.sin(ang)
+        if half == 0:   # grip + crossguard + lower blade
+            a.line(cx, cy, cx - ca * size * 0.45, cy - sa * size * 0.45, (120, 70, 40), al, 5)
+            a.line(cx - sa * 12 * a.s, cy + ca * 12 * a.s, cx + sa * 12 * a.s, cy - ca * 12 * a.s,
+                   (230, 190, 90), al, 5)
+            a.line(cx, cy, cx + ca * size * 0.35, cy + sa * size * 0.35, steel, al, 7)
+        else:           # upper blade + point
+            bx, by = cx + ca * size * 0.4, cy + sa * size * 0.4
+            tip = (bx + ca * size * 0.55, by + sa * size * 0.55)
+            a.poly([(bx - sa * 3.5 * a.s, by + ca * 3.5 * a.s), (bx + sa * 3.5 * a.s, by - ca * 3.5 * a.s), tip],
+                   steel, al)
+            a.line(bx, by, tip[0], tip[1], edge, al, 1)
+    if 0.3 < p < 0.55:   # spark where it snaps
+        a.star(x, y - size * 0.38, 12 * a.s, MAGMA[1], 255, points=4, rot=p * 5)
+
+
 def anim_flame_shatter(a):
     t = a.t
-    p = seg(t, 0.0, 0.4)
-    if p is not None:  # crystal shards converge
-        for i in range(8):
-            ang = i * TAU / 8
-            d = 80 * a.s * (1 - ease_in(p))
-            a.shard(a.tx + math.cos(ang) * d, a.ty + math.sin(ang) * d, 14 * a.s, ang + math.pi, MAGMA[0], 240)
-        a.glow(a.tx, a.ty, 30 * a.s, MAGMA[0], p)
-    p = seg(t, 0.38, 1.0)
-    if p is not None:  # shatter outward
-        a.burst(a.tx, a.ty, p, 18, 100 * a.s, MAGMA[1], 7 * a.s, shape='shard', glow=0.4)
-        a.burst(a.tx, a.ty, p, 10, 70 * a.s, MAGMA[0], 6 * a.s, shape='shard', key=1)
-        a.glow(a.tx, a.ty, 60 * a.s, MAGMA[1], 1.2 * (1 - p))
+    s = a.s
+    R = 58 * s
+    n = 9
+    rng = a.rng('fs_facets')
+    facet = [(i / n * TAU + rng.uniform(-0.12, 0.12), R * rng.uniform(0.85, 1.1)) for i in range(n)]
+    # 1. Molten crystal shards fly in and lock together into a shell
+    p = seg(t, 0.0, 0.32)
+    if p is not None:
+        e = ease_in(p)
+        for i, (ang, r) in enumerate(facet):
+            d = r + 120 * s * (1 - e)
+            spin = (1 - e) * 2.5 * (1 if i % 2 else -1)
+            a.shard(a.tx + math.cos(ang) * d, a.ty + math.sin(ang) * d, 20 * s, ang + math.pi + spin,
+                    MAGMA[0], 240)
+            a.shard(a.tx + math.cos(ang) * d, a.ty + math.sin(ang) * d, 12 * s, ang + math.pi + spin,
+                    MAGMA[1], 240, thin=0.18)
+        a.tint((40, 10, 0), 90 * p)
+    # 2. The finished shell glows hotter and hotter, cracking white
+    p = seg(t, 0.3, 0.52)
+    if p is not None:
+        heat = ease_in(p)
+        pts = [(a.tx + math.cos(ang) * r, a.ty + math.sin(ang) * r) for ang, r in facet]
+        a.poly(pts, _mix(MAGMA[2], MAGMA[0], heat), 170)
+        for (x1, y1) in pts:   # facet edges back to the core
+            a.line(x1, y1, a.tx, a.ty, MAGMA[1], 160 + 80 * heat, 2)
+        a.lines(pts, MAGMA[1], 255, 3, closed=True)
+        rng = a.rng('fs_cracks')
+        for k in range(int(2 + 8 * heat)):
+            ang = rng.uniform(0, TAU)
+            r = R * rng.uniform(0.3, 1.0)
+            a.line(a.tx, a.ty, a.tx + math.cos(ang) * r, a.ty + math.sin(ang) * r, (255, 250, 220), 255, 2)
+        a.glow(a.tx, a.ty, 70 * s * (1 + heat), MAGMA[0], 0.6 + heat)
+        a.tint((60, 15, 0), 90 + 60 * heat)
+        a.shake(1 + 3 * heat)
+    # 3. SHATTER: spinning molten shards, fire ring, ember rain
+    p = seg(t, 0.5, 1.0)
+    if p is not None:
+        e = ease_out(p)
+        _strong_finish(a, p, ((255, 120, 30), (255, 170, 90)), 120, 11)
+        a.glow(a.tx, a.ty, 110 * s, MAGMA[0], 0.9 * (1 - p))
+        a.circle(a.tx, a.ty, 70 * s * e, MAGMA[0], 150 * (1 - p) ** 2)
+        a.ring(a.tx, a.ty, 20 * s + 140 * s * e, MAGMA[0], 230 * (1 - p), 6)
+        a.ring(a.tx, a.ty, 10 * s + 95 * s * e, (255, 240, 200), 210 * (1 - p), 3)
+        for i, (ang, r) in enumerate(facet):   # the shell's facets blown outward
+            d = r + 150 * s * e
+            x, y = a.tx + math.cos(ang) * d, a.ty + math.sin(ang) * d + 60 * s * p * p
+            spin = ang + p * 9 * (1 if i % 2 else -1)
+            a.shard(x, y, 22 * s * (1 - 0.4 * p), spin, MAGMA[0], 255 * (1 - p))
+            a.shard(x, y, 13 * s * (1 - 0.4 * p), spin, (255, 245, 210), 255 * (1 - p), thin=0.18)
+            a.glow(x, y, 14 * s, MAGMA[0], 0.5 * (1 - p))
+        a.burst(a.tx, a.ty, p, 26, 160 * s, MAGMA[1], 4 * s, gravity=140, glow=0.4)
+        a.burst(a.tx, a.ty, p, 14, 120 * s, MAGMA[2], 5 * s, shape='square', gravity=180, key=1)
+        _snap_sword(a, a.tx, a.ty - 8 * s, 70 * s, p)
 
 
 def anim_magma_boost(a):
@@ -734,18 +806,120 @@ def anim_vine_snare_plus(a):
         a.ring(a.tx, a.ty, 70 * a.s * (1 - 0.4 * ease_out(p)), EARTH[0], 200 * (1 - p), 4)
 
 
+_DT_BODY = (22, 12, 28)       # near-black thorn
+_DT_EDGE = (130, 35, 95)      # dark magenta edge light
+_DT_ROOT = (16, 26, 14)       # dark mossy base
+_DT_GLOW = (150, 40, 170)
+
+
+def _thorn(a, bx, by, tipx, tipy, bend, w, alpha, barbs=True):
+    """Curved, tapering thorn from base (bx, by) to its tip, bowed sideways by
+    `bend` px, with a magenta edge light and a few barbs along the outside."""
+    if alpha <= 0:
+        return
+    dx, dy = tipx - bx, tipy - by
+    L = math.hypot(dx, dy) or 1.0
+    nx, ny = -dy / L, dx / L
+    cx, cy = bx + dx * 0.5 + nx * bend, by + dy * 0.5 + ny * bend
+    left, right, spine = [], [], []
+    n = 12
+    for i in range(n + 1):
+        u = i / n
+        px = (1 - u) ** 2 * bx + 2 * (1 - u) * u * cx + u * u * tipx
+        py = (1 - u) ** 2 * by + 2 * (1 - u) * u * cy + u * u * tipy
+        hw = w * (1 - u) ** 1.3
+        left.append((px + nx * hw, py + ny * hw))
+        right.append((px - nx * hw, py - ny * hw))
+        spine.append((px, py))
+    a.poly(left + right[::-1], _DT_BODY, alpha)
+    a.lines(left, _DT_EDGE, alpha, 2)
+    a.circle(bx, by, w * 0.6, _DT_ROOT, alpha)
+    if barbs:
+        side = 1 if bend >= 0 else -1
+        for k in (3, 6, 9):
+            px, py = spine[k]
+            hw = w * (1 - k / n) ** 1.3
+            ox, oy = px + nx * hw * side, py + ny * hw * side
+            ux, uy = (spine[k + 1][0] - px), (spine[k + 1][1] - py)
+            a.poly([(ox, oy), (ox + nx * side * w * 0.9 + ux * 0.8, oy + ny * side * w * 0.9 + uy * 0.8),
+                    (ox + ux * 0.9, oy + uy * 0.9)], _DT_BODY, alpha)
+
+
 def anim_dread_thorn(a):
     t = a.t
-    base = a.ty + 45 * a.s
-    for i in range(9):
-        q = seg(t, i * 0.04, 0.45 + i * 0.04)
-        h = (55 + (i % 3) * 20) * a.s * (ease_out(q) if q is not None else (1 if t > 0.45 else 0))
-        x = a.tx + (i - 4) * 16 * a.s
-        lean = (i - 4) * 0.08
-        al = 255 * fade_late(t, 0.7)
-        a.poly([(x - 7 * a.s, base), (x + 7 * a.s, base), (x + lean * h, base - h)], (35, 80, 30), al)
-        a.poly([(x - 2 * a.s, base), (x + 3 * a.s, base), (x + lean * h, base - h)], (90, 30, 60), al)
-    _impact(a, seg(t, 0.4, 0.9), ((90, 140, 60), (200, 120, 200)), 0.8)
+    s = a.s
+    base = a.ty + 50 * s
+    # 1. The ground splits beneath the target and dark energy seeps out
+    p = seg(t, 0.0, 0.3)
+    if p is not None or t > 0.3:
+        e = ease_out(p) if p is not None else 1.0
+        crack_al = 230 * fade_late(t, 0.75)
+        rng = a.rng('dt_cracks')
+        for k in range(7):
+            ang = math.pi * (0.05 + 0.9 * k / 6)
+            pts = [(a.tx, base)]
+            for m in range(1, 5):
+                d = 95 * s * e * m / 4
+                pts.append((a.tx - math.cos(ang) * d + rng.uniform(-6, 6) * s,
+                            base + math.sin(ang) * d * 0.22 + rng.uniform(-3, 3) * s))
+            a.lines(pts, (10, 4, 14), crack_al, 4)
+            a.lines(pts, _DT_GLOW, crack_al * 0.8, 1)
+        a.ellipse(a.tx, base, 220 * s * e, 46 * s * e, (20, 6, 28), 150 * fade_late(t, 0.7))
+        a.glow(a.tx, base, 90 * s * e, _DT_GLOW, 0.9 * hump(min(1.0, t / 0.6)))
+        a.tint((20, 0, 25), 130 * min(1.0, t / 0.3) * fade_late(t, 0.8))
+        if p is not None:
+            a.shake(2 * p)
+
+    # 2. A ring of curved thorns erupts and lunges inward at the target
+    spots = (-105, -70, -36, 0, 36, 70, 105)
+    impale = seg(t, 0.42, 0.55)
+    wither = seg(t, 0.72, 1.0)
+    for i, off in enumerate(spots):
+        q = seg(t, 0.2 + i * 0.025, 0.42 + i * 0.025)
+        if t < 0.2 + i * 0.025:
+            continue
+        grow = ease_out(q) if q is not None else 1.0
+        bx = a.tx + off * s
+        by = base + abs(off) * 0.08 * s
+        h = (95 + (3 - abs(i - 3)) * 22) * s   # tallest in the middle
+        rest_x, rest_y = bx + off * 0.15 * s, by - h
+        hit_x, hit_y = a.tx - off * 0.3 * s, a.ty - 42 * s + abs(off) * 0.12 * s   # tips cross over the target
+        k = ease_in(impale) if impale is not None else (1.0 if t >= 0.55 else 0.0)
+        tipx, tipy = lerp(rest_x, hit_x, k), lerp(rest_y, hit_y, k)
+        tipx, tipy = lerp(bx, tipx, grow), lerp(by, tipy, grow)
+        if wither is not None:   # droop and sink back into the ground
+            tipy += 40 * s * ease_in(wither)
+        al = 255 * (1 - ease_in(wither) if wither is not None else 1.0)
+        bend = (-18 if off < 0 else 18) * s if off else 10 * s
+        _thorn(a, bx, by, tipx, tipy, bend, (13 + (3 - abs(i - 3)) * 1.5) * s, al)
+        if q is not None and q < 0.4:   # dirt kicked up as each thorn bursts out
+            a.burst(bx, by, q / 0.4, 5, 30 * s, (60, 40, 30), 3 * s, gravity=90, key=i)
+
+    # 3. IMPALE: blood-red burst, dark petals, shockwave
+    p = seg(t, 0.52, 1.0)
+    if p is not None:
+        _strong_finish(a, p, ((90, 0, 30), (150, 20, 60)), 120, 10)
+        e = ease_out(p)
+        a.glow(a.tx, a.ty, 100 * s, (170, 20, 60), 1.0 * (1 - p))
+        a.ring(a.tx, a.ty, 15 * s + 120 * s * e, (220, 60, 120), 220 * (1 - p), 4)
+        a.ring(a.tx, a.ty, 10 * s + 75 * s * e, _DT_GLOW, 200 * (1 - p), 3)
+        a.star(a.tx, a.ty, 70 * s * (1 - p * 0.6), (200, 25, 70), 255 * (1 - p), points=6, rot=0.3, inner=0.25)
+        a.star(a.tx, a.ty, 30 * s * (1 - p * 0.6), (255, 220, 235), 255 * (1 - p), points=6, rot=0.3, inner=0.3)
+        rng = a.rng('dt_petals')
+        for k in range(16):   # dark thorn shards / petals flung outward
+            ang = rng.uniform(0, TAU)
+            d = rng.uniform(40, 130) * s * e
+            a.shard(a.tx + math.cos(ang) * d, a.ty + math.sin(ang) * d + 40 * s * p * p,
+                    rng.uniform(7, 12) * s, ang, (90, 20, 60) if k % 2 else _DT_BODY, 255 * (1 - p))
+    # 4. The thorns wither into rising dark smoke
+    if wither is not None:
+        rng = a.rng('dt_smoke')
+        for k in range(14):
+            x = a.tx + rng.uniform(-110, 110) * s
+            d = rng.uniform(0, 0.4)
+            q = (wither - d) / 0.6
+            if 0 <= q <= 1:
+                a.circle(x, base - q * 90 * s, (6 + 10 * q) * s, (40, 15, 50), 150 * (1 - q))
 
 
 def anim_tree_spin(a):
@@ -3071,32 +3245,174 @@ def _bone(a, x, y, length, ang, col, alpha):
         a.circle(ex + sa * k, ey - ca * k, k, col, alpha)
 
 
+_FOSSIL_BONE = (235, 225, 200)
+_FOSSIL_ROCK = ((150, 115, 80), (95, 70, 48), (60, 42, 30))   # face, side, outline
+
+
+def _fossil_slab(a, x, y, w, h, tilt, alpha, glow=0.0):
+    """A chunky stone slab with a dino skeleton pressed into it and glowing
+    amber veins, centred on (x, y) and rotated by `tilt`."""
+    ca, sa = math.cos(tilt), math.sin(tilt)
+
+    def P(u, v):   # slab-local (-1..1) -> screen
+        lx, ly = u * w / 2, v * h / 2
+        return x + lx * ca - ly * sa, y + lx * sa + ly * ca
+
+    outline = [P(-1, -0.7), P(-0.6, -1), P(0.3, -0.95), P(1, -0.6), P(0.95, 0.5),
+               P(0.5, 1), P(-0.4, 0.95), P(-1, 0.55)]
+    side = [(px + 5 * a.s, py + 7 * a.s) for px, py in outline]
+    a.poly(side, _FOSSIL_ROCK[1], alpha)
+    a.poly(outline, _FOSSIL_ROCK[0], alpha)
+    a.lines(outline, _FOSSIL_ROCK[2], alpha, 3, closed=True)
+    # skeleton imprint: skull, spine, ribs, tail
+    bone_al = alpha * 0.9
+    a.lines([P(-0.55, -0.05), P(-0.1, 0.0), P(0.35, 0.05), P(0.75, 0.25)], _FOSSIL_BONE, bone_al, 4)
+    for k in range(5):
+        u = -0.35 + k * 0.15
+        a.lines([P(u, 0.0), P(u + 0.06, -0.35), P(u + 0.14, -0.45)], _FOSSIL_BONE, bone_al, 2)
+        a.lines([P(u, 0.0), P(u + 0.06, 0.32), P(u + 0.14, 0.4)], _FOSSIL_BONE, bone_al, 2)
+    skull = [P(-0.85, -0.2), P(-0.55, -0.35), P(-0.45, -0.05), P(-0.6, 0.12), P(-0.85, 0.05)]
+    a.poly(skull, _FOSSIL_BONE, bone_al)
+    a.circle(*P(-0.62, -0.12), 3 * a.s, _FOSSIL_ROCK[2], bone_al)   # eye socket
+    # amber veins
+    for pts in ((P(-0.9, 0.4), P(-0.5, 0.6), P(-0.2, 0.85)), (P(0.6, -0.8), P(0.7, -0.4), P(0.9, -0.1))):
+        a.lines(pts, ANCIENT[1], alpha, 2)
+    if glow > 0:
+        a.glow(x, y, max(w, h) * 0.8, ANCIENT[0], glow)
+
+
 def anim_fossil_break(a):
     t = a.t
-    bone = (235, 225, 200)
-    p = seg(t, 0.0, 0.4)
+    s = a.s
+    W, H = 120 * s, 78 * s
+    top = a.ty - 100 * s
+    # 1. The fossil slab tears up out of the ground and hovers above the target
+    p = seg(t, 0.0, 0.3)
     if p is not None:
-        _bone(a, a.tx, a.ty - 80 * a.s * (1 - ease_in(p)), 60 * a.s, 0.5 + p * 3, bone, 255)
-    p = seg(t, 0.38, 1.0)
-    if p is not None:  # bone snaps in two and flies apart
         e = ease_out(p)
-        al = 255 * (1 - p)
-        _bone(a, a.tx - 30 * a.s * e, a.ty + 40 * a.s * p * p, 28 * a.s, 0.5 - e * 2, bone, al)
-        _bone(a, a.tx + 30 * a.s * e, a.ty + 40 * a.s * p * p, 28 * a.s, 0.5 + e * 2, bone, al)
-        a.burst(a.tx, a.ty, p, 12, 60 * a.s, ANCIENT[1], 3 * a.s, shape='square')
-        a.star(a.tx, a.ty, 30 * a.s * (1 - p), WHITE, 230 * (1 - p), points=5)
+        y = lerp(a.ty + 60 * s, top, e)
+        a.burst(a.tx, a.ty + 55 * s, p, 12, 70 * s, (130, 100, 70), 4 * s, shape='square',
+                gravity=120, spread=(-math.pi * 0.95, -math.pi * 0.05))
+        _fossil_slab(a, a.tx, y, W, H, 0.4 * (1 - e), 255 * min(1.0, p * 3), glow=0.6 * e)
+        a.tint((30, 20, 5), 80 * p)
+    p = seg(t, 0.3, 0.38)
+    if p is not None:   # brief hang, wobbling, amber glow building
+        _fossil_slab(a, a.tx, top - 4 * s * hump(p), W, H, math.sin(p * 20) * 0.04, 255, glow=0.9)
+        a.tint((30, 20, 5), 80)
+    # 2. SLAM down onto the target
+    p = seg(t, 0.38, 0.48)
+    if p is not None:
+        y = lerp(top, a.ty - 10 * s, ease_in(p))
+        for k in range(1, 4):   # speed lines above it
+            a.line(a.tx - W * 0.4 + k * W * 0.2, y - H * 0.6 - 20 * s * k,
+                   a.tx - W * 0.4 + k * W * 0.2, y - H * 0.6 - 5 * s, WHITE, 140, 2)
+        _fossil_slab(a, a.tx, y, W, H, 0.0, 255, glow=0.6)
+        a.tint((30, 20, 5), 80)
+    # 3. It shatters: rock chunks, spinning bones, ancient dust, shockwave
+    p = seg(t, 0.47, 1.0)
+    if p is not None:
+        e = ease_out(p)
+        _strong_finish(a, p, ANCIENT, 100, 9)
+        a.glow(a.tx, a.ty, 90 * s, ANCIENT[0], 0.8 * (1 - p))
+        a.ring(a.tx, a.ty, 20 * s + 120 * s * e, ANCIENT[1], 220 * (1 - p), 5)
+        a.ellipse(a.tx, a.ty + 45 * s, 240 * s * e, 40 * s * e, (150, 120, 80), 160 * (1 - p), 4)
+        rng = a.rng('fb_chunks')
+        for k in range(10):   # stone chunks
+            ang = rng.uniform(-math.pi, 0.2) if k % 3 else rng.uniform(0, TAU)
+            d = rng.uniform(60, 140) * s * e
+            x = a.tx + math.cos(ang) * d
+            y = a.ty + math.sin(ang) * d + 160 * s * p * p
+            r = rng.uniform(8, 15) * s
+            rot = p * rng.uniform(-6, 6)
+            pts = [(x + math.cos(rot + j * TAU / 5) * r * (0.7 + 0.3 * (j % 2)),
+                    y + math.sin(rot + j * TAU / 5) * r * (0.7 + 0.3 * (j % 2))) for j in range(5)]
+            a.poly(pts, _FOSSIL_ROCK[k % 2], 255 * fade_late(p, 0.5))
+            a.lines(pts, _FOSSIL_ROCK[2], 255 * fade_late(p, 0.5), 2, closed=True)
+        rng = a.rng('fb_bones')
+        for k in range(5):    # bone fragments spinning away
+            ang = rng.uniform(-math.pi * 0.9, -math.pi * 0.1)
+            d = rng.uniform(70, 130) * s * e
+            _bone(a, a.tx + math.cos(ang) * d, a.ty + math.sin(ang) * d + 140 * s * p * p,
+                  rng.uniform(22, 32) * s, p * rng.uniform(8, 14), _FOSSIL_BONE, 255 * fade_late(p, 0.55))
+        a.burst(a.tx, a.ty, p, 22, 130 * s, ANCIENT[1], 3 * s, glow=0.3)
+        a.star(a.tx, a.ty, 55 * s * (1 - p), (255, 235, 180), 230 * (1 - p), points=5, rot=0.2, inner=0.35)
+
+
+_RAGE = (225, 55, 40)
 
 
 def anim_raging_pursuit(a):
     t = a.t
-    for k in range(4):  # afterimage strikes from alternating sides
-        p = seg(t, k * 0.17, 0.35 + k * 0.17)
-        if p is not None:
-            side = 1 if k % 2 else -1
-            ang = math.pi * (0.3 if side > 0 else 0.7)
-            a.slash(a.tx + side * 15 * a.s, a.ty, ang, 110 * a.s, p, ANCIENT[0], 7, curve=0.1)
-            a.circle(a.tx + side * 70 * a.s * (1 - p), a.ty, 20 * a.s, ANCIENT[2], 120 * (1 - p))
-    _impact(a, seg(t, 0.68, 1.0), ANCIENT, 1.0)
+    s = a.s
+    # 1. Lock-on: a reticle snaps onto the target, the screen flushes red
+    p = seg(t, 0.0, 0.2)
+    if p is not None or t < 0.75:
+        q = ease_out(p) if p is not None else 1.0
+        r = lerp(120, 76, q) * s
+        al = 230 * (min(1.0, t / 0.08)) * (1.0 if t < 0.6 else max(0.0, (0.75 - t) / 0.15))
+        rot = (1 - q) * 1.2
+        for k in range(4):
+            ang = rot + k * math.pi / 2
+            a.line(a.tx + math.cos(ang) * r * 0.6, a.ty + math.sin(ang) * r * 0.6,
+                   a.tx + math.cos(ang) * r * 1.2, a.ty + math.sin(ang) * r * 1.2, _RAGE, al, 5)
+        a.ring(a.tx, a.ty, r, _RAGE, al, 3)
+        a.tint((60, 0, 0), 110 * min(1.0, t / 0.2) * (1.0 if t < 0.85 else max(0.0, (1 - t) / 0.15)))
+    # The guard the target puts up (this move breaks through Defend)
+    bar = seg(t, 0.05, 0.62)
+    if bar is not None:
+        R = 58 * s
+        pts = [(a.tx + math.cos(i * math.pi / 3 + math.pi / 6) * R,
+                a.ty + math.sin(i * math.pi / 3 + math.pi / 6) * R) for i in range(6)]
+        flick = 0.75 + 0.25 * math.sin(t * 60) if bar > 0.6 else 1.0   # strained near the end
+        a.poly(pts, (120, 170, 255), 45 * flick * min(1.0, bar * 4))
+        a.lines(pts, (180, 210, 255), 200 * flick * min(1.0, bar * 4), 3, closed=True)
+    # 2. Afterimage strikes from every side, each one faster than the last
+    starts = (0.12, 0.27, 0.39, 0.49, 0.57)
+    dirs = (0.85, 0.15, 1.35, -0.35, 0.5)
+    for k, (t0, d) in enumerate(zip(starts, dirs)):
+        dur = 0.16 - k * 0.015
+        p = seg(t, t0, t0 + dur)
+        if p is None:
+            continue
+        ang = d * math.pi
+        ca, sa = math.cos(ang), math.sin(ang)
+        dash = ease_in(min(1.0, p / 0.45))
+        gx, gy = a.tx + ca * 130 * s * (1 - dash), a.ty + sa * 130 * s * (1 - dash)
+        for j in range(3):   # the ghost and its trail
+            back = j * 22 * s
+            a.ellipse(gx + ca * back, gy + sa * back, 38 * s, 50 * s, (90, 20, 15), (220 - j * 60) * (1 - p))
+            a.ellipse(gx + ca * back, gy + sa * back, 38 * s, 50 * s, _RAGE, (255 - j * 70) * (1 - p), 3)
+            if j == 0:
+                a.glow(gx, gy, 40 * s, _RAGE, 0.8 * (1 - p))
+        if p > 0.4:
+            a.slash(a.tx, a.ty, ang + math.pi / 2, 120 * s, (p - 0.4) / 0.6,
+                    _RAGE if k % 2 else ANCIENT[0], 9, curve=0.15)
+            a.slash(a.tx, a.ty, ang + math.pi / 2, 120 * s, (p - 0.4) / 0.6, (255, 230, 200), 3,
+                    curve=0.15, glow=0)
+            if p < 0.6:
+                a.shake(3)
+                a.star(a.tx, a.ty, 22 * s, WHITE, 230, points=4, rot=ang)
+    # 3. The guard shatters as the final blow lands
+    p = seg(t, 0.62, 0.95)
+    if p is not None:
+        rng = a.rng('rp_glass')
+        for k in range(12):
+            ang = k / 12 * TAU + rng.uniform(-0.2, 0.2)
+            d = 58 * s + 90 * s * ease_out(p)
+            a.shard(a.tx + math.cos(ang) * d, a.ty + math.sin(ang) * d + 50 * s * p * p,
+                    rng.uniform(8, 13) * s, ang + p * 6, (180, 210, 255), 230 * (1 - p))
+    # 4. Finishing X-slash and a heavy hit
+    p1, p2 = seg(t, 0.64, 0.98), seg(t, 0.7, 1.0)
+    for pp, ang in ((p1, math.pi * 0.25), (p2, -math.pi * 0.25)):
+        a.slash(a.tx, a.ty, ang, 190 * s, pp, _RAGE, 16, curve=0.2, glow=0.9)
+        a.slash(a.tx, a.ty, ang, 190 * s, pp, (255, 235, 200), 6, curve=0.2, glow=0)
+    p = seg(t, 0.68, 1.0)
+    if p is not None:
+        _strong_finish(a, p, ((160, 20, 10), (255, 120, 80)), 150, 11)
+        a.glow(a.tx, a.ty, 100 * s, _RAGE, 1.3 * (1 - p))
+        a.ring(a.tx, a.ty, 20 * s + 130 * s * ease_out(p), ANCIENT[1], 220 * (1 - p), 5)
+        a.burst(a.tx, a.ty, p, 22, 140 * s, ANCIENT[1], 4 * s, shape='streak', glow=0.3)
+        a.burst(a.tx, a.ty, p, 10, 100 * s, _RAGE, 4 * s, key=1)
 
 
 def anim_dragon_zenith(a):
@@ -3231,43 +3547,158 @@ def anim_arise(a):
     a.glow(a.tx, a.ty, 80 * a.s, ANCIENT[0], 0.8 * hump(t))
 
 
+def _venom_drop(a, x, y, r, col, alpha):
+    a.circle(x, y, r, col, alpha)
+    a.poly([(x - r, y), (x + r, y), (x, y - r * 2.4)], col, alpha)
+    a.circle(x - r * 0.35, y - r * 0.2, r * 0.3, (235, 255, 200), alpha * 0.8)   # wet shine
+
+
+def _crack_shield(a, x, y, size, p):
+    """Defense-down cue: a shield outline that cracks and crumbles over p 0..1."""
+    al = 230 * hump(min(1.0, p * 1.4)) if p < 0.7 else 230 * max(0.0, (1 - p) / 0.3) * 0.6
+    sx = 6 * a.s * ease_in(max(0.0, (p - 0.4) / 0.6))   # halves drift apart
+    for side in (-1, 1):
+        pts = [(x, y - size), (x + side * size * 0.85, y - size * 0.7),
+               (x + side * size * 0.8, y + size * 0.1), (x, y + size)]
+        pts = [(px + side * sx, py + sx * 0.5) for px, py in pts]
+        a.lines(pts, (200, 220, 255), al, 3)
+    if p > 0.3:   # the jagged crack down the middle
+        q = min(1.0, (p - 0.3) / 0.2)
+        crack = [(x, y - size), (x + 5 * a.s, y - size * 0.4), (x - 5 * a.s, y + size * 0.1),
+                 (x + 4 * a.s, y + size * 0.6), (x, y + size)]
+        a.lines(crack[:max(2, int(len(crack) * q))], POISON[1], al, 3)
+
+
 def anim_venom_decay(a):
     t = a.t
-    rng = a.rng('venom')
-    for i in range(10):  # poison drips fall onto the target
-        x = a.tx + rng.uniform(-60, 60) * a.s
-        d = rng.uniform(0, 0.4)
-        q = (t - d) / 0.35
-        if 0 <= q <= 1:
-            y = lerp(a.ty - 100 * a.s, a.ty + rng.uniform(-20, 30) * a.s, ease_in(q))
-            a.circle(x, y, 5 * a.s, POISON[1], 240)
-            a.poly([(x - 5 * a.s, y), (x + 5 * a.s, y), (x, y - 12 * a.s)], POISON[1], 240)
-    p = seg(t, 0.35, 1.0)
-    if p is not None:  # target dissolves in sizzling purple bubbles
-        for i in range(14):
-            x = a.tx + rng.uniform(-55, 55) * a.s
-            d = rng.uniform(0, 0.5)
-            q = (p - d) / 0.5
+    s = a.s
+    ox, oy = a.tx, a.ty - 115 * s   # where the toxic orb gathers
+    # 1. A churning orb of venom gathers above the target
+    p = seg(t, 0.0, 0.32)
+    if p is not None:
+        r = 34 * s * ease_out(p)
+        a.tint((10, 30, 5), 110 * p)
+        a.glow(ox, oy, r * 2.4, POISON[1], 0.55 * p)
+        a.circle(ox, oy, r, POISON[2], 240)
+        a.circle(ox, oy, r * 0.8, POISON[0], 230)
+        rng = a.rng('vd_orb')
+        for k in range(9):   # swirling bubbles inside the orb
+            ang = rng.uniform(0, TAU) + t * 14 * (1 if k % 2 else -1)
+            d = rng.uniform(0.15, 0.6) * r
+            a.circle(ox + math.cos(ang) * d, oy + math.sin(ang) * d,
+                     rng.uniform(0.12, 0.25) * r, POISON[1], 220)
+        for k in range(10):   # wisps being sucked in
+            ang = k / 10 * TAU + t * 3
+            d = lerp(110, 30, p) * s
+            a.circle(ox + math.cos(ang) * d, oy + math.sin(ang) * d, 4 * s, POISON[1], 200 * p)
+        if p > 0.6:
+            a.shake(1.5)
+    # 2. It ruptures: a heavy venom rain hammers the target
+    p = seg(t, 0.3, 0.6)
+    if p is not None:
+        a.tint((10, 30, 5), 110)
+        if p < 0.3:
+            q = p / 0.3
+            a.ring(ox, oy, 30 * s + 50 * s * q, POISON[1], 230 * (1 - q), 4)
+            a.glow(ox, oy, 80 * s, POISON[1], 0.7 * (1 - q))
+        rng = a.rng('vd_rain')
+        for i in range(18):
+            x = a.tx + rng.uniform(-75, 75) * s
+            d = rng.uniform(0, 0.45)
+            q = (p - d) / 0.4
+            land = a.ty + rng.uniform(-25, 40) * s
             if 0 <= q <= 1:
-                a.ring(x, a.ty + 30 * a.s - q * 70 * a.s, (3 + 6 * q) * a.s, POISON[0], 230 * (1 - q), 2)
-        a.ellipse(a.tx, a.ty, 130 * a.s, 120 * a.s, POISON[2], 55 * hump(p))
+                y = lerp(oy + 10 * s, land, ease_in(q))
+                _venom_drop(a, x, y, rng.uniform(5, 8) * s, POISON[1], 245)
+            elif 1 < q < 1.6:   # splat
+                k = (q - 1) / 0.6
+                a.ellipse(x, land, 26 * s * ease_out(k), 9 * s * ease_out(k), POISON[1], 220 * (1 - k))
+        a.shake(3)
+    # 3. Toxic cloud engulfs the target: sizzling bubbles, corrosion, defense cracks
+    p = seg(t, 0.5, 1.0)
+    if p is not None:
+        e = ease_out(min(1.0, p / 0.4))
+        fade = fade_late(p, 0.6)
+        rng = a.rng('vd_cloud')
+        for k in range(9):   # swelling cloud puffs
+            ang = rng.uniform(0, TAU)
+            d = rng.uniform(25, 60) * s
+            wob = math.sin(t * 9 + k) * 5 * s
+            x, y = a.tx + math.cos(ang) * d + wob, a.ty + math.sin(ang) * d * 0.7
+            r = rng.uniform(30, 48) * s * e
+            a.circle(x, y, r, POISON[2] if k % 3 == 0 else POISON[0], 120 * fade)
+            a.glow(x, y, r * 1.2, (60, 110, 20), 0.35 * fade)
+        for i in range(18):   # bubbles that rise and pop
+            x = a.tx + rng.uniform(-70, 70) * s
+            d = rng.uniform(0, 0.6)
+            q = (p - d) / 0.35
+            if 0 <= q <= 1:
+                y = a.ty + 40 * s - q * 90 * s
+                if q < 0.8:
+                    a.ring(x, y, (3 + 7 * q) * s, POISON[1], 240, 2)
+                else:
+                    a.star(x, y, 10 * s, POISON[1], 255 * (1 - q) * 5, points=5, rot=i)
+        for i in range(7):   # corrosion dripping down off the target
+            x = a.tx + (i - 3) * 18 * s
+            L = 45 * s * ease_out(p)
+            a.line(x, a.ty + 20 * s, x, a.ty + 20 * s + L, POISON[1], 200 * fade, 4)
+            a.circle(x, a.ty + 20 * s + L, 4 * s, POISON[1], 220 * fade)
+        a.glow(a.tx, a.ty, 100 * s, (60, 110, 20), 0.5 * fade)
+        _crack_shield(a, a.tx, a.ty - 5 * s, 34 * s, p)
+        a.tint((10, 30, 5), 110 * (1 - p))
 
 
 def anim_rushdown(a):
     t = a.t
-    rng = a.rng('rush')
-    for k in range(5):  # flurry of dashes from every direction
-        p = seg(t, k * 0.11, 0.3 + k * 0.11)
+    s = a.s
+    ang = a.angle_to_target()
+    ca, sa = math.cos(ang), math.sin(ang)
+    nx, ny = -sa, ca
+    # 1. A glint at the attacker as it kicks off
+    p = seg(t, 0.0, 0.14)
+    if p is not None:
+        a.star(a.sx, a.sy - 20 * s, 26 * s * hump(p), WHITE, 255, points=4, rot=0.4)
+        a.glow(a.sx, a.sy, 40 * s, ANCIENT[1], hump(p))
+    # 2. Golden comet dash with afterimages and speed lines
+    p = seg(t, 0.1, 0.4)
+    if p is not None:
+        q = ease_in(p)
+        rng = a.rng('rush_lines')
+        for k in range(9):   # speed lines streaming past, parallel to the dash
+            off = rng.uniform(-70, 70) * s
+            along = rng.uniform(0, 1)
+            x, y = lerp(a.sx, a.tx, along) + nx * off, lerp(a.sy, a.ty, along) + ny * off
+            L = rng.uniform(30, 70) * s
+            a.line(x, y, x - ca * L, y - sa * L, (255, 245, 210), 150 * hump(p), 2)
+        for k in range(6, 0, -1):   # afterimages trailing the comet
+            qq = max(0.0, q - k * 0.06)
+            x, y = a.travel(qq)
+            a.circle(x, y, (24 - k * 2) * s, ANCIENT[0], 190 - k * 26)
+        x, y = a.travel(q)
+        a.line(x, y, x - ca * 80 * s, y - sa * 80 * s, ANCIENT[1], 240, int(16 * s))
+        a.line(x, y, x - ca * 60 * s, y - sa * 60 * s, WHITE, 230, int(6 * s))
+        a.circle(x, y, 19 * s, WHITE, 255)
+        a.glow(x, y, 60 * s, ANCIENT[1], 1.3)
+    # 3. Impact: star burst, sparks sprayed forward along the dash
+    p = seg(t, 0.38, 0.8)
+    if p is not None:
+        e = ease_out(p)
+        a.star(a.tx, a.ty, 55 * s * (1 - p * 0.5), WHITE, 255 * (1 - p), points=6, rot=ang, inner=0.3)
+        a.ring(a.tx, a.ty, 12 * s + 80 * s * e, ANCIENT[1], 230 * (1 - p), 4)
+        a.burst(a.tx, a.ty, p, 16, 110 * s, ANCIENT[1], 3 * s, shape='streak',
+                spread=(ang - 0.7, ang + 0.7), glow=0.3)
+        a.glow(a.tx, a.ty, 70 * s, ANCIENT[1], 1.2 * (1 - p))
+        if p < 0.4:
+            a.shake(5 * (1 - p / 0.4))
+    # 4. Two quick follow-up jabs
+    for k, (ox, oy) in enumerate(((-24, -14), (22, 12))):
+        p = seg(t, 0.55 + k * 0.14, 0.78 + k * 0.14)
         if p is not None:
-            ang = rng.uniform(0, TAU)
-            r = 110 * a.s * (1 - ease_in(p))
-            x, y = a.tx + math.cos(ang) * r, a.ty + math.sin(ang) * r
-            a.line(x, y, x + math.cos(ang) * 50 * a.s, y + math.sin(ang) * 50 * a.s, ANCIENT[1], 230, 4)
-            if p > 0.8:
-                a.star(a.tx + math.cos(ang) * 15, a.ty + math.sin(ang) * 15, 22 * a.s, WHITE, 240, points=5)
-        else:
-            rng.uniform(0, TAU)  # keep the rng sequence stable
-    _impact(a, seg(t, 0.65, 1.0), ANCIENT, 0.9)
+            x, y = a.tx + ox * s, a.ty + oy * s
+            a.star(x, y, 40 * s * ease_out(p), (255, 240, 200), 255 * (1 - p), points=5, rot=k)
+            a.glow(x, y, 26 * s, ANCIENT[1], 1.0 * (1 - p))
+            if p < 0.3:
+                a.shake(2)
 
 
 def anim_ancient_mend(a):

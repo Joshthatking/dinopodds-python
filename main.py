@@ -395,9 +395,31 @@ if __name__ == '__main__':
 # add unlock menu - CTRL + J + K - sand/random/nuz
 # lightning neutral - dark | ice neutral to aqua
 
+#10/21
+# Alpha v0.1 Pre release windows/mac on github releases
+# Playthrough #2
+# Fix some animations (dreadthorn/flameshatter/fossilbreak)
+# Gray rival battle #2 had wrong starter
+# abby buff
+# 
 
 # PLAYTHROUGH NOTES
 # Sam rematch is very hard, need some more battles to level up
+
+# Alpha v0.1
+# Leveling xp is little slow for other dinos, might be perfect though
+# A lot of dinopods now in the game
+# too many swift sneak users
+# abby glitch got stuck at tree at solar panels, also needs level buff
+# Gray 2nd battle has wrong starter!
+# Snowy Grass isnt doing the grass animation
+# Snowy Grass by lake meridian is water spawns now and not ice spawns, top part
+# Fix descriptions of dinos
+# Add lunar shard mention in power plant
+# add some repels on ground
+# SOFT LOCK FOUND! - if you lose battle in cobalt cave you cannot re enter!
+
+#
 
 #add ASSISTANCE to credits
 # Claude - Coding Logic, Animations, Sound Design

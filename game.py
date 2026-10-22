@@ -1342,6 +1342,14 @@ class Game:
             user['hp'] = max(0, user['hp'] - recoil_amt)
             msgs.append(f"{user['name']} took {recoil_amt} recoil damage!")
             return msgs
+        if ability['kind'] == 'drain':   # lifesteal: heal a share of the damage dealt
+            if dmg <= 0 or user['hp'] <= 0:
+                return msgs
+            healed = min(max(1, int(dmg * ability['percent'] / 100)), user['max_hp'] - user['hp'])
+            if healed > 0:
+                user['hp'] += healed
+                msgs.append(f"{user['name']} drained {healed} HP from {target['name']}!")
+            return msgs
         if ability['kind'] == 'stat_boost':
             subject = user if ability['target'] == 'self' else target
             stat    = ability['stat']
@@ -1550,6 +1558,31 @@ class Game:
             self.enemy_dino['defending'] = False
         if self.enemy_dino2:
             self.enemy_dino2['defending'] = False
+
+    ALLY_BEST_CHANCE = 0.70   # same as a 'medium'/'rival' enemy trainer in _pick_enemy_move
+
+    def _ally_choose_action(self, ally, targets):
+        """Move + target for an AI ally (Abby, Skyy) in a double battle, at
+        medium/rival smarts: usually the hardest-hitting move on whichever
+        foe it hurts most (steering around a Defending foe unless the move
+        pierces), otherwise a random move on a random foe.
+        targets: [(target_is_e2, foe_dino), ...] -> (move_name, target_is_e2)"""
+        moves = [self._live_move(m) for m in ally.get('moveset', [])]
+        if random.random() < self.ALLY_BEST_CHANCE:
+            best = None
+            for is_e2, foe in targets:
+                for m in moves:
+                    mtype = m.get('type', 'normal')
+                    score = (type_effectiveness_value(mtype, foe['type'])
+                             * stab_multiplier(mtype, ally['type']) * m.get('damage', 0))
+                    if foe.get('defending') and not m.get('pierces_defend'):
+                        score *= 0.1
+                    if best is None or score > best[0]:
+                        best = (score, m['name'], is_e2)
+            if best and best[0] > 0:
+                return best[1], best[2]
+        is_e2, _ = random.choice(targets)
+        return random.choice(moves)['name'], is_e2
 
     def _pick_enemy_move(self, attacker, defender, rank):
         moveset = [self._live_move(m) for m in attacker.get('moveset', [])]
@@ -1807,7 +1840,19 @@ class Game:
         """The starter the player kept, as its Standard-mode species name
         (Floravel / Volkit / Corlave), so story logic keyed on the original
         starters (Gray's counter pick, Abby's partner) keeps working."""
-        ball_of = {name: ball for ball, name in self._starter_map().items()}
+        ball = self.story_flags.get('starter_ball')   # recorded at Amber's lab
+        if ball in config.DINO_BALL_MAP:
+            return config.DINO_BALL_MAP[ball]
+        # Saves from before that flag: find the starter by species, counting
+        # its evolutions (by Gray's 2nd battle it's usually evolved).
+        ball_of = {}
+        for ball, base in self._starter_map().items():
+            name, seen = base, set()
+            while name and name not in seen:
+                seen.add(name)
+                ball_of.setdefault(name, ball)
+                evo = (DINO_DATA.get(name) or {}).get('evolve') or {}
+                name = next(iter(evo.values()), None)
         for d in self.player_dinos + self.box_dinos:
             if d['name'] in ball_of:
                 return config.DINO_BALL_MAP[ball_of[d['name']]]
@@ -2567,10 +2612,10 @@ class Game:
                 (False, bool(e1 and e1.get('hp', 0) > 0)),
                 (True,  bool(e2 and e2.get('hp', 0) > 0)),
             ) if alive]
-            moveset = p2.get('moveset', [])
-            if alive_targets and moveset:
-                move_name = random.choice(moveset)['name']
-                self.double_p2_queued = {'move_name': move_name, 'target_is_e2': random.choice(alive_targets)}
+            if alive_targets and p2.get('moveset'):
+                move_name, target_is_e2 = self._ally_choose_action(
+                    p2, [(is_e2, e2 if is_e2 else e1) for is_e2 in alive_targets])
+                self.double_p2_queued = {'move_name': move_name, 'target_is_e2': target_is_e2}
             else:
                 self.double_p2_queued = None
             self._execute_double_turn()
@@ -2723,9 +2768,10 @@ class Game:
         # it's their roster to manage, not the player's, so no "choose a
         # replacement" prompt.
         if self._abby_is_ally() and p2 and p2.get('hp', 0) <= 0:
-            if len(self.abby_dinos) > 1 and self.abby_dinos[1].get('hp', 0) > 0:
+            nxt = next((i for i, d in enumerate(self.abby_dinos) if i > 0 and d.get('hp', 0) > 0), None)
+            if nxt is not None:   # her next healthy dino, wherever it is on her bench
                 fainted_name = self.abby_dinos[0]['name']
-                self.abby_dinos[0], self.abby_dinos[1] = self.abby_dinos[1], self.abby_dinos[0]
+                self.abby_dinos[0], self.abby_dinos[nxt] = self.abby_dinos[nxt], self.abby_dinos[0]
                 new_name = self.abby_dinos[0]['name']
                 ally = 'Skyy' if self.is_skyy_battle else 'Abby'
                 self.message_box.queue_messages(
@@ -3681,7 +3727,8 @@ class Game:
         player_starter = self._player_original_starter()
         abby_starter = self.ABBY_STARTER_MAP.get(player_starter, 'Corlave')
         self.abby_dinos = [self.create_dino(n, lvl) for n, lvl in
-                           self._rando_team([(abby_starter, 15), ('Auraliz', 15)], "ally:abby_route26")]
+                           self._rando_team([(abby_starter, 15), ('Auraliz', 15), ('Browler', 15)],
+                                            "ally:abby_route26")]
 
     def _update_abby_follow(self, dt):
         abby = self.abby_follower
@@ -3739,7 +3786,7 @@ class Game:
         )
 
     def _start_vanessa_heal_flash(self):
-        for dino in self.player_dinos:
+        for dino in self.player_dinos + self.abby_dinos:   # Abby patches up her own team too
             dino['hp'] = dino['max_hp']
         self.cutscene_flash = {'alpha': 0, 'rising': True, 'count': 0, 'color': (255, 255, 255)}
         self.cutscene = {'phase': 'vanessa_heal_flash'}
@@ -5410,7 +5457,9 @@ class Game:
             self._tag_dialogue('Grunt', [
                 "Our distraction is working.",
                 "It is only a matter of time before the plan commences.",
+                "Once we have control of the Lunar Shard, we will have the upper hand...",
                 "Soon it will be too late to stop.",
+
             ]),
             wait_for_input=True,
             on_complete=self._pan_camera_back_to_player
@@ -5735,7 +5784,9 @@ class Game:
     SHADOW_CONFRONTATION_TRIGGER_TILES = {(15, y) for y in range(4, 10)}  # (15,4)..(15,9) inclusive
     SHADOW_CONFRONTATION_PLAYER_TARGET = (9, 12)
     GRAY_SHADOW_HQ_GUARD_POST  = (-33, 41)
-    ABBY_SHADOW_HQ_GUARD_POST  = (17, 6)
+    # Beside the cave mouth, not in it: the entrance tile (18,6) only opens
+    # onto (17,6), so standing there sealed the player out after a blackout.
+    ABBY_SHADOW_HQ_GUARD_POST  = (17, 4)
 
     def _maybe_add_shadow_confrontation_npcs(self):
         """Keeps Abby/Skyy/Gray persistent across a world reload, matching
@@ -5894,7 +5945,7 @@ class Game:
             # Left 4, then down 6 — verified clear of solid tiles — before
             # teleporting to the Route 4 side of the cave.
             'waypoints1': [(gray.tile_x - 4, gray.tile_y), (gray.tile_x - 4, gray.tile_y + 6)],
-            'waypoints2': [(17, 6)],
+            'waypoints2': [self.ABBY_SHADOW_HQ_GUARD_POST],
         }
 
     def _update_shadow_confrontation_splitup(self, dt):
@@ -9140,6 +9191,10 @@ class Game:
         self.pop_state()
         starters = self._dino_picker_starters
         chosen = starters[chosen_idx]
+        # Remember which starter was kept (Gray's counter pick, Abby's partner)
+        ball_of = {name: ball for ball, name in self._starter_map().items()}
+        if chosen['name'] in ball_of:
+            self.story_flags['starter_ball'] = ball_of[chosen['name']]
         for d in starters:
             if d is not chosen:
                 if d in self.player_dinos:

@@ -841,7 +841,7 @@ DINO_DATA = {
         'evolve': None},
     'Floravel': {
         'stats': {'type': ['earth'], 'health': 70, 'attack': 95, 'defense': 95, 'speed': 60},
-        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
+        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash',11: 'Primal Rage', 15: 'Floral Resonance', 18: 'Dread Thorn', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform'},
         'evolve': {19: 'Palidian'}},
     'Bullicorn': {
         'stats': {'type': ['spike'], 'health': 145, 'attack': 95, 'defense': 100, 'speed': 75},
@@ -849,7 +849,7 @@ DINO_DATA = {
         'evolve': None},
     'Netaslam': {
         'stats': {'type': ['flying'], 'health': 90, 'attack': 80, 'defense': 70, 'speed': 75},
-        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Swift Sneak', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 21: 'Mach Speed', 25: 'Ripping Impact'},
+        'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Fossil Break', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 21: 'Mach Speed', 25: 'Ripping Impact'},
         'evolve': {22: 'Netyrant'}},
     'Netyrant': {
         'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 139, 'defense': 78, 'speed': 122},
@@ -905,7 +905,7 @@ DINO_DATA = {
         'evolve': None},
     'Bouldava': {
         'stats': {'type': ['rock', 'magma'], 'health': 120, 'attack': 105, 'defense': 135, 'speed': 80},
-        'moves': {0: "Boulder Smash", 1: 'Sand Kick', 12: 'Flame Shatter', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 39:'Crash Impact', 40: 'Solar Flare' },
+        'moves': {0: "Fireball", 1: 'Sand Kick', 12: 'Boulder Smash', 17: 'Prism Glare',20: 'Momentum', 22: 'Crusher', 25: 'Iron Core' ,28: 'Lava Burst', 32: 'Magma Boost', 36:'Crash Impact', 38: 'Solar Flare' },
         'evolve': None},
     'Ghoulflame': {
         'stats': {'type': ['dark', 'magma'], 'health': 116, 'attack': 114, 'defense': 94, 'speed': 116},
@@ -921,7 +921,7 @@ DINO_DATA = {
         'evolve': None},
     'Palidian': {
         'stats': {'type': ['earth', 'rock'], 'health': 90, 'attack': 124, 'defense': 136, 'speed': 105},
-        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash', 13: 'Synthesis', 18: 'Dread Thorn', 20: 'Raging Pursuit', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform', 31: 'Tree Spin', 34: 'Iron Core', 36: 'Crash Impact', 38: 'Leaf Ultima'},
+        'moves': {0: 'Vine Snare+', 1: 'Arise', 8: 'Boulder Smash',11: 'Primal Rage',  15: 'Floral Resonance', 18: 'Dread Thorn', 20: 'Raging Pursuit', 23: 'Crusher', 26: 'Synthesis', 28: 'Terraform', 31: 'Tree Spin', 34: 'Iron Core', 36: 'Crash Impact', 38: 'Leaf Ultima'},
         'evolve': None},
     'Rockull': {
         'stats': {'type': ['rock'], 'health': 160, 'attack': 100, 'defense': 150, 'speed': 50},
@@ -929,11 +929,11 @@ DINO_DATA = {
         'evolve': None},
     'Prickly': {
         'stats': {'type': ['earth','spike'], 'health': 71, 'attack': 90, 'defense': 79, 'speed': 60},
-        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17:'Synthesis', 25: 'Floral Resonance'},
+        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17:'Poison Ivy', 21: 'Dread Thorn', 24: 'Sword Slash'},
         'evolve': {21: 'Cyflactus'}},
     'Cyflactus': {
         'stats': {'type': ['earth', 'magma'], 'health': 115, 'attack': 131, 'defense': 119, 'speed': 85},
-        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17: 'Synthesis', 21: 'Flame Shatter', 24: 'Dread Thorn', 26: 'Floral Resonance', 28: 'Tree Spin', 30: 'Spike Storm', 33: 'Leaf Ultima', 37: 'Solar Flare'},
+        'moves': {0: 'Arise', 3: 'Sand Kick', 6: 'Vine Snare', 10: 'Quick Slash', 14: 'Double Jab', 17: 'Poison Ivy', 21: 'Dread Thorn', 24: 'Sword Slash', 26: 'Flame Shatter', 28: 'Floral Resonance', 30: 'Tree Spin', 32: 'Spike Storm', 34: 'Leaf Ultima', 37: 'Solar Flare'},
         'evolve': None},
 
     'Rhysnow': {
@@ -1214,7 +1214,8 @@ MOVE_DATA = {
     'Log Roll': {'target': 'opponent', 'damage': 20, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Vine Snare': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'earth'},
    'Vine Snare+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'earth'},
-    'Dread Thorn': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'ability': None, 'type': 'earth'},
+    'Dread Thorn': {'target': 'opponent', 'damage': 60, 'accuracy': 100, 'type': 'earth',
+                    'ability': {'kind': 'drain', 'percent': 20, 'chance': 100}},   # lifesteal
     'Tree Spin': {'target': 'opponent', 'damage': 70, 'accuracy': 100, 'ability': None, 'type': 'earth'},
     'Leaf Ultima': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'earth'},
 
@@ -1343,7 +1344,7 @@ MOVE_DATA = {
     'Deep Freeze':   {'target': 'opponent', 'damage': 60, 'accuracy': 90, 'type': 'ice',
                     'ability': {'kind': 'stat_boost', 'stat': 'defense', 'stages': -1, 'target': 'opponent', 'chance': 100}},
     #ANCIENT MOVES
-    'Fossil Break': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'ancient'},
+    'Fossil Break': {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'ability': None, 'type': 'ancient'},
 
     'Raging Pursuit': {'target': 'opponent', 'damage': 55, 'accuracy': 90, 'ability': None, 'type': 'ancient', 'pierces_defend': True},
     'Dragon Zenith': {'target': 'opponent', 'damage': 100, 'accuracy': 90, 'ability': None, 'type': 'ancient', 'pierces_defend': True},
@@ -1866,8 +1867,10 @@ ZONE_REGIONS = [
     (41,-102,46,-81, 'lake1R'),
     (-13,-57,11,-48, 'powerplant_outside'),
     (-45,32,15,60, 'spawn_water'),
-    # Must stay above lake_water1, which fully contains it (first match wins).
+    # Must stay above lake_water1, which fully contains them (first match wins).
+    (2,-114,7,-105, 'lakeM_snowL'),        # snowy grass at the top-left of the lake
     (21,-113,30,-105, 'horizon_entrance'),
+    (29,-115,30,-114, 'horizon_entrance'), # top tip of the Horizon Cave grass patch
     (-9,-118,31,-84, 'lake_water1'),
     (-155,-58,-35,31, 'palm_water'),
 
