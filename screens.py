@@ -225,7 +225,7 @@ def status_badges(dino, field_effects=None):
         badges.append((f"{label} {dot.get('turns_left', '')}".strip(), color))
     rh = dino.get('return_hit')
     if rh:
-        color = (165, 215, 240) if rh.get('type') == 'ice' else (215, 175, 120)
+        color = {'ice': (165, 215, 240), 'aqua': (120, 175, 245)}.get(rh.get('type'), (215, 175, 120))
         badges.append((f"{rh.get('badge', 'RETURN')} {rh.get('turns_left', '')}".strip(), color))
     if dino.get('locked_move'):
         badges.append((f"LOCK {dino.get('lock_turns_left', '')}".strip(), (195, 170, 225)))

@@ -38,6 +38,8 @@ DURATIONS = {                       # signature moves that run longer than DURAT
     'Temporal Pincer (return)': 1.5,     # the end-of-next-turn second hit (game._land_return_hit)
     'Dust Devil': 1.3,
     'Dust Devil (return)': 1.4,
+    'Rip Current': 1.3,
+    'Rip Current (return)': 1.5,
 }
 STRONG_POWER = 70
 TAU = math.pi * 2
@@ -561,6 +563,117 @@ def anim_wave_dash(a):
         yy = a.ty - 50 * a.s + i * 20 * a.s
         a.line(x - d * 40 * a.s, yy, x - d * 120 * a.s, yy, AQUA[1], al * 0.6, 2)
     _impact(a, seg(t, 0.45, 0.95), AQUA, 0.8)
+
+
+def _rip_streaks(a, cx, cy, d, p, n, span, length, alpha, key=0):
+    """Ribbons of fast water racing across (cx, cy) in direction d, each a
+    wavy line with a foam head, staggered so they stream past in a sheet."""
+    s = a.s
+    rng = a.rng(('rip', n, key))
+    for _ in range(n):
+        oy = rng.uniform(-span, span)
+        delay = rng.uniform(0, 0.35)
+        L = length * s * rng.uniform(0.7, 1.2)
+        ph = rng.uniform(0, TAU)
+        col = AQUA[1] if rng.random() < 0.4 else AQUA[0]
+        q = (p - delay) / 0.65
+        if q < 0 or q > 1:
+            continue
+        hx = cx + d * lerp(-170, 170, q) * s
+        pts = [(hx - d * u * L, cy + oy + math.sin(ph + u * 4 + q * 9) * 5 * s)
+               for u in (i / 6 for i in range(7))]
+        al = alpha * hump(q)
+        a.lines(pts, col, al, max(2, int(3 * s)))
+        a.circle(pts[0][0], pts[0][1], 3.5 * s, WHITE, al)
+
+
+def _rip_swirl(a, R, rot, alpha):
+    """Three flattened undertow arms spinning around the target's feet."""
+    for arm in range(3):
+        pts = []
+        for i in range(12):
+            u = i / 11
+            ang = rot + arm * TAU / 3 + u * 2.4
+            r = R * (1 - u * 0.6)
+            pts.append((a.tx + math.cos(ang) * r, a.ty + 20 * a.s + math.sin(ang) * r * 0.45))
+        a.lines(pts, AQUA[1] if arm == 0 else AQUA[0], alpha, max(2, int(4 * a.s)))
+        a.circle(pts[0][0], pts[0][1], 4 * a.s, WHITE, alpha)
+
+
+def anim_rip_current(a):
+    t = a.t
+    s = a.s
+    d = 1 if a.tx >= a.sx else -1          # the current runs away from the attacker
+    a.tint(AQUA[2], 70 * hump(t))
+    # 1. The water churns into an undertow swirling around the target
+    p = seg(t, 0.0, 0.6)
+    if p is not None:
+        _rip_swirl(a, lerp(110, 45, ease_in(p)) * s, t * TAU * 2.4,
+                   230 * min(1, p / 0.2) * fade_late(p, 0.75))
+        a.glow(a.tx, a.ty, 60 * s, AQUA[0], 0.7 * hump(p))
+    # 2. The current rips straight through the target and drains out the far side
+    p = seg(t, 0.25, 1.0)
+    if p is not None:
+        _rip_streaks(a, a.tx, a.ty, d, p, 14, 45 * s, 70, 230)
+    # 3. Impact as it drags the target under, spray flung downstream
+    p = seg(t, 0.5, 1.0)
+    if p is not None:
+        _impact(a, p, AQUA, 1.0, n=12)
+        down = 0.0 if d > 0 else math.pi
+        a.burst(a.tx, a.ty, p, 18, 110 * s, AQUA[1], 4 * s, gravity=70, glow=0.3,
+                spread=(down - 1.0, down + 1.0), key=1)
+        if p < 0.3:
+            a.shake(5 * (1 - p / 0.3))
+
+
+def anim_rip_current_return(a):
+    """End of the next turn: the drained-out water rears up on the far side
+    and comes surging back as a curling wave that crashes over the target."""
+    t = a.t
+    s = a.s
+    d = -1 if a.tx >= a.sx else 1          # surges back the way it drained out
+    base = a.ty + 45 * s
+    a.tint(AQUA[2], 100 * hump(min(1, t / 0.95)))
+    # 1. The sea pulls back: foam gathers on the far side as the ground rumbles
+    p = seg(t, 0.0, 0.3)
+    if p is not None:
+        a.implode(a.tx - d * 140 * s, base - 20 * s, p, 18, 60 * s, WHITE, 3 * s, glow=0.2)
+        a.shake(2.5 * p)
+    # 2. A wave rears up and races back in, the current streaming behind it
+    p = seg(t, 0.1, 0.62)
+    if p is not None:
+        e = ease_in_out(p)
+        x = a.tx - d * lerp(145, 0, e) * s
+        H = lerp(40, 115, e) * s
+        al = 240 * min(1, p / 0.15)
+        a.poly([(x, base), (x - d * 22 * s, base - H), (x - d * 120 * s, base - H * 0.4),
+                (x - d * 170 * s, base)], AQUA[2], al * 0.85)
+        for i in range(12):   # crest along the wave's back
+            u = i / 11
+            a.circle(x - d * (22 + u * 100) * s, base - H * (1 - u * 0.6),
+                     (11 - u * 6) * s, AQUA[1] if i < 3 else AQUA[0], al)
+        cx, cy = x - d * 4 * s, base - H + 18 * s
+        for k in range(7):    # the lip curling forward over the front
+            th = -math.pi / 2 + k / 6 * math.pi * 0.8
+            a.circle(cx + d * math.cos(th) * 20 * s, cy + math.sin(th) * 20 * s,
+                     (8 - k * 0.7) * s, WHITE if k < 3 else AQUA[1], al)
+        a.glow(x, base - H / 2, 70 * s, AQUA[0], 0.8 * p)
+        _rip_streaks(a, a.tx, a.ty, d, p, 12, 50 * s, 60, 200, key=2)
+    # 3. It crashes down: water pillars, rings and a drenching spray
+    p = seg(t, 0.6, 1.0)
+    if p is not None:
+        for k in range(5):
+            ox = (k - 2) * 24 * s
+            h = 100 * s * hump(min(1, p * 1.6 - abs(k - 2) * 0.08))
+            w = (14 - abs(k - 2) * 2) * s
+            if h > 2:
+                a.ellipse(a.tx + ox, base - h / 2, w * 2, h, AQUA[0], 210)
+                a.ellipse(a.tx + ox, base - h / 2, w, h * 0.9, AQUA[1], 200)
+        _rip_swirl(a, lerp(40, 120, ease_out(p)) * s, t * TAU * 3, 220 * (1 - p))
+        a.burst(a.tx, a.ty - 20 * s, p, 30, 150 * s, AQUA[1], 5 * s, gravity=150, glow=0.3, key=3)
+        a.ring(a.tx, a.ty, 30 * s + 130 * s * ease_out(p), WHITE, 230 * (1 - p), 4)
+        _impact(a, p, AQUA, 1.1, n=12, key=4)
+        _strong_finish(a, p, AQUA, 150, 8)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -3958,6 +4071,8 @@ ANIMATIONS = {
     'Hurricane': anim_hurricane,
     'Eternal Blue': anim_eternal_blue,
     'Wave Dash': anim_wave_dash,
+    'Rip Current': anim_rip_current,
+    'Rip Current (return)': anim_rip_current_return,
     # Magma
     'Fireball': anim_fireball,
     'Fireball+': anim_fireball_plus,

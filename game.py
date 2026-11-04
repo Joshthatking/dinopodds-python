@@ -24,6 +24,7 @@ from ANIM.credits import CreditsSequence
 from sfx import SFX
 from randomizer import Randomizer, area_for_zone
 import os
+import sys
 import config
 from screens import *
 from data import *
@@ -116,7 +117,11 @@ class Game:
             pygame.display.set_icon(pygame.transform.smoothscale(icon, (64, 64)))
         except (pygame.error, FileNotFoundError):
             pass
-        self.screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT))
+        # On macOS the native window surface can come with an alpha channel,
+        # which left tiles drawn as black squares after fades/cutscenes.
+        # SCALED draws into pygame's own surface and presents it as a texture.
+        flags = pygame.SCALED if sys.platform == 'darwin' else 0
+        self.screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT), flags)
         pygame.display.set_caption('DinoPodds')
         self.clock = pygame.time.Clock()
         self.running = True
@@ -125,7 +130,8 @@ class Game:
         self.fonts = {name: pygame.font.Font(path, size) for name, (path, size) in config.FONT_DEFS.items()}
         self.camera_x, self.camera_y = 0, 0
         self.zoom = 1.25
-        self.render_surface = pygame.Surface((config.WIDTH // self.zoom, config.HEIGHT // self.zoom))
+        # explicit 32-bit, no alpha — not whatever format the display happens to use
+        self.render_surface = pygame.Surface((config.WIDTH // self.zoom, config.HEIGHT // self.zoom), 0, 32)
         self.current_world_file = 'LOST_REGION.world'
         self.map_ball_images = {}
         self.map_ball_items = {}
@@ -2957,6 +2963,7 @@ class Game:
         if not os.path.exists(path):  # cave interiors like HORIZON_CAVE1 live in MAPS
             path = os.path.join('assets/MAPS', filename)
         tmx = pytmx.load_pygame(path, pixelalpha=True)
+        self._match_tile_format(tmx)
         ts = config.TILE_SIZE
         solid, encounter, tile_types, entrances, exits, ball_items = set(), set(), {}, {}, set(), {}
         self.box_tile_coords = set()   # reset; populated below if map has a box object
@@ -7180,6 +7187,14 @@ class Game:
 
     # --- Map ---
 
+    def _match_tile_format(self, tmx):
+        """pytmx convert()s fully opaque tiles to the *display* format, which on
+        macOS can carry an alpha channel. Re-convert them to render_surface's
+        plain 32-bit format; per-pixel-alpha tiles are left as they are."""
+        for i, img in enumerate(tmx.images):
+            if img is not None and not img.get_flags() & pygame.SRCALPHA:
+                tmx.images[i] = img.convert(self.render_surface)
+
     def load_world(self, filename):
         path = os.path.join('assets/WORLD', filename)
         with open(path) as f:
@@ -7203,6 +7218,7 @@ class Game:
             except Exception as e:
                 print(f"Skipping {m['fileName']}: {e}")
                 continue
+            self._match_tile_format(tmx)
 
             wx, wy = m['x'], m['y']
             wtx, wty = wx // ts, wy // ts
@@ -10154,7 +10170,7 @@ class Game:
 
     def set_zoom(self, zoom):
         self.zoom = round(max(1.0, min(1.75, zoom)), 2)
-        self.render_surface = pygame.Surface((int(config.WIDTH / self.zoom), int(config.HEIGHT / self.zoom)))
+        self.render_surface = pygame.Surface((int(config.WIDTH / self.zoom), int(config.HEIGHT / self.zoom)), 0, 32)
         self.update_camera()
 
     # --- Battle ---

@@ -857,16 +857,16 @@ DINODEX_DATA = {
 
 DINO_DATA = {
     'Vusion': {
-        'stats': {'type': ['dark'], 'health': 108, 'attack': 155, 'defense': 82, 'speed': 125},
+        'stats': {'type': ['dark'], 'health': 100, 'attack': 155, 'defense': 90, 'speed': 125},
         'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Thunder Blitz', 20: 'Distortion', 23: 'Lava Burst', 27: 'Binding Curse', 30: 'Haunt', 32: 'Temporal Pincer', 35: 'Void Collapse', 38: 'Spectral Overload', 42: 'Ultra Violet'},
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 115, 'defense': 120, 'speed':80},
-        'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 12: 'Wave Dash',15: 'Venom Decay',  19: 'Double Jab', 22: 'Hurricane', 25: 'Ripping Impact', 28:'Deep Freeze', 30: 'Sword Slash', 35: 'Spike Storm', 38: 'Eternal Blue'},
+        'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 12: 'Wave Dash',15: 'Venom Decay',  19: 'Double Jab', 22: 'Hurricane', 24: 'Ripping Impact', 26:'Deep Freeze', 28: 'Rip Current', 30: 'Sword Slash',34: 'Eternal Blue', 36: 'Spike Storm'},
         'evolve': None},
     'Corlave': {
         'stats': {'type': ['aqua'], 'health': 100, 'attack': 80, 'defense': 90, 'speed':50},
-        'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 12: 'Wave Dash',15: 'Venom Decay',  19: 'Double Jab', 22: 'Hurricane', 25: 'Ripping Impact', 28:'Deep Freeze', 30: 'Sword Slash', 35: 'Spike Storm', 38: 'Eternal Blue'},
+        'moves': {0: 'Whirlpool+', 1: 'Arise', 8: 'Quick Slash', 12: 'Wave Dash',15: 'Venom Decay',  19: 'Double Jab', 22: 'Hurricane', 24: 'Ripping Impact', 26:'Deep Freeze', 28: 'Rip Current', 30: 'Sword Slash',34: 'Eternal Blue', 36: 'Spike Storm'},
         'evolve': {19: 'Anemamace'}},
     'Creuw': {
         'stats': {'type': ['flying'], 'health': 80, 'attack': 75, 'defense': 60, 'speed':75},
@@ -906,7 +906,7 @@ DINO_DATA = {
         'evolve': None},
     'Sharktastrophe': {
         'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 119, 'defense': 114, 'speed': 122},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21:'Haunt', 25: 'Primal Rage', 28: 'Ripping Impact', 31: 'Hurricane', 35: 'Sword Slash', 37: 'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21:'Haunt', 23: 'Rip Current', 25: 'Primal Rage', 28: 'Ripping Impact', 31: 'Hurricane', 35: 'Sword Slash', 37: 'Eternal Blue', 39: 'Spike Storm'},
         'evolve': None},
     'Deimo': {
         'stats': {'type': ['dark', 'ancient'], 'health': 115, 'attack': 130, 'defense': 140, 'speed': 135},
@@ -922,7 +922,7 @@ DINO_DATA = {
         'evolve': {21: 'Sharktastrophe'}},
     'Magnecrab': {
         'stats': {'type': ['aqua', 'lightning'], 'health': 140, 'attack': 105, 'defense': 89, 'speed': 105},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Static Graze', 14: 'Shock', 18: 'Double Jab', 24:'Lightning Bolt', 28: 'Hurricane', 31: 'Ripping Impact', 35: 'Conduit Surge', 39: 'Quantum Flux', 44: 'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Static Graze', 14: 'Shock', 18: 'Double Jab', 20:'Lightning Bolt', 23: 'Hurricane', 26: 'Ripping Impact', 28: 'Conduit Surge', 31: 'Quantum Flux', 33: 'Eternal Blue'},
         'evolve': None},
     'Volkit': {
         'stats': {'type': ['magma'], 'health': 67, 'attack': 95, 'defense': 78, 'speed': 80},
@@ -934,7 +934,7 @@ DINO_DATA = {
         'evolve': None},
     'Auraliz': {
         'stats': {'type': ['ice', 'aqua'], 'health': 92, 'attack': 118, 'defense': 117, 'speed': 123},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane',25 : 'Hail Storm', 27: 'Hyperfrost', 29: 'Deep Freeze',31: 'Fear', 35: 'Freeze Blast', 38:'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane',25 : 'Hail Storm', 27: 'Hyperfrost', 29: 'Deep Freeze', 31: 'Freeze Blast', 35:'Eternal Blue'},
         'evolve': None},
     'Voltzbee': {
         'stats': {'type': ['lightning'], 'health': 77, 'attack': 113, 'defense': 88, 'speed': 142},
@@ -991,12 +991,12 @@ DINO_DATA = {
         'evolve': None},
     'Celestreeyl': {
         'stats': {'type': ['earth', 'light'], 'health': 109, 'attack': 139, 'defense': 109, 'speed': 129},
-        'moves': {0: 'Arise', 4: 'Vine Snare', 9: 'Prism Glare', 15: 'Dread Thorn', 16: 'Terraform', 19: 'Hurricane', 24: 'Piercing Light', 26: 'Synthesis', 28: 'Refraction', 30: 'Tree Spin', 35: 'Spectral Overload', 38: 'Gamma Wave', 40: 'Leaf Ultima'},
+        'moves': {0: 'Arise', 4: 'Vine Snare', 9: 'Prism Glare', 15: 'Dread Thorn', 16: 'Terraform', 19: 'Hurricane', 24: 'Piercing Light', 26: 'Synthesis', 28: 'Refraction', 30: 'Tree Spin', 33: 'Temporal Pincer',35: 'Spectral Overload', 38: 'Gamma Wave', 40: 'Leaf Ultima'},
         'evolve': None},
 
     'Seasoo': {
         'stats': {'type': ['aqua', 'earth'], 'health': 120, 'attack': 88, 'defense': 114, 'speed': 110},
-        'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 25: 'Hyperfrost', 27: 'Hurricane', 30: 'Terraform', 35: 'Tree Spin', 38: 'Eternal Blue'},
+        'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 25: 'Hyperfrost', 27: 'Hurricane', 29:'Rip Current', 30: 'Terraform', 35: 'Tree Spin', 38: 'Eternal Blue'},
         'evolve': None},
     'Chomper': {
         'stats': {'type': ['ancient'], 'health': 125, 'attack': 119, 'defense': 112, 'speed': 92},
@@ -1024,12 +1024,12 @@ DINO_DATA = {
 
     'Typhoonray': {
         'stats': {'type': ['aqua', 'flying'], 'health': 92, 'attack': 108, 'defense': 123, 'speed': 129},
-        'moves': {0: 'Whirlpool', 1: 'Air Strike', 8: 'Swift Sneak', 14: 'Wave Dash', 17: 'Quick Slash', 20: 'Mach Speed', 25: 'Turbo Booster', 28: 'Wind Fracture', 32: 'Hurricane', 38: 'Sky Scorch', 44: 'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Air Strike', 8: 'Swift Sneak', 14: 'Wave Dash', 17: 'Quick Slash', 20: 'Mach Speed', 22: 'Turbo Booster', 24: 'Wind Fracture', 26: 'Hurricane', 29:'Rip Current', 33: 'Sky Scorch', 35: 'Eternal Blue'},
         'evolve': None},
 
     'Stormulus': {
         'stats': {'type': ['lightning', 'flying'], 'health': 90, 'attack': 115, 'defense': 127, 'speed': 116},
-        'moves': {0: 'Static Graze', 1: 'Air Strike', 5: 'Shock', 9: 'Thunder Blitz', 13: 'Swift Sneak', 17: 'Lightning Bolt', 21: 'Mach Speed', 25: 'Hurricane', 27: 'Conduit Surge', 29:'Dust Devil',  31: 'Wind Fracture', 34: 'Quantum Flux', 37: 'Volt Storm', 40: 'Sky Scorch'},
+        'moves': {0: 'Static Graze', 1: 'Air Strike', 5: 'Shock', 9: 'Thunder Blitz', 13: 'Swift Sneak', 17: 'Lightning Bolt', 21: 'Mach Speed', 25: 'Hurricane', 27: 'Conduit Surge', 29:'Dust Devil',  31: 'Wind Fracture', 34: 'Quantum Flux', 36: 'Volt Storm', 38: 'Sky Scorch'},
         'evolve': None},
 
     'Lavaleo': {
@@ -1049,7 +1049,7 @@ DINO_DATA = {
 
     'Ghoslink': {
         'stats': {'type': ['dark'], 'health': 106, 'attack': 117, 'defense': 142, 'speed': 88},
-        'moves': {0: 'Dark Energy', 1: 'Fear', 5: 'Whirlpool', 9: 'Chain Rip', 13: 'Shadow Veil', 17: 'Haunt', 19: 'Binding Curse', 21:'Force Shift', 24: 'Velo Induction', 26: 'Distortion', 29: 'Leaf Ultima', 35: 'Void Collapse'},
+        'moves': {0: 'Dark Energy', 1: 'Fear', 5: 'Whirlpool', 9: 'Chain Rip', 15: 'Force Shift', 17: 'Haunt', 19: 'Binding Curse', 21:'Shadow Veil', 24: 'Velo Induction', 26: 'Distortion', 29: 'Leaf Ultima', 33: 'Void Collapse'},
         'evolve': None},
 
 }
@@ -1245,6 +1245,12 @@ MOVE_DATA = {
 
     'Wave Dash':   {'target': 'opponent', 'damage': 45, 'accuracy': 90, 'type': 'aqua', 'priority':1,
                     'ability': {'kind': 'stat_boost', 'stat': 'speed', 'stages': 1, 'target': 'self', 'chance': 100}},
+    # Hits now, then the current surges back in at the end of the next turn for a second hit
+    'Rip Current': {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'type': 'aqua',
+                    'ability': {'kind': 'return_hit', 'move': 'Rip Current', 'power': 50, 'chance': 100,
+                                'apply_msg': "The Rip Current dragged {name} under... it'll surge back!",
+                                'return_msg': "The Rip Current surged back in and crashed into {name}!",
+                                'badge': 'CURRENT'}},
     #MAGMA MOVES
     'Fireball': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'magma'},
     'Fireball+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'magma'},
@@ -1542,7 +1548,7 @@ ENCOUNTER_ZONES = {
     # },
 
     "route1_grass": {
-        "dinos": ["Bullicorn", "Voltzbee", "Teamtwood"],
+        "dinos": ["Bullicorn", "Voltzbee", "Teamtwood", "Creuw", "Netaslam", "Pectura"],
         "level_range": (2,4)
     },
 
@@ -1552,8 +1558,8 @@ ENCOUNTER_ZONES = {
             {"name": "Creuw",  "weight": 0.5, "time": "night"},
             {"name": "Creuw",  "weight": 0.2, "time": "day"},
 
-            {"name": "Bullicorn",  "weight": 0.3, "time": "day"},
-            {"name": "Bullicorn",  "weight": 0.25, "time": "night"},
+            {"name": "Bullicorn",  "weight": 0.2, "time": "day"},
+            {"name": "Bullicorn",  "weight": 0.15, "time": "night"},
 
             {"name": "Teamtwood",  "weight": 0.25, "time": "day"},
             {"name": "Teamtwood",  "weight": 0.20, "time": "night"},
@@ -1566,10 +1572,13 @@ ENCOUNTER_ZONES = {
             {"name": "Roxer",  "weight": 0.05, "time": "day"},
             {"name": "Roxer",  "weight": 0.05, "time": "night"},
 
-            {"name": "Pectura",  "weight": 0.1, "time": "day"},
-            {"name": "Pectura",  "weight": 0.15, "time": "night"},
+            {"name": "Pectura",  "weight": 0.15, "time": "day"},
+            {"name": "Pectura",  "weight": 0.2, "time": "night"},
 
-            {"name": "Ghoslink",  "weight": 0.05, "time": "night"},
+            {"name": "Chomper",  "weight": 0.05, "time": "day"},
+            {"name": "Chomper",  "weight": 0.05, "time": "night"},
+
+            {"name": "Ghoslink",  "weight": 0.2, "time": "night"},
 
         ],
         "level_range": (3, 6)
@@ -1589,14 +1598,14 @@ ENCOUNTER_ZONES = {
     },
 
     "town1_grass": {
-        "dinos": ["Sortle", "Teamtwood", "Bullicorn", "Voltzbee"],
+        "dinos": ["Sortle", "Teamtwood", "Bullicorn", "Voltzbee", "Creuw", "Pectura", "Netaslam"],
         "level_range": (6, 8)
     },
 
 
     
     "route2_grass": {
-        "dinos": ["Teamtwood", "Netaslam", "Bullicorn", "Sortle", "Pectura"],
+        "dinos": ["Teamtwood", "Netaslam", "Bullicorn", "Sortle", "Pectura", "Creuw"],
         "level_range": (6, 8)
 
     },
@@ -1622,11 +1631,11 @@ ENCOUNTER_ZONES = {
             {"name": "Typhoonray",  "weight": 0.03, "time": "day"},
             {"name": "Typhoonray",  "weight": 0.03, "time": "night"},
 
-            {"name": "Pectura",  "weight": 0.1, "time": "day"},
-            {"name": "Pectura",  "weight": 0.15, "time": "night"},
+            {"name": "Pectura",  "weight": 0.15, "time": "day"},
+            {"name": "Pectura",  "weight": 0.2, "time": "night"},
 
-            {"name": "Ghoslink",  "weight": 0.05, "time": "night"},
-            {"name": "Prowscar",  "weight": 0.05, "time": "night"},
+            {"name": "Ghoslink",  "weight": 0.2, "time": "night"},
+            {"name": "Prowscar",  "weight": 0.1, "time": "night"},
 
 
 
@@ -1650,14 +1659,14 @@ ENCOUNTER_ZONES = {
         "corn_maze": {
         "encounter_rate": 0.03,
         "dinos": [
-            {"name": "Ghoulflame",  "weight": 0.35, "time": "night"},
+            {"name": "Ghoulflame",  "weight": 0.3, "time": "night"},
 
             {"name": "Ghoslink",  "weight": 0.35, "time": "night"},
             {"name": "Ghoslink",  "weight": 0.05, "time": "day"},
 
             {"name": "Prickly",  "weight": 0.35, "time": "day"},
 
-            {"name": "Prowscar", "weight": 0.1, "time": "day"},
+            {"name": "Prowscar", "weight": 0.15, "time": "day"},
             {"name": "Prowscar", "weight": 0.3, "time": "night"},
             {"name": "Creuw", "weight": 0.6, "time": "day"},
             {"name": "Vusion",   "weight": 0.05, "time": "night"},
@@ -1681,6 +1690,12 @@ ENCOUNTER_ZONES = {
 
             {"name": "Netaslam",  "weight": 0.25, "time": "day"},
             {"name": "Netaslam",  "weight": 0.25, "time": "night"},
+
+            {"name": "Creuw",  "weight": 0.1, "time": "day"},
+            {"name": "Creuw",  "weight": 0.25, "time": "night"},
+
+            {"name": "Pectura",  "weight": 0.10, "time": "day"},
+            {"name": "Pectura",  "weight": 0.15, "time": "night"},
 
             {"name": "Drafyton",  "weight": 0.01, "time": "day"},
             {"name": "Drafyton",  "weight": 0.01, "time": "night"},
@@ -1734,7 +1749,7 @@ ENCOUNTER_ZONES = {
             {"name": "Skolt",  "weight": 0.2, "time": "day"},
             {"name": "Skolt",  "weight": 0.2, "time": "night"},
 
-            {"name": "Stormulus",  "weight": 0.05, "time": "day"},
+            {"name": "Stormulus",  "weight": 0.15, "time": "day"},
             {"name": "Stormulus",  "weight": 0.15, "time": "night"},
         ],
         "level_range": (11, 16)
@@ -1764,8 +1779,8 @@ ENCOUNTER_ZONES = {
             {"name": "Volkit",  "weight": 0.03, "time": "day"},
             {"name": "Volkit",  "weight": 0.03, "time": "night"},
 
-            {"name": "Lavaleo",  "weight": 0.1, "time": "day"},
-            {"name": "Lavaleo",  "weight": 0.1, "time": "night"},
+            {"name": "Lavaleo",  "weight": 0.15, "time": "day"},
+            {"name": "Lavaleo",  "weight": 0.15, "time": "night"},
         ],
         "level_range": (12, 16)
 

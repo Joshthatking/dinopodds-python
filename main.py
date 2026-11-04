@@ -429,7 +429,19 @@ if __name__ == '__main__':
 # Fix descriptions
 # ADD A BRIEF NO INTERACTION PERIOD when choosing your first dino, and an are you sure, yes no when talking to professor amber choosing one of the 3 dinos
 
+# BUFF Vusion and Gourdecrux defense
+
+#10/27
+# need to fix mac version
+# fixed starter town amber area
+# vusion stat changes
+
+#11/2
+# Quick spawn adjustments
+# MAC issue fix v1
+
 #ALPHA COMPLETE
+
 
 
 
