@@ -40,6 +40,12 @@ DURATIONS = {                       # signature moves that run longer than DURAT
     'Dust Devil (return)': 1.4,
     'Rip Current': 1.3,
     'Rip Current (return)': 1.5,
+    'Eternal Blue': 2.2,
+    'Hyperfrost': 1.9,
+    'Freeze Blast': 1.2,
+    'Deep Freeze': 1.4,
+    'Singularity': 2.4,
+    'Supernova': 2.4,
 }
 STRONG_POWER = 70
 TAU = math.pi * 2
@@ -161,6 +167,12 @@ class _Frame:
 
     def shake(self, px):
         self._anim.shake_px = max(self._anim.shake_px, int(px))
+
+    def warp(self, x, y, r, twist):
+        """Swirl the battle scene itself inside radius r around (x, y), twisting
+        up to `twist` degrees at the center (applied before anything is drawn)."""
+        if r >= 8 and abs(twist) >= 1:
+            self._anim.warps.append((int(x), int(y), int(r), twist))
 
     # -- primitives --
     def circle(self, x, y, r, col, alpha=255, width=0):
@@ -511,43 +523,248 @@ def anim_hurricane(a):
         a.ring(a.tx, base - 20 * a.s, 30 * a.s + 90 * a.s * ease_out(p), FLYING[1], 180 * (1 - p), 3)
 
 
+# ── Eternal Blue (signature — see DURATIONS) ────────────────────────────────
+# The battle sinks into the deep ocean -> a sapphire orb charges at the
+# attacker as bubbles and currents pour in -> the sea rises up the screen ->
+# a colossal tidal wave towers over and sweeps across onto the target ->
+# it crashes in a blue-white flash, then a maelstrom spins up beneath the
+# target and a geyser pillar of blue light erupts to the sky -> a shockwave
+# of sapphire shards, and droplets rain down as the deep drains away.
+
+EB_ABYSS    = (3, 12, 45)
+EB_DEEP     = (14, 48, 160)
+EB_SAPPHIRE = (30, 110, 255)
+EB_CYAN     = (90, 210, 255)
+EB_FOAM     = (225, 248, 255)
+
+
+def _eb_bubbles(a, x0, x1, y_bot, rise, p, n, key, alpha=200):
+    """Bubbles wobbling upward from y_bot, each with its own delay."""
+    if p is None:
+        return
+    rng = a.rng(('ebbub', key))
+    for _ in range(n):
+        x = rng.uniform(x0, x1)
+        delay = rng.uniform(0, 0.5)
+        q = (p - delay) / 0.5
+        if q < 0 or q > 1:
+            continue
+        r = rng.uniform(2, 5) * a.s * (0.6 + 0.4 * q)
+        bx = x + math.sin(q * 9 + delay * 20) * 6 * a.s
+        by = y_bot - rise * q
+        al = alpha * hump(q)
+        a.ring(bx, by, r, EB_FOAM, al, 1)
+        a.circle(bx - r * 0.35, by - r * 0.35, max(1, r * 0.3), WHITE, al)
+
+
+def _eb_orb(a, x, y, r, t, k):
+    """Sapphire orb: glowing core, spinning water rings, light flares."""
+    if k <= 0.02 or r < 2:
+        return
+    s = a.s
+    for i in range(3):
+        rot = t * (5 if i % 2 else -4) + i
+        rx = r * (1.7 + i * 0.35)
+        pts = []
+        for j in range(25):
+            ang = j * TAU / 24
+            px, py = math.cos(ang) * rx, math.sin(ang) * rx * 0.32
+            cr, sr = math.cos(rot * 0.3 + i * 1.1), math.sin(rot * 0.3 + i * 1.1)
+            pts.append((x + px * cr - py * sr, y + px * sr + py * cr))
+        a.lines(pts, EB_CYAN if i % 2 else EB_SAPPHIRE, 210 * k, 2)
+        dot = pts[int((t * 40 + i * 8) % 24)]
+        a.glow(dot[0], dot[1], 10 * s, EB_FOAM, 0.9 * k)
+    a.glow(x, y, r * 3.2, EB_SAPPHIRE, 1.3 * k)
+    a.circle(x, y, r, EB_DEEP, 255 * k)
+    a.circle(x, y, r * 0.78, EB_SAPPHIRE, 255 * k)
+    a.circle(x - r * 0.18, y - r * 0.18, r * 0.45, EB_CYAN, 255 * k)
+    a.circle(x - r * 0.3, y - r * 0.32, r * 0.16, WHITE, 255 * k)
+    a.ring(x, y, r, EB_FOAM, 200 * k, 2)
+    a.star(x, y, r * 2.6, EB_FOAM, 170 * k, points=4, rot=t * 2, inner=0.08)
+
+
+def _eb_wave(a, fx, base, height, d, k, t):
+    """A towering curling tidal wave rising out of the sea at y=base, its crest
+    at x=fx, rolling in direction d. Returns the tip of the curling lip."""
+    s = a.s
+    if height < 4:
+        return fx, base
+    back = 340 * s
+    R = height * 0.24                                 # radius of the curl
+    top = base - height
+    body = []
+    for i in range(21):                               # long convex back slope up to the crest
+        u = i / 20
+        y = base - height * math.sin(u * math.pi / 2) ** 1.3
+        body.append((fx - d * back * (1 - u), y + math.sin(u * 13 - t * 30) * 3 * s * (1 - u)))
+    lip = []
+    for i in range(1, 11):                            # lip curls forward and back under itself
+        v = i / 10 * math.pi * 1.15
+        lip.append((fx + d * R * math.sin(v), top + R * (1 - math.cos(v))))
+    lx, ly = lip[-1]
+    face = []
+    for i in range(1, 9):                             # hollow face bowing back down to the sea
+        v = i / 8
+        face.append((lerp(lx, fx + d * R * 1.2, v) - d * R * 0.6 * math.sin(math.pi * v), lerp(ly, base, v)))
+    a.poly(body + lip + face + [(fx + d * R * 1.2, a.H), (fx - d * back, a.H)], EB_DEEP, 230 * k)
+    # brighter water bands along the back, and the dark hollow of the barrel
+    for j, off in enumerate((16, 40, 70)):
+        a.lines([(x, y + off * s) for x, y in body[2:]], EB_SAPPHIRE if j < 2 else EB_CYAN, (190 - j * 50) * k, 6 - j * 2)
+    a.ellipse(fx + d * R * 0.25, top + R * 1.35, R * 1.3, R * 1.6, EB_ABYSS, 190 * k)
+    a.lines(face, EB_CYAN, 220 * k, 3)
+    # light streaks racing up the back
+    for j in range(6):
+        u = (t * 3 + j / 6) % 1.0
+        x1, y1 = body[int(3 + u * 15)]
+        a.line(x1, y1 + 22 * s, x1 + d * 16 * s, y1 + 8 * s, EB_FOAM, 170 * k, 2)
+    # foam crest
+    rng = a.rng('ebfoam')
+    for i, (x, y) in enumerate(body[13:] + lip):
+        r = (5 + rng.uniform(0, 5)) * s
+        a.circle(x + rng.uniform(-4, 4) * s, y + rng.uniform(-3, 3) * s, r, EB_FOAM, 240 * k)
+        if i % 2 == 0:
+            a.glow(x, y, 20 * s, EB_CYAN, 0.7 * k)
+    a.lines(body[10:] + lip, WHITE, 230 * k, 3)
+    a.glow(fx, top + R, 100 * s, EB_SAPPHIRE, 0.9 * k)
+    return lx, ly
+
+
 def anim_eternal_blue(a):
-    t = a.t
-    # 1. Charge: deep blue orb forms at attacker
-    p = seg(t, 0.0, 0.3)
+    t, s = a.t, a.s
+    W, H = a.W, a.H
+    d = 1 if a.tx >= a.sx else -1
+
+    # The deep: abyssal tint + dark edges for nearly the whole move
+    deep = min(1.0, t / 0.12) * (1.0 if t < 0.86 else max(0.0, (1 - t) / 0.14))
+    a.tint(EB_ABYSS, 175 * deep)
+    _vignette(a, deep, EB_ABYSS)
+    # caustic light shimmering down from the surface
+    for i in range(7):
+        x = (i + 0.5) * W / 7 + math.sin(t * 6 + i * 1.7) * 30
+        a.line(x, 0, x + math.sin(t * 4 + i) * 60, H * 0.6, EB_SAPPHIRE, 40 * deep, 10)
+        a.glow(x, 20, 40, EB_SAPPHIRE, 0.35 * deep * (0.6 + 0.4 * math.sin(t * 9 + i * 2)))
+
+    # 1. Charge: currents spiral in and a sapphire orb forms at the attacker
+    p = seg(t, 0.03, 0.36)
+    orb_r = 0.0
     if p is not None:
-        a.implode(a.sx, a.sy, p, 24, 90 * a.s, AQUA[1], 3, glow=0.4, swirl=2)
-        a.circle(a.sx, a.sy, 22 * ease_out(p), AQUA[2], 230)
-        a.glow(a.sx, a.sy, 50 * p, AQUA[0], 1.2)
-        a.tint(AQUA[2], 70 * p)
-    # 2. Tidal surge: rolling wave crest sweeps to target
-    p = seg(t, 0.25, 0.55)
+        grow = ease_out(min(1.0, p / 0.75))
+        orb_r = 24 * s * grow * (1 + 0.06 * math.sin(t * 70))
+        for arm in range(4):                           # inflowing current streams
+            pts = []
+            for j in range(14):
+                u = j / 13
+                ang = arm * TAU / 4 + u * 3.2 - t * 14
+                rr = (140 - 120 * u) * s * (1 - 0.4 * p)
+                pts.append((a.sx + math.cos(ang) * rr, a.sy + math.sin(ang) * rr * 0.75))
+            a.lines(pts, EB_CYAN if arm % 2 else EB_SAPPHIRE, 200 * min(1.0, p * 4), 3)
+        a.implode(a.sx, a.sy, p, 40, 180 * s, EB_CYAN, 2.6 * s, glow=0.35, swirl=4, key='ebin')
+        a.implode(a.sx, a.sy, p, 20, 120 * s, EB_FOAM, 1.8 * s, swirl=-3, key='ebin2')
+        _eb_bubbles(a, a.sx - 70 * s, a.sx + 70 * s, a.sy + 60 * s, 150 * s, p, 22, 'charge')
+        _eb_orb(a, a.sx, a.sy, orb_r, t, 1.0)
+        if p > 0.6:
+            a.shake(2)
+
+    # 2. The sea rises up the bottom of the screen
+    p = seg(t, 0.18, 0.92)
     if p is not None:
-        x, y = a.travel(ease_in(p), arc=40)
-        for i in range(10):
-            off = (i - 4.5) * 9
-            ang = a.angle_to_target() + math.pi / 2
-            a.circle(x + math.cos(ang) * off * 2, y + math.sin(ang) * off * 2,
-                     (16 - abs(i - 4.5) * 2) * a.s, AQUA[0] if i % 2 else AQUA[1], 230)
-        a.glow(x, y, 70, AQUA[0], 1.0)
-        a.tint(AQUA[2], 70)
-    # 3. Impact: water pillars erupt, rings, rain of droplets
-    p = seg(t, 0.5, 1.0)
+        rise = ease_out(min(1.0, p / 0.3)) * (1 if p < 0.8 else max(0.0, (1 - p) / 0.2))
+        level = H - H * 0.24 * rise
+        surf = [(x, level + math.sin(x * 0.03 + t * 18) * 6 + math.sin(x * 0.011 - t * 9) * 5)
+                for x in range(0, W + 33, 32)]
+        a.poly(surf + [(W, H), (0, H)], EB_DEEP, 130 * rise)
+        a.lines(surf, EB_CYAN, 200 * rise, 3)
+        a.lines([(x, y + 8) for x, y in surf], EB_SAPPHIRE, 120 * rise, 2)
+        _eb_bubbles(a, 0, W, H, H * 0.24, (t * 1.7) % 1.0, 30, 'sea', 160 * rise)
+
+    # 3. A colossal tidal wave rises behind the attacker and sweeps onto the target
+    p = seg(t, 0.34, 0.58)
     if p is not None:
-        for k in range(7):
-            ox = (k - 3) * 22 * a.s
-            h = 120 * a.s * hump(min(1, p * 1.6 - abs(k - 3) * 0.06))
-            w = (14 - abs(k - 3) * 2) * a.s
+        e = ease_in_out(p)
+        rise = ease_out(min(1.0, p / 0.35))
+        base = H * 0.78
+        height = max(base - a.ty + 75 * s, 220 * s) * rise
+        fx = lerp(a.sx - d * 60 * s, a.tx - d * 30 * s, e)
+        lx, ly = _eb_wave(a, fx, base, height, d, min(1.0, p * 5), t)
+        a.burst(fx, base - height, p, 24, 110 * s, EB_FOAM, 3.5 * s, gravity=60, glow=0.3, key='ebspray',
+                spread=(-math.pi * 0.9, -math.pi * 0.1))
+        a.burst(lx, ly, p, 14, 70 * s, EB_CYAN, 3 * s, gravity=140, key='ebdrip')
+        a.rain(p, 26, EB_CYAN, fx - d * 300 * s, fx, base - height, base, length=14, slant=-0.3 * d, key='ebwr')
+        a.shake(3 + 4 * p)
+
+    # 4. Crash: blue-white flash, the wave breaks over the target
+    p = seg(t, 0.56, 0.78)
+    if p is not None:
+        a.tint((200, 235, 255), 255 * max(0.0, 1 - p / 0.18) ** 2)
+        for k in range(9):
+            ox = (k - 4) * 20 * s
+            h = 190 * s * hump(min(1.0, p * 1.5 - abs(k - 4) * 0.05))
+            w = (16 - abs(k - 4) * 2) * s
             if h > 2:
-                a.ellipse(a.tx + ox, a.ty + 40 * a.s - h / 2, w * 2, h, AQUA[0], 210)
-                a.ellipse(a.tx + ox, a.ty + 40 * a.s - h / 2, w, h * 0.9, AQUA[1], 200)
-        for k in range(3):
-            q = seg(p, k * 0.15, 0.6 + k * 0.15)
+                a.ellipse(a.tx + ox, a.ty + 45 * s - h / 2, w * 2.2, h, EB_SAPPHIRE, 220)
+                a.ellipse(a.tx + ox, a.ty + 45 * s - h / 2, w, h * 0.9, EB_CYAN, 210)
+                a.circle(a.tx + ox, a.ty + 45 * s - h, w * 0.9, EB_FOAM, 230)
+        a.burst(a.tx, a.ty, p, 50, 220 * s, EB_FOAM, 5 * s, gravity=220, glow=0.4, key='ebcrash')
+        a.burst(a.tx, a.ty, p, 18, 200 * s, EB_CYAN, 3 * s, shape='streak', glow=0.5, key='ebstreak')
+        a.glow(a.tx, a.ty, 150 * s, EB_SAPPHIRE, 1.8 * (1 - p))
+        if p < 0.5:
+            a.shake(14 * (1 - p / 0.5))
+
+    # 5. Maelstrom spins up beneath the target and a geyser of blue light erupts
+    p = seg(t, 0.64, 0.92)
+    if p is not None:
+        k = min(1.0, p * 4) * (1 if p < 0.8 else max(0.0, (1 - p) / 0.2))
+        rot = t * TAU * 3
+        cy = a.ty + 35 * s
+        for arm in range(5):
+            for i in range(16):
+                u = i / 15
+                ang = rot + arm * TAU / 5 + u * 3.4
+                r = 150 * s * (1 - u * 0.9)
+                a.circle(a.tx + math.cos(ang) * r, cy + math.sin(ang) * r * 0.3,
+                         (2 + 5 * (1 - u)) * s, EB_CYAN if (i + arm) % 3 == 0 else EB_SAPPHIRE, 230 * k)
+        a.ellipse(a.tx, cy, 120 * s, 32 * s, EB_ABYSS, 200 * k)
+        a.ellipse(a.tx, cy, 120 * s, 32 * s, EB_CYAN, 220 * k, 2)
+        # geyser pillar
+        g = ease_out(min(1.0, p / 0.35))
+        top = cy - (cy + 20) * g
+        pw = 46 * s * (0.8 + 0.2 * math.sin(t * 50)) * k
+        a.poly([(a.tx - pw, cy), (a.tx - pw * 0.6, top), (a.tx + pw * 0.6, top), (a.tx + pw, cy)], EB_SAPPHIRE, 210 * k)
+        a.poly([(a.tx - pw * 0.5, cy), (a.tx - pw * 0.3, top), (a.tx + pw * 0.3, top), (a.tx + pw * 0.5, cy)], EB_CYAN, 230 * k)
+        a.line(a.tx, cy, a.tx, top, WHITE, 255 * k, max(2, int(pw * 0.25)))
+        for j in range(8):
+            yy = lerp(cy, top, j / 7)
+            a.glow(a.tx, yy, pw * 1.6, EB_SAPPHIRE, 0.8 * k)
+        for j in range(6):                             # rings riding up the pillar
+            q = (p * 3 + j / 6) % 1.0
+            a.ellipse(a.tx, lerp(cy, top, q), pw * 3.2 * (1 - q * 0.4), pw * 0.8, EB_FOAM, 200 * k * (1 - q), 2)
+        a.burst(a.tx, top + 10, p, 26, 120 * s, EB_FOAM, 4 * s, gravity=200, glow=0.3, key='ebgey')
+        a.tint(EB_SAPPHIRE, 120 * k)
+        a.shake(5 * k)
+
+    # 6. Shockwave of sapphire shards
+    p = seg(t, 0.78, 0.97)
+    if p is not None:
+        a.tint((215, 240, 255), 230 * max(0.0, 1 - p / 0.15) ** 2)
+        for kk in range(4):
+            q = seg(p, kk * 0.07, 0.65 + kk * 0.07)
             if q is not None:
-                a.ring(a.tx, a.ty, 20 * a.s + 120 * a.s * ease_out(q), AQUA[1], 230 * (1 - q), 5 - k)
-        a.burst(a.tx, a.ty - 30, p, 40, 140 * a.s, AQUA[1], 5 * a.s, gravity=160, glow=0.4)
-        a.glow(a.tx, a.ty, 120 * a.s, AQUA[0], 1.4 * (1 - p))
-        _strong_finish(a, p, AQUA, 160, 10)
+                rr = 20 * s + 260 * s * ease_out(q)
+                a.ring(a.tx, a.ty, rr, EB_SAPPHIRE, 240 * (1 - q), max(3, 18 * s * (1 - q)))
+                a.ring(a.tx, a.ty, rr + 9 * s * (1 - q), EB_FOAM if kk % 2 else EB_CYAN, 230 * (1 - q), 3)
+        star = ease_out(min(1.0, p * 2.5))
+        a.star(a.tx, a.ty, 170 * s * star, EB_CYAN, 220 * (1 - p), points=8, rot=p, inner=0.1)
+        a.star(a.tx, a.ty, 110 * s * star, WHITE, 240 * (1 - p), points=8, rot=p + 0.2, inner=0.12)
+        a.burst(a.tx, a.ty, p, 28, 230 * s, EB_SAPPHIRE, 7 * s, shape='shard', glow=0.3, key='ebshard')
+        a.glow(a.tx, a.ty, 140 * s, EB_CYAN, 1.6 * (1 - p))
+        if p < 0.5:
+            a.shake(16 * (1 - p / 0.5))
+
+    # 7. Aftermath: droplets rain down, bubbles drift up as the deep drains away
+    p = seg(t, 0.82, 1.0)
+    if p is not None:
+        a.rain(p, 50, EB_CYAN, 0, W, -20, H, length=14, slant=0.15, key='ebrain', speed=1.2)
+        _eb_bubbles(a, a.tx - 90 * s, a.tx + 90 * s, a.ty + 60 * s, 140 * s, p, 16, 'after')
 
 
 def anim_wave_dash(a):
@@ -739,21 +956,43 @@ def anim_solar_flare(a):
             ln = r * (1.6 + 0.4 * math.sin(t * 30 + i))
             a.line(sun_x + math.cos(ang) * r, sun_y + math.sin(ang) * r,
                    sun_x + math.cos(ang) * ln, sun_y + math.sin(ang) * ln, MAGMA[1], 230, 3)
+        _il_rays(a, sun_x, sun_y, 14, r * 4.5, -t * 1.5, (255, 190, 70), 90 * min(1, p * 2), spread=0.06)
+        for i in range(3):                              # solar prominences arcing off the surface
+            ang = i * TAU / 3 + t * 2
+            pts = []
+            for j in range(11):
+                u = j / 10
+                aa = ang + (u - 0.5) * 1.1
+                rr = r * (1 + 0.9 * math.sin(math.pi * u) * (0.8 + 0.2 * math.sin(t * 20 + i)))
+                pts.append((sun_x + math.cos(aa) * rr, sun_y + math.sin(aa) * rr))
+            a.lines(pts, MAGMA[0], 230, max(2, int(5 * a.s)))
+            a.lines(pts, MAGMA[1], 240, 2)
+        a.circle(sun_x, sun_y, r * 1.12, MAGMA[2], 200)
         a.circle(sun_x, sun_y, r, MAGMA[0], 255)
         a.circle(sun_x, sun_y, r * 0.7, MAGMA[1], 255)
-        a.glow(sun_x, sun_y, r * 3, MAGMA[0], 1.4)
+        a.circle(sun_x, sun_y, r * 0.35 * (1 + 0.1 * math.sin(t * 60)), WHITE, 255)
+        a.glow(sun_x, sun_y, r * 4, MAGMA[0], 1.8)
         a.implode(sun_x, sun_y, p, 20, 120 * a.s, MAGMA[1], 3, glow=0.3, key=2)
-        a.tint((255, 140, 40), 60 * p)
+        a.implode(sun_x, sun_y, p, 30, 200 * a.s, (255, 240, 200), 2, glow=0.3, swirl=3, key=3)
+        a.tint((255, 140, 40), 100 * p)
+        if p > 0.5:
+            a.shake(2.5)
     # 2. Flare column slams down onto the target
     p = seg(t, 0.45, 0.75)
     if p is not None:
         w = 40 * a.s * hump(p)
+        a.poly([(sun_x - w * 0.9, sun_y), (sun_x + w * 0.9, sun_y),
+                (a.tx + w * 1.7, a.ty + 40 * a.s), (a.tx - w * 1.7, a.ty + 40 * a.s)], MAGMA[2], 150)
         a.poly([(sun_x - w * 0.5, sun_y), (sun_x + w * 0.5, sun_y),
                 (a.tx + w, a.ty + 40 * a.s), (a.tx - w, a.ty + 40 * a.s)], MAGMA[0], 220)
         a.poly([(sun_x - w * 0.2, sun_y), (sun_x + w * 0.2, sun_y),
                 (a.tx + w * 0.4, a.ty + 40 * a.s), (a.tx - w * 0.4, a.ty + 40 * a.s)], WHITE, 230)
         for i in range(5):
-            a.glow(sun_x, lerp(sun_y, a.ty, i / 4), w * 2.5, MAGMA[0], 1.0)
+            a.glow(sun_x, lerp(sun_y, a.ty, i / 4), w * 3, MAGMA[0], 1.3)
+        a.rain(p, 22, MAGMA[1], a.tx - w * 2, a.tx + w * 2, sun_y, a.ty + 40 * a.s,
+               length=16, width=2, key='sfspark', speed=1.6)
+        a.tint((255, 150, 50), 120 * hump(p))
+        a.shake(6 * hump(p))
     # 3. Heat explosion
     p = seg(t, 0.6, 1.0)
     if p is not None:
@@ -764,8 +1003,154 @@ def anim_solar_flare(a):
             if q is not None:
                 a.ring(a.tx, a.ty, 30 * a.s + 140 * a.s * ease_out(q), MAGMA[1], 220 * (1 - q), 4)
         a.burst(a.tx, a.ty, p, 36, 160 * a.s, MAGMA[1], 4 * a.s, glow=0.5, gravity=-40)
-        a.glow(a.tx, a.ty, 140 * a.s, MAGMA[0], 1.5 * (1 - p))
-        _strong_finish(a, p, ((255, 230, 180),) * 2, 200, 10)
+        star = ease_out(min(1.0, p * 2.5))
+        a.star(a.tx, a.ty, 150 * a.s * star, MAGMA[0], 220 * (1 - p), points=8, rot=p, inner=0.12)
+        a.star(a.tx, a.ty, 100 * a.s * star, WHITE, 240 * (1 - p), points=8, rot=p + 0.2, inner=0.14)
+        a.burst(a.tx, a.ty, p, 22, 220 * a.s, (255, 240, 200), 3 * a.s, shape='streak', glow=0.5, key='sfstreak')
+        a.burst(a.tx, a.ty + 20 * a.s, p, 20, 110 * a.s, MAGMA[0], 2.5 * a.s, gravity=-120 * a.s,
+                spread=(math.pi * 1.1, math.pi * 1.9), glow=0.4, key='sfember')
+        a.glow(a.tx, a.ty, 180 * a.s, MAGMA[0], 2.0 * (1 - p))
+        a.glow(a.tx, a.ty, 70 * a.s, (255, 240, 200), 1.6 * (1 - p))
+        _strong_finish(a, p, ((255, 230, 180),) * 2, 240, 15)
+
+
+def _starfield(a, k, n=60, pull=None, key='stars'):
+    """Twinkling stars over the whole screen. pull=(cx, cy, amount 0..1) spirals
+    them in toward a point, as if falling into it."""
+    if k <= 0.02:
+        return
+    rng = a.rng(key)
+    for _ in range(n):
+        x, y = rng.uniform(0, a.W), rng.uniform(0, a.H)
+        tw = 0.5 + 0.5 * math.sin(a.t * rng.uniform(8, 20) + rng.uniform(0, TAU))
+        if pull:
+            cx, cy, amt = pull
+            dx, dy = x - cx, y - cy
+            dist = math.hypot(dx, dy)
+            near = max(0.0, 1 - dist / 420)
+            ang = math.atan2(dy, dx) + amt * near * 3
+            dist *= 1 - amt * (0.35 + 0.6 * near)
+            x, y = cx + math.cos(ang) * dist, cy + math.sin(ang) * dist
+        r = rng.uniform(1, 2.2)
+        a.circle(x, y, r, WHITE, 230 * k * tw)
+        if r > 1.9:
+            a.star(x, y, 5 * tw, WHITE, 200 * k * tw, points=4, inner=0.2)
+
+
+# ── Supernova (signature magma move — see DURATIONS) ───────────────────────
+# Space falls dark -> the attacker hurls a spark into the sky above the target
+# -> it ignites into a star that swells into a roiling red giant -> the core
+# collapses, warping space -> SUPERNOVA: a white flash, layered shells of fire
+# and a shockwave that engulf the target -> nebula clouds and embers linger.
+
+SN_RED   = (200, 40, 20)
+SN_SPACE = (14, 4, 18)
+SN_NEBULA = ((255, 90, 160), (255, 150, 60), (120, 160, 255))
+
+
+def anim_supernova(a):
+    t, s = a.t, a.s
+    W, H = a.W, a.H
+    cx, cy = a.tx, max(80 * s, a.ty - 115 * s)
+
+    space = min(1.0, t / 0.1) * (1.0 if t < 0.88 else max(0.0, (1 - t) / 0.12))
+    a.tint(SN_SPACE, 195 * space)
+    _vignette(a, space)
+    _starfield(a, space * (1 - 0.7 * (seg(t, 0.7, 0.8) or (1.0 if t > 0.8 else 0.0))), key='snstars')
+
+    # 1. Ignition: fire gathers at the attacker, then a spark streaks into the sky
+    p = seg(t, 0.02, 0.24)
+    if p is not None:
+        a.implode(a.sx, a.sy, p, 30, 140 * s, MAGMA[1], 2.5 * s, glow=0.4, swirl=3, key='snin')
+        a.glow(a.sx, a.sy, 50 * s * p, MAGMA[0], 1.4)
+        a.circle(a.sx, a.sy, 9 * s * ease_out(p), WHITE, 255)
+    p = seg(t, 0.18, 0.3)
+    if p is not None:
+        e = ease_in(p)
+        for i in range(8, -1, -1):
+            q = max(0.0, e - i * 0.04)
+            x, y = lerp(a.sx, cx, q), lerp(a.sy, cy, q) - math.sin(math.pi * q) * 60 * s
+            a.circle(x, y, (9 - i) * s, MAGMA[1] if i < 3 else MAGMA[0], 230 * (1 - i / 9))
+            a.glow(x, y, 20 * s, MAGMA[0], 0.6)
+
+    # 2. Red giant: the star swells, its surface boiling, flares leaping off it
+    p = seg(t, 0.28, 0.62)
+    if p is not None:
+        swell = ease_out(min(1.0, p / 0.85))
+        r = (12 + 62 * swell) * s * (1 + 0.04 * math.sin(t * 70))
+        hot = _mix((255, 245, 200), MAGMA[0], min(1.0, p * 1.6))
+        col = _mix(hot, SN_RED, max(0.0, p - 0.4) / 0.6)
+        _il_rays(a, cx, cy, 16, r * 2.6, t * 1.5, MAGMA[0], 80 * swell, spread=0.05)
+        a.glow(cx, cy, r * 2.8, col, 1.6)
+        a.circle(cx, cy, r * 1.08, SN_RED, 220)
+        a.circle(cx, cy, r, col, 255)
+        rng = a.rng('sncell')
+        for _ in range(14):                              # boiling convection cells
+            ang, d = rng.uniform(0, TAU), rng.uniform(0, 0.75)
+            ph = rng.uniform(0, TAU)
+            cr = r * rng.uniform(0.15, 0.32) * (0.7 + 0.3 * math.sin(t * 25 + ph))
+            a.circle(cx + math.cos(ang + t) * r * d, cy + math.sin(ang + t) * r * d, cr,
+                     _mix(col, MAGMA[1], 0.5), 200)
+        for i in range(4):                               # prominences
+            ang = i * TAU / 4 + t * 1.5
+            pts = []
+            for j in range(12):
+                u = j / 11
+                aa = ang + (u - 0.5) * 0.9
+                rr = r * (1 + 0.7 * math.sin(math.pi * u) * (0.7 + 0.3 * math.sin(t * 18 + i)))
+                pts.append((cx + math.cos(aa) * rr, cy + math.sin(aa) * rr))
+            a.lines(pts, MAGMA[0], 230, max(2, int(6 * s)))
+            a.lines(pts, MAGMA[1], 240, 2)
+        a.circle(cx, cy, r * 0.3, WHITE, 230 * (1 - p))
+        a.tint((255, 110, 40), 70 * swell)
+        a.shake(1 + 4 * p)
+
+    # 3. Core collapse: the star caves in on itself, dragging space with it
+    p = seg(t, 0.6, 0.72)
+    if p is not None:
+        r = 74 * s * (1 - ease_in(p)) + 3 * s
+        a.warp(cx, cy, 170 * s, 160 * ease_in(p))
+        a.implode(cx, cy, p, 50, 220 * s, MAGMA[1], 3 * s, glow=0.4, swirl=6, key='sncol')
+        for kk in range(3):
+            q = (p * 2.5 + kk / 3) % 1.0
+            a.ring(cx, cy, (190 - 170 * q) * s, MAGMA[0], 200 * q, 3)
+        a.glow(cx, cy, r * 2.5, SN_RED, 1.4)
+        a.circle(cx, cy, r, SN_RED, 255)
+        a.circle(cx, cy, max(2, r * 0.5), WHITE, 255)
+        a.glow(cx, cy, 30 * s, WHITE, 1.5 * p)
+        a.shake(3 + 5 * p)
+
+    # 4. SUPERNOVA
+    p = seg(t, 0.71, 1.0)
+    if p is not None:
+        a.tint((255, 250, 235), 255 * max(0.0, 1 - p / 0.2) ** 1.5)
+        e = ease_out(p)
+        fade = 1 - p
+        # nebula clouds billowing out
+        rng = a.rng('snneb')
+        for i in range(10):
+            ang, d = rng.uniform(0, TAU), rng.uniform(60, 190)
+            a.glow(cx + math.cos(ang) * d * s * e, cy + math.sin(ang) * d * s * e,
+                   (40 + 50 * e) * s, SN_NEBULA[i % 3], 1.1 * fade)
+        # layered blast shells: red outside, orange, then blue-white core
+        for rm, col, al in ((310, SN_RED, 170), (240, MAGMA[0], 200), (170, MAGMA[1], 220), (95, (200, 225, 255), 240)):
+            a.circle(cx, cy, rm * s * e, col, al * fade ** 1.4)
+        for kk in range(4):
+            q = seg(p, kk * 0.06, 0.6 + kk * 0.08)
+            if q is not None:
+                a.ring(cx, cy, 30 * s + 330 * s * ease_out(q), WHITE if kk % 2 else MAGMA[1],
+                       230 * (1 - q), max(2, 14 * s * (1 - q)))
+        star = ease_out(min(1.0, p * 3))
+        a.star(cx, cy, 230 * s * star, MAGMA[1], 230 * fade, points=12, rot=p * 0.5, inner=0.08)
+        a.star(cx, cy, 150 * s * star, WHITE, 255 * fade, points=8, rot=-p * 0.5 + 0.2, inner=0.1)
+        a.burst(cx, cy, p, 40, 320 * s, (255, 240, 200), 4 * s, shape='streak', glow=0.5, key='snstreak')
+        a.burst(cx, cy, p, 30, 260 * s, MAGMA[0], 6 * s, glow=0.4, gravity=80, key='sndebris')
+        a.burst(a.tx, a.ty + 20 * s, seg(p, 0.3, 1.0), 20, 110 * s, MAGMA[1], 2.5 * s, gravity=-120 * s,
+                spread=(math.pi * 1.1, math.pi * 1.9), glow=0.4, key='snember')
+        a.glow(cx, cy, 220 * s, MAGMA[1], 2.2 * fade)
+        a.glow(a.tx, a.ty, 120 * s, MAGMA[0], 1.4 * fade)
+        if p < 0.55:
+            a.shake(20 * (1 - p / 0.55))
 
 
 def _snap_sword(a, x, y, size, p):
@@ -1091,10 +1476,20 @@ def anim_leaf_ultima(a):
             ang = ph + p * 4
             a.leaf(a.sx + math.cos(ang) * d, a.sy + math.sin(ang) * d, 7 * a.s, ang + 1.2,
                    EARTH[1], 230 * hump(min(1, p * 1.2)))
+        a.implode(a.sx, a.sy, p, 26, 140 * a.s, lime, 2.2 * a.s, glow=0.35, swirl=3, key='ultima_mote')
+        for k in range(2):                              # spinning rune rings around the seed
+            rr = (34 + k * 16) * a.s * ease_out(p)
+            a.ring(a.sx, a.sy, rr, lime if k else EARTH[1], 200 * p, 2)
+            for i in range(6):
+                ang = i * TAU / 6 + t * (9 if k else -7)
+                a.star(a.sx + math.cos(ang) * rr, a.sy + math.sin(ang) * rr, 5 * a.s, WHITE, 230 * p, rot=ang)
+        _il_rays(a, a.sx, a.sy, 10, 80 * a.s * ease_out(p), t * 2, lime, 70 * p, spread=0.05)
         a.circle(a.sx, a.sy, 16 * a.s * ease_out(p), EARTH[0], 230)
         a.circle(a.sx, a.sy, 8 * a.s * ease_out(p), lime, 255)
-        a.glow(a.sx, a.sy, 55 * a.s * p, EARTH[1], 1.2)
-        a.tint(EARTH[2], 60 * p)
+        a.glow(a.sx, a.sy, 70 * a.s * p, EARTH[1], 1.5)
+        a.tint(EARTH[2], 90 * p)
+        if p > 0.6:
+            a.shake(2)
     # 2. Volley: a helix of razor leaves streams to the target
     p = seg(t, 0.25, 0.6)
     if p is not None:
@@ -1108,14 +1503,26 @@ def anim_leaf_ultima(a):
             off = math.sin(q * TAU * 1.5 + i * 1.3) * 22 * a.s
             lx, ly = x + nx * off, y + ny * off
             a.leaf(lx, ly, 10 * a.s, ang_t + q * 9, EARTH[1] if i % 2 else EARTH[0], 245)
-            a.glow(lx, ly, 18 * a.s, EARTH[0], 0.5)
-        a.tint(EARTH[2], 60)
+            a.glow(lx, ly, 24 * a.s, EARTH[0], 0.7)
+            # second strand, opposite phase, with a lime edge
+            lx2, ly2 = x - nx * off, y - ny * off
+            a.leaf(lx2, ly2, 9 * a.s, ang_t - q * 9, lime, 235)
+            a.glow(lx2, ly2, 16 * a.s, lime, 0.4)
+        # glowing core of the helix
+        hx, hy = a.travel(ease_in(min(1.0, p * 1.5)), arc=25)
+        a.glow(hx, hy, 40 * a.s, lime, 1.0)
+        a.circle(hx, hy, 7 * a.s, WHITE, 230)
+        a.tint(EARTH[2], 90)
+        a.shake(2)
     # 3. Bloom: a giant leaf flower opens on the target and bursts
     p = seg(t, 0.55, 1.0)
     if p is not None:
         open_k = ease_out(min(1, p / 0.45))
         al = 245 * fade_late(p, 0.55)
-        for ring_i, (n, rad, size, col) in enumerate(((8, 60, 22, EARTH[0]), (8, 34, 15, EARTH[1]))):
+        a.tint((235, 255, 200), 230 * max(0.0, 1 - p / 0.15) ** 2)   # bloom flash
+        _il_rays(a, a.tx, a.ty, 16, 200 * a.s * open_k, p * 1.5, lime, 110 * (1 - p), spread=0.05)
+        for ring_i, (n, rad, size, col) in enumerate(((10, 92, 26, (35, 120, 45)), (8, 60, 22, EARTH[0]),
+                                                      (8, 34, 15, EARTH[1]))):
             for i in range(n):
                 ang = i * TAU / n + ring_i * math.pi / n + p * 1.2
                 r = rad * a.s * open_k
@@ -1128,7 +1535,11 @@ def anim_leaf_ultima(a):
                 a.ring(a.tx, a.ty, 20 * a.s + 130 * a.s * ease_out(q), lime, 230 * (1 - q), 5 - k)
         a.burst(a.tx, a.ty, seg(p, 0.3, 1.0), 30, 170 * a.s, EARTH[1], 6 * a.s, shape='shard', glow=0.4)
         a.burst(a.tx, a.ty, seg(p, 0.3, 1.0), 16, 120 * a.s, WHITE, 3 * a.s, shape='star', key=1, gravity=-30)
-        a.glow(a.tx, a.ty, 130 * a.s, EARTH[0], 1.4 * (1 - p))
+        a.burst(a.tx, a.ty, seg(p, 0.25, 1.0), 24, 220 * a.s, lime, 3 * a.s, shape='streak', glow=0.5, key=2)
+        a.glow(a.tx, a.ty, 160 * a.s, EARTH[0], 1.8 * (1 - p))
+        a.glow(a.tx, a.ty, 60 * a.s, lime, 1.5 * (1 - p))
+        if p < 0.4:
+            a.shake(13 * (1 - p / 0.4))
         _strong_finish(a, seg(p, 0.25, 1.0), (EARTH[0], lime), 150, 10)
 
 
@@ -2406,6 +2817,99 @@ def anim_void_collapse(a):
             a.shake(12 * (1 - p * 2))
 
 
+# ── Singularity (signature dark move — see DURATIONS) ──────────────────────
+# Space falls dark -> dark matter condenses into a void orb at the attacker,
+# bending space around it -> the orb is hurled onto the target and tears open
+# a black hole: the battlefield itself twists into it, stars and light streams
+# spiral down the accretion disk -> it collapses to a point -> and erupts in
+# polar jets and a violet-white shockwave as space snaps back.
+
+def anim_singularity(a):
+    t, s = a.t, a.s
+    hx, hy = a.tx, a.ty
+
+    dark = min(1.0, t / 0.1) * (1.0 if t < 0.88 else max(0.0, (1 - t) / 0.12))
+    a.tint(ED_VOID, 140 * dark)    # light enough that the warped battlefield shows through
+    _vignette(a, dark)
+    hole = seg(t, 0.36, 0.84)
+    pull = ease_in(hole) if hole is not None else (1.0 if t > 0.84 else 0.0)
+    _starfield(a, dark * (1 - pull * 0.6), 70, pull=(hx, hy, pull * 0.8), key='sgstars')
+
+    # 1. Dark matter condenses into a void orb at the attacker, bending space
+    p = seg(t, 0.02, 0.32)
+    if p is not None:
+        g = ease_out(min(1.0, p / 0.8))
+        a.warp(a.sx, a.sy, 90 * s * g, 70 * g)
+        a.implode(a.sx, a.sy, p, 44, 180 * s, ED_VIOLET, 2.4 * s, glow=0.35, swirl=5, key='sgin')
+        a.implode(a.sx, a.sy, p, 20, 130 * s, WHITE, 1.6 * s, swirl=-4, key='sgin2')
+        for kk in range(3):
+            q = (p * 2 + kk / 3) % 1.0
+            a.ring(a.sx, a.sy, (110 - 90 * q) * s, ED_PURPLE, 170 * q * g, 2)
+        _ed_singularity(a, a.sx, a.sy, 16 * s * g, g, t, 12)
+
+    # 2. The orb is hurled onto the target
+    p = seg(t, 0.28, 0.4)
+    if p is not None:
+        e = ease_in(p)
+        for i in range(9, -1, -1):
+            q = max(0.0, e - i * 0.035)
+            x, y = a.travel(q, 50 * s)
+            if i:
+                a.circle(x, y, (16 - i * 1.3) * s, ED_PURPLE if i % 2 else ED_DEEP, 200 * (1 - i / 10))
+        x, y = a.travel(e, 50 * s)
+        a.warp(x, y, 60 * s, 50)
+        _ed_singularity(a, x, y, 14 * s, 1.0, t, 14)
+
+    # 3. The black hole opens: the scene twists into it, light spirals down
+    if hole is not None:
+        grow = ease_out(min(1.0, hole / 0.25))
+        collapse = 1 - ease_in(max(0.0, (hole - 0.88) / 0.12))
+        r = 32 * s * grow * collapse * (1 + 0.05 * math.sin(t * 60))
+        a.warp(hx, hy, 190 * s * grow, (90 + 260 * hole) * grow)
+        for arm in range(6):                             # light streams spiralling in
+            pts = []
+            for j in range(18):
+                u = j / 17
+                ang = arm * TAU / 6 + u * 4.2 + t * 14
+                rr = (230 - 200 * u) * s * grow
+                pts.append((hx + math.cos(ang) * rr, hy + math.sin(ang) * rr * 0.45))
+            a.lines(pts, ED_VIOLET if arm % 2 else (150, 170, 255), 170 * grow, 2)
+            a.glow(pts[-4][0], pts[-4][1], 12 * s, ED_MAGENTA, 0.6 * grow)
+        a.implode(hx, hy, min(1.0, hole * 1.3), 50, 260 * s, ED_VIOLET, 2.4 * s, glow=0.3, swirl=8, key='sgsuck')
+        a.implode(hx, hy, min(1.0, hole * 1.1), 26, 220 * s, WHITE, 1.6 * s, swirl=-7, key='sglight')
+        for kk in range(3):                              # gravitational ripples falling inward
+            q = (hole * 2.4 + kk / 3) % 1.0
+            a.ring(hx, hy, (200 - 160 * q) * s * grow, ED_PURPLE, 150 * q, 2)
+        _ed_singularity(a, hx, hy, r, 1.0, t, 10 + 30 * hole)
+        a.glow(hx, hy, 6 * s, WHITE, 2.0 * (1 - collapse))
+        a.shake(2 + 7 * hole)
+
+    # 4. Eruption: polar jets and a shockwave as space snaps back
+    p = seg(t, 0.83, 1.0)
+    if p is not None:
+        a.tint((230, 210, 255), 255 * max(0.0, 1 - p / 0.15) ** 2)
+        a.warp(hx, hy, 160 * s, -120 * (1 - p))
+        jet = ease_out(min(1.0, p / 0.3)) * (1 - p)
+        for dirn in (-1, 1):
+            tip = hy + dirn * 300 * s * ease_out(min(1.0, p / 0.3))
+            w = 18 * s * jet
+            a.poly([(hx - w, hy), (hx + w, hy), (hx + w * 0.3, tip), (hx - w * 0.3, tip)], ED_VIOLET, 220 * (1 - p))
+            a.line(hx, hy, hx, tip, WHITE, 255 * (1 - p), max(2, int(w * 0.4)))
+            for j in range(6):
+                a.glow(hx, lerp(hy, tip, j / 5), w * 2.5, ED_PURPLE, 0.9 * (1 - p))
+        for kk in range(4):
+            q = seg(p, kk * 0.07, 0.65 + kk * 0.07)
+            if q is not None:
+                rr = 15 * s + 260 * s * ease_out(q)
+                a.ring(hx, hy, rr, ED_VOID, 230 * (1 - q), max(3, 18 * s * (1 - q)))
+                a.ring(hx, hy, rr + 9 * s * (1 - q), ED_MAGENTA if kk % 2 else WHITE, 230 * (1 - q), 3)
+        a.burst(hx, hy, p, 30, 240 * s, ED_VIOLET, 6 * s, shape='shard', glow=0.4, key='sgshard')
+        a.burst(hx, hy, p, 24, 220 * s, WHITE, 3 * s, shape='streak', glow=0.5, key='sgstreak')
+        a.glow(hx, hy, 150 * s, ED_MAGENTA, 1.8 * (1 - p))
+        if p < 0.5:
+            a.shake(18 * (1 - p / 0.5))
+
+
 def anim_bitemark(a):
     _jaws(a, a.t, (60, 20, 80), 0.9, 6)
     p = seg(a.t, 0.45, 1.0)
@@ -3346,10 +3850,42 @@ def _hex_crystal(a, x, y, r, col, alpha, rot=0.0):
     a.lines(pts, WHITE, alpha, 2, closed=True)
 
 
+FROST_DEEP = (10, 30, 70)
+FROST_PALE = (200, 240, 255)
+
+
+def _snowflake(a, x, y, r, col, alpha, rot=0.0, width=3):
+    """Six-armed snowflake with side branches."""
+    if alpha <= 2 or r < 3:
+        return
+    for i in range(6):
+        ang = rot + i * TAU / 6
+        ca, sa = math.cos(ang), math.sin(ang)
+        a.line(x, y, x + ca * r, y + sa * r, col, alpha, width)
+        for f, bl in ((0.45, 0.32), (0.72, 0.22)):
+            bx, by = x + ca * r * f, y + sa * r * f
+            for side in (-1, 1):
+                ba = ang + side * 0.8
+                a.line(bx, by, bx + math.cos(ba) * r * bl, by + math.sin(ba) * r * bl, col, alpha, max(1, width - 1))
+        a.star(x + ca * r, y + sa * r, r * 0.09 + 2, WHITE, alpha, points=4, rot=ang)
+    _hex_crystal(a, x, y, r * 0.16, col, alpha, rot)
+
+
+def _glints(a, cx, cy, spread, n, key, k=1.0):
+    """Twinkling 4-point sparkles scattered around (cx, cy)."""
+    rng = a.rng(('glint', key))
+    for _ in range(n):
+        gx, gy = cx + rng.uniform(-spread, spread), cy + rng.uniform(-spread, spread)
+        tw = hump((a.t * rng.uniform(3, 6) + rng.random()) % 1.0) * k
+        if tw > 0.05:
+            a.star(gx, gy, 7 * a.s * tw, WHITE, 255 * tw, points=4, inner=0.2)
+            a.glow(gx, gy, 10 * a.s, ICE[0], 0.6 * tw)
+
+
 def anim_freeze_blast(a):
     t = a.t
-    # 1. Freezing beam
-    _beam(a, seg(t, 0.0, 0.45), ICE[0], 12 * a.s)
+    # 1. Freezing beam, wrapped in a frost helix
+    _beam(a, seg(t, 0.0, 0.45), ICE[0], 15 * a.s)
     p = seg(t, 0.0, 0.45)
     if p is not None:
         rng = a.rng('fb')
@@ -3357,7 +3893,19 @@ def anim_freeze_blast(a):
             u = rng.uniform(0, min(1, p / 0.35))
             x, y = a.travel(u)
             a.star(x + rng.uniform(-14, 14), y + rng.uniform(-14, 14), 5 * a.s, ICE[1], 230, points=3, rot=u * 9)
-        a.tint((20, 50, 90), 90 * p)
+        ang_t = a.angle_to_target()
+        nx, ny = -math.sin(ang_t), math.cos(ang_t)
+        reach = min(1.0, p / 0.35)
+        for strand in (1, -1):
+            pts = []
+            for j in range(19):
+                u = j / 18 * reach
+                x, y = a.travel(u)
+                off = strand * math.sin(u * TAU * 2.5 - t * 30) * 13 * a.s
+                pts.append((x + nx * off, y + ny * off))
+            a.lines(pts, WHITE, 200 * fade_late(p, 0.7), 2)
+        _snowflake(a, a.sx, a.sy, 26 * a.s * ease_out(min(1.0, p * 3)), ICE[1], 220 * fade_late(p, 0.6), t * 5, 2)
+        a.tint((20, 50, 90), 110 * p)
     # 2. Target encased in growing ice crystal
     p = seg(t, 0.35, 0.75)
     if p is not None:
@@ -3369,30 +3917,135 @@ def anim_freeze_blast(a):
             a.shard(a.tx + math.cos(ang) * d * 0.5, a.ty + math.sin(ang) * d * 0.5, 40 * a.s * g, ang,
                     ICE[0], 200)
         _hex_crystal(a, a.tx, a.ty, 50 * a.s * g, (190, 235, 255), 150)
-        a.glow(a.tx, a.ty, 70 * a.s, ICE[0], 0.8)
-        a.tint((20, 50, 90), 90)
+        a.ring(a.tx, a.ty, 70 * a.s * g, ICE[1], 160, 2)
+        _glints(a, a.tx, a.ty, 55 * a.s, 6, 'fb', g)
+        a.glow(a.tx, a.ty, 80 * a.s, ICE[0], 1.0)
+        a.tint((20, 50, 90), 110)
+        a.shake(2)
     # 3. Shatter
     p = seg(t, 0.72, 1.0)
     if p is not None:
-        a.burst(a.tx, a.ty, p, 30, 170 * a.s, ICE[1], 9 * a.s, shape='shard', glow=0.3, gravity=60)
+        a.burst(a.tx, a.ty, p, 34, 180 * a.s, ICE[1], 9 * a.s, shape='shard', glow=0.3, gravity=60)
         a.burst(a.tx, a.ty, p, 18, 120 * a.s, ICE[0], 7 * a.s, shape='shard', key=1, gravity=80)
+        a.burst(a.tx, a.ty, p, 14, 150 * a.s, WHITE, 3 * a.s, shape='star', key=2)
         a.ring(a.tx, a.ty, 30 * a.s + 140 * a.s * ease_out(p), WHITE, 230 * (1 - p), 4)
-        a.glow(a.tx, a.ty, 110 * a.s, ICE[1], 1.4 * (1 - p))
-        _strong_finish(a, p, ICE, 190, 10)
+        a.ring(a.tx, a.ty, 20 * a.s + 100 * a.s * ease_out(p), ICE[0], 200 * (1 - p), 3)
+        a.glow(a.tx, a.ty, 120 * a.s, ICE[1], 1.6 * (1 - p))
+        _strong_finish(a, p, ICE, 200, 11)
 
+
+# ── Hyperfrost (signature ice move — see DURATIONS) ────────────────────────
+# A blizzard rolls in and frost creeps over the screen -> a giant snowflake
+# sigil spins up behind the attacker as the cold gathers -> it fires a
+# spiralling absolute-zero beam -> a ring of glacier spikes erupts around the
+# target and seals it in a huge ice crystal under a vast snowflake ->
+# everything shatters in a white flash -> snow and glittering frost settle.
 
 def anim_hyperfrost(a):
-    t = a.t
-    base = a.ty + 45 * a.s
-    for i in range(7):  # ice spikes shoot up in quick succession
-        q = seg(t, i * 0.05, 0.2 + i * 0.05)
-        h = (60 + (i * 23) % 40) * a.s * (ease_out(q) if q is not None else (1 if t > 0.2 + i * 0.05 else 0))
-        x = a.tx + (i - 3) * 20 * a.s
-        al = 240 * fade_late(t, 0.7)
-        if h > 1:
-            a.poly([(x - 9 * a.s, base), (x + 9 * a.s, base), (x + (i - 3) * 2, base - h)], ICE[0], al)
-            a.poly([(x - 3 * a.s, base), (x + 2 * a.s, base), (x + (i - 3) * 2, base - h)], WHITE, al)
-    _impact(a, seg(t, 0.4, 1.0), ICE, 0.9)
+    t, s = a.t, a.s
+    W, H = a.W, a.H
+    d = 1 if a.tx >= a.sx else -1
+
+    # The blizzard: deep icy tint, frosted edges, snow whipping across the screen
+    cold = min(1.0, t / 0.12) * (1.0 if t < 0.85 else max(0.0, (1 - t) / 0.15))
+    a.tint(FROST_DEEP, 150 * cold)
+    _vignette(a, cold, FROST_PALE)
+    rng = a.rng('hfsnow')
+    for _ in range(40):
+        y0 = rng.uniform(0, H)
+        sp = rng.uniform(0.8, 1.6)
+        x = (rng.uniform(0, W) + d * t * W * sp) % W
+        y = y0 + t * 120 * sp
+        a.line(x, y % H, x - d * 14 * sp, y % H - 4, WHITE, 170 * cold, 2)
+
+    # 1. Charge: snowflake sigil spins up behind the attacker, cold pulled in
+    p = seg(t, 0.0, 0.34)
+    if p is not None:
+        g = ease_out(min(1.0, p / 0.7))
+        _snowflake(a, a.sx, a.sy, 70 * s * g, ICE[0], 200 * min(1.0, p * 3), t * 4, 4)
+        _snowflake(a, a.sx, a.sy, 45 * s * g, WHITE, 230 * min(1.0, p * 3), -t * 6, 2)
+        a.ring(a.sx, a.sy, 80 * s * g, ICE[1], 180 * g, 2)
+        a.implode(a.sx, a.sy, p, 40, 190 * s, WHITE, 2.4 * s, glow=0.35, swirl=3, key='hfin')
+        a.implode(a.sx, a.sy, p, 20, 130 * s, ICE[0], 3 * s, swirl=-2, key='hfin2')
+        a.glow(a.sx, a.sy, 70 * s * g, ICE[0], 1.5)
+        a.circle(a.sx, a.sy, 12 * s * g, WHITE, 255)
+        if p > 0.5:
+            a.shake(2.5)
+
+    # 2. Absolute-zero beam: thick core with crystal helixes spiralling round it
+    p = seg(t, 0.28, 0.56)
+    if p is not None:
+        reach = ease_out(min(1.0, p / 0.35))
+        w = 26 * s * (1.0 if p < 0.7 else max(0.0, (1 - p) / 0.3))
+        x2, y2 = a.travel(reach)
+        a.line(a.sx, a.sy, x2, y2, ICE[2], 200, w * 1.5)
+        a.line(a.sx, a.sy, x2, y2, ICE[0], 230, w)
+        a.line(a.sx, a.sy, x2, y2, WHITE, 255, max(2, w * 0.4))
+        ang_t = a.angle_to_target()
+        nx, ny = -math.sin(ang_t), math.cos(ang_t)
+        for strand in range(3):
+            pts = []
+            for j in range(25):
+                u = j / 24 * reach
+                x, y = a.travel(u)
+                off = math.sin(u * TAU * 3 - t * 40 + strand * TAU / 3) * 22 * s
+                pts.append((x + nx * off, y + ny * off))
+            a.lines(pts, FROST_PALE, 220 * (w / (26 * s) if w else 0), 3)
+            for j in range(0, 25, 4):
+                a.shard(pts[j][0], pts[j][1], 8 * s, ang_t + strand, WHITE, 230)
+        for i in range(8):
+            gx, gy = a.travel(reach * i / 7)
+            a.glow(gx, gy, w * 2.4, ICE[0], 1.0)
+        a.ring(a.sx, a.sy, 30 * s + 30 * s * math.sin(t * 50), WHITE, 200, 3)
+        a.shake(4)
+
+    # 3. Glacier: a ring of huge ice spikes erupts around the target
+    base = a.ty + 50 * s
+    p = seg(t, 0.48, 0.86)
+    if p is not None:
+        al = 245 * (1.0 if p < 0.8 else max(0.0, (1 - p) / 0.2))
+        for row, (n, spread, hmul) in enumerate(((7, 24, 1.3), (6, 20, 1.8))):   # back row taller
+            for i in range(n):
+                q = seg(p, (abs(i - n // 2) * 0.05) + row * 0.06, 0.3 + abs(i - n // 2) * 0.05 + row * 0.06)
+                grow = ease_out(q) if q is not None else (1.0 if p > 0.3 else 0.0)
+                h = (70 + (i * 29) % 50) * s * hmul * grow
+                if h < 2:
+                    continue
+                x = a.tx + (i - (n - 1) / 2) * spread * s * (2.2 if row == 0 else 1.6)
+                lean = (i - (n - 1) / 2) * 6 * s
+                by = base - row * 10 * s
+                wd = (18 - row * 3) * s
+                a.poly([(x - wd, by), (x + wd, by), (x + lean, by - h)], ICE[2] if row else ICE[0], al)
+                a.poly([(x - wd * 0.3, by), (x + wd * 0.5, by), (x + lean, by - h)], FROST_PALE, al)
+                a.line(x - wd * 0.1, by, x + lean, by - h, WHITE, al, 2)
+                a.glow(x + lean, by - h, 14 * s, ICE[1], 0.7 * grow)
+        # 4. Sealed in a huge crystal beneath a vast snowflake
+        g = ease_out(min(1.0, p / 0.4))
+        _hex_crystal(a, a.tx, a.ty, 58 * s * g, (180, 230, 255), 140 * (al / 245))
+        _snowflake(a, a.tx, a.ty - 10 * s, 120 * s * g, FROST_PALE, 200 * (al / 245), p * 2, 4)
+        _glints(a, a.tx, a.ty, 90 * s, 12, 'hf', al / 245)
+        a.ellipse(a.tx, base + 4 * s, 260 * s * g, 50 * s * g, FROST_PALE, 130 * (al / 245))
+        a.glow(a.tx, a.ty, 110 * s, ICE[0], 1.2)
+        a.shake(3 + 4 * p)
+
+    # 5. Shatter: white flash, the glacier explodes outward
+    p = seg(t, 0.8, 1.0)
+    if p is not None:
+        a.tint((235, 248, 255), 255 * max(0.0, 1 - p / 0.18) ** 2)
+        for kk in range(3):
+            q = seg(p, kk * 0.08, 0.7 + kk * 0.08)
+            if q is not None:
+                rr = 20 * s + 230 * s * ease_out(q)
+                a.ring(a.tx, a.ty, rr, ICE[0], 230 * (1 - q), max(3, 14 * s * (1 - q)))
+                a.ring(a.tx, a.ty, rr + 8 * s * (1 - q), WHITE, 230 * (1 - q), 2)
+        a.burst(a.tx, a.ty, p, 40, 240 * s, ICE[1], 11 * s, shape='shard', glow=0.3, gravity=90, key='hfs1')
+        a.burst(a.tx, a.ty, p, 24, 180 * s, ICE[0], 8 * s, shape='shard', gravity=120, key='hfs2')
+        a.burst(a.tx, a.ty, p, 20, 200 * s, WHITE, 3.5 * s, shape='star', key='hfs3')
+        a.glow(a.tx, a.ty, 160 * s, ICE[1], 1.8 * (1 - p))
+        if p < 0.5:
+            a.shake(15 * (1 - p / 0.5))
+        a.rain(p, 30, WHITE, a.tx - 160 * s, a.tx + 160 * s, a.ty - 150 * s, a.ty + 60 * s,
+               length=9 * s, key='hfflake', speed=1.0, shape='flake')
 
 
 def anim_hail_storm(a):
@@ -3434,26 +4087,121 @@ def anim_frozen_aura(a):
     a.glow(a.tx, a.ty, 70 * a.s, ICE[0], 0.7 * hump(t))
 
 
+# Deep Freeze: the temperature plunges -> frost creeps over the ground and in
+# toward the target through freezing mist -> it is flash-frozen in a faceted
+# ice block that grows icicles -> the ice cracks (its defense drops) and the
+# shell bursts apart in shards and frozen mist.
+
 def anim_deep_freeze(a):
-    t = a.t
+    t, s = a.t, a.s
+    tx, ty = a.tx, a.ty
+    base = ty + 45 * s
     rng = a.rng('deep')
-    grow = ease_out(min(1, t / 0.65))
-    al = 240 * fade_late(t, 0.75)
-    for i in range(8):  # branching frost creeping inward from the edges
-        ang = i * TAU / 8 + rng.uniform(-0.2, 0.2)
-        r0 = 90 * a.s
-        x0, y0 = a.tx + math.cos(ang) * r0, a.ty + math.sin(ang) * r0
-        x1 = lerp(x0, a.tx, grow * 0.9)
-        y1 = lerp(y0, a.ty, grow * 0.9)
-        a.line(x0, y0, x1, y1, ICE[1], al, 3)
-        for k in range(1, 4):
-            f = k / 4 * grow * 0.9
-            bx, by = lerp(x0, a.tx, f), lerp(y0, a.ty, f)
+    cold = min(1.0, t / 0.15) * fade_late(t, 0.8)
+    a.tint((15, 40, 80), 110 * cold)
+
+    # 1. Cold sets in: frozen ground, drifting snow, swirling freezing mist
+    grow = ease_out(min(1.0, t / 0.5))
+    a.ellipse(tx, base, 230 * s * grow, 56 * s * grow, FROST_PALE, 150 * cold)
+    a.ellipse(tx, base, 170 * s * grow, 38 * s * grow, WHITE, 90 * cold)
+    for i in range(10):                                  # frost ferns across the ground
+        ang = i * TAU / 10 + 0.2
+        L = 105 * s * grow
+        ex, ey = tx + math.cos(ang) * L, base + math.sin(ang) * L * 0.24
+        a.line(tx, base, ex, ey, WHITE, 200 * cold, 2)
+        for f in (0.4, 0.7):
+            bx, by = lerp(tx, ex, f), lerp(base, ey, f)
             for sgn in (-1, 1):
-                ba = ang + math.pi + sgn * 0.7
-                a.line(bx, by, bx + math.cos(ba) * 14 * a.s, by + math.sin(ba) * 14 * a.s, ICE[0], al, 2)
-    a.ellipse(a.tx, a.ty, 150 * a.s, 140 * a.s, ICE[2], 45 * grow * fade_late(t, 0.75))
-    _impact(a, seg(t, 0.6, 1.0), ICE, 0.8)
+                a.line(bx, by, bx + math.cos(ang + sgn * 0.7) * 12 * s, by + math.sin(ang + sgn * 0.7) * 3 * s,
+                       ICE[1], 180 * cold, 1)
+    for i in range(7):                                   # freezing mist circling the target
+        ang = i * TAU / 7 + t * 3
+        a.glow(tx + math.cos(ang) * 75 * s, ty + 15 * s + math.sin(ang) * 22 * s, 34 * s, FROST_PALE, 0.45 * cold)
+    a.rain(t, 22, WHITE, tx - 130 * s, tx + 130 * s, ty - 130 * s, base, length=8 * s, key='dfsnow',
+           speed=0.9, shape='flake', alpha=220 * cold)
+
+    # Branching frost tendrils creeping in on the target
+    p = seg(t, 0.0, 0.5)
+    if p is not None or t > 0.5:
+        g = ease_out(p) if p is not None else 1.0
+        al = 240 * fade_late(t, 0.7)
+        for i in range(10):
+            ang = i * TAU / 10 + rng.uniform(-0.2, 0.2)
+            r0 = 110 * s
+            x0, y0 = tx + math.cos(ang) * r0, ty + math.sin(ang) * r0
+            x1, y1 = lerp(x0, tx, g * 0.75), lerp(y0, ty, g * 0.75)
+            a.line(x0, y0, x1, y1, ICE[1], al, 3)
+            a.star(x1, y1, 5 * s, WHITE, al, points=4, rot=ang)
+            for k in range(1, 4):
+                f = k / 4 * g * 0.75
+                bx, by = lerp(x0, tx, f), lerp(y0, ty, f)
+                for sgn in (-1, 1):
+                    ba = ang + math.pi + sgn * 0.7
+                    a.line(bx, by, bx + math.cos(ba) * 15 * s, by + math.sin(ba) * 15 * s, ICE[0], al, 2)
+                    a.circle(bx + math.cos(ba) * 15 * s, by + math.sin(ba) * 15 * s, 2 * s, WHITE, al)
+
+    # 2. Flash-freeze: a faceted ice block forms over the target and grows icicles
+    p = seg(t, 0.38, 0.86)
+    if p is not None:
+        g = ease_out(min(1.0, p / 0.3))
+        al = 255 * (1.0 if p < 0.85 else max(0.0, (1 - p) / 0.15))
+        hw, top = 52 * s * g, ty - 62 * s * g
+        block = [(tx - hw, base), (tx - hw * 1.1, ty - 10 * s), (tx - hw * 0.6, top), (tx + hw * 0.5, top - 6 * s * g),
+                 (tx + hw * 1.1, ty - 18 * s), (tx + hw, base)]
+        a.poly(block, (150, 215, 250), 130 * (al / 255))
+        a.lines(block, WHITE, 230 * (al / 255), 2, closed=True)
+        for (x1, y1), (x2, y2) in ((block[2], (tx - 6 * s, ty + 4 * s)), (block[3], (tx - 6 * s, ty + 4 * s)),
+                                   (block[4], (tx - 6 * s, ty + 4 * s)), (block[1], (tx - 6 * s, ty + 4 * s))):
+            a.line(x1, y1, x2, y2, FROST_PALE, 150 * (al / 255), 1)          # facet edges
+        a.poly([block[2], block[3], (tx - 6 * s, ty + 4 * s)], WHITE, 60 * (al / 255))   # lit top facet
+        for i in range(6):                                                    # icicles along the base
+            ix = tx + (i - 2.5) * 17 * s
+            ih = (10 + (i * 7) % 12) * s * ease_out(min(1.0, max(0.0, p - 0.1) / 0.3))
+            a.poly([(ix - 5 * s, base - 2 * s), (ix + 5 * s, base - 2 * s), (ix, base + ih)], FROST_PALE, al)
+        for i in range(3):                                                    # snowflakes orbiting the block
+            ang = i * TAU / 3 + t * 5
+            _snowflake(a, tx + math.cos(ang) * 78 * s, ty - 10 * s + math.sin(ang) * 26 * s, 11 * s, WHITE,
+                       220 * (al / 255), t * 6, 2)
+        _glints(a, tx, ty - 10 * s, 55 * s, 7, 'df', al / 255)
+        a.glow(tx, ty, 80 * s, ICE[0], 0.45 * (al / 255))
+        q = seg(p, 0.0, 0.15)
+        if q is not None:                                                     # the instant it freezes
+            a.tint((220, 245, 255), 170 * (1 - q))
+            a.ring(tx, ty, 30 * s + 90 * s * ease_out(q), WHITE, 230 * (1 - q), 3)
+        a.shake(3 if p < 0.2 else 1)
+
+        # 3. The ice cracks (defense down)
+        c = seg(p, 0.45, 0.8)
+        if c is not None or p > 0.8:
+            reach = ease_out(c) if c is not None else 1.0
+            crng = a.rng('dfcrack')
+            for i in range(5):
+                ang = crng.uniform(0, TAU)
+                pts = [(tx, ty - 8 * s)]
+                x, y = pts[0]
+                for j in range(5):
+                    ang += crng.uniform(-0.6, 0.6)
+                    step = 13 * s * reach
+                    x, y = x + math.cos(ang) * step, y + math.sin(ang) * step * 0.9
+                    pts.append((x, y))
+                a.lines(pts, ICE[2], 255 * (al / 255), 4)
+                a.lines(pts, WHITE, 255 * (al / 255), 2)
+            if c is not None and c < 0.3:
+                a.shake(4)
+
+    # 4. Shatter: the shell bursts into shards and frozen mist
+    p = seg(t, 0.8, 1.0)
+    if p is not None:
+        a.burst(tx, ty, p, 26, 150 * s, FROST_PALE, 8 * s, shape='shard', glow=0.3, gravity=110, key='dfs1')
+        a.burst(tx, ty, p, 14, 110 * s, ICE[0], 6 * s, shape='shard', gravity=140, key='dfs2')
+        a.burst(tx, ty, p, 12, 120 * s, WHITE, 3 * s, shape='star', key='dfs3')
+        a.ring(tx, ty, 30 * s + 120 * s * ease_out(p), WHITE, 230 * (1 - p), 3)
+        for i in range(8):
+            ang = i * TAU / 8
+            d = 40 * s + 70 * s * ease_out(p)
+            a.glow(tx + math.cos(ang) * d, ty + math.sin(ang) * d * 0.6, 30 * s, FROST_PALE, 0.6 * (1 - p))
+        a.glow(tx, ty, 100 * s, ICE[1], 1.3 * (1 - p))
+        _strong_finish(a, p, ICE, 150, 8)
 
 
 def _tp_clock(a, r, alpha, hand_ang):
@@ -4078,6 +4826,7 @@ ANIMATIONS = {
     'Fireball+': anim_fireball_plus,
     'Lava Burst': anim_lava_burst,
     'Solar Flare': anim_solar_flare,
+    'Supernova': anim_supernova,
     'Flame Shatter': anim_flame_shatter,
     'Magma Boost': anim_magma_boost,
     # Earth
@@ -4133,6 +4882,7 @@ ANIMATIONS = {
     'Force Shift': anim_force_shift,
     'Dark Energy': anim_dark_energy,
     'Void Collapse': anim_void_collapse,
+    'Singularity': anim_singularity,
     'Eternal Darkness': anim_eternal_darkness,
     'Bitemark': anim_bitemark,
     'Distortion': anim_distortion,
@@ -4184,6 +4934,45 @@ def _make_fallback(mtype):
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
+_WARP_MASKS = {}
+WARP_RINGS = 12
+
+
+def _disc_mask(r):
+    m = _WARP_MASKS.get(r)
+    if m is None:
+        if len(_WARP_MASKS) > 300:
+            _WARP_MASKS.clear()
+        m = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+        m.fill((255, 255, 255, 0))
+        pygame.draw.circle(m, (255, 255, 255, 255), (r, r), r)
+        _WARP_MASKS[r] = m
+    return m
+
+
+def _apply_warp(screen, x, y, R, twist):
+    """Twirl: concentric discs of the scene, each rotated a little more toward
+    the center, so space looks like it is being wound into (x, y)."""
+    sw, sh = screen.get_size()
+    R = min(R, x, y, sw - x, sh - y)     # never pull off-screen (black) pixels in
+    if R < 8:
+        return
+    src = pygame.Surface((R * 2, R * 2))
+    src.blit(screen, (0, 0), pygame.Rect(x - R, y - R, R * 2, R * 2))
+    for i in range(1, WARP_RINGS):
+        f = 1 - i / WARP_RINGS
+        ri = int(R * f)
+        if ri < 4:
+            break
+        disc = src.subsurface(pygame.Rect(R - ri, R - ri, ri * 2, ri * 2))
+        rot = pygame.transform.rotate(disc, twist * (1 - f) ** 0.8)
+        pw, ph = rot.get_size()
+        piece = pygame.Surface((ri * 2, ri * 2), pygame.SRCALPHA)
+        piece.blit(rot, (ri - pw // 2, ri - ph // 2))
+        piece.blit(_disc_mask(ri), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        screen.blit(piece, (x - ri, y - ri))
+
+
 class MoveAnimation:
     """One playing move animation. Positions are screen-space (config.WIDTH x HEIGHT)."""
 
@@ -4204,6 +4993,7 @@ class MoveAnimation:
         self.tint_surf = pygame.Surface(self.size)
         self.tint = None
         self.shake_px = 0
+        self.warps = []
 
     @property
     def done(self):
@@ -4220,9 +5010,12 @@ class MoveAnimation:
         self.glow.fill(BLACK)
         self.tint = None
         self.shake_px = 0
+        self.warps = []
 
         self.fn(_Frame(self, t))
 
+        for w in self.warps:
+            _apply_warp(screen, *w)
         if self.tint:
             col, alpha = self.tint
             self.tint_surf.fill(col)

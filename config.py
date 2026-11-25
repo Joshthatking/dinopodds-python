@@ -166,6 +166,18 @@ ENCOUNTER_DINOS_PATHS = {
     'Browler2':         os.path.join(DINOS_FRONT, 'Browler.png'),
     'Scarlust':         os.path.join(DINOS_FRONT, 'Scarlust.png'),
     'Scarlust2':        os.path.join(DINOS_FRONT, 'Scarlust.png'),
+    'Relucturen':       os.path.join(DINOS_FRONT, 'Relucturen.png'),
+    'Relucturen2':      os.path.join(DINOS_FRONT, 'Relucturen.png'),
+    'Malmallow':        os.path.join(DINOS_FRONT, 'Malmallow.png'),
+    'Malmallow2':       os.path.join(DINOS_FRONT, 'Malmallow.png'),
+    'Mallowking':       os.path.join(DINOS_FRONT, 'Mallowking.png'),
+    'Mallowking2':      os.path.join(DINOS_FRONT, 'Mallowking.png'),
+    'Frynx':            os.path.join(DINOS_FRONT, 'Frynx.png'),
+    'Frynx2':           os.path.join(DINOS_FRONT, 'Frynx.png'),
+    'Crystalynx':       os.path.join(DINOS_FRONT, 'Crystalynx.png'),
+    'Crystalynx2':      os.path.join(DINOS_FRONT, 'Crystalynx.png'),
+    'Mayvoid':          os.path.join(DINOS_FRONT, 'Mayvoid.png'),
+    'Mayvoid2':         os.path.join(DINOS_FRONT, 'Mayvoid.png'),
 }
 
 NPC_SHEETS = {
@@ -201,6 +213,7 @@ NPC_SHEETS = {
     'carrie':             os.path.join('assets', 'NPC', 'lady2.png'),
     'deimo':              os.path.join('assets', 'NPC', 'Deimo_overworld.png'),
     'vy':                 os.path.join('assets', 'NPC', 'VY_overworld.png'),
+    'saydie':             os.path.join('assets', 'NPC', 'saydie.png'),
 }
 
 # Static (non-4x4-sheet) NPC images scaled down to fit inside this (w, h)
@@ -310,6 +323,7 @@ DIALOGUE_PORTRAITS = {
     'Hannah':  'basic_trainer_girl',
     'Tommy':   'basic_trainer',
     'Gracie':  'carrie',   # lady2.png
+    'Saydie':  'saydie',
 }
 
 DOUBLE_BATTLE_BG_PATH = os.path.join('assets', 'SCREENS', 'Grass_Double Battles.png')
@@ -348,6 +362,9 @@ WORLD_NPCS = {
 
         # Lore NPC — worried about the solar panels' damage
         ('solar_lady', 33, -17, 'down', 0, 'story'),
+
+        # Saydie side quest — talk to her on 5 different days/nights (ANIM/saydie_quest.py)
+        ('saydie', -112, -24, 'left', 0, 'story'),
 
         # Lore NPC — rumors of Horizon Cave to the north
         ('horizon_beard', 88, -66, 'down', 0, 'story'),

@@ -852,13 +852,20 @@ DINODEX_DATA = {
     'Ghoslink':   {'number': 21, 'desc': "A restless spirit that drifts through the Corn Maze after dark, dragging a rattling chain behind it and a vacuum. Farmers say the clinking of its links is the first sign a ghost is near."},
     'Scarlust':   {'number': 23, 'desc': "Prowscar's evolved form, wreathed in violet flames that burn cold to the touch. It stalks its prey from the shadows, and its scars glow brighter with every battle it survives."},
     'Browler':    {'number': 13, 'desc': "Pectura's evolved form, its feathers burn like a living sunrise. It is rumored to be a long descendant of the solar celestial."},
+    # New dinos — placeholder numbers/descriptions
+    'Relucturen': {'number': 47, 'desc': "A spined serpent that coils through dark waters and caverns. Its jagged back can shred anything that tries to swallow it."},
+    'Malmallow':  {'number': 48, 'desc': "A little marshmallow dino with a flame forever burning on its head. It carries a roasting stick everywhere it goes."},
+    'Mallowking': {'number': 49, 'desc': "Malmallow's evolved form, crowned in fire. It wields a blazing staff and rules over every campfire in the region."},
+    'Frynx':      {'number': 50, 'desc': "A shaggy lynx cub whose fur is tipped with frost. It pounces on prey from snowbanks without a sound."},
+    'Crystalynx': {'number': 51, 'desc': "Frynx's evolved form. Ice crystals have grown through its mane like armor, and its breath freezes the air around it."},
+    'Mayvoid':    {'number': 52, 'desc': "A raven of the void whose feathers swirl with starlight. Its call is said to be heard just before the lights go out."},
 
 }
 
 DINO_DATA = {
     'Vusion': {
         'stats': {'type': ['dark'], 'health': 100, 'attack': 155, 'defense': 90, 'speed': 125},
-        'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Thunder Blitz', 20: 'Distortion', 23: 'Lava Burst', 27: 'Binding Curse', 30: 'Haunt', 32: 'Temporal Pincer', 35: 'Void Collapse', 38: 'Spectral Overload', 42: 'Ultra Violet'},
+        'moves': {0: 'Dark Energy', 1: 'Flash', 9: 'Fireball', 14: 'Force Shift', 16: 'Shadow Veil', 18: 'Thunder Blitz', 20: 'Distortion', 23: 'Lava Burst', 27: 'Binding Curse', 30: 'Haunt', 32: 'Temporal Pincer', 35: 'Void Collapse', 38: 'Spectral Overload', 42: 'Ultra Violet', 45:'Singularity'},
         'evolve': None},
     'Anemamace': {
         'stats': {'type': ['aqua','spike'], 'health': 140, 'attack': 115, 'defense': 120, 'speed':80},
@@ -873,7 +880,7 @@ DINO_DATA = {
         'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 26: 'Mach Speed', 29: 'Shadow Veil', 32: 'Wind Fracture', 36: 'Void Collapse', 40: 'Sky Scorch' },
         'evolve': {15: 'Luna'}},
     'Luna': {
-        'stats': {'type': ['flying', 'dark'], 'health': 105, 'attack': 120, 'defense': 80, 'speed':135},
+        'stats': {'type': ['flying', 'dark'], 'health': 105, 'attack': 120, 'defense': 93, 'speed':132},
         'moves': {0: 'Air Strike', 1: 'Arise', 5: 'Sand Kick', 8: 'Dark Energy', 12: 'Swift Sneak', 14: 'Fear', 17: 'Force Shift', 21: 'Turbo Booster', 24: 'Velo Induction', 26: 'Mach Speed', 29: 'Shadow Veil', 34: 'Wind Fracture', 38: 'Void Collapse', 41: 'Sky Scorch' },
         'evolve': None},
     'Prowscar': {
@@ -897,7 +904,7 @@ DINO_DATA = {
         'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Fossil Break', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 21: 'Mach Speed', 25: 'Ripping Impact'},
         'evolve': {22: 'Netyrant'}},
     'Netyrant': {
-        'stats': {'type': ['flying', 'spike'], 'health': 110, 'attack': 139, 'defense': 78, 'speed': 122},
+        'stats': {'type': ['flying', 'spike'], 'health': 111, 'attack': 139, 'defense': 82, 'speed': 122},
         'moves': {0: 'Air Strike', 1: 'Arise', 6: 'Fear', 9: 'Lock Jaw', 12: 'Static Graze', 15: 'Double Jab', 17:'Rushdown', 20: 'Mach Speed', 22: 'Ripping Impact', 26: 'Wind Fracture', 30: 'Sword Slash', 33: 'Turbo Booster', 37: 'Spike Storm', 40: 'Sky Scorch'},
         'evolve': None},
     'Sortle': {
@@ -905,23 +912,23 @@ DINO_DATA = {
         'moves': {0: 'Dust Beam', 1: 'Arise', 8: 'Sand Kick', 12: 'Air Strike', 15: 'Venom Decay', 17: 'Boulder Smash', 22:'Sand Storm', 24: 'Iron Core', 26: 'Power Fang', 30: 'Dust Devil', 33: 'Crusher', 36 :'Crash Impact'},
         'evolve': None},
     'Sharktastrophe': {
-        'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 119, 'defense': 114, 'speed': 122},
+        'stats': {'type': ['aqua', 'spike'], 'health': 90, 'attack': 122, 'defense': 117, 'speed': 122},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21:'Haunt', 23: 'Rip Current', 25: 'Primal Rage', 28: 'Ripping Impact', 31: 'Hurricane', 35: 'Sword Slash', 37: 'Eternal Blue', 39: 'Spike Storm'},
         'evolve': None},
     'Deimo': {
         'stats': {'type': ['dark', 'ancient'], 'health': 115, 'attack': 130, 'defense': 140, 'speed': 135},
-        'moves': {0: 'Dark Energy', 1: 'Fossil Break', 8: 'Fear', 12: 'Shadow Veil', 15: 'Force Shift', 17: 'Haunt', 20: 'Binding Curse', 24: 'Primal Rage', 26: 'Wind Fracture', 28: 'Lava Burst',  30: 'Ancient Mend', 34: 'Void Collapse', 40: 'Dragon Zenith', 45: 'Eternal Darkness'},
+        'moves': {0: 'Dark Energy', 1: 'Fossil Break', 8: 'Fear', 12: 'Shadow Veil', 15: 'Force Shift', 17: 'Haunt', 20: 'Binding Curse', 24: 'Primal Rage', 26: 'Wind Fracture', 28: 'Lava Burst',  30: 'Ancient Mend', 34: 'Void Collapse',38:'Singularity', 40: 'Dragon Zenith', 45: 'Eternal Darkness'},
         'evolve': None},
     'VY': {
         'stats': {'type': ['light', 'magma'], 'health': 110, 'attack': 155, 'defense': 105, 'speed': 150},
-        'moves': {0: 'Prism Glare', 1: 'Air Strike', 8: 'Fireball', 12: 'Piercing Light', 17: 'Refraction', 21: 'Mach Speed', 25: 'Flame Shatter', 29: 'Spectral Overload', 34: 'Solar Flare', 37: 'Gamma Wave', 40: 'Ultra Violet', 42: 'Sky Scorch', 45: 'Infinite Light'},
+        'moves': {0: 'Prism Glare', 1: 'Air Strike', 8: 'Fireball', 12: 'Piercing Light', 17: 'Refraction', 21: 'Mach Speed', 25: 'Flame Shatter', 29: 'Spectral Overload', 34: 'Solar Flare', 37: 'Gamma Wave',39:'Supernova', 40: 'Ultra Violet', 42: 'Sky Scorch', 45: 'Infinite Light'},
         'evolve': None},
     'Sharka': {
         'stats': {'type': ['aqua'], 'health': 65, 'attack': 88, 'defense': 70, 'speed': 90},
         'moves': {0: 'Whirlpool', 1: 'Arise', 5: 'Bitemark', 8: 'Quick Slash', 14: 'Wave Dash', 18: 'Double Jab', 21: 'Haunt'},
         'evolve': {21: 'Sharktastrophe'}},
     'Magnecrab': {
-        'stats': {'type': ['aqua', 'lightning'], 'health': 140, 'attack': 105, 'defense': 89, 'speed': 105},
+        'stats': {'type': ['aqua', 'lightning'], 'health': 140, 'attack': 110, 'defense': 89, 'speed': 105},
         'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Static Graze', 14: 'Shock', 18: 'Double Jab', 20:'Lightning Bolt', 23: 'Hurricane', 26: 'Ripping Impact', 28: 'Conduit Surge', 31: 'Quantum Flux', 33: 'Eternal Blue'},
         'evolve': None},
     'Volkit': {
@@ -934,7 +941,7 @@ DINO_DATA = {
         'evolve': None},
     'Auraliz': {
         'stats': {'type': ['ice', 'aqua'], 'health': 92, 'attack': 118, 'defense': 117, 'speed': 123},
-        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane',25 : 'Hail Storm', 27: 'Hyperfrost', 29: 'Deep Freeze', 31: 'Freeze Blast', 35:'Eternal Blue'},
+        'moves': {0: 'Whirlpool', 1: 'Arise', 8: 'Snowfall', 12: 'Venom Decay', 17: 'Frozen Aura', 20: 'Power Fang', 23: 'Hurricane',25 : 'Hail Storm', 27: 'Freeze Blast', 29: 'Deep Freeze', 31: 'Hyperfrost', 35:'Eternal Blue'},
         'evolve': None},
     'Voltzbee': {
         'stats': {'type': ['lightning'], 'health': 77, 'attack': 113, 'defense': 88, 'speed': 142},
@@ -983,11 +990,11 @@ DINO_DATA = {
 
     'Rhysnow': {
         'stats': {'type': ['ice'], 'health': 90, 'attack': 88, 'defense': 102, 'speed': 55},
-        'moves': {0: 'Arise', 4: 'Fossil Break', 9: 'Snowfall', 15: 'Boulder Smash', 18: 'Hail Storm', 20: 'Raging Pursuit',  22: 'Double Jab',  25: 'Deep Freeze'},
+        'moves': {0: 'Arise', 4: 'Fossil Break', 9: 'Snowfall', 15: 'Boulder Smash',  18: 'Hail Storm', 20: 'Raging Pursuit', 22: 'Double Jab', 23: 'Hail Storm', 25: 'Deep Freeze', 27: 'Frozen Aura',30: 'Momentum', 34: 'Hyperfrost', 36:'Archaic Aura', 38: 'Crash Impact'},
         'evolve': {25: 'Rhinecicle'}},
     'Rhinecicle': {
         'stats': {'type': ['ice', 'rock'], 'health': 110, 'attack': 120, 'defense': 145, 'speed': 75},
-        'moves': {0: 'Arise', 4: 'Fossil Break', 9: 'Snowfall', 15: 'Boulder Smash',  18: 'Hail Storm', 20: 'Raging Pursuit', 22: 'Double Jab', 23: 'Hail Storm', 25: 'Deep Freeze', 27: 'Frozen Aura',30: 'Momentum', 34: 'Freeze Blast', 36:'Archaic Aura', 38: 'Crash Impact'},
+        'moves': {0: 'Arise', 4: 'Fossil Break', 9: 'Snowfall', 15: 'Boulder Smash',  18: 'Hail Storm', 20: 'Raging Pursuit', 22: 'Double Jab', 23: 'Hail Storm', 25: 'Deep Freeze', 27: 'Frozen Aura',30: 'Momentum', 34: 'Hyperfrost', 36:'Archaic Aura', 38: 'Crash Impact'},
         'evolve': None},
     'Celestreeyl': {
         'stats': {'type': ['earth', 'light'], 'health': 109, 'attack': 139, 'defense': 109, 'speed': 129},
@@ -995,8 +1002,8 @@ DINO_DATA = {
         'evolve': None},
 
     'Seasoo': {
-        'stats': {'type': ['aqua', 'earth'], 'health': 120, 'attack': 88, 'defense': 114, 'speed': 110},
-        'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 25: 'Hyperfrost', 27: 'Hurricane', 29:'Rip Current', 30: 'Terraform', 35: 'Tree Spin', 38: 'Eternal Blue'},
+        'stats': {'type': ['aqua', 'earth'], 'health': 138, 'attack': 88, 'defense': 114, 'speed': 110},
+        'moves': {0: 'Arise', 3: 'Whirlpool', 7: 'Vine Snare', 12: 'Synthesis', 17: 'Wave Dash', 22: 'Dread Thorn', 25: 'Deep Freeze', 27: 'Hurricane', 29:'Rip Current', 30: 'Terraform', 35: 'Tree Spin', 38: 'Eternal Blue'},
         'evolve': None},
     'Chomper': {
         'stats': {'type': ['ancient'], 'health': 125, 'attack': 119, 'defense': 112, 'speed': 92},
@@ -1019,7 +1026,7 @@ DINO_DATA = {
 
     'Frostle': {
         'stats': {'type': ['ice'], 'health': 121, 'attack': 118, 'defense': 97, 'speed': 94},
-        'moves': {0: 'Snowfall', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Deep Freeze', 22: 'Hail Storm', 24: 'Iron Core', 26: 'Power Fang', 28: 'Frozen Aura', 30:'Temporal Pincer', 33: 'Hyperfrost', 36: 'Freeze Blast'},
+        'moves': {0: 'Snowfall', 1: 'Arise', 8: 'Sand Kick', 12: 'Quick Slash', 15: 'Venom Decay', 17: 'Deep Freeze', 22: 'Hail Storm', 24: 'Iron Core', 26: 'Power Fang', 28: 'Frozen Aura', 30:'Temporal Pincer', 33: 'Freeze Blast', 36: 'Hyperfrost'},
         'evolve': None},
 
     'Typhoonray': {
@@ -1043,13 +1050,44 @@ DINO_DATA = {
         'evolve': {15: 'Browler'}},
 
     'Browler': {
-        'stats': {'type': ['magma', 'flying'], 'health': 95, 'attack': 117, 'defense': 115, 'speed': 113},
+        'stats': {'type': ['magma', 'flying'], 'health': 98, 'attack': 114, 'defense': 121, 'speed': 117},
         'moves': {0: 'Fireball', 1: 'Air Strike', 5: 'Flash', 9: 'Swift Sneak', 13: 'Prism Glare', 15: 'Flame Shatter', 20: 'Mach Speed', 23: 'Lava Burst', 25: 'Piercing Light' , 27: 'Wind Fracture', 30: 'Magma Boost', 33: 'Turbo Booster', 36: 'Solar Flare', 40: 'Sky Scorch'},
         'evolve': None},
 
     'Ghoslink': {
         'stats': {'type': ['dark'], 'health': 106, 'attack': 117, 'defense': 142, 'speed': 88},
         'moves': {0: 'Dark Energy', 1: 'Fear', 5: 'Whirlpool', 9: 'Chain Rip', 15: 'Force Shift', 17: 'Haunt', 19: 'Binding Curse', 21:'Shadow Veil', 24: 'Velo Induction', 26: 'Distortion', 29: 'Leaf Ultima', 33: 'Void Collapse'},
+        'evolve': None},
+
+    # ── New dinos: FULL GAME 
+    'Relucturen': {
+        'stats': {'type': ['aqua', 'dark'], 'health': 110, 'attack': 128, 'defense': 121, 'speed': 98},
+        'moves': {0: 'Bitemark', 1: 'Fear', 6: 'Whirlpool', 10: 'Dark Energy', 14: 'Quick Slash', 17: 'Venom Decay', 20: 'Chain Rip', 22: 'Force Shift', 24:'Rip Current', 26: 'Ripping Impact',28:'Hurricane', 30: 'Haunt', 32:'Void Collapse',35:'Eternal Blue', 38: 'Spike Storm'},
+        'evolve': None},
+
+    'Malmallow': {
+        'stats': {'type': ['magma', 'spike'], 'health': 100, 'attack': 105, 'defense': 110, 'speed': 85},
+        'moves': {0: 'Fireball', 1: 'Arise', 5: 'Flash', 9: 'Quick Slash', 13: 'Flame Shatter', 18: 'Double Jab', 22: 'Lava Burst', 25:'Raging Pursuit', 28:'Piercing Light', 30: 'Sword Slash', 32: 'Magma Boost', 35: 'Solar Flare', 37:'Spike Storm'},
+        'evolve': {30: 'Mallowking'}},
+
+    'Mallowking': {
+        'stats': {'type': ['magma', 'spike'], 'health': 110, 'attack': 117, 'defense': 133, 'speed': 100},
+        'moves': {0: 'Fireball', 1: 'Arise', 5: 'Flash', 9: 'Quick Slash', 13: 'Flame Shatter', 18: 'Double Jab', 22: 'Lava Burst', 25:'Raging Pursuit', 28:'Piercing Light', 30: 'Sword Slash', 32: 'Magma Boost', 35: 'Solar Flare', 37:'Spike Storm'},
+        'evolve': None},
+
+    'Frynx': {
+        'stats': {'type': ['ice'], 'health': 85, 'attack': 111, 'defense': 107, 'speed': 101},
+        'moves': {0: 'Bitemark', 1: 'Arise', 5: 'Snowfall', 9: 'Quick Slash', 15: 'Rushdown', 18: 'Power Fang', 20: 'Deep Freeze', 22: 'Hail Storm', 26: 'Frozen Aura', 29: 'Freeze Blast',33:'Raging Pursuit', 36: 'Hyperfrost', 39: 'Spike Storm', 43:'Archaic Aura'},
+        'evolve': {29: 'Crystalynx'}},
+
+    'Crystalynx': {
+        'stats': {'type': ['ice', 'spike'], 'health': 95, 'attack': 127, 'defense': 121, 'speed': 116},
+        'moves': {0: 'Bitemark', 1: 'Arise', 5: 'Snowfall', 9: 'Quick Slash', 15: 'Rushdown', 18: 'Power Fang', 20: 'Deep Freeze', 22: 'Hail Storm', 26: 'Frozen Aura', 29: 'Freeze Blast',33:'Raging Pursuit', 36: 'Hyperfrost', 39: 'Spike Storm', 43:'Archaic Aura'},
+        'evolve': None},
+
+    'Mayvoid': {
+        'stats': {'type': ['light', 'dark'], 'health': 125, 'attack': 140, 'defense': 132, 'speed': 123},
+        'moves': {0: 'Air Strike', 1: 'Dark Energy', 5: 'Fear', 9: 'Swift Sneak', 13: 'Prism Glare', 18: 'Haunt', 22: 'Wind Fracture',24:'Shadow Veil', 26: 'Piercing Light', 30: 'Void Collapse', 34: 'Spectral Overload', 38: 'Ultra Violet', 40:'Singularity', 47: 'Sky Scorch'},
         'evolve': None},
 
 }
@@ -1256,6 +1294,7 @@ MOVE_DATA = {
     'Fireball+': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'magma'},
     'Lava Burst': {'target': 'opponent', 'damage': 65, 'accuracy': 100, 'ability': None, 'type': 'magma'},
     'Solar Flare': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'magma'},
+    'Supernova': {'target': 'opponent', 'damage': 100, 'accuracy': 90, 'ability': None, 'type': 'magma'},
 
     'Flame Shatter':   {'target': 'opponent', 'damage': 50, 'accuracy': 95, 'type': 'magma',
                     'ability': {'kind': 'stat_boost', 'stat': 'attack', 'stages': -1, 'target': 'opponent', 'chance': 100}},
@@ -1354,6 +1393,7 @@ MOVE_DATA = {
     'Force Shift': {'target': 'opponent', 'damage': 45, 'accuracy': 100, 'ability': None,'type': 'dark'},
     'Dark Energy': {'target': 'opponent', 'damage': 35, 'accuracy': 100, 'ability': None, 'type': 'dark'},
     'Void Collapse': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'dark', 'pierces_defend': True},
+    'Singularity': {'target': 'opponent', 'damage': 100, 'accuracy': 90, 'ability': None, 'type': 'dark'},
     'Bitemark': {'target': 'opponent', 'damage': 30, 'accuracy': 100, 'ability': None, 'type': 'dark'},
 
     'Distortion':   {'target': 'opponent', 'damage': 5, 'accuracy': 100, 'type': 'dark', 'priority':1,
@@ -1390,8 +1430,8 @@ MOVE_DATA = {
                        'ability': {'kind': 'recharge', 'chance': 100}},
     #ICE MOVES
     'Snowfall': {'target': 'opponent', 'damage': 40, 'accuracy': 100, 'ability': None, 'type': 'ice'},
-    'Freeze Blast': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'ice'},
-    'Hyperfrost': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'ice', 'pierces_defend': True},
+    'Hyperfrost': {'target': 'opponent', 'damage': 80, 'accuracy': 100, 'ability': None, 'type': 'ice'},
+    'Freeze Blast': {'target': 'opponent', 'damage': 55, 'accuracy': 100, 'ability': None, 'type': 'ice', 'pierces_defend': True},
 
     'Hail Storm': {'target': 'opponent', 'damage': 25, 'accuracy': 90, 'type': 'ice',
                    'ability': {'kind': 'dot', 'damage_flat': 8, 'turns': 3,
@@ -1977,6 +2017,24 @@ WORLD_ZONE_REGIONS = {
         _map_rect(31, -3, 'HC_blue'),    # HORIZON_CAVE6
         _map_rect(31, -18, 'HC_blue'),   # HORIZON_CAVE7
     ],
+}
+
+
+# Region Map (Menu > Map): display name -> the overworld encounter zones it
+# covers. 'palm_water' is listed under both Route 4 and Palm Port and split
+# by position — see screens.map_area_for_zone.
+MAP_AREAS = {
+    'Route 1':          ('route1_grass', 'route1+_grass', 'route1_special'),
+    'Sierra Town':      ('town1_grass',),
+    'Route 2':          ('route2_grass', 'route2_burnt_grass', 'route2_belowcorn'),
+    'Corn Maze':        ('corn_maze',),
+    'Route 3':          ('route3',),
+    'Power Plant':      ('powerplant_outside',),
+    'Lake Meridian':    ('lakeM_snowL', 'lakeM_snowR', 'lake1L', 'lake1R', 'lake_water1'),
+    'Horizon Cave Grass': ('horizon_entrance',),
+    'Silverleaf Coast': ('spawn_water',),
+    'Route 4':          ('palm_water',),
+    'Palm Port':        ('palm_water',),
 }
 
 

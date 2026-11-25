@@ -439,8 +439,23 @@ if __name__ == '__main__':
 #11/2
 # Quick spawn adjustments
 # MAC issue fix v1
+# MAP?
 
 #ALPHA COMPLETE
+
+# BETA - BEGIN FULL GAME DEV 
+#11/5
+# Toggle Screen Dimension Normal/Large  
+# Eternal Blue/Leaf Enigma/Solar Flare animation Updates
+
+#11/6
+# Add Mayvoid,Malmallow,Mallowking, Frynx, Crystalynx, Relucturen
+# BALANCING - buff luna/browler/netyrant/seasoo/magnecrab/sharktastrophe
+# MOVES - swap Hyperfrost:Freeze Blast - Singularity/Supernova
+
+# NEW DINO
+# Axolotyl aqua ancient, dragonlike with black,pink, dark blue colors, dragonback scales armor, 
+
 
 
 

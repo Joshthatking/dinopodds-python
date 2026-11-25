@@ -1,7 +1,7 @@
 """LAKE AURORA — Lake Meridian's "iridescent lights".
 
 While the player is in Lake Meridian (LAKE_RECT on the overworld), every
-45-60 seconds of walking around a faint northern-lights show plays for
+15-30 seconds of walking around a faint northern-lights show plays for
 5 seconds: waving colour curtains across the top of the screen, motes of
 light drifting up off the lake's water tiles, and a soft pulse at the
 Horizon Cave mouth. Then it fades back to normal and the timer restarts.
@@ -23,7 +23,7 @@ LAKE_WORLD = 'LOST_REGION.world'
 LAKE_RECT  = (-20, -120, 55, -75)
 CAVE_ENTRANCE_ID = 'horizon'
 
-INTERVAL = (35.0, 50.0)   # seconds between shows (only counted while in the lake)
+INTERVAL = (15.0, 30.0)  # seconds between shows (only counted while in the lake)
 DURATION = 5.0
 FADE_IN  = 1.2
 FADE_OUT = 1.6

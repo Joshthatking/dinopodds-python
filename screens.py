@@ -1,10 +1,12 @@
 import os
 import re
+import json
 import math
 import random
 import pygame
 import config
 from data import *
+from randomizer import PALM_PORT_EDGE_X
 from story import QUEST_STEPS, QUEST_LOG
 from ANIM.title_anim import TitleBackdrop, TitleLogo
 
@@ -3494,14 +3496,15 @@ class ObjectivesScreen:
 
 # === Options Screen ===
 class OptionsScreen:
-    """i menu -> Options: sound effect / music on-off toggles and 1-10
-    volume levels. Changes apply immediately and are saved to settings.json
+    """i menu -> Options: sound effect / music on-off toggles, 1-10 volume
+    levels and screen size. Changes apply immediately and are saved to settings.json
     (see sfx.py). W/S pick a row, A/D change it, J toggles, Space/I/Esc close."""
     ROWS = [
         ('Sound Effects', 'sfx_on'),
         ('SFX Volume',    'sfx_level'),
         ('Music',         'music_on'),
         ('Music Volume',  'music_level'),
+        ('Screen Size',   'large_window'),
         ('Controls',      'controls'),
         ('Back',          None),
     ]
@@ -3522,6 +3525,9 @@ class OptionsScreen:
     def _change(self, key, delta):
         sfx = self.game.sfx
         s = sfx.settings
+        if key == 'large_window':
+            self.game.set_large_window(not s[key])
+            return
         if isinstance(s[key], bool):
             s[key] = not s[key]
         else:
@@ -3565,7 +3571,7 @@ class OptionsScreen:
         dim.fill((0, 0, 0, 140))
         screen.blit(dim, (0, 0))
 
-        panel = pygame.Rect(0, 0, 420, 376)
+        panel = pygame.Rect(0, 0, 420, 422)
         panel.center = (W // 2, H // 2)
         pygame.draw.rect(screen, self.PANEL, panel)
         pygame.draw.rect(screen, self.INK, panel, 3)
@@ -3588,7 +3594,10 @@ class OptionsScreen:
                 continue
             right = panel.right - 22
             val = s[key]
-            if isinstance(val, bool):
+            if key == 'large_window':
+                txt = self.font_row.render("LARGE" if val else "NORMAL", True, self.INK)
+                screen.blit(txt, (right - txt.get_width(), y))
+            elif isinstance(val, bool):
                 txt = self.font_row.render("ON" if val else "OFF", True,
                                            self.ON_COL if val else self.OFF_COL)
                 screen.blit(txt, (right - txt.get_width(), y))
@@ -3627,6 +3636,7 @@ class ControlsScreen:
             ("J",           "Talk / interact / pick up / surf"),
             ("I",           "Open the menu"),
             ("+ / -",       "Zoom in / out"),
+            ("F11",         "Switch screen size (normal / large)"),
         ]),
         ("Menus & Dialogue", [
             ("W A S D",     "Move the cursor"),
@@ -4900,6 +4910,310 @@ class DinodexScreen:
                 stats_y = row_start_y + 23
 
 
+def map_area_for_zone(zone, tile_x):
+    """MAP_AREAS name for an encounter zone, or None if it isn't on the map."""
+    if zone == 'palm_water':
+        return 'Palm Port' if tile_x < PALM_PORT_EDGE_X else 'Route 4'
+    return next((name for name, zones in MAP_AREAS.items() if zone in zones), None)
+
+
+class RegionMapScreen:
+    """Menu > Map: a pixel overview of the overworld, one block per tile
+    coloured from the real tiles. WASD or the mouse moves the cursor (the map
+    scrolls near the edges); hovering a wild area lists every species that
+    spawns there — a silhouette until seen, the sprite once seen, plus a
+    DinoPod once caught."""
+    WORLD    = 'LOST_REGION.world'
+    PX       = 4       # screen pixels per world tile
+    HEADER_H = 30
+    EDGE     = 70      # cursor this close to a view edge scrolls the map
+    SPEED    = 260     # cursor speed, pixels/sec
+    SLOT     = 42
+    VOID     = (14, 22, 40)
+
+    def __init__(self, game):
+        self.game       = game
+        self.title_font = pygame.font.SysFont('Arial', 20, bold=True)
+        self.name_font  = pygame.font.SysFont('Arial', 18, bold=True)
+        self.small_font = pygame.font.SysFont('Arial', 14)
+        self.micro_font = pygame.font.SysFont('Arial', 11, bold=True)
+        self.base = None           # scaled pixel map, built on first open
+        self.overlays = {}         # area -> highlight surface (same size as base)
+        self.origin = (0, 0)       # world tile at base pixel (0, 0)
+        self.cursor = [0.0, 0.0]   # base-map pixels
+        self.cam = [0.0, 0.0]
+        self.time = 0.0
+        self._sprites = {}         # (name, seen) -> slot-sized sprite / silhouette
+        try:
+            raw = pygame.image.load(os.path.join('assets', 'Items', 'dinopod.png')).convert_alpha()
+            self.pod_icon = pygame.transform.scale(raw, (14, 14))
+        except Exception:
+            self.pod_icon = None
+        self.areas = {name: self._area_info(zones) for name, zones in MAP_AREAS.items()}
+
+    @staticmethod
+    def _area_info(zones):
+        """Species (in first-seen order) with the times they appear, and the
+        overall level range, across every zone in an area."""
+        species, lo, hi = {}, 99, 0
+        for zone in zones:
+            zd = ENCOUNTER_ZONES.get(zone)
+            if not zd:
+                continue
+            lo, hi = min(lo, zd['level_range'][0]), max(hi, zd['level_range'][1])
+            for entry in zd['dinos']:
+                name, time = (entry, None) if isinstance(entry, str) else (entry['name'], entry.get('time'))
+                species.setdefault(name, set()).add(time or 'any')
+        return {'species': species, 'levels': (lo, hi)}
+
+    # ── building the map ─────────────────────────────────────────────────
+
+    def _world_maps(self):
+        """(tmx, tile_x, tile_y) for every overworld map — reuses the loaded
+        overworld when the player is in it, otherwise loads it from disk."""
+        import pytmx
+        ts = config.TILE_SIZE
+        game = self.game
+        if game.current_world_file == self.WORLD and len(game.world_maps) > 1:
+            return [(m['tmx'], m['x'] // ts, m['y'] // ts) for m in game.world_maps]
+        path = os.path.join('assets', 'WORLD', self.WORLD)
+        with open(path) as f:
+            world_json = json.load(f)
+        world_dir = os.path.dirname(os.path.abspath(path))
+        maps = []
+        for m in world_json['maps']:
+            try:
+                tmx = pytmx.load_pygame(os.path.normpath(os.path.join(world_dir, m['fileName'])), pixelalpha=True)
+            except Exception:
+                continue
+            maps.append((tmx, m['x'] // ts, m['y'] // ts))
+        return maps
+
+    @staticmethod
+    def _tile_color(img):
+        """Average colour of a tile's visible pixels, or None if it's mostly
+        transparent (so it doesn't paint over the layer below)."""
+        w, h = img.get_size()
+        if not img.get_flags() & pygame.SRCALPHA:
+            return pygame.transform.average_color(img)[:3]
+        mask = pygame.mask.from_surface(img)
+        n = mask.count()
+        if n < w * h * 0.45:
+            return None
+        # zero out the transparent pixels, average, then rescale to the
+        # visible ones (average_color's consider_alpha needs pygame 2.1.4+)
+        solid = img.copy()
+        solid.blit(mask.to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0)),
+                   (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        r, g, b = pygame.transform.average_color(solid)[:3]
+        k = w * h / n
+        return min(255, int(r * k)), min(255, int(g * k)), min(255, int(b * k))
+
+    def _build(self):
+        import pytmx
+        maps = self._world_maps()
+        x0 = min(tx for _, tx, _ in maps)
+        y0 = min(ty for _, _, ty in maps)
+        x1 = max(tx + tmx.width for tmx, tx, _ in maps)
+        y1 = max(ty + tmx.height for tmx, _, ty in maps)
+        small = pygame.Surface((x1 - x0, y1 - y0))
+        small.fill(self.VOID)
+        colors = {}
+        area_tiles = {}
+        for tmx, wtx, wty in maps:
+            for layer in tmx.visible_layers:
+                if not isinstance(layer, pytmx.TiledTileLayer):
+                    continue
+                for x, y, gid in layer:
+                    if not gid:
+                        continue
+                    img = tmx.images[gid]
+                    if img is not None:
+                        key = id(img)
+                        if key not in colors:
+                            colors[key] = self._tile_color(img)
+                        if colors[key]:
+                            small.set_at((wtx + x - x0, wty + y - y0), colors[key])
+                    if (tmx.get_tile_properties_by_gid(gid) or {}).get('encounter'):
+                        tx, ty = wtx + x, wty + y
+                        area = map_area_for_zone(get_zone_for_tile(tx, ty), tx)
+                        if area:
+                            area_tiles.setdefault(area, set()).add((tx - x0, ty - y0))
+        size = (small.get_width() * self.PX, small.get_height() * self.PX)
+        self.base = pygame.transform.scale(small, size)
+        self.overlays = {}
+        faint = pygame.Surface(small.get_size(), pygame.SRCALPHA)
+        for area, tiles in area_tiles.items():
+            ov = pygame.Surface(small.get_size(), pygame.SRCALPHA)
+            for t in tiles:
+                ov.set_at(t, (255, 230, 90, 255))
+                faint.set_at(t, (255, 255, 255, 45))
+            self.overlays[area] = pygame.transform.scale(ov, size)
+        self.faint = pygame.transform.scale(faint, size)
+        self.origin = (x0, y0)
+
+    # ── state ────────────────────────────────────────────────────────────
+
+    def open(self):
+        if self.base is None:
+            self._build()
+        game = self.game
+        if game.current_world_file == self.WORLD:   # start on the player
+            ts = config.TILE_SIZE
+            self.cursor = [(game.player.rect.centerx / ts - self.origin[0]) * self.PX,
+                           (game.player.rect.centery / ts - self.origin[1]) * self.PX]
+        vw, vh = self._view_size()
+        self.cam = [self.cursor[0] - vw / 2, self.cursor[1] - vh / 2]
+        self._clamp()
+
+    def _view_size(self):
+        return config.WIDTH, config.HEIGHT - self.HEADER_H
+
+    def _clamp(self):
+        bw, bh = self.base.get_size()
+        self.cursor[0] = max(0, min(bw - 1, self.cursor[0]))
+        self.cursor[1] = max(0, min(bh - 1, self.cursor[1]))
+        vw, vh = self._view_size()
+        for i, (view, full) in enumerate(((vw, bw), (vh, bh))):
+            sx = self.cursor[i] - self.cam[i]           # edge scrolling
+            if sx < self.EDGE:
+                self.cam[i] = self.cursor[i] - self.EDGE
+            elif sx > view - self.EDGE:
+                self.cam[i] = self.cursor[i] - view + self.EDGE
+            self.cam[i] = (full - view) / 2 if full <= view else max(0, min(full - view, self.cam[i]))
+
+    def update(self, dt):
+        self.time += dt
+        keys = pygame.key.get_pressed()
+        dx = (keys[pygame.K_d] or keys[pygame.K_RIGHT]) - (keys[pygame.K_a] or keys[pygame.K_LEFT])
+        dy = (keys[pygame.K_s] or keys[pygame.K_DOWN]) - (keys[pygame.K_w] or keys[pygame.K_UP])
+        if dx or dy:
+            self.cursor[0] += dx * self.SPEED * dt
+            self.cursor[1] += dy * self.SPEED * dt
+            self._clamp()
+
+    def handle_event(self, event, game):
+        if event.type == pygame.MOUSEMOTION and self.base is not None:
+            mx, my = (v // game.window_scale for v in event.pos)   # window -> game pixels
+            if my >= self.HEADER_H:
+                self.cursor = [self.cam[0] + mx, self.cam[1] + my - self.HEADER_H]
+                self._clamp()
+        elif event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_ESCAPE):
+            return 'back'
+        return None
+
+    def _hovered_area(self):
+        tx = int(self.cursor[0] // self.PX) + self.origin[0]
+        ty = int(self.cursor[1] // self.PX) + self.origin[1]
+        return map_area_for_zone(get_zone_for_tile(tx, ty), tx)
+
+    # ── drawing ──────────────────────────────────────────────────────────
+
+    def _sprite(self, name, seen):
+        key = (name, seen)
+        spr = self._sprites.get(key)
+        if spr is None:
+            img = self.game.player_dino_front_images.get(name)
+            spr = pygame.Surface((self.SLOT - 4, self.SLOT - 4), pygame.SRCALPHA)
+            if img is not None:
+                spr = pygame.transform.smoothscale(img, spr.get_size())
+                if not seen:   # flat dark silhouette, alpha kept
+                    spr = spr.copy()
+                    spr.fill((30, 34, 52, 255), special_flags=pygame.BLEND_RGBA_MIN)
+            self._sprites[key] = spr
+        return spr
+
+    def draw(self, screen):
+        W, H = config.WIDTH, config.HEIGHT
+        screen.fill(self.VOID)
+        if self.base is None:
+            return
+        cx, cy = int(self.cam[0]), int(self.cam[1])
+        vw, vh = self._view_size()
+        view = pygame.Rect(cx, cy, vw, vh)
+        screen.blit(self.base, (0, self.HEADER_H), view)
+
+        # every wild area faintly outlined; the hovered one pulses
+        hovered = self._hovered_area()
+        screen.blit(self.faint, (0, self.HEADER_H), view)
+        if hovered in self.overlays:
+            ov = self.overlays[hovered]
+            ov.set_alpha(int(170 + 85 * (0.5 + 0.5 * math.sin(self.time * 5))))
+            screen.blit(ov, (0, self.HEADER_H), view)
+
+        # player marker (only known while in the overworld)
+        g = self.game
+        if g.current_world_file == self.WORLD and int(self.time * 3) % 2 == 0:
+            ts = config.TILE_SIZE
+            px = (g.player.rect.centerx / ts - self.origin[0]) * self.PX - cx
+            py = (g.player.rect.centery / ts - self.origin[1]) * self.PX - cy + self.HEADER_H
+            pygame.draw.circle(screen, (255, 255, 255), (int(px), int(py)), 6)
+            pygame.draw.circle(screen, (230, 50, 60), (int(px), int(py)), 4)
+
+        # cursor
+        sx, sy = int(self.cursor[0] - cx), int(self.cursor[1] - cy + self.HEADER_H)
+        for col, w in (((0, 0, 0), 4), ((255, 255, 255), 2)):
+            pygame.draw.line(screen, col, (sx - 9, sy), (sx - 3, sy), w)
+            pygame.draw.line(screen, col, (sx + 3, sy), (sx + 9, sy), w)
+            pygame.draw.line(screen, col, (sx, sy - 9), (sx, sy - 3), w)
+            pygame.draw.line(screen, col, (sx, sy + 3), (sx, sy + 9), w)
+
+        # header
+        pygame.draw.rect(screen, (30, 30, 50), (0, 0, W, self.HEADER_H))
+        pygame.draw.line(screen, (80, 80, 120), (0, self.HEADER_H), (W, self.HEADER_H), 2)
+        screen.blit(self.title_font.render("REGION MAP", True, (120, 220, 255)), (10, 4))
+        hint = self.small_font.render("WASD / mouse move    SPACE back", True, (120, 120, 140))
+        screen.blit(hint, (W - hint.get_width() - 10, self.HEADER_H // 2 - hint.get_height() // 2))
+
+        if hovered:
+            self._draw_panel(screen, hovered, top=sy > H / 2)
+
+    def _draw_panel(self, screen, area, top):
+        W, H = config.WIDTH, config.HEIGHT
+        info = self.areas[area]
+        species = info['species']
+        g = self.game
+        caught = ({d['name'] for d in g.player_dinos + g.box_dinos} | set(g.nz_owned_species))
+        seen_n   = sum(1 for n in species if g.sandbox or n in g.dinos_seen)
+        caught_n = sum(1 for n in species if n in caught)
+
+        pad, gap = 10, 4
+        per_row = (W - 2 * pad + gap) // (self.SLOT + gap)
+        rows = max(1, -(-len(species) // per_row))
+        ph = 36 + rows * (self.SLOT + gap) + 6
+        panel = pygame.Rect(6, self.HEADER_H + 6 if top else H - ph - 6, W - 12, ph)
+        bg = pygame.Surface(panel.size, pygame.SRCALPHA)
+        bg.fill((18, 18, 30, 225))
+        screen.blit(bg, panel.topleft)
+        pygame.draw.rect(screen, (90, 90, 140), panel, 2, border_radius=6)
+
+        name = self.name_font.render(area, True, (255, 255, 255))
+        screen.blit(name, (panel.x + pad, panel.y + 7))
+        x = panel.x + pad + name.get_width() + 14
+        lo, hi = info['levels']
+        for text, col in ((f"Caught {caught_n}/{len(species)}", (255, 215, 90)),
+                          (f"Seen {seen_n}/{len(species)}", (170, 200, 240)),
+                          (f"Lv {lo}-{hi}" if lo != hi else f"Lv {lo}", (160, 160, 180))):
+            s = self.small_font.render(text, True, col)
+            screen.blit(s, (x, panel.y + 10))
+            x += s.get_width() + 14
+
+        for i, (dino, times) in enumerate(species.items()):
+            r, c = divmod(i, per_row)
+            box = pygame.Rect(panel.x + pad + c * (self.SLOT + gap),
+                              panel.y + 34 + r * (self.SLOT + gap), self.SLOT, self.SLOT)
+            is_caught = dino in caught
+            pygame.draw.rect(screen, (48, 44, 30) if is_caught else (32, 32, 50), box, border_radius=5)
+            pygame.draw.rect(screen, (200, 170, 70) if is_caught else (70, 70, 100), box, 1, border_radius=5)
+            screen.blit(self._sprite(dino, g.sandbox or dino in g.dinos_seen), (box.x + 2, box.y + 2))
+            if is_caught and self.pod_icon:
+                screen.blit(self.pod_icon, (box.right - 15, box.bottom - 15))
+            if 'any' not in times and len(times) == 1:   # only out by day / by night
+                tag = self.micro_font.render('N' if 'night' in times else 'D', True,
+                                             (170, 170, 255) if 'night' in times else (255, 220, 120))
+                screen.blit(tag, (box.x + 3, box.y + 1))
+
+
 class QuestDebugScreen:
     """Sandbox-only quest-jump debug menu (Ctrl+Q)."""
 
@@ -5007,6 +5321,7 @@ class Menu:
 
     @property
     def options(self):
+        # "Map" (RegionMapScreen) is hidden for now; add it back after "Dinodex" to re-enable
         opts = ["Dinodex", "Party", "Items", "Trainer Card", "Objectives"]
         if self.game.game_mode != 'standard':
             opts.append("Rules")   # Randomizer / Nuzlocke runs explain their rules
@@ -5045,6 +5360,9 @@ class Menu:
                 self.game.dinodex_screen.selected = 0
                 self.game.dinodex_screen.scroll   = 0
                 self.game.push_state('dinodex')
+            elif selected == "Map":
+                self.game.region_map_screen.open()
+                self.game.push_state('region_map')
             elif selected == "Party":
                 self.game.push_state('party')
             elif selected == "Items":

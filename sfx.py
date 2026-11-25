@@ -26,6 +26,7 @@ DEFAULT_SETTINGS = {
     'sfx_level': 7,     # a bit under full by default
     'music_on': True,
     'music_level': 10,
+    'large_window': False,   # display, not audio, but saved alongside (F11 / Options)
 }
 
 # Per-effect volume tweaks on top of the SFX level

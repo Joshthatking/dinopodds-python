@@ -10,6 +10,7 @@ from ANIM.surf import Surf  # SURF (testing)
 from ANIM.environment_fx import EnvironmentFX  # ENV FX
 from ANIM.aether_bg import AetherBackground
 from ANIM.lake_aurora import LakeAurora  # LAKE AURORA
+from ANIM.saydie_quest import SaydieQuest  # SAYDIE
 from ANIM.space_bg import LunarBackground, SolarBackground
 from ANIM.celestial_portals import CelestialPortals  # PORTALS
 from ANIM.legend_awaken import DeimoAwaken, VYAwaken
@@ -24,7 +25,6 @@ from ANIM.credits import CreditsSequence
 from sfx import SFX
 from randomizer import Randomizer, area_for_zone
 import os
-import sys
 import config
 from screens import *
 from data import *
@@ -117,11 +117,13 @@ class Game:
             pygame.display.set_icon(pygame.transform.smoothscale(icon, (64, 64)))
         except (pygame.error, FileNotFoundError):
             pass
-        # On macOS the native window surface can come with an alpha channel,
-        # which left tiles drawn as black squares after fades/cutscenes.
-        # SCALED draws into pygame's own surface and presents it as a texture.
-        flags = pygame.SCALED if sys.platform == 'darwin' else 0
-        self.screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT), flags)
+        # The game always draws into self.screen at WIDTH x HEIGHT; _present()
+        # copies it to the window at 1x or 2x (Options > Screen Size / F11).
+        # A plain 32-bit surface rather than the native window surface, which
+        # on macOS could carry an alpha channel and leave tiles as black
+        # squares after fades/cutscenes.
+        self.screen = pygame.Surface((config.WIDTH, config.HEIGHT), 0, 32)
+        self._apply_window_size()
         pygame.display.set_caption('DinoPodds')
         self.clock = pygame.time.Clock()
         self.running = True
@@ -154,6 +156,7 @@ class Game:
         self.env_fx = EnvironmentFX(self)  # ENV FX
         self.aether_bg = AetherBackground()  # void backdrop for AETHER_WORLDS
         self.lake_aurora = LakeAurora(self)  # LAKE AURORA
+        self.saydie = SaydieQuest(self)  # SAYDIE
         self._space_bgs = {}   # SPACE_WORLDS file -> backdrop, built on first visit
         self.portals = CelestialPortals(self)  # PORTALS — post-credits lunar/solar portals
         self._area_music = None        # AREA_MUSIC track playing right now (None = silent)
@@ -170,7 +173,7 @@ class Game:
 
         # Dino frames & images
         self.dino_frames = {}
-        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus", "Lavaleo", "Pectura", "Ghoslink", "Browler", "Scarlust"):
+        for base in ("Vusion", "Anemamace", "Corlave", "Creuw", "Luna", "Prowscar", "Floravel", "Bullicorn", "Netaslam", "Netyrant", "Sortle", "Sharktastrophe", "Magnecrab", "Volkit", "Drafyton", "Auraliz", "Voltzbee", "Teamtwood", "Tygraflare", "Bouldava", "Ghoulflame", "Scarecrux", "Palidian", "Rockull", "Prickly", "Cyflactus", "Gourdecrux", "Rhysnow", "Seasoo", "Chomper", "Cobaltion", "Roxer", "Skolt", "Frostle", "Typhoonray", "Rhinecicle", "Celestreeyl", "Sharka", "Deimo", "VY", "Stormulus", "Lavaleo", "Pectura", "Ghoslink", "Browler", "Scarlust", "Relucturen", "Malmallow", "Mallowking", "Frynx", "Crystalynx", "Mayvoid"):
             img1 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base]).convert_alpha()
             img2 = pygame.image.load(config.ENCOUNTER_DINOS_PATHS[base + "2"]).convert_alpha()
             self.dino_frames[base] = [img1, img2]
@@ -217,6 +220,7 @@ class Game:
         self.party_screen.reset()
         self.move_info_screen = None
         self.dinodex_screen = DinodexScreen(self)
+        self.region_map_screen = RegionMapScreen(self)
         self.trainer_card_screen = TrainerCardScreen(self)
         self.objectives_screen = ObjectivesScreen(self)
         self.options_screen = OptionsScreen(self)
@@ -4197,6 +4201,9 @@ class Game:
 
     def _update_cutscene(self, dt):
         c = self.cutscene
+        if c['phase'] == 'saydie_proposal':  # SAYDIE
+            self.saydie.update(dt)
+            return
         if c['phase'] == 'celestreeyl_awaken':
             self._update_celestreeyl_awaken(dt)
             return
@@ -7274,6 +7281,26 @@ class Game:
 
         return world_maps, solid, encounter, tile_types, entrances, exits, ball_items
 
+    def _apply_window_size(self):
+        self.window_scale = 2 if self.sfx.settings['large_window'] else 1
+        self.window = pygame.display.set_mode((config.WIDTH * self.window_scale,
+                                               config.HEIGHT * self.window_scale))
+
+    def set_large_window(self, on):
+        """F11 / Options > Screen Size: Normal (640x480) or Large (2x).
+        Saved in settings.json for next launch."""
+        self.sfx.settings['large_window'] = on
+        self.sfx.save_settings()
+        self._apply_window_size()
+
+    def _present(self):
+        """Show the finished frame, scaled up to the window if it's Large."""
+        if self.window_scale == 1:
+            self.window.blit(self.screen, (0, 0))
+        else:
+            pygame.transform.scale(self.screen, self.window.get_size(), self.window)
+        pygame.display.flip()
+
     def _compute_world_bounds(self):
         ts = config.TILE_SIZE
         min_tx = min(m['x'] // ts for m in self.world_maps)
@@ -7296,6 +7323,10 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
                 return
+
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                self.set_large_window(not self.sfx.settings['large_window'])
+                continue
 
             if self.state == 'launch':
                 self.launch_intro.handle_event(event)
@@ -7410,6 +7441,10 @@ class Game:
             elif self.state == 'dinodex':
                 result = self.dinodex_screen.handle_event(event, self)
                 if result == 'back':
+                    self.pop_state()
+
+            elif self.state == 'region_map':
+                if self.region_map_screen.handle_event(event, self) == 'back':
                     self.pop_state()
 
             elif self.state == 'move_list':
@@ -8307,6 +8342,8 @@ class Game:
                 wait_for_input=True,
                 # turn back to watching the lake once she's done talking
                 on_complete=lambda n=npc: setattr(n, 'facing', n.home_facing))
+        elif npc.trainer_id == 'saydie':  # SAYDIE
+            self.saydie.interact(npc)
         elif npc.trainer_id == 'lilly':
             self._interact_lilly(npc)
         elif npc.trainer_id == 'riley':
@@ -9481,6 +9518,10 @@ class Game:
                 self.badge_earned_screen.update(dt)
             return
 
+        if self.state == 'region_map':
+            self.region_map_screen.update(dt)
+            return
+
         if self.state == 'intro':
             if self.intro_sequence:
                 self.intro_sequence.update(dt)
@@ -9503,6 +9544,7 @@ class Game:
         self.play_time_seconds += dt
         self._record_objective_times()
         self.update_day_night(dt)
+        self.saydie.track_cycle()  # SAYDIE — counts each day/night phase
         self.update_heal_anim(dt)
         self.update_hit_flash(dt)
         self.update_move_anim(dt)
@@ -9692,23 +9734,23 @@ class Game:
     def draw(self):
         if self.state == 'launch':
             self.launch_intro.draw(self.screen)
-            pygame.display.flip()
+            self._present()
             return
 
         if self.state == 'title':
             self.title_screen.draw(self.screen, self.has_any_save())
-            pygame.display.flip()
+            self._present()
             return
 
         if self.state == 'intro':
             if self.intro_sequence:
                 self.intro_sequence.draw(self.screen)
-            pygame.display.flip()
+            self._present()
             return
 
         if self.credits:
             self.credits.draw(self.screen)
-            pygame.display.flip()
+            self._present()
             return
 
         self.render_surface.fill(config.BLACK)
@@ -9726,6 +9768,7 @@ class Game:
                                       pygame.time.get_ticks() / 1000.0)
             self.draw_map_below(self.render_surface)
             self.env_fx.draw_ground(self.render_surface, self.camera_x, self.camera_y)  # ENV FX
+            self.saydie.draw_ground(self.render_surface, self.camera_x, self.camera_y)  # SAYDIE
             ts = config.TILE_SIZE
             for (tx, ty), img in self.map_ball_images.items():
                 if (tx, ty) in self.items_on_map:
@@ -9744,6 +9787,7 @@ class Game:
                                          (sprite.rect.x - self.camera_x, sprite.rect.y - self.camera_y + oy))
             self.env_fx.draw_over_player(self.render_surface, self.camera_x, self.camera_y)  # ENV FX
             self.draw_map_above(self.render_surface)
+            self.saydie.draw_fx(self.render_surface, self.camera_x, self.camera_y)  # SAYDIE
             if self.orb_fx:
                 self._draw_orb_fx(self.render_surface)
             if self.cutscene:
@@ -9958,6 +10002,9 @@ class Game:
         elif current_state == 'dinodex':
             self.dinodex_screen.draw(self.screen)
 
+        elif current_state == 'region_map':
+            self.region_map_screen.draw(self.screen)
+
         elif current_state == 'move_list':
             self.move_list_screen.draw(self.screen)
 
@@ -10004,7 +10051,7 @@ class Game:
         if self.sky_transition:
             self.sky_transition.draw(self.screen)
 
-        pygame.display.flip()
+        self._present()
 
     def draw_overlay(self):
         overlay = pygame.Surface((config.WIDTH, config.HEIGHT), pygame.SRCALPHA)
